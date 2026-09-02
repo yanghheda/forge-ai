@@ -7,6 +7,8 @@
 
 ForgeAI 面向个人、小团队和小公司，要求业务数据、模型密钥和 GitLab 凭据由部署方掌控。MVP 需要在普通 Linux 主机上可重复部署，同时控制单人维护成本。Kubernetes 会显著增加安装、运维和排障门槛。
 
+> 补充说明：ADR-014 仅规定本地开发、测试和面试演示环境使用 Docker Desktop，不改变本 ADR 对腾讯云/普通 Linux 最终自托管部署的结论。
+
 ## 决策
 
 MVP 以 Docker Compose 作为默认自托管拓扑，通过 Nginx 暴露统一 HTTPS 入口。`forge-web`、`forge-server`、`forge-agent`、MySQL、Redis 和 Qdrant 运行在私有网络中；数据库、缓存、向量库和 Agent 不暴露公网端口。
@@ -25,4 +27,3 @@ MVP 以 Docker Compose 作为默认自托管拓扑，通过 Nginx 暴露统一 H
 - Kubernetes 作为默认平台：暂不采用，因为超出 MVP 运维复杂度目标。
 - 依赖中心化 ForgeAI 云服务：拒绝，因为违背私有、自托管和数据控制原则。
 - 直接在宿主机安装所有运行时：不作为默认方案，因为可重复性和隔离性较差。
-

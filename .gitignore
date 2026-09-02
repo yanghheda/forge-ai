@@ -33,4 +33,5 @@ __pycache__/
 *.log
 tmp/
 dist/
+docs/learning/temp.md
 

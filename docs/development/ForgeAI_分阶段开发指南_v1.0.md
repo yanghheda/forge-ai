@@ -146,13 +146,13 @@ docs(adr): record session authentication decision
 
 ### 会话 03：MySQL、Redis、Qdrant 与 Flyway 测试基座
 
-**结果：** 本地基础设施可启动；Backend 用 Testcontainers 运行真实 MySQL/Redis 集成测试；Flyway 规则固定。
+**结果：** 本机 Docker Desktop 中的基础设施可启动；Backend 用 Testcontainers 运行真实 MySQL/Redis 集成测试；Flyway 规则固定。
 
 **先掌握：** 事实数据、可重建索引和可丢失缓存的区别；为什么 H2 不能充分替代 MySQL 迁移测试。
 
-**Codex 范围：** 开发 Compose、配置 profile、数据库连接、Flyway 空基线/实例设置表、Testcontainers base、readiness。不要批量创建全部领域表。
+**Codex 范围：** 开发本机 Docker Desktop Compose、配置 profile、数据库连接、Flyway 空基线/实例设置表、Testcontainers base、readiness；MySQL/Redis/Qdrant 默认不映射宿主机端口。不要批量创建全部领域表。
 
-**你要检查：** 数据端口是否只绑定 Docker 内网；真实 Secret 是否未提交；测试是否真的连接 MySQL 8 而不是 H2。
+**你要检查：** 数据端口是否只位于本机 Docker Compose 内网；真实 Secret 是否未提交；测试是否真的连接 MySQL 8 而不是 H2；命名 Volume 是否能在重启容器后保留数据。
 
 **验证：** 从空卷迁移成功、重复启动无变化、故意破坏 checksum 会失败；Redis/Qdrant 健康检测可区分 ready/degraded。
 
@@ -602,17 +602,17 @@ docs(adr): record session authentication decision
 
 **复盘问题：** 哪三处是系统最重要的 fail-closed 点？最可能的数据一致性故障是什么？哪个性能瓶颈最先出现、为何？
 
-### 会话 34：Compose 交付、备份恢复与面试叙事
+### 会话 34：本机 Compose、腾讯云上线与面试叙事
 
-**结果：** 新 Linux 环境可部署、初始化、备份、恢复、升级 Smoke；README 和架构讲解完整。
+**结果：** 本机 Docker Desktop 可完成开发/Demo 启动、备份、恢复与升级 Smoke；腾讯云 CVM 可完成最终上线部署、HTTPS 与运行验证；README 和架构讲解完整。
 
-**先掌握：** 可部署性是产品能力；备份不等于恢复；面试讲解应呈现取舍和证据而非堆技术名词。
+**先掌握：** 本地开发环境与生产上线环境应保持服务语义一致但隔离配置；备份不等于恢复；面试讲解应呈现取舍和证据而非堆技术名词。
 
-**Codex 范围：** 生产 Compose/Nginx、`.env.example`、安装/备份/恢复/升级脚本与文档、SBOM、最终 ADR/架构图、Demo runbook。不要代替你编造性能或安全结论。
+**Codex 范围：** 本机 Docker Desktop Compose、腾讯云生产 Compose/Nginx/TLS、环境专用 `.env.example`、安装/备份/恢复/升级脚本与文档、SBOM、最终 ADR/架构图、Demo runbook。不要代替你编造性能或安全结论。
 
-**你要检查：** 数据端口是否公网暴露；SSE buffering；主密钥备份说明；从完全空目录按 README 能否成功；所有宣称是否有测试/测量证据。
+**你要检查：** 本机数据端口是否无意映射；腾讯云数据端口是否未公网暴露；SSE buffering；主密钥备份说明；从完全空 Docker Desktop 和腾讯云 CVM 按 README/Runbook 能否成功；所有宣称是否有测试/测量证据。
 
-**验证：** 全新环境 dry run、实际备份恢复、镜像 SHA/Flyway 版本、Compose smoke、最终 CI、Demo runbook 计时。
+**验证：** 全新 Docker Desktop 本机环境 dry run、实际本地备份恢复、腾讯云上线 Smoke、镜像 SHA/Flyway 版本、Compose smoke、最终 CI、Demo runbook 计时。
 
 **最终出口：** 你能在 10 分钟内完成产品 Demo，在 15 分钟内画出架构与信任边界，并对状态机、RBAC、Outbox、SSE、Tool/Approval、RAG 过滤各回答一个深挖问题。
 

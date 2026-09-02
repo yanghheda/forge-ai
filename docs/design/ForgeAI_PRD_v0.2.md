@@ -13,7 +13,7 @@
 | 仓库名 | `forge-ai` |
 | GitHub | `forge-ai/forge` |
 | 核心模块 | `forge-web`、`forge-server`、`forge-agent` |
-| 配套技术基线 | 《ForgeAI 完整技术方案 v1.2》 |
+| 配套技术基线 | 《ForgeAI 完整技术方案 v1.3》 |
 
 本 PRD 是 ForgeAI 后续产品设计、技术设计、开发计划和验收测试的基线。产品范围刻意收窄，以保证单人可以完成并上线，同时确保多人团队可以围绕真实交付流程协作。
 
@@ -89,14 +89,14 @@ MVP 可以弱化 Organization 的管理能力，但数据模型保留该层级�
 
 | 部署项 | 原则 | MVP 要求 |
 |---|---|---|
-| 业务数据 | 实例私有 | MySQL 8，可同机容器或外部数据库 |
-| 会话/缓存 | 实例私有 | Redis，承载 Spring Session 与必要缓存 |
-| 向量检索 | 实例私有 | Qdrant，作为可重建的文档向量索引 |
+| 业务数据 | 实例私有 | 本地开发使用 Docker Desktop 中的 MySQL 8；上线部署在腾讯云私有网络中 |
+| 会话/缓存 | 实例私有 | 本地开发使用 Docker Desktop 中的 Redis；上线部署在腾讯云私有网络中 |
+| 向量检索 | 实例私有 | 本地开发使用 Docker Desktop 中的 Qdrant；上线部署在腾讯云私有网络中 |
 | 大模型 | 部署方配置 | Provider、Endpoint、Model、API Key 可配置 |
 | GitLab | 部署方接入 | 支持 GitLab.com 和私有 GitLab API |
 | CI/CD | 部署方接入 | GitLab CI 为主，平台触发、读取和解释状态 |
-| 服务器 | 部署方部署 | 腾讯云 CVM 或普通 Linux 服务器 |
-| HTTPS | 部署方配置 | Nginx + TLS |
+| 开发环境 | 开发者本机 | Docker Desktop + Docker Compose；数据库、缓存和向量库均在本机容器运行 |
+| 最终上线环境 | 腾讯云 CVM | Docker Compose + Nginx/TLS；数据服务不暴露公网端口 |
 
 ForgeAI 官方源码仓库为 `forge-ai/forge`；源码托管平台与 ForgeAI 对接用户 GitLab 的产品能力互相独立。
 
@@ -111,7 +111,7 @@ ForgeAI 官方源码仓库为 `forge-ai/forge`；源码托管平台与 ForgeAI �
 3. Agent 能读取当前权限范围内的上下文，并通过受控 Tool 执行核心业务操作。
 4. GitLab 是代码、Branch、MR 和 Pipeline 的执行系统；ForgeAI 不重做 IDE。
 5. 敏感和高风险操作具备权限校验、人工审批、幂等保护和审计。
-6. 系统可由单人维护并通过 Docker Compose 部署到一台 Linux/腾讯云服务器。
+6. 系统可由单人维护：本地通过 Docker Desktop + Docker Compose 一键启动，最终可部署到腾讯云 CVM。
 7. 从 Requirement 可查看完整 Delivery Graph。
 
 ### 4.2 明确非目标
@@ -469,14 +469,14 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 
 | 组件 | 部署方式 | 说明 |
 |---|---|---|
-| Nginx | Container/Host | HTTPS、反向代理、SSE |
-| forge-web | Docker | Next.js |
-| forge-server | Docker | Spring Boot |
-| forge-agent | Docker | FastAPI + Agent Runtime |
-| MySQL | Docker/外部服务 | 业务事实，必须持久化和备份 |
-| Redis | Docker | Session 与短期状态 |
-| Qdrant | Docker | 向量索引，可重建 |
-| Worker（可选） | Docker | 文档索引、Webhook、异步任务 |
+| Nginx | 本地可选 / 腾讯云必需 | 本地可简化；上线提供 HTTPS、反向代理、SSE |
+| forge-web | Docker Desktop / 腾讯云 Docker | Next.js |
+| forge-server | Docker Desktop / 腾讯云 Docker | Spring Boot |
+| forge-agent | Docker Desktop / 腾讯云 Docker | FastAPI + Agent Runtime |
+| MySQL | 本机 Docker Desktop / 腾讯云 Docker | 业务事实，必须持久化和备份 |
+| Redis | 本机 Docker Desktop / 腾讯云 Docker | Session 与短期状态 |
+| Qdrant | 本机 Docker Desktop / 腾讯云 Docker | 向量索引，可重建 |
+| Worker（可选） | 本机 Docker Desktop / 腾讯云 Docker | 文档索引、Webhook、异步任务 |
 
 ---
 
@@ -566,7 +566,7 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 
 MVP 以一条真实交付闭环能否运行定义完成：
 
-1. ForgeAI 可在 Linux/腾讯云服务器通过浏览器访问。
+1. ForgeAI 可在安装 Docker Desktop 的本机通过浏览器访问，并可按文档部署到腾讯云 CVM。
 2. Admin 可初始化实例、配置模型、连接 GitLab、创建 Workspace/Project。
 3. Product 可创建 Requirement 和 PRD。
 4. UX 可从 PRD 创建 UX Task，完成 UX Spec、原型关联和评审。
@@ -638,7 +638,7 @@ MVP 以一条真实交付闭环能否运行定义完成：
 7. Workflow 先采用自定义固定状态机，不引入 Spring State Machine。
 8. 文档使用版本模型，发布版本异步分块并索引到 Qdrant。
 9. Agent Runtime 使用 LangGraph/Deep Agents，但通过 ForgeAI Adapter 隔离。
-10. MySQL/Redis/Qdrant 在 MVP 可同机容器部署，生产可替换外部服务。
+10. 本地开发时 MySQL/Redis/Qdrant 必须运行于本机 Docker Desktop Compose 网络；最终上线时运行于腾讯云 CVM 的私有 Docker 网络，生产可按策略替换外部服务。
 
 ---
 
@@ -691,4 +691,4 @@ forge-ai/
 
 ---
 
-本 PRD 与《ForgeAI 完整技术方案 v1.2》共同构成 ForgeAI MVP 的产品和技术基线。任何影响 Product → UX → Development → QA → Release 主流程、品牌命名、MVP 边界或安全策略的变更，都需要同步更新 PRD、技术方案、README、API/Tool Contract 与验收测试。
+本 PRD 与《ForgeAI 完整技术方案 v1.3》共同构成 ForgeAI MVP 的产品和技术基线。任何影响 Product → UX → Development → QA → Release 主流程、品牌命名、MVP 边界或安全策略的变更，都需要同步更新 PRD、技术方案、README、API/Tool Contract 与验收测试。

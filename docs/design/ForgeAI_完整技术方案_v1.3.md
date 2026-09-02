@@ -1,4 +1,4 @@
-# ForgeAI 完整技术方案 v1.2
+# ForgeAI 完整技术方案 v1.3
 
 > **AI-Native Software Delivery Workbench**  
 > 面向个人、小团队与小公司的开源、自托管、AI 原生软件交付工作台  
@@ -7,8 +7,8 @@
 | 属性 | 内容 |
 |---|---|
 | 文档状态 | 可进入详细设计与工程实施 |
-| 版本 | v1.2 |
-| 日期 | 2026-08-26 |
+| 版本 | v1.3 |
+| 日期 | 2026-09-02 |
 | 输入基线 | 《AI 研发交付工作台 PRD v0.2》《技术方案设计总览 v1.0》及前序设计上下文 |
 | 目标读者 | 产品、UX、前后端、Agent、测试、运维与后续 Codex 开发任务 |
 | 产品名 | ForgeAI |
@@ -36,7 +36,7 @@
 
 > Agent 永远不直接访问业务数据库，不持有 GitLab 或生产环境密钥，只能通过声明权限与风险等级的 Tool 调用 Spring Boot API；Spring Boot 在执行点重新鉴权。
 
-MVP 采用模块化单体、REST + SSE、GitLab API 优先和 Docker Compose 自托管，控制单人开发与维护成本。
+MVP 采用模块化单体、REST + SSE、GitLab API 优先和 Docker Compose：本地开发使用 Docker Desktop，最终上线使用腾讯云 CVM 自托管，控制单人开发与维护成本。
 
 ---
 
@@ -48,7 +48,7 @@ MVP 采用模块化单体、REST + SSE、GitLab API 优先和 Docker Compose 自
 2. 从任一需求回溯全部研发资产，形成 Delivery Graph。
 3. Agent 基于受控上下文执行实际业务动作，并做到可审批、可审计、可恢复。
 4. 同一套模型同时服务个人和团队；个人等价于单成员 Workspace。
-5. 在普通 Linux/腾讯云 CVM 上通过 Docker Compose 可重复部署。
+5. 本地可在 Docker Desktop 通过 Docker Compose 重复启动；最终可在腾讯云 CVM 通过同一套服务拓扑部署。
 6. 保持开源、自托管、模型与 GitLab 可替换，避免云厂商锁定。
 
 ### 2.2 MVP 范围
@@ -66,7 +66,7 @@ MVP 采用模块化单体、REST + SSE、GitLab API 优先和 Docker Compose 自
 | Agent 响应 | 首个 SSE 业务事件目标 < 2s；长任务持续输出心跳 |
 | 安全 | 租户隔离、最小权限、敏感字段加密、HIGH Tool 强制审批 |
 | 可恢复 | Agent/Tool 有持久状态；SSE 断线可恢复；写操作幂等 |
-| 可部署 | 单机 Docker Compose；配置外置；数据卷可备份 |
+| 可部署 | 本机 Docker Desktop Compose 开发；腾讯云 CVM Compose 上线；配置外置、数据卷可备份 |
 | 可观测 | 请求日志、指标、审计、Agent Run/Step/Tool Trace |
 
 ---
@@ -88,7 +88,7 @@ MVP 采用模块化单体、REST + SSE、GitLab API 优先和 Docker Compose 自
 | 向量库 | Qdrant | 与 MySQL 解耦，支持过滤和自托管 |
 | 实时事件 | SSE | Agent 主要为服务器单向事件流，无需 WebSocket 复杂度 |
 | SCM/CI | GitLab Adapter + GitLab CI | 复用既有系统，不重造 Git/CI |
-| 部署 | Nginx + Docker Compose | 一台服务器可运行、易演示和交付 |
+| 部署 | Docker Desktop（本地）+ Nginx/Docker Compose（腾讯云） | 开发环境易复现，最终上线可控 |
 
 ### 3.1 产品与代码命名基线
 
@@ -124,6 +124,8 @@ flowchart LR
     B --> G[GitLab / GitLab CI]
     G -->|Webhook| B
 ```
+
+该图展示腾讯云最终上线拓扑。本地开发时同一组服务运行在 Docker Desktop Compose 网络中，Browser 通过 `http://localhost:<port>` 访问本机入口；MySQL、Redis 与 Qdrant 同样在本机容器中运行，不依赖 VM。
 
 ### 4.1 调用规则
 
@@ -1097,9 +1099,28 @@ features/work-items/
 
 ---
 
-## 21. 部署方案
+## 21. 部署方案：本地 Docker Desktop 开发 + 腾讯云上线
 
-### 21.1 Docker Compose 拓扑
+### 21.1 本地开发 Docker Desktop Compose
+
+本地开发、测试、黄金 Demo 与每轮 Codex 会话使用 Docker Desktop。MySQL、Redis、Qdrant、Agent、Worker 和应用服务位于同一个本机 Compose Network；MySQL/Qdrant 使用命名 Volume 持久化，Redis 默认可不持久化。
+
+```text
+本机浏览器
+   │ http://localhost:<port>
+本机入口代理（可选）或 forge-web
+   ├── forge-web
+   ├── forge-server
+   ├── forge-agent
+   ├── worker(optional)
+   ├── mysql      -> 命名 Volume
+   ├── redis
+   └── qdrant     -> 命名 Volume
+```
+
+默认只映射浏览器需要的本机入口端口；MySQL、Redis、Qdrant、Agent 和 Worker 不发布宿主机端口。调试所需端口仅在本地 override Compose 文件中临时映射，禁止提交到默认生产 Compose。`docker compose down -v` 会删除本地开发数据，只能在明确重置环境时执行。
+
+### 21.2 腾讯云 Docker Compose 上线拓扑
 
 ```text
 Internet
@@ -1121,33 +1142,35 @@ Private Docker Network
 
 MySQL、Redis、Qdrant 与 Agent 不暴露公网端口。Nginx 对 SSE 关闭代理缓冲并增加合理读超时。
 
-### 21.2 配置分类
+### 21.3 配置分类
 
-- 通用：域名、时区、日志级别、上传限制。
+- 本地：Docker Desktop 入口端口、时区、日志级别、上传限制。
+- 腾讯云：域名、TLS、Nginx、时区、日志级别、上传限制。
 - Backend：数据库、Redis、Session、加密主密钥、Agent 内网地址。
 - Agent：Backend 内部地址、服务凭据、LLM/Embedding Provider、Qdrant。
 - 集成：GitLab Base URL/Token 由管理员在工作台配置并加密保存。
 
 仓库只提供 `.env.example`，不得提交真实密钥。
 
-### 21.3 腾讯云建议
+### 21.4 腾讯云建议
 
 MVP 可使用一台 4C8G 起步 CVM；视模型调用与文档量调整。系统盘与数据盘分离，数据卷放在数据盘；安全组仅开放 22（限制来源）、80/443。域名与 TLS 由 Nginx/ACME 或腾讯云证书管理。若使用外部 LLM，确认网络、延迟和数据合规要求。
 
-### 21.4 备份与恢复
+### 21.5 备份与恢复
 
-- MySQL：每日全量 + binlog（生产建议），定期恢复演练。
-- 附件：数据卷快照或 S3 兼容对象存储版本化。
-- Qdrant：快照；同时保证可从文档版本重建。
+- 本地：备份 MySQL/Qdrant 命名 Volume、附件和加密主密钥；重要演示前执行一次恢复演练。
+- 腾讯云 MySQL：每日全量 + binlog（生产建议），定期恢复演练。
+- 腾讯云附件：数据卷快照或 S3 兼容对象存储版本化。
+- 腾讯云 Qdrant：快照；同时保证可从文档版本重建。
 - Redis Session 可不做灾备事实源；重启后允许用户重新登录。
 - 加密主密钥单独安全备份，缺失时密文不可恢复。
 
-### 21.5 升级
+### 21.6 升级
 
 1. 锁定镜像版本和 commit SHA。
 2. 升级前备份 MySQL、附件和密钥。
 3. 先执行兼容性检查和 Flyway Migration。
-4. 更新服务并运行 Smoke Test。
+4. 本地先使用 Docker Desktop 更新服务并运行 Smoke Test，再在腾讯云按同一镜像版本更新。
 5. 失败时回滚镜像；数据库 Migration 必须设计向后兼容或提供明确恢复流程。
 
 ---
@@ -1200,8 +1223,8 @@ ForgeAI 仓库至少包含：
 
 ### Phase 0：工程骨架（1–2 周）
 
-- Monorepo、三应用骨架、Compose、Nginx。
-- MySQL/Redis/Qdrant、Flyway、统一日志与 CI。
+- Monorepo、三应用骨架、本机 Docker Desktop Compose 与本地入口代理。
+- 本机 Docker Desktop 中的 MySQL/Redis/Qdrant、Flyway、统一日志与 CI。
 - springdoc-openapi、Swagger UI、OpenAPI 生成链路和基础健康检查。
 - Java 字段、record 组件和 enum 常量中文普通块注释质量规则及正反例测试。
 
@@ -1248,7 +1271,8 @@ ForgeAI 仓库至少包含：
 ### Phase 6：交付打磨（1–2 周）
 
 - E2E、Eval、性能与安全测试。
-- 安装、备份、恢复、升级和示例数据。
+- 本机 Docker Desktop 启动、备份、恢复、升级和示例数据。
+- 腾讯云 CVM Compose/Nginx/TLS 上线 Runbook 与验收。
 - Demo 视频、架构文档与公开发布准备。
 
 ---
@@ -1273,7 +1297,7 @@ ForgeAI 仓库至少包含：
 - HIGH Tool 未审批绝不执行；审批过期或资源版本变化会拒绝。
 - SSE 断线后可恢复 Run 状态。
 - 跨 Workspace 资源不可查询、检索或通过 Tool 操作。
-- 全新 Linux 环境可按文档启动并完成 Demo。
+- 全新 Docker Desktop 本机环境可按文档启动并完成 Demo；最终可按 Runbook 部署到腾讯云 CVM。
 
 ---
 
@@ -1309,6 +1333,7 @@ ForgeAI 仓库至少包含：
 | ADR-011 | OpenAPI 为跨端业务契约来源 |
 | ADR-012 | 数据库 Outbox 起步，暂不引入重型消息队列 |
 | ADR-013 | 使用 springdoc-openapi 与 Swagger UI 作为 REST 契约可视化和联调入口 |
+| ADR-014 | 本地开发使用 Docker Desktop 运行依赖服务，最终上线使用腾讯云 CVM |
 
 ---
 
@@ -1324,7 +1349,7 @@ ForgeAI 仓库至少包含：
 6. Agent LangGraph 节点、状态、Checkpoint 与审批恢复协议。
 7. SSE Event Schema 与前端 Reducer。
 8. GitLab Adapter SPI、错误码和 Webhook Contract。
-9. Compose、Nginx、Secret、备份与初始化管理员方案。
+9. 本机 Docker Desktop Compose、腾讯云 Compose/Nginx、Secret、备份与初始化管理员方案。
 10. 黄金 Demo 的 E2E 和 Agent Eval 数据集。
 11. Java 字段、record 组件和 enum 常量中文普通块注释的 Checkstyle AST/JavaParser 质量规则。
 
