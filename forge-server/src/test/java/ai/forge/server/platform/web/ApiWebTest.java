@@ -22,6 +22,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @AutoConfigureMockMvc
 @Import(ApiWebTest.ValidationProbeController.class)
 @ExtendWith(OutputCaptureExtension.class)
+@ActiveProfiles("test-unit")
 class ApiWebTest {
 
     @Autowired

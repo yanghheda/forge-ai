@@ -12,7 +12,9 @@ ForgeAI 的 Spring Boot 模块化单体，是业务事实、授权、状态机�
 ./forge-server/mvnw -f forge-server/pom.xml spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-默认 profile 提供健康检查、公开系统状态和 OpenAPI JSON；Swagger UI 默认关闭，仅在 `dev` profile 开启。
+默认 profile 连接 Compose 网络中的 `mysql`、`redis` 和 `qdrant`。MySQL 与 Redis 决定 readiness；Qdrant 是可重建派生索引，故障时报告 `DEGRADED` 而不阻断 Backend readiness。Swagger UI 默认关闭，仅在 `dev` profile 开启。
+
+Flyway 是 MySQL Schema 的唯一演进入口。`db/migration` 中已发布的版本迁移不可修改，只能新增更高版本；本轮只建立字符集基线和单行 `instance_settings`，没有提前创建身份或领域表。
 
 ## 模块与分层
 

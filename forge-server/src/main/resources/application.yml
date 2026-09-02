@@ -3,6 +3,26 @@ spring:
     name: forge-server
   profiles:
     default: dev
+  datasource:
+    url: ${FORGE_MYSQL_URL:jdbc:mysql://mysql:3306/forge_ai}
+    username: ${FORGE_MYSQL_USERNAME:forge_ai}
+    password: ${FORGE_MYSQL_PASSWORD}
+  data:
+    redis:
+      host: ${FORGE_REDIS_HOST:redis}
+      port: ${FORGE_REDIS_PORT:6379}
+      connect-timeout: 1s
+      timeout: 1s
+  flyway:
+    enabled: true
+    validate-on-migrate: true
+    clean-disabled: true
+
+forge:
+  infrastructure:
+    qdrant:
+      base-url: ${FORGE_QDRANT_BASE_URL:http://qdrant:6333}
+      health-timeout: 1s
 
 management:
   endpoints:
@@ -13,6 +33,15 @@ management:
     health:
       probes:
         enabled: true
+      show-components: always
+      group:
+        readiness:
+          include: readinessState,db,redis
+  health:
+    status:
+      order: DOWN,OUT_OF_SERVICE,DEGRADED,UNKNOWN,UP
+      http-mapping:
+        degraded: 200
 
 springdoc:
   paths-to-match: /api/v1/**
