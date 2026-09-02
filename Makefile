@@ -10,11 +10,14 @@ format-check: ## 检查通用文本格式
 
 lint: ## 检查仓库结构与治理规则
 	@./scripts/check-repository.sh
+	@cd forge-web && npm run lint
+	@cd forge-web && npm run lint:boundaries
 
 test: ## 运行仓库基线与 forge-server 测试
 	@./tests/repository-baseline.sh
 	@./tests/infrastructure-compose.sh
 	@./scripts/test-forge-server.sh
+	@./scripts/test-forge-web.sh
 
 build: ## 构建当前阶段可交付的应用
 	@./scripts/check-build-baseline.sh

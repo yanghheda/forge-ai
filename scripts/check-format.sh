@@ -12,7 +12,8 @@ find "$check_root" -type f \
   ! -path '*/build/*' \
   ! -path '*/target/*' \
   \( -name '*.md' -o -name '*.yml' -o -name '*.yaml' -o -name '*.json' \
-     -o -name '*.java' -o -name '*.py' -o -name '*.sh' -o -name 'Makefile' \
+     -o -name '*.java' -o -name '*.py' -o -name '*.sh' -o -name '*.ts' \
+     -o -name '*.tsx' -o -name '*.mjs' -o -name '*.css' -o -name 'Makefile' \
      -o -name '.editorconfig' -o -name '.gitignore' \) \
   -print | LC_ALL=C sort | while IFS= read -r file; do
     case "$file" in

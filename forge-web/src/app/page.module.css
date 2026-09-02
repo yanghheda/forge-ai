@@ -1,0 +1,30 @@
+.card {
+  max-width: 720px;
+  padding: var(--forge-space-6);
+  background: var(--forge-color-surface);
+  border: 1px solid var(--forge-color-border);
+  border-radius: 8px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--forge-space-4);
+  margin-top: var(--forge-space-6);
+}
+
+.primaryLink,
+.secondaryLink {
+  padding: 8px 16px;
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.primaryLink {
+  color: #ffffff;
+  background: var(--forge-color-brand);
+}
+
+.secondaryLink {
+  color: var(--forge-color-brand);
+  border: 1px solid var(--forge-color-border);
+}

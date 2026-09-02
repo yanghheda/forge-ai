@@ -1,0 +1,24 @@
+:root {
+  --forge-color-brand: #162d4d;
+  --forge-color-canvas: #f5f7fa;
+  --forge-color-surface: #ffffff;
+  --forge-color-border: #e5e8ef;
+  --forge-space-4: 16px;
+  --forge-space-6: 24px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  color: #1d2129;
+  background: var(--forge-color-canvas);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+}

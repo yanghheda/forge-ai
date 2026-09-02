@@ -2,5 +2,17 @@
 
 ForgeAI 的 Next.js 用户工作台。该应用负责展示、输入校验、服务端状态缓存与交互状态，不承担最终授权，也不得直连 Agent、数据库、向量库或 GitLab。
 
-应用骨架将在会话 04 建立；本轮只保留正式目录和依赖边界。
+## 开发命令
 
+```bash
+npm ci
+npm run dev
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+浏览器请求默认使用同源 `/api` 前缀。需要直接连接开发 Backend 时，可在未提交的 `.env.local` 中设置 `NEXT_PUBLIC_API_BASE_URL`。
+
+`src/lib/api/generated` 是 OpenAPI 生成物的占位入口。契约事实来源始终是 `forge-server` 的 `/v3/api-docs`，不得手工修改生成文件来修复类型错误。

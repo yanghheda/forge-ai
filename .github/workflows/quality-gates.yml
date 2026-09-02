@@ -22,6 +22,17 @@ jobs:
           cache: maven
           cache-dependency-path: forge-server/pom.xml
 
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: forge-web/package-lock.json
+
+      - name: Install forge-web dependencies
+        working-directory: forge-web
+        run: npm ci
+
       - name: Show available commands
         run: make help
 

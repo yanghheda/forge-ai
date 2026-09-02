@@ -1,0 +1,34 @@
+.shell {
+  min-height: 100vh;
+  background: var(--forge-color-canvas);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--forge-space-4);
+  height: 64px;
+  padding: 0 var(--forge-space-6);
+  color: #ffffff;
+  background: var(--forge-color-brand);
+}
+
+.brand {
+  margin: 0;
+  color: inherit;
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.sider {
+  padding: var(--forge-space-4);
+  background: var(--forge-color-surface);
+  border-right: 1px solid var(--forge-color-border);
+}
+
+.content {
+  min-width: 0;
+  padding: var(--forge-space-6);
+}

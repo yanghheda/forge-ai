@@ -52,9 +52,10 @@ for id in 001 002 010 011 013; do
   fi
 done
 
-if find . -type f ! -path './.git/*' \
-  \( -name '.env' -o -name '.env.local' -o -name '*.pem' -o -name '*.key' \) \
-  -print | grep -q .; then
+potential_secret_files=$(git ls-files --cached --others --exclude-standard \
+  | grep -E '(^|/)\.env(\.local)?$|\.(pem|key)$' || true)
+if [ -n "$potential_secret_files" ]; then
+  printf '%s\n' "$potential_secret_files" >&2
   echo '仓库检查失败：发现可能包含 Secret 的文件' >&2
   exit 1
 fi
@@ -65,4 +66,3 @@ if ! grep -q 'Java 生产代码' AGENTS.md || ! grep -q '中文普通块注释' 
 fi
 
 echo '仓库结构与治理规则检查通过'
-
