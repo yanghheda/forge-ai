@@ -1,0 +1,36 @@
+# 操作系统与编辑器生成文件
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# 本地配置与 Secret；示例配置允许提交
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Java / Gradle / Maven
+.gradle/
+build/
+target/
+
+# Node.js / Next.js
+node_modules/
+.next/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+
+# 通用临时产物
+*.log
+tmp/
+dist/
+

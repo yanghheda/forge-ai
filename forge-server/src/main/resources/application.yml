@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: forge-server
+  profiles:
+    default: dev
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  paths-to-match: /api/v1/**
+  show-actuator: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  structured:
+    format:
+      console: logstash
