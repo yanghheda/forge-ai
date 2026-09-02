@@ -40,6 +40,10 @@ public abstract class InfrastructureIntegrationTestBase {
         registry.add("spring.datasource.username", MYSQL::getUsername);
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.datasource.hikari.connection-timeout", () -> 1000L);
+        registry.add("forge.infrastructure.agent.health-enabled", () -> false);
+        registry.add(
+                "forge.infrastructure.agent.jwt-secret",
+                () -> "test-only-internal-jwt-secret-32-bytes-minimum");
         registry.add("spring.data.redis.host", REDIS::getHost);
         registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
         registry.add("forge.infrastructure.qdrant.base-url",

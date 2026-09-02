@@ -1,0 +1,19 @@
+# Compose Smoke 与独立测试环境的非敏感拓扑默认值；凭据仍由环境变量注入。
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: ${FORGE_MYSQL_URL:jdbc:mysql://mysql:3306/forge_ai}
+    username: ${FORGE_MYSQL_USERNAME:forge_ai}
+  data:
+    redis:
+      host: ${FORGE_REDIS_HOST:redis}
+      port: ${FORGE_REDIS_PORT:6379}
+
+forge:
+  infrastructure:
+    agent:
+      base-url: ${FORGE_AGENT_BASE_URL:http://forge-agent:8000}
+    qdrant:
+      base-url: ${FORGE_QDRANT_BASE_URL:http://qdrant:6333}

@@ -1,8 +1,7 @@
 #!/bin/sh
 set -eu
 
-# forge-agent 仍处于会话 05，本轮只确认其正式边界说明存在。
-test -s "forge-agent/README.md"
+agent_python=${FORGE_AGENT_PYTHON:-python3}
 
 ./forge-server/mvnw --no-transfer-progress -f forge-server/pom.xml -DskipTests package
 
@@ -10,5 +9,8 @@ test -s forge-server/target/forge-server-0.1.0-SNAPSHOT.jar
 
 cd forge-web
 npm run build
+cd ..
 
-echo 'forge-server 与 forge-web 构建通过；forge-agent 将在会话 05 启用'
+PYTHONPATH=forge-agent/src "$agent_python" -m compileall -q forge-agent/src
+
+echo 'forge-server、forge-web 与 forge-agent 构建检查通过'

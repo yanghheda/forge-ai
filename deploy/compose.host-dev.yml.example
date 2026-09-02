@@ -1,0 +1,18 @@
+# 仅用于三个应用在宿主机运行时访问容器化基础设施。
+# 与 compose.yml 叠加使用；所有端口只绑定回环地址，不对局域网开放。
+services:
+  mysql:
+    ports:
+      - "127.0.0.1:${FORGE_MYSQL_HOST_PORT:-3306}:3306"
+
+  redis:
+    ports:
+      - "127.0.0.1:${FORGE_REDIS_HOST_PORT:-6379}:6379"
+
+  qdrant:
+    ports:
+      - "127.0.0.1:${FORGE_QDRANT_HOST_PORT:-6333}:6333"
+
+networks:
+  forge-internal:
+    internal: false

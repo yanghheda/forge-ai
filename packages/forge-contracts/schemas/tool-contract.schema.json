@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forge-ai.local/schemas/tool-contract.schema.json",
+  "title": "ForgeAI Tool Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "version",
+    "description",
+    "input_schema",
+    "output_schema",
+    "required_permission",
+    "risk_level",
+    "idempotency",
+    "timeout_ms",
+    "retry",
+    "backend_mapping",
+    "sensitive_fields",
+    "requirement_ids"
+  ],
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "version": { "type": "integer", "minimum": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "input_schema": { "$ref": "#/$defs/jsonSchema" },
+    "output_schema": { "$ref": "#/$defs/jsonSchema" },
+    "required_permission": { "type": "string", "pattern": "^[a-z][a-z0-9_.]*$" },
+    "risk_level": { "enum": ["LOW", "MEDIUM", "HIGH"] },
+    "idempotency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": { "required": { "type": "boolean" } }
+    },
+    "timeout_ms": { "type": "integer", "minimum": 1, "maximum": 60000 },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_attempts"],
+      "properties": { "max_attempts": { "type": "integer", "minimum": 1, "maximum": 3 } }
+    },
+    "backend_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "path"],
+      "properties": {
+        "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+        "path": { "type": "string", "pattern": "^/internal/v1/" }
+      }
+    },
+    "sensitive_fields": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "requirement_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]+$" },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "jsonSchema": {
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "type": ["string", "array"] } }
+    }
+  }
+}
+

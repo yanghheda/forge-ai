@@ -1,0 +1,7 @@
+name: bootstrap
+version: 1
+description: P0 阶段仅用于验证 Skill 契约目录与空 Tool allowlist。
+allowed_tools: []
+limits:
+  max_tool_calls: 0
+

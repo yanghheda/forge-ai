@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help format-check lint test build infra-check infra-up infra-ready infra-down ci
+.PHONY: help format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down apps-up apps-ready apps-down smoke ci
 
 help: ## 显示公开开发命令
 	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-16s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -12,12 +12,19 @@ lint: ## 检查仓库结构与治理规则
 	@./scripts/check-repository.sh
 	@cd forge-web && npm run lint
 	@cd forge-web && npm run lint:boundaries
+	@./scripts/test-forge-agent.sh
 
 test: ## 运行仓库基线与 forge-server 测试
 	@./tests/repository-baseline.sh
 	@./tests/infrastructure-compose.sh
 	@./scripts/test-forge-server.sh
 	@./scripts/test-forge-web.sh
+
+contracts-check: ## 校验 Tool 与 Skill 契约
+	@./scripts/check-contracts.sh
+
+agent-test: ## 运行 forge-agent 检查与测试
+	@./scripts/test-forge-agent.sh
 
 build: ## 构建当前阶段可交付的应用
 	@./scripts/check-build-baseline.sh
@@ -34,4 +41,25 @@ infra-ready: ## 查看本机基础设施容器健康状态
 infra-down: ## 停止基础设施并保留 MySQL/Qdrant 数据卷
 	@docker compose --env-file deploy/.env -f deploy/compose.yml down
 
-ci: format-check lint test build ## 运行全部阻断式质量门禁
+host-infra-up: ## 为宿主机应用启动并暴露本机基础设施
+	@docker compose --env-file deploy/.env -f deploy/compose.yml -f deploy/compose.host-dev.yml up -d --wait
+
+host-infra-ready: ## 查看宿主机开发基础设施健康状态与端口
+	@docker compose --env-file deploy/.env -f deploy/compose.yml -f deploy/compose.host-dev.yml ps
+
+host-infra-down: ## 停止宿主机开发基础设施并保留数据卷
+	@docker compose --env-file deploy/.env -f deploy/compose.yml -f deploy/compose.host-dev.yml down
+
+apps-up: ## 构建并启动三应用与基础设施
+	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml up -d --build --wait
+
+apps-ready: ## 查看三应用与基础设施健康状态
+	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml ps
+
+apps-down: ## 停止三应用与基础设施并保留数据卷
+	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml down
+
+smoke: ## 运行三应用 Compose Smoke 并自动停止服务
+	@./tests/three-app-smoke.sh
+
+ci: format-check lint contracts-check test build ## 运行全部阻断式质量门禁

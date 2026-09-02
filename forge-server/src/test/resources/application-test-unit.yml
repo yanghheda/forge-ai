@@ -8,6 +8,9 @@ spring:
 
 forge:
   infrastructure:
+    agent:
+      health-enabled: false
+      jwt-secret: test-only-internal-jwt-secret-32-bytes-minimum
     qdrant:
       health-enabled: false
 

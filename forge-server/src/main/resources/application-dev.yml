@@ -1,3 +1,22 @@
 springdoc:
   swagger-ui:
     enabled: true
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: ${FORGE_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/forge_ai}
+    username: ${FORGE_MYSQL_USERNAME:forge_ai}
+    password: ${FORGE_MYSQL_PASSWORD}
+  data:
+    redis:
+      host: ${FORGE_REDIS_HOST:127.0.0.1}
+      port: ${FORGE_REDIS_PORT:6379}
+
+forge:
+  infrastructure:
+    agent:
+      base-url: ${FORGE_AGENT_BASE_URL:http://127.0.0.1:8000}
+    qdrant:
+      base-url: ${FORGE_QDRANT_BASE_URL:http://127.0.0.1:6333}

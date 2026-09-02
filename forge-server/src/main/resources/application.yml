@@ -1,15 +1,13 @@
 spring:
   application:
     name: forge-server
-  profiles:
-    default: dev
   datasource:
-    url: ${FORGE_MYSQL_URL:jdbc:mysql://mysql:3306/forge_ai}
-    username: ${FORGE_MYSQL_USERNAME:forge_ai}
+    url: ${FORGE_MYSQL_URL}
+    username: ${FORGE_MYSQL_USERNAME}
     password: ${FORGE_MYSQL_PASSWORD}
   data:
     redis:
-      host: ${FORGE_REDIS_HOST:redis}
+      host: ${FORGE_REDIS_HOST}
       port: ${FORGE_REDIS_PORT:6379}
       connect-timeout: 1s
       timeout: 1s
@@ -20,8 +18,13 @@ spring:
 
 forge:
   infrastructure:
+    agent:
+      base-url: ${FORGE_AGENT_BASE_URL}
+      health-timeout: 1s
+      token-ttl: 30s
+      jwt-secret: ${FORGE_AGENT_INTERNAL_JWT_SECRET}
     qdrant:
-      base-url: ${FORGE_QDRANT_BASE_URL:http://qdrant:6333}
+      base-url: ${FORGE_QDRANT_BASE_URL}
       health-timeout: 1s
 
 management:

@@ -10,13 +10,14 @@ ForgeAI 采用 Monorepo 管理三个独立应用，使业务契约、应用实�
 - `forge-server`：Spring Boot 模块化单体，是业务事实、授权和事务的唯一权威。
 - `forge-agent`：FastAPI Agent Runtime，只能通过受控 Tool API 调用 `forge-server`。
 
-当前仓库处于 P0 工程基础阶段。`forge-server` 已具备 Java 21/Spring Boot 模块化单体骨架；Web、Agent、业务领域模型和数据基础设施将在后续开发会话中逐步加入。
+当前仓库已完成 P0 工程基础：三应用骨架、MySQL/Redis/Qdrant 基础设施、Tool/Skill 契约目录和 Compose Smoke 均已建立。业务领域能力仍按后续会话逐步加入。
 
 ## 开发入口
 
 ```bash
 make help
 make ci
+make smoke
 ```
 
 `make help` 列出公开命令；`make ci` 运行当前阶段已经具备的全部质量门禁。各命令是薄封装，实际检查位于 `scripts/`，可直接运行和审查。
@@ -29,6 +30,8 @@ Backend 可单独验证和启动：
 ```
 
 启动后可访问 `/actuator/health`、`/api/v1/system/status`、`/v3/api-docs`；开发 profile 额外开放 `/swagger-ui/index.html`。
+
+完整本机拓扑先复制并修改 `deploy/.env.example`，再执行 `make apps-up`。只有 Web 暴露在 `127.0.0.1:3000`；浏览器经 Web 的 `/api` 代理访问 Server，Server 使用短时服务 JWT 探测 Agent 内部就绪端点。
 
 ## 文档
 

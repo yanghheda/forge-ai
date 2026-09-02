@@ -8,6 +8,8 @@
 .env
 .env.*
 !.env.example
+deploy/compose.host-dev.yml
+forge-server/src/main/resources/application-local.yml
 *.pem
 *.key
 

@@ -29,15 +29,28 @@ jobs:
           cache: npm
           cache-dependency-path: forge-web/package-lock.json
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: forge-agent/requirements.lock
+
       - name: Install forge-web dependencies
         working-directory: forge-web
         run: npm ci
+
+      - name: Install forge-agent dependencies
+        run: python -m pip install --disable-pip-version-check -r forge-agent/requirements.lock
 
       - name: Show available commands
         run: make help
 
       - name: Run blocking quality gates
         run: make ci
+
+      - name: Run three-app Compose smoke
+        run: make smoke
 
       - name: Reject whitespace errors in the diff
         run: git diff --check HEAD

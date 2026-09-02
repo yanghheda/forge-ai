@@ -1,13 +1,91 @@
 name: forge-ai
 
 services:
+  forge-web:
+    profiles: ["applications"]
+    build:
+      context: ../forge-web
+    environment:
+      FORGE_SERVER_INTERNAL_URL: http://forge-server:8080
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "127.0.0.1:${FORGE_WEB_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      forge-server:
+        condition: service_healthy
+    networks:
+      - forge-edge
+      - forge-internal
+    restart: unless-stopped
+
+  forge-server:
+    profiles: ["applications"]
+    build:
+      context: ../forge-server
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      FORGE_MYSQL_URL: jdbc:mysql://mysql:3306/${FORGE_MYSQL_DATABASE}
+      FORGE_MYSQL_USERNAME: ${FORGE_MYSQL_USERNAME}
+      FORGE_MYSQL_PASSWORD: ${FORGE_MYSQL_PASSWORD}
+      FORGE_REDIS_HOST: redis
+      FORGE_QDRANT_BASE_URL: http://qdrant:6333
+      FORGE_AGENT_BASE_URL: http://forge-agent:8000
+      FORGE_AGENT_INTERNAL_JWT_SECRET: ${FORGE_AGENT_INTERNAL_JWT_SECRET}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      forge-agent:
+        condition: service_healthy
+    networks:
+      - forge-internal
+    restart: unless-stopped
+
+  forge-agent:
+    profiles: ["applications"]
+    build:
+      context: ../forge-agent
+      target: runtime
+    environment:
+      FORGE_AGENT_INTERNAL_JWT_SECRET: ${FORGE_AGENT_INTERNAL_JWT_SECRET}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    networks:
+      - forge-internal
+    restart: unless-stopped
+
   mysql:
     image: mysql:8.4.6
     environment:
       MYSQL_DATABASE: ${FORGE_MYSQL_DATABASE}
       MYSQL_USER: ${FORGE_MYSQL_USERNAME}
       MYSQL_PASSWORD: ${FORGE_MYSQL_PASSWORD}
-      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_ROOT_PASSWORD: ${FORGE_MYSQL_ROOT_PASSWORD}
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
@@ -50,6 +128,7 @@ services:
     restart: unless-stopped
 
 networks:
+  forge-edge:
   forge-internal:
     internal: true
 
