@@ -38,7 +38,8 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "project_members", "projects", "audit_logs", "member_roles", "workspace_members", "workspaces", "organizations", "users")) {
+                "work_items", "project_item_sequences", "project_members", "projects", "audit_logs", "member_roles",
+                "workspace_members", "workspaces", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         ResponseEntity<String> initialized = csrf().post(
@@ -66,6 +67,10 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
         assertThat(created.getBody()).contains("\"key\":\"FORGE\"").contains("\"status\":\"ACTIVE\"");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM projects", Integer.class)).isOne();
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM project_members", Integer.class)).isOne();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM project_item_sequences WHERE project_id = (SELECT id FROM projects WHERE `key` = 'FORGE')",
+                        Integer.class))
+                .isOne();
     }
 
     @Test

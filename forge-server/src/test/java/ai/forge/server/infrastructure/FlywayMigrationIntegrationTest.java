@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("7");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -101,11 +101,49 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                 .isEqualTo(7);
         assertThat(jdbcTemplate.queryForList(
                         "SELECT code FROM permissions ORDER BY code", String.class))
-                .containsExactly("member.manage", "member.read", "project.manage", "project.read", "workspace.manage", "workspace.read");
+                .contains(
+                        "member.manage", "member.read", "project.manage", "project.read",
+                        "requirement.create", "requirement.edit", "requirement.read",
+                        "task.create", "task.edit", "task.read",
+                        "ux.create", "ux.edit", "ux.read",
+                        "workspace.manage", "workspace.read");
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                         Integer.class))
-                .isEqualTo(6);
+                .isEqualTo(15);
+    }
+
+    @Test
+    void workItemMigrationCreatesScopedSequenceAndAggregateTables() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT table_name FROM information_schema.tables "
+                                + "WHERE table_schema = DATABASE() AND table_name IN "
+                                + "('project_item_sequences','work_items')",
+                        String.class))
+                .containsExactlyInAnyOrder("project_item_sequences", "work_items");
+
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT index_name FROM information_schema.statistics "
+                                + "WHERE table_schema = DATABASE() AND table_name = 'work_items'",
+                        String.class))
+                .contains(
+                        "uq_work_items_project_number",
+                        "uq_work_items_project_key",
+                        "idx_work_items_project_type_status",
+                        "idx_work_items_workspace_assignee_status");
+
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                                + "WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('project_item_sequences','work_items') AND column_comment = ''",
+                        Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.tables "
+                                + "WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('project_item_sequences','work_items') AND table_comment = ''",
+                        Integer.class))
+                .isZero();
     }
 
     @Test
@@ -137,6 +175,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         copyMigration("V4__authentication_audit_scope.sql");
         copyMigration("V5__project_member_scope.sql");
         copyMigration("V6__rbac_permissions.sql");
+        copyMigration("V7__work_item_aggregate.sql");
         Files.writeString(
                 temporaryMigrationDirectory.resolve("V1__baseline.sql"),
                 System.lineSeparator() + "-- 模拟错误修改已发布迁移。",

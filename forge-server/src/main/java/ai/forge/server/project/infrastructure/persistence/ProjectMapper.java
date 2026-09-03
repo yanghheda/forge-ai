@@ -15,6 +15,8 @@ public interface ProjectMapper {
     @Select("SELECT LAST_INSERT_ID()") long lastInsertId();
     @Insert("INSERT INTO project_members (workspace_id, project_id, user_id, status, created_at, updated_at) VALUES (#{workspaceId}, #{projectId}, #{userId}, 'ACTIVE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))")
     int insertCreatorMember(@Param("workspaceId") long workspaceId, @Param("projectId") long projectId, @Param("userId") long userId);
+    @Insert("INSERT INTO project_item_sequences (project_id, next_value, version) VALUES (#{projectId}, 1, 0)")
+    int insertItemSequence(@Param("projectId") long projectId);
     @Select("SELECT p.id, p.workspace_id, p.`key` AS `key`, p.name, p.description, p.status, p.archived_at, p.version, p.created_at, p.updated_at FROM projects p WHERE p.workspace_id = #{workspaceId} ORDER BY p.id")
     List<Map<String,Object>> findByWorkspaceId(@Param("workspaceId") long workspaceId);
     @Select("SELECT p.id, p.workspace_id, p.`key` AS `key`, p.name, p.description, p.status, p.archived_at, p.version, p.created_at, p.updated_at FROM projects p WHERE p.id = #{projectId} AND p.workspace_id = #{workspaceId}")
