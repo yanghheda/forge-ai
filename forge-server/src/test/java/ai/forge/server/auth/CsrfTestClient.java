@@ -11,7 +11,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
-final class CsrfTestClient {
+public final class CsrfTestClient {
 
     /* 测试环境配置允许的浏览器 Origin。 */
     private static final String ORIGIN = "http://localhost";
@@ -22,19 +22,32 @@ final class CsrfTestClient {
     /* 解析 CSRF 端点的 JSON Token 响应。 */
     private final ObjectMapper objectMapper;
 
-    CsrfTestClient(TestRestTemplate restTemplate, ObjectMapper objectMapper) {
+    public CsrfTestClient(TestRestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
     }
 
-    <T> ResponseEntity<T> post(String path, Object body, String existingCookie, Class<T> responseType) {
+    public <T> ResponseEntity<T> post(String path, Object body, String existingCookie, Class<T> responseType) {
+        return exchange(HttpMethod.POST, path, body, existingCookie, responseType);
+    }
+
+    public <T> ResponseEntity<T> patch(String path, Object body, String existingCookie, Class<T> responseType) {
+        return exchange(HttpMethod.PATCH, path, body, existingCookie, responseType);
+    }
+
+    public <T> ResponseEntity<T> delete(String path, String existingCookie, Class<T> responseType) {
+        return exchange(HttpMethod.DELETE, path, null, existingCookie, responseType);
+    }
+
+    private <T> ResponseEntity<T> exchange(
+            HttpMethod method, String path, Object body, String existingCookie, Class<T> responseType) {
         CsrfSession csrf = fetch(existingCookie);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set(HttpHeaders.ORIGIN, ORIGIN);
         headers.set(HttpHeaders.COOKIE, csrf.cookie());
         headers.set("X-CSRF-TOKEN", csrf.token());
-        return restTemplate.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers), responseType);
+        return restTemplate.exchange(path, method, new HttpEntity<>(body, headers), responseType);
     }
 
     private CsrfSession fetch(String existingCookie) {

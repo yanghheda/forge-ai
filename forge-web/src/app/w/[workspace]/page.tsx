@@ -1,6 +1,6 @@
-export default function WorkspaceEntryPage() {
-  return <article>
-    <h1>Workspace 已就绪</h1>
-    <p>身份与登录闭环已建立；Workspace 业务将在下一会话实现。</p>
-  </article>;
+import { WorkspaceProjects } from "@/features/project";
+
+export default async function WorkspaceEntryPage({ params }: { params: Promise<{ workspace: string }> }) {
+  const { workspace } = await params;
+  return <WorkspaceProjects workspaceSlug={workspace} />;
 }

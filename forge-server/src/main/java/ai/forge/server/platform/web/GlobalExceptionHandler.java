@@ -5,6 +5,9 @@ import ai.forge.server.auth.domain.InvalidCredentialsException;
 import ai.forge.server.auth.domain.LoginRateLimitedException;
 import ai.forge.server.auth.domain.UnauthenticatedException;
 import ai.forge.server.auth.domain.WeakPasswordException;
+import ai.forge.server.common.domain.ResourceNotFoundException;
+import ai.forge.server.common.domain.VersionConflictException;
+import ai.forge.server.project.domain.ProjectKeyConflictException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -36,6 +39,26 @@ public class GlobalExceptionHandler {
                 request);
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiError> handleScopedResourceNotFound(
+            ResourceNotFoundException exception, HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND, "Resource not found", Map.of(), request);
+    }
+
+    @ExceptionHandler(ProjectKeyConflictException.class)
+    public ResponseEntity<ApiError> handleProjectKeyConflict(
+            ProjectKeyConflictException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.PROJECT_KEY_CONFLICT,
+                "Project key already exists in this workspace", Map.of(), request);
+    }
+
+    @ExceptionHandler(VersionConflictException.class)
+    public ResponseEntity<ApiError> handleVersionConflict(
+            VersionConflictException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.VERSION_CONFLICT,
+                "Resource version conflict", Map.of(), request);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(
             MethodArgumentNotValidException exception, HttpServletRequest request) {
@@ -54,6 +77,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiError> handleUnreadableBody(
             HttpMessageNotReadableException exception, HttpServletRequest request) {
+        return error(
+                HttpStatus.BAD_REQUEST,
+                ErrorCode.VALIDATION_FAILED,
+                "Request validation failed",
+                Map.of(),
+                request);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleInvalidArgument(
+            IllegalArgumentException exception, HttpServletRequest request) {
         return error(
                 HttpStatus.BAD_REQUEST,
                 ErrorCode.VALIDATION_FAILED,

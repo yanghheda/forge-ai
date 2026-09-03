@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { ProjectOverview, projectRouteSchema } from "@/features/project";
+import { ProjectDetail, projectRouteSchema } from "@/features/project";
 
 interface ProjectOverviewPageProps {
   params: Promise<{ workspace: string; project: string }>;
@@ -12,5 +12,5 @@ export default async function ProjectOverviewPage({ params }: ProjectOverviewPag
     notFound();
   }
 
-  return <ProjectOverview workspace={route.data.workspace} project={route.data.project} />;
+  return <ProjectDetail workspaceSlug={route.data.workspace} projectKey={route.data.project} />;
 }

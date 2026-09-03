@@ -3,6 +3,7 @@
 import { Alert, Button, Card, Spin, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, type ReactNode } from "react";
 
 import { isApiError } from "@/lib/api";
@@ -27,6 +28,7 @@ export function ProtectedWorkspace({ workspace, children }: { workspace: string;
   return <section>
     <Card size="small">
       <Typography.Text>{currentUser.data.displayName} · {access.name} · {access.roles.join(", ")}</Typography.Text>
+      <Link href={`/w/${workspace}/settings/members`}>成员设置</Link>
       <Button type="text" loading={logoutMutation.isPending} onClick={() => logoutMutation.mutate()}>退出</Button>
       <AuthErrorAlert error={logoutMutation.error} />
     </Card>

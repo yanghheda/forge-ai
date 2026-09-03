@@ -82,7 +82,7 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
-    static AuthContext requireContext(HttpServletRequest request) {
+    public static AuthContext requireContext(HttpServletRequest request) {
         Object value = request.getAttribute(AuthenticationFilter.AUTH_CONTEXT_ATTRIBUTE);
         if (value instanceof AuthContext context) {
             return context;

@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("4");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -71,10 +71,11 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForList(
                         "SELECT table_name FROM information_schema.tables "
                                 + "WHERE table_schema = DATABASE() AND table_name IN "
-                                + "('users','organizations','workspaces','workspace_members','roles','member_roles','audit_logs')",
+                                + "('users','organizations','workspaces','workspace_members','roles','member_roles','audit_logs','projects','project_members')",
                         String.class))
                 .containsExactlyInAnyOrder(
-                        "users", "organizations", "workspaces", "workspace_members", "roles", "member_roles", "audit_logs");
+                        "users", "organizations", "workspaces", "workspace_members", "roles", "member_roles", "audit_logs",
+                        "projects", "project_members");
 
         Integer undocumentedTables = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables "
@@ -121,6 +122,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         copyMigration("V2__instance_settings.sql");
         copyMigration("V3__identity_workspace_bootstrap.sql");
         copyMigration("V4__authentication_audit_scope.sql");
+        copyMigration("V5__project_member_scope.sql");
         Files.writeString(
                 temporaryMigrationDirectory.resolve("V1__baseline.sql"),
                 System.lineSeparator() + "-- 模拟错误修改已发布迁移。",

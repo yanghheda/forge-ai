@@ -42,7 +42,7 @@ class AuthenticationSessionExpiryIntegrationTest extends InfrastructureIntegrati
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "audit_logs", "member_roles", "roles", "workspace_members", "workspaces", "organizations", "users")) {
+                "project_members", "projects", "audit_logs", "member_roles", "roles", "workspace_members", "workspaces", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         new CsrfTestClient(restTemplate, objectMapper).post(
