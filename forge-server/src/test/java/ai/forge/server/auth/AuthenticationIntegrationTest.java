@@ -3,6 +3,7 @@ package ai.forge.server.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ai.forge.server.infrastructure.InfrastructureIntegrationTestBase;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +40,9 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
     @Autowired
     private StringRedisTemplate redisTemplate;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @BeforeEach
     void resetIdentityAndSessions() {
         redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
@@ -48,7 +52,7 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
                 "audit_logs", "member_roles", "roles", "workspace_members", "workspaces", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
-        ResponseEntity<String> initialized = restTemplate.postForEntity(
+        ResponseEntity<String> initialized = new CsrfTestClient(restTemplate, objectMapper).post(
                 "/api/v1/setup/initialize",
                 Map.of(
                         "adminEmail", "Owner@Example.COM",
@@ -57,7 +61,7 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
                         "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"),
+                        "workspaceSlug", "engineering"), null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
@@ -231,12 +235,8 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     private ResponseEntity<String> login(String email, String password, String cookie) {
-        HttpHeaders headers = headers(cookie);
-        return restTemplate.exchange(
-                "/api/v1/auth/login",
-                HttpMethod.POST,
-                new HttpEntity<>(Map.of("email", email, "password", password), headers),
-                String.class);
+        return new CsrfTestClient(restTemplate, objectMapper).post(
+                "/api/v1/auth/login", Map.of("email", email, "password", password), cookie, String.class);
     }
 
     private ResponseEntity<String> get(String path, String cookie) {
@@ -244,7 +244,7 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     private ResponseEntity<String> postWithoutBody(String path, String cookie) {
-        return restTemplate.exchange(path, HttpMethod.POST, new HttpEntity<>(headers(cookie)), String.class);
+        return new CsrfTestClient(restTemplate, objectMapper).post(path, null, cookie, String.class);
     }
 
     private HttpHeaders headers(String cookie) {

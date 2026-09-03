@@ -22,6 +22,10 @@ public class InstanceBootstrapService {
         this.bootstrapStore = bootstrapStore;
     }
 
+    public boolean isInitialized() {
+        return bootstrapStore.isInitialized();
+    }
+
     public BootstrapResult initialize(BootstrapCommand command) {
         PasswordPolicy.validate(command.password());
         String normalizedEmail = command.adminEmail().trim().toLowerCase(Locale.ROOT);

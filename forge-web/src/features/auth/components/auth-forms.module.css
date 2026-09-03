@@ -1,0 +1,3 @@
+.card { width: min(100%, 520px); }
+.form { display: grid; gap: 16px; }
+.form label { display: grid; gap: 6px; font-weight: 500; }

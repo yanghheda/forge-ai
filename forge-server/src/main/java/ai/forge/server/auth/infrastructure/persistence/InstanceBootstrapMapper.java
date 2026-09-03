@@ -11,6 +11,9 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface InstanceBootstrapMapper extends BaseMapper<InstanceSettingsEntity> {
 
+    @Select("SELECT initialized_at IS NOT NULL FROM instance_settings WHERE id = 1")
+    boolean isInitialized();
+
     @Select("SELECT initialized_at FROM instance_settings WHERE id = 1 FOR UPDATE")
     LocalDateTime lockAndGetInitializedAt();
 

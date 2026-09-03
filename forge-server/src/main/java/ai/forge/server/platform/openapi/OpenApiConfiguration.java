@@ -18,7 +18,7 @@ public class OpenApiConfiguration {
                         new SecurityScheme()
                                 .type(SecurityScheme.Type.APIKEY)
                                 .in(SecurityScheme.In.COOKIE)
-                                .name("SESSION"))
+                                .name("FORGE_SESSION"))
                 .addSecuritySchemes(
                         "csrfHeader",
                         new SecurityScheme()

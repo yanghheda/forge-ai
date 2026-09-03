@@ -18,6 +18,7 @@ import java.net.URI;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +34,13 @@ public class SetupController {
 
     public SetupController(InstanceBootstrapService bootstrapService) {
         this.bootstrapService = bootstrapService;
+    }
+
+    @GetMapping("/status")
+    @Operation(summary = "查询初始化状态", description = "权限：无需登录；只读取实例是否已完成首次初始化。")
+    @ApiResponse(responseCode = "200", description = "返回当前实例初始化状态")
+    public SetupStatusResponse status() {
+        return new SetupStatusResponse(bootstrapService.isInitialized());
     }
 
     @PostMapping("/initialize")
@@ -92,4 +100,8 @@ public class SetupController {
             String organizationSlug,
             /* 默认工作区的稳定路由短名。 */
             String workspaceSlug) {}
+
+    public record SetupStatusResponse(
+            /* 为 true 时公开初始化入口已永久关闭，Web 应展示登录表单。 */
+            boolean initialized) {}
 }

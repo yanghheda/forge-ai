@@ -1,0 +1,67 @@
+package ai.forge.server.auth;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+
+final class CsrfTestClient {
+
+    /* 测试环境配置允许的浏览器 Origin。 */
+    private static final String ORIGIN = "http://localhost";
+
+    /* 对随机端口测试服务发起真实 HTTP 请求的客户端。 */
+    private final TestRestTemplate restTemplate;
+
+    /* 解析 CSRF 端点的 JSON Token 响应。 */
+    private final ObjectMapper objectMapper;
+
+    CsrfTestClient(TestRestTemplate restTemplate, ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
+
+    <T> ResponseEntity<T> post(String path, Object body, String existingCookie, Class<T> responseType) {
+        CsrfSession csrf = fetch(existingCookie);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set(HttpHeaders.ORIGIN, ORIGIN);
+        headers.set(HttpHeaders.COOKIE, csrf.cookie());
+        headers.set("X-CSRF-TOKEN", csrf.token());
+        return restTemplate.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers), responseType);
+    }
+
+    private CsrfSession fetch(String existingCookie) {
+        HttpHeaders headers = new HttpHeaders();
+        if (existingCookie != null) {
+            headers.set(HttpHeaders.COOKIE, existingCookie);
+        }
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/auth/csrf", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        try {
+            JsonNode body = objectMapper.readTree(response.getBody());
+            String setCookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+            String cookie = existingCookie != null ? existingCookie : cookiePair(setCookie);
+            return new CsrfSession(cookie, body.get("token").asText());
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to read test CSRF response", exception);
+        }
+    }
+
+    private String cookiePair(String setCookie) {
+        assertThat(setCookie).isNotBlank();
+        return setCookie.substring(0, setCookie.indexOf(';'));
+    }
+
+    private record CsrfSession(
+            /* 与测试 Token 绑定的 Redis Session Cookie。 */
+            String cookie,
+            /* 修改请求通过 Header 回传的随机 Token。 */
+            String token) {}
+}

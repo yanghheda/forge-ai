@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -33,6 +34,9 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
 
     @Autowired
     private InstanceBootstrapService bootstrapService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void resetBootstrapFacts() {
@@ -147,7 +151,7 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
     }
 
     private ResponseEntity<String> initialize(String password) {
-        return restTemplate.postForEntity(
+        return new CsrfTestClient(restTemplate, objectMapper).post(
                 "/api/v1/setup/initialize",
                 Map.of(
                         "adminEmail", "Owner@Example.COM",
@@ -156,7 +160,7 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
                         "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"),
+                        "workspaceSlug", "engineering"), null,
                 String.class);
     }
 

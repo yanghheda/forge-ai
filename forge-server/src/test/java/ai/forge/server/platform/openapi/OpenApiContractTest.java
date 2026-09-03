@@ -55,7 +55,7 @@ class OpenApiContractTest {
                 .andExpect(jsonPath("$.info.title").value("ForgeAI Public API"))
                 .andExpect(jsonPath("$.info.version").value("v1"))
                 .andExpect(jsonPath("$.components.securitySchemes.cookieSession.in").value("cookie"))
-                .andExpect(jsonPath("$.components.securitySchemes.cookieSession.name").value("SESSION"))
+                .andExpect(jsonPath("$.components.securitySchemes.cookieSession.name").value("FORGE_SESSION"))
                 .andExpect(jsonPath("$.components.securitySchemes.csrfHeader.in").value("header"))
                 .andExpect(jsonPath("$.components.securitySchemes.csrfHeader.name").value("X-CSRF-TOKEN"));
     }

@@ -31,6 +31,8 @@ server:
         path: /
 
 forge:
+  web:
+    allowed-origins: ${FORGE_ALLOWED_ORIGINS:https://localhost}
   auth:
     absolute-session-timeout: ${FORGE_SESSION_ABSOLUTE_TIMEOUT:12h}
     failed-login-threshold: ${FORGE_FAILED_LOGIN_THRESHOLD:5}

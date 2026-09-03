@@ -11,6 +11,10 @@ public enum ErrorCode {
     UNAUTHENTICATED,
     /* 当前来源与邮箱组合超过登录尝试窗口上限。 */
     LOGIN_RATE_LIMITED,
+    /* 修改请求缺少有效的服务端 Session CSRF Token。 */
+    CSRF_REJECTED,
+    /* 修改请求的浏览器来源不在当前实例允许列表。 */
+    ORIGIN_REJECTED,
     /* 未被稳定业务错误覆盖的服务端故障。 */
     INTERNAL_ERROR
 }

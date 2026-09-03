@@ -20,6 +20,8 @@ spring:
       port: ${FORGE_REDIS_PORT:6379}
 
 forge:
+  web:
+    allowed-origins: ${FORGE_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
   infrastructure:
     agent:
       base-url: ${FORGE_AGENT_BASE_URL:http://127.0.0.1:8000}

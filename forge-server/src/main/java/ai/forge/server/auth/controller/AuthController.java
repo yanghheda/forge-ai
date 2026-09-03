@@ -21,8 +21,11 @@ import java.time.Instant;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,6 +40,13 @@ public class AuthController {
 
     public AuthController(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
+    }
+
+    @GetMapping("/csrf")
+    @Operation(summary = "获取 CSRF Token", description = "权限：公开；Token 仅通过 JSON 返回并绑定当前服务端 Session。")
+    @ApiResponse(responseCode = "200", description = "返回修改请求必须携带的 CSRF Header 名称与 Token")
+    public CsrfTokenResponse csrf(@RequestAttribute(name = "_csrf") CsrfToken csrfToken) {
+        return new CsrfTokenResponse(csrfToken.getHeaderName(), csrfToken.getToken());
     }
 
     @PostMapping("/login")
@@ -89,4 +99,10 @@ public class AuthController {
             @NotBlank @Email @Size(max = 320) String email,
             /* 只参与本次 BCrypt 校验且禁止回显的密码。 */
             @NotBlank String password) {}
+
+    public record CsrfTokenResponse(
+            /* 修改请求携带 Token 时使用的固定 Header 名称。 */
+            String headerName,
+            /* 与当前服务端 Session 绑定且不得进入 URL 或日志的随机值。 */
+            String token) {}
 }

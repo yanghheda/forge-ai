@@ -3,6 +3,7 @@ package ai.forge.server.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ai.forge.server.infrastructure.InfrastructureIntegrationTestBase;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,9 @@ class AuthenticationSessionExpiryIntegrationTest extends InfrastructureIntegrati
     @Autowired
     private StringRedisTemplate redisTemplate;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @BeforeEach
     void initializeIdentity() {
         redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
@@ -41,7 +45,7 @@ class AuthenticationSessionExpiryIntegrationTest extends InfrastructureIntegrati
                 "audit_logs", "member_roles", "roles", "workspace_members", "workspaces", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
-        restTemplate.postForEntity(
+        new CsrfTestClient(restTemplate, objectMapper).post(
                 "/api/v1/setup/initialize",
                 Map.of(
                         "adminEmail", "owner@example.com",
@@ -50,15 +54,17 @@ class AuthenticationSessionExpiryIntegrationTest extends InfrastructureIntegrati
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
                         "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"),
+                        "workspaceSlug", "engineering"), null,
                 String.class);
+        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
     }
 
     @Test
     void absoluteDeadlineInvalidatesOtherwiseActiveRedisSession() throws Exception {
-        ResponseEntity<Void> login = restTemplate.postForEntity(
+        ResponseEntity<Void> login = new CsrfTestClient(restTemplate, objectMapper).post(
                 "/api/v1/auth/login",
                 Map.of("email", "owner@example.com", "password", "correct-horse-42"),
+                null,
                 Void.class);
         String setCookie = login.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
         String cookie = setCookie.substring(0, setCookie.indexOf(';'));

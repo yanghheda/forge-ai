@@ -20,6 +20,11 @@ public class MybatisPlusInstanceBootstrapStore implements InstanceBootstrapStore
     }
 
     @Override
+    public boolean isInitialized() {
+        return bootstrapMapper.isInitialized();
+    }
+
+    @Override
     @Transactional
     public BootstrapResult create(BootstrapCommand command, String normalizedEmail, String passwordHash) {
         if (bootstrapMapper.lockAndGetInitializedAt() != null) {

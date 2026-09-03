@@ -79,4 +79,63 @@ describe("ApiTransport", () => {
     });
     expect(String(error)).not.toContain("stack trace");
   });
+
+  it("修改请求先获取 CSRF Token 并通过 Header 携带", async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ headerName: "X-CSRF-TOKEN", token: "csrf-test-token" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const transport = createApiTransport({ baseUrl: "/api", fetchImplementation });
+
+    await transport.request("/v1/auth/login", { method: "POST", body: "{}" });
+
+    expect(fetchImplementation).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/auth/csrf",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(fetchImplementation).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/auth/login",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "X-CSRF-TOKEN": "csrf-test-token" }),
+      }),
+    );
+  });
+
+  it("CSRF 拒绝时刷新 Token 并只重试一次", async () => {
+    const jsonHeaders = { "content-type": "application/json" };
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ headerName: "X-CSRF-TOKEN", token: "old" }), { status: 200, headers: jsonHeaders }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: "CSRF_REJECTED" }), { status: 403, headers: jsonHeaders }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ headerName: "X-CSRF-TOKEN", token: "new" }), { status: 200, headers: jsonHeaders }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const transport = createApiTransport({ baseUrl: "/api", fetchImplementation });
+
+    await expect(transport.request("/v1/auth/logout", { method: "POST" })).resolves.toBeUndefined();
+    expect(fetchImplementation).toHaveBeenCalledTimes(4);
+    expect(fetchImplementation.mock.calls[3]?.[1]?.headers).toEqual(
+      expect.objectContaining({ "X-CSRF-TOKEN": "new" }),
+    );
+  });
+
+  it("安全读取和普通 403 均不触发 CSRF 刷新", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ code: "FORBIDDEN", message: "Forbidden" }), {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const transport = createApiTransport({ baseUrl: "/api", fetchImplementation });
+
+    await expect(transport.request("/v1/me")).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(fetchImplementation).toHaveBeenCalledTimes(1);
+  });
 });

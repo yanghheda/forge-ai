@@ -17,6 +17,8 @@ server:
         secure: false
 
 forge:
+  web:
+    allowed-origins: http://localhost
   infrastructure:
     agent:
       base-url: ${FORGE_AGENT_BASE_URL:http://forge-agent:8000}
