@@ -1,5 +1,7 @@
 package ai.forge.server.platform.web;
 
+import ai.forge.server.auth.domain.InstanceAlreadyInitializedException;
+import ai.forge.server.auth.domain.WeakPasswordException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -53,6 +55,28 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 ErrorCode.VALIDATION_FAILED,
                 "Request validation failed",
+                Map.of(),
+                request);
+    }
+
+    @ExceptionHandler(WeakPasswordException.class)
+    public ResponseEntity<ApiError> handleWeakPassword(
+            WeakPasswordException exception, HttpServletRequest request) {
+        return error(
+                HttpStatus.BAD_REQUEST,
+                ErrorCode.VALIDATION_FAILED,
+                "Request validation failed",
+                Map.of("password", "must contain letters and digits, use 12 or more characters, and fit within 72 UTF-8 bytes"),
+                request);
+    }
+
+    @ExceptionHandler(InstanceAlreadyInitializedException.class)
+    public ResponseEntity<ApiError> handleAlreadyInitialized(
+            InstanceAlreadyInitializedException exception, HttpServletRequest request) {
+        return error(
+                HttpStatus.CONFLICT,
+                ErrorCode.INSTANCE_ALREADY_INITIALIZED,
+                "Instance has already been initialized",
                 Map.of(),
                 request);
     }

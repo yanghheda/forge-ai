@@ -5,6 +5,8 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND,
     /* 请求结构或字段约束不满足公开契约。 */
     VALIDATION_FAILED,
+    /* 单例实例已完成首个 Owner 初始化，公开入口永久关闭。 */
+    INSTANCE_ALREADY_INITIALIZED,
     /* 未被稳定业务错误覆盖的服务端故障。 */
     INTERNAL_ERROR
 }

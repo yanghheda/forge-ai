@@ -22,6 +22,8 @@
         <springdoc.version>2.9.0</springdoc.version>
         <archunit.version>1.4.1</archunit.version>
         <javaparser.version>3.27.0</javaparser.version>
+        <mybatis-plus.version>3.5.14</mybatis-plus.version>
+        <bcrypt.version>0.10.2</bcrypt.version>
         <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 
@@ -39,8 +41,9 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-jdbc</artifactId>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>${mybatis-plus.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -49,6 +52,11 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-oauth2-jose</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>at.favre.lib</groupId>
+            <artifactId>bcrypt</artifactId>
+            <version>${bcrypt.version}</version>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>

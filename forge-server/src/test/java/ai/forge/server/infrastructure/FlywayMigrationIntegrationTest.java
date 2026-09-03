@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("2");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -61,9 +61,37 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(comments).containsExactlyInAnyOrderEntriesOf(Map.of(
                 "id", "固定为 1 的单例主键",
                 "initialized_at", "首次管理员初始化完成时间；为空表示实例尚未初始化",
-                "default_organization_id", "初始化后创建的默认组织标识",
+                "default_organization_id", "初始化后创建的默认组织标识；为空表示实例尚未完成初始化",
                 "settings_json", "不属于独立领域表的实例级扩展设置",
                 "version", "实例设置并发更新使用的乐观锁版本"));
+    }
+
+    @Test
+    void identityWorkspaceBootstrapSchemaHasRequiredTablesAndComments() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT table_name FROM information_schema.tables "
+                                + "WHERE table_schema = DATABASE() AND table_name IN "
+                                + "('users','organizations','workspaces','workspace_members','roles','member_roles','audit_logs')",
+                        String.class))
+                .containsExactlyInAnyOrder(
+                        "users", "organizations", "workspaces", "workspace_members", "roles", "member_roles", "audit_logs");
+
+        Integer undocumentedTables = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                        + "WHERE table_schema = DATABASE() AND table_name <> 'flyway_schema_history' AND table_comment = ''",
+                Integer.class);
+        Integer undocumentedColumns = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                        + "WHERE table_schema = DATABASE() AND table_name <> 'flyway_schema_history' AND column_comment = ''",
+                Integer.class);
+        assertThat(undocumentedTables).isZero();
+        assertThat(undocumentedColumns).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT data_type FROM information_schema.columns "
+                                + "WHERE table_schema = DATABASE() AND table_name = 'instance_settings' "
+                                + "AND column_name = 'default_organization_id'",
+                        String.class))
+                .isEqualTo("bigint");
     }
 
     @Test
@@ -75,6 +103,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     void changedPublishedMigrationFailsChecksumValidation() throws IOException {
         copyMigration("V1__baseline.sql");
         copyMigration("V2__instance_settings.sql");
+        copyMigration("V3__identity_workspace_bootstrap.sql");
         Files.writeString(
                 temporaryMigrationDirectory.resolve("V1__baseline.sql"),
                 System.lineSeparator() + "-- 模拟错误修改已发布迁移。",

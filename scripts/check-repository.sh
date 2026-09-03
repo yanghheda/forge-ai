@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-required_files='README.md AGENTS.md CONTRIBUTING.md .editorconfig .gitignore Makefile'
+required_files='README.md AGENTS.md CONTRIBUTING.md .editorconfig .gitignore .formatignore Makefile'
 required_directories='forge-web forge-server forge-agent packages deploy docs/adr scripts tests .github/workflows'
 
 for file in $required_files; do

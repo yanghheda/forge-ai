@@ -1,0 +1,95 @@
+package ai.forge.server.auth.controller;
+
+import ai.forge.server.auth.application.InstanceBootstrapService;
+import ai.forge.server.auth.domain.BootstrapCommand;
+import ai.forge.server.auth.domain.BootstrapResult;
+import ai.forge.server.platform.web.RequestIdFilter;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import java.net.URI;
+import org.springframework.context.annotation.Profile;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@Profile("!test-unit")
+@RequestMapping("/api/v1/setup")
+@Tag(name = "实例初始化", description = "仅供尚未初始化的私有实例创建首个 Owner")
+public class SetupController {
+
+    /* 初始化应用服务，承载唯一性判断、密码处理和原子写入。 */
+    private final InstanceBootstrapService bootstrapService;
+
+    public SetupController(InstanceBootstrapService bootstrapService) {
+        this.bootstrapService = bootstrapService;
+    }
+
+    @PostMapping("/initialize")
+    @Operation(
+            summary = "初始化 ForgeAI 实例",
+            description = "权限：无需登录且仅未初始化实例可调用；不使用幂等键，首次成功后永久返回冲突。")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "首个 Owner、Organization 与 Workspace 已原子创建"),
+        @ApiResponse(responseCode = "400", description = "字段格式或密码安全要求不满足"),
+        @ApiResponse(responseCode = "409", description = "实例已经初始化")
+    })
+    public ResponseEntity<InitializeResponse> initialize(
+            @Valid @RequestBody InitializeRequest body, HttpServletRequest request) {
+        String requestId = (String) request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
+        BootstrapResult result = bootstrapService.initialize(new BootstrapCommand(
+                body.adminEmail(),
+                body.adminDisplayName(),
+                body.password(),
+                body.organizationName(),
+                body.organizationSlug(),
+                body.workspaceName(),
+                body.workspaceSlug(),
+                requestId));
+        InitializeResponse response = new InitializeResponse(
+                result.userId(),
+                result.organizationId(),
+                result.workspaceId(),
+                result.organizationSlug(),
+                result.workspaceSlug());
+        return ResponseEntity.created(URI.create("/api/v1/workspaces/" + result.workspaceId())).body(response);
+    }
+
+    public record InitializeRequest(
+            /* 首个 Owner 的有效电子邮箱地址。 */
+            @NotBlank @Email @Size(max = 320) String adminEmail,
+            /* 首个 Owner 在界面显示的名称。 */
+            @NotBlank @Size(max = 120) String adminDisplayName,
+            /* 仅用于生成 BCrypt 摘要的密码；响应与日志均不得回显。 */
+            @NotBlank String password,
+            /* 默认组织的界面展示名称。 */
+            @NotBlank @Size(max = 120) String organizationName,
+            /* 默认组织的小写字母、数字和短横线路由短名。 */
+            @NotBlank @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String organizationSlug,
+            /* 默认工作区的界面展示名称。 */
+            @NotBlank @Size(max = 120) String workspaceName,
+            /* 默认工作区的小写字母、数字和短横线路由短名。 */
+            @NotBlank @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String workspaceSlug) {}
+
+    public record InitializeResponse(
+            /* 初始化创建的首个 Owner 用户标识。 */
+            long userId,
+            /* 初始化创建的默认组织标识。 */
+            long organizationId,
+            /* 初始化创建的默认工作区标识。 */
+            long workspaceId,
+            /* 默认组织的稳定路由短名。 */
+            String organizationSlug,
+            /* 默认工作区的稳定路由短名。 */
+            String workspaceSlug) {}
+}

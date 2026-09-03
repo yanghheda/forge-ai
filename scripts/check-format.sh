@@ -3,7 +3,23 @@ set -eu
 
 # 可传入独立目录，以便测试门禁的失败路径而不污染工作树。
 check_root=${1:-.}
+ignore_file="$check_root/.formatignore"
 failed=0
+
+is_ignored() {
+  candidate=${1#"$check_root"/}
+  [ -f "$ignore_file" ] || return 1
+
+  while IFS= read -r pattern || [ -n "$pattern" ]; do
+    case "$pattern" in
+      ''|'#'*) continue ;;
+    esac
+    case "$candidate" in
+      $pattern) return 0 ;;
+    esac
+  done < "$ignore_file"
+  return 1
+}
 
 find "$check_root" -type f \
   ! -path '*/.git/*' \
@@ -11,11 +27,17 @@ find "$check_root" -type f \
   ! -path '*/.next/*' \
   ! -path '*/build/*' \
   ! -path '*/target/*' \
+  ! -path '*/.venv/*' \
+  ! -path '*/__pycache__/*' \
   \( -name '*.md' -o -name '*.yml' -o -name '*.yaml' -o -name '*.json' \
      -o -name '*.java' -o -name '*.py' -o -name '*.sh' -o -name '*.ts' \
      -o -name '*.tsx' -o -name '*.mjs' -o -name '*.css' -o -name 'Makefile' \
-     -o -name '.editorconfig' -o -name '.gitignore' \) \
+     -o -name '.editorconfig' -o -name '.gitignore' -o -name '.formatignore' \) \
   -print | LC_ALL=C sort | while IFS= read -r file; do
+    if is_ignored "$file"; then
+      continue
+    fi
+
     case "$file" in
       *.md)
         # Markdown 行尾双空格表示显式换行；其他尾随空白仍应阻断。
