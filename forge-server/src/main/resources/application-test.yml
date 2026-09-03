@@ -10,6 +10,11 @@ spring:
     redis:
       host: ${FORGE_REDIS_HOST:redis}
       port: ${FORGE_REDIS_PORT:6379}
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
 
 forge:
   infrastructure:

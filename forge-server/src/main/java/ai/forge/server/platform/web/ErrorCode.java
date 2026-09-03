@@ -7,6 +7,10 @@ public enum ErrorCode {
     VALIDATION_FAILED,
     /* 单例实例已完成首个 Owner 初始化，公开入口永久关闭。 */
     INSTANCE_ALREADY_INITIALIZED,
+    /* 请求没有可验证的服务端 Session 或登录凭据无效。 */
+    UNAUTHENTICATED,
+    /* 当前来源与邮箱组合超过登录尝试窗口上限。 */
+    LOGIN_RATE_LIMITED,
     /* 未被稳定业务错误覆盖的服务端故障。 */
     INTERNAL_ERROR
 }

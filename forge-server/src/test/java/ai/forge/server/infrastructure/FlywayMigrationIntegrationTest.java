@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("4");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -95,6 +95,22 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void authenticationAuditAllowsInstanceScopedAnonymousEvents() {
+        Map<String, String> nullability = jdbcTemplate.query(
+                        "SELECT column_name, is_nullable FROM information_schema.columns "
+                                + "WHERE table_schema = DATABASE() AND table_name = 'audit_logs' "
+                                + "AND column_name IN ('workspace_id', 'actor_id')",
+                        (resultSet, rowNumber) -> Map.entry(
+                                resultSet.getString("column_name"), resultSet.getString("is_nullable")))
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        assertThat(nullability).containsExactlyInAnyOrderEntriesOf(Map.of(
+                "workspace_id", "YES",
+                "actor_id", "YES"));
+    }
+
+    @Test
     void repeatedMigrationDoesNotChangeSchema() {
         assertThat(flyway.migrate().migrationsExecuted).isZero();
     }
@@ -104,6 +120,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         copyMigration("V1__baseline.sql");
         copyMigration("V2__instance_settings.sql");
         copyMigration("V3__identity_workspace_bootstrap.sql");
+        copyMigration("V4__authentication_audit_scope.sql");
         Files.writeString(
                 temporaryMigrationDirectory.resolve("V1__baseline.sql"),
                 System.lineSeparator() + "-- 模拟错误修改已发布迁移。",

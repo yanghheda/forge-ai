@@ -15,8 +15,28 @@ spring:
     enabled: true
     validate-on-migrate: true
     clean-disabled: true
+  session:
+    timeout: ${FORGE_SESSION_IDLE_TIMEOUT:30m}
+    redis:
+      namespace: forge:session
+
+server:
+  servlet:
+    session:
+      cookie:
+        name: FORGE_SESSION
+        http-only: true
+        secure: ${FORGE_SESSION_COOKIE_SECURE:true}
+        same-site: lax
+        path: /
 
 forge:
+  auth:
+    absolute-session-timeout: ${FORGE_SESSION_ABSOLUTE_TIMEOUT:12h}
+    failed-login-threshold: ${FORGE_FAILED_LOGIN_THRESHOLD:5}
+    account-lock-duration: ${FORGE_ACCOUNT_LOCK_DURATION:15m}
+    rate-limit-attempts: ${FORGE_LOGIN_RATE_LIMIT_ATTEMPTS:10}
+    rate-limit-window: ${FORGE_LOGIN_RATE_LIMIT_WINDOW:5m}
   infrastructure:
     agent:
       base-url: ${FORGE_AGENT_BASE_URL}

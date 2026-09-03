@@ -1,6 +1,9 @@
 package ai.forge.server.platform.web;
 
 import ai.forge.server.auth.domain.InstanceAlreadyInitializedException;
+import ai.forge.server.auth.domain.InvalidCredentialsException;
+import ai.forge.server.auth.domain.LoginRateLimitedException;
+import ai.forge.server.auth.domain.UnauthenticatedException;
 import ai.forge.server.auth.domain.WeakPasswordException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
@@ -79,6 +82,20 @@ public class GlobalExceptionHandler {
                 "Instance has already been initialized",
                 Map.of(),
                 request);
+    }
+
+    @ExceptionHandler({InvalidCredentialsException.class, UnauthenticatedException.class})
+    public ResponseEntity<ApiError> handleUnauthenticated(RuntimeException exception, HttpServletRequest request) {
+        return error(HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHENTICATED,
+                exception instanceof InvalidCredentialsException ? "Invalid email or password" : "Authentication required",
+                Map.of(), request);
+    }
+
+    @ExceptionHandler(LoginRateLimitedException.class)
+    public ResponseEntity<ApiError> handleLoginRateLimited(
+            LoginRateLimitedException exception, HttpServletRequest request) {
+        return error(HttpStatus.TOO_MANY_REQUESTS, ErrorCode.LOGIN_RATE_LIMITED,
+                "Too many login attempts", Map.of(), request);
     }
 
     @ExceptionHandler(Exception.class)

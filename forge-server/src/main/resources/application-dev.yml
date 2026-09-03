@@ -1,6 +1,11 @@
 springdoc:
   swagger-ui:
     enabled: true
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
 spring:
   config:
     activate:
