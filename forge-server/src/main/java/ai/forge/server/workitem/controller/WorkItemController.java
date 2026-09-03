@@ -5,10 +5,14 @@ import ai.forge.server.auth.domain.AuthContext;
 import ai.forge.server.workitem.application.WorkItemCommandService;
 import ai.forge.server.workitem.application.WorkItemPage;
 import ai.forge.server.workitem.application.WorkItemQueryService;
+import ai.forge.server.workitem.application.RequirementTransitionService;
+import ai.forge.server.workitem.application.RequirementTransitionStore;
 import ai.forge.server.workitem.domain.WorkItem;
 import ai.forge.server.workitem.domain.WorkItemPriority;
 import ai.forge.server.workitem.domain.WorkItemStatus;
 import ai.forge.server.workitem.domain.WorkItemType;
+import ai.forge.server.workitem.domain.WorkItemEvent;
+import ai.forge.server.workitem.domain.WorkflowAction;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -24,6 +28,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,9 +54,16 @@ public class WorkItemController {
     /* 执行强制租户与项目范围的详情和分页查询。 */
     private final WorkItemQueryService queryService;
 
-    public WorkItemController(WorkItemCommandService commandService, WorkItemQueryService queryService) {
+    /* 执行 Requirement 固定 Action，并读取同范围内的追加活动事件。 */
+    private final RequirementTransitionService transitionService;
+
+    public WorkItemController(
+            WorkItemCommandService commandService,
+            WorkItemQueryService queryService,
+            RequirementTransitionService transitionService) {
         this.commandService = commandService;
         this.queryService = queryService;
+        this.transitionService = transitionService;
     }
 
     @PostMapping
@@ -147,6 +159,45 @@ public class WorkItemController {
                 body.expectedVersion());
     }
 
+    @PostMapping("/{workItemId}/transitions")
+    @Operation(
+            summary = "执行 Requirement 固定工作流动作",
+            description = "客户端只提交 Action、expectedVersion 和幂等键；目标状态由服务端 Registry 决定。")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "转换、评审记录和活动事件已在同一事务提交"),
+        @ApiResponse(responseCode = "409", description = "状态、版本或幂等键冲突"),
+        @ApiResponse(responseCode = "422", description = "Guard 未满足，details.missing 返回缺失条件"),
+        @ApiResponse(responseCode = "404", description = "资源、scope 或动作权限不可见")
+    })
+    public RequirementTransitionStore.TransitionResult transition(
+            @PathVariable long workItemId,
+            @RequestParam long workspaceId,
+            @RequestParam long projectId,
+            @Valid @RequestBody TransitionRequest body,
+            HttpServletRequest request) {
+        AuthContext context = AuthController.requireContext(request);
+        return transitionService.transition(
+                context.userId(),
+                workspaceId,
+                projectId,
+                workItemId,
+                body.action(),
+                body.expectedVersion(),
+                body.idempotencyKey(),
+                body.reason());
+    }
+
+    @GetMapping("/{workItemId}/events")
+    @Operation(summary = "读取 Work Item 活动时间线", description = "按事件 id 升序返回追加写工作流事件。")
+    public List<WorkItemEvent> events(
+            @PathVariable long workItemId,
+            @RequestParam long workspaceId,
+            @RequestParam long projectId,
+            HttpServletRequest request) {
+        AuthContext context = AuthController.requireContext(request);
+        return transitionService.events(context.userId(), workspaceId, projectId, workItemId);
+    }
+
     public record CreateWorkItemRequest(
             /* 所属 Workspace；服务端会与项目和当前权限重新比对。 */
             @NotNull @Positive Long workspaceId,
@@ -178,4 +229,14 @@ public class WorkItemController {
             Instant dueAt,
             /* 客户端读取到的聚合版本；写入时必须精确匹配。 */
             @PositiveOrZero long expectedVersion) {}
+
+    public record TransitionRequest(
+            /* 请求执行的固定工作流动作；请求不接受任意目标状态。 */
+            @NotNull WorkflowAction action,
+            /* 客户端读取到的 Work Item 聚合版本。 */
+            @PositiveOrZero long expectedVersion,
+            /* 同一 Work Item 内唯一的稳定重试键。 */
+            @NotBlank @Size(max = 128) String idempotencyKey,
+            /* 退回等动作要求的审计原因；无需原因时可为空。 */
+            @Size(max = 1000) String reason) {}
 }

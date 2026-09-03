@@ -7,6 +7,12 @@ public enum ErrorCode {
     PROJECT_KEY_CONFLICT,
     /* 写入请求携带的 expectedVersion 已落后于当前资源版本。 */
     VERSION_CONFLICT,
+    /* 当前状态或工作项类型不允许执行请求中的固定 Action。 */
+    INVALID_TRANSITION,
+    /* 状态转换所需的确定性业务材料尚未满足。 */
+    WORKFLOW_GUARD_FAILED,
+    /* 同一 Work Item 的幂等键已被不同 Action 使用。 */
+    IDEMPOTENCY_CONFLICT,
     /* 请求结构或字段约束不满足公开契约。 */
     VALIDATION_FAILED,
     /* 单例实例已完成首个 Owner 初始化，公开入口永久关闭。 */

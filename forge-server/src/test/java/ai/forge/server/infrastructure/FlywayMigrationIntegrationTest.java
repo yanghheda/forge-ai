@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("7");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("8");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -110,7 +110,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                         Integer.class))
-                .isEqualTo(15);
+                .isEqualTo(16);
     }
 
     @Test
@@ -147,6 +147,39 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void requirementWorkflowMigrationCreatesGuardReviewAndEventFacts() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT table_name FROM information_schema.tables "
+                                + "WHERE table_schema = DATABASE() AND table_name IN "
+                                + "('requirement_details','review_records','work_item_events')",
+                        String.class))
+                .containsExactlyInAnyOrder("requirement_details", "review_records", "work_item_events");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT index_name FROM information_schema.statistics "
+                                + "WHERE table_schema = DATABASE() AND table_name = 'work_item_events'",
+                        String.class))
+                .contains("idx_work_item_events_timeline", "uq_work_item_events_idempotency");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('requirement_details','review_records','work_item_events') "
+                                + "AND column_comment = ''",
+                        Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('requirement_details','review_records','work_item_events') "
+                                + "AND table_comment = ''",
+                        Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT p.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.code IN ('OWNER','ADMIN','PRODUCT') AND p.code = 'requirement.review'",
+                        String.class))
+                .hasSize(3);
+    }
+
+    @Test
     void authenticationAuditAllowsInstanceScopedAnonymousEvents() {
         Map<String, String> nullability = jdbcTemplate.query(
                         "SELECT column_name, is_nullable FROM information_schema.columns "
@@ -176,6 +209,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         copyMigration("V5__project_member_scope.sql");
         copyMigration("V6__rbac_permissions.sql");
         copyMigration("V7__work_item_aggregate.sql");
+        copyMigration("V8__requirement_workflow.sql");
         Files.writeString(
                 temporaryMigrationDirectory.resolve("V1__baseline.sql"),
                 System.lineSeparator() + "-- 模拟错误修改已发布迁移。",

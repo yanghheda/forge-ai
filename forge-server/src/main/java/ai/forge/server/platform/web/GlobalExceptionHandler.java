@@ -8,6 +8,9 @@ import ai.forge.server.auth.domain.WeakPasswordException;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.project.domain.ProjectKeyConflictException;
+import ai.forge.server.workitem.domain.IdempotencyConflictException;
+import ai.forge.server.workitem.domain.InvalidTransitionException;
+import ai.forge.server.workitem.domain.WorkflowGuardFailedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.util.LinkedHashMap;
@@ -59,6 +62,27 @@ public class GlobalExceptionHandler {
             VersionConflictException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, ErrorCode.VERSION_CONFLICT,
                 "Resource version conflict", Map.of(), request);
+    }
+
+    @ExceptionHandler(InvalidTransitionException.class)
+    public ResponseEntity<ApiError> handleInvalidTransition(
+            InvalidTransitionException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.INVALID_TRANSITION,
+                "Workflow action is not available from the current state", Map.of(), request);
+    }
+
+    @ExceptionHandler(WorkflowGuardFailedException.class)
+    public ResponseEntity<ApiError> handleWorkflowGuardFailed(
+            WorkflowGuardFailedException exception, HttpServletRequest request) {
+        return error(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.WORKFLOW_GUARD_FAILED,
+                "Workflow requirements are not satisfied", Map.of("missing", exception.missing()), request);
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<ApiError> handleIdempotencyConflict(
+            IdempotencyConflictException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.IDEMPOTENCY_CONFLICT,
+                "Idempotency key was already used for another action", Map.of(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
