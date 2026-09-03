@@ -38,7 +38,7 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "project_members", "projects", "audit_logs", "member_roles", "roles", "workspace_members", "workspaces", "organizations", "users")) {
+                "project_members", "projects", "audit_logs", "member_roles", "workspace_members", "workspaces", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         ResponseEntity<String> initialized = csrf().post(
@@ -112,6 +112,7 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
         assertThat(csrf().post(
                 "/api/v1/projects/" + projectId + "/members?workspaceId=" + workspaceId,
                 Map.of("email", "member@example.com"), ownerCookie, String.class).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        grantWorkspaceRole(workspaceId, "member@example.com", "PRODUCT");
 
         String memberCookie = login("member@example.com");
         assertThat(get("/api/v1/projects/" + projectId + "?workspaceId=" + workspaceId, memberCookie).getStatusCode())
@@ -236,6 +237,14 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
 
     private long userId(String email) {
         return jdbcTemplate.queryForObject("SELECT id FROM users WHERE normalized_email = ?", Long.class, email);
+    }
+
+    private void grantWorkspaceRole(long workspaceId, String email, String roleCode) {
+        jdbcTemplate.update(
+                "INSERT INTO member_roles (workspace_member_id, role_id, project_id, created_at) "
+                        + "SELECT wm.id, r.id, NULL, UTC_TIMESTAMP(6) FROM workspace_members wm CROSS JOIN roles r "
+                        + "JOIN users u ON u.id = wm.user_id WHERE wm.workspace_id = ? AND u.normalized_email = ? AND r.code = ?",
+                workspaceId, email, roleCode);
     }
 
     private ResponseEntity<String> get(String path, String cookie) {

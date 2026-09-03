@@ -1,6 +1,7 @@
 package ai.forge.server.project.application;
 
 import ai.forge.server.common.domain.ResourceNotFoundException;
+import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.project.domain.Project;
 import ai.forge.server.project.domain.ProjectMember;
 import ai.forge.server.workspace.application.WorkspaceAccessService;
@@ -18,15 +19,19 @@ public class ProjectQueryService {
     /* 只接受 Workspace 范围参数的项目持久化端口。 */
     private final ProjectStore projectStore;
 
-    public ProjectQueryService(WorkspaceAccessService workspaceAccessService, ProjectStore projectStore) {
+    /* 在项目事实加载后验证角色权限的授权服务。 */
+    private final PermissionEvaluator permissionEvaluator;
+
+    public ProjectQueryService(WorkspaceAccessService workspaceAccessService, ProjectStore projectStore, PermissionEvaluator permissionEvaluator) {
         this.workspaceAccessService = workspaceAccessService;
         this.projectStore = projectStore;
+        this.permissionEvaluator = permissionEvaluator;
     }
 
     public List<Project> list(long userId, long workspaceId) {
         workspaceAccessService.requireMember(userId, workspaceId);
         return projectStore.findByWorkspaceId(workspaceId).stream()
-                .filter(project -> canAccess(userId, workspaceId, project.id()))
+                .filter(project -> permissionEvaluator.hasProjectPermission(userId, workspaceId, project.id(), "project.read"))
                 .toList();
     }
 
@@ -34,21 +39,13 @@ public class ProjectQueryService {
         workspaceAccessService.requireMember(userId, workspaceId);
         Project project = projectStore.findByIdAndWorkspaceId(projectId, workspaceId)
                 .orElseThrow(ResourceNotFoundException::new);
-        if (!canAccess(userId, workspaceId, project.id())) {
-            throw new ResourceNotFoundException();
-        }
+        permissionEvaluator.requireProject(userId, workspaceId, project.id(), "project.read");
         return project;
     }
 
     public List<ProjectMember> members(long userId, long workspaceId, long projectId) {
-        workspaceAccessService.requireOwner(userId, workspaceId);
-        requireProjectInWorkspace(workspaceId, projectId);
+        permissionEvaluator.requireProject(userId, workspaceId, projectId, "member.read");
         return projectStore.findMembersByProjectIdAndWorkspaceId(projectId, workspaceId);
-    }
-
-    private boolean canAccess(long userId, long workspaceId, long projectId) {
-        return workspaceAccessService.isOwner(userId, workspaceId)
-                || projectStore.hasActiveMember(workspaceId, projectId, userId);
     }
 
     private Project requireProjectInWorkspace(long workspaceId, long projectId) {

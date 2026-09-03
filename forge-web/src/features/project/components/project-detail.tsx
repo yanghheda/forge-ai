@@ -13,6 +13,7 @@ export function ProjectDetail({ workspaceSlug, projectKey }: { workspaceSlug: st
   const queryClient = useQueryClient();
   const currentUser = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser(), retry: false });
   const workspace = currentUser.data?.workspaces.find((item) => item.slug === workspaceSlug);
+  const canManageProjects = workspace?.roles.some((role) => role === "OWNER" || role === "ADMIN") ?? false;
   const projects = useQuery({ queryKey: ["projects", workspace?.id], queryFn: () => listProjects(workspace!.id), enabled: workspace !== undefined });
   const projectRef = projects.data?.find((item) => item.key === projectKey);
   const project = useQuery({ queryKey: ["project", workspace?.id, projectRef?.id], queryFn: () => getProject(workspace!.id, projectRef!.id), enabled: projectRef !== undefined });
@@ -31,9 +32,9 @@ export function ProjectDetail({ workspaceSlug, projectKey }: { workspaceSlug: st
     <Typography.Paragraph>{project.data.description || "尚未填写项目说明。"}</Typography.Paragraph>
     <Card title="项目状态" size="small">
       <Typography.Text>{project.data.status} · version {project.data.version}</Typography.Text>
-      {project.data.status === "ACTIVE" && <Button status="warning" loading={archive.isPending} onClick={() => archive.mutate()}>归档 Project</Button>}
+      {canManageProjects && project.data.status === "ACTIVE" && <Button status="warning" loading={archive.isPending} onClick={() => archive.mutate()}>归档 Project</Button>}
       {archive.isError && <RequestError error={archive.error} />}
     </Card>
-    <ProjectMembers workspaceId={workspace.id} projectId={project.data.id} />
+    {canManageProjects && <ProjectMembers workspaceId={workspace.id} projectId={project.data.id} />}
   </section>;
 }

@@ -15,6 +15,7 @@ export function WorkspaceProjects({ workspaceSlug }: { workspaceSlug: string }) 
   const [form, setForm] = useState({ key: "", name: "", description: "" });
   const currentUser = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser(), retry: false });
   const workspace = currentUser.data?.workspaces.find((item) => item.slug === workspaceSlug);
+  const canManageProjects = workspace?.roles.some((role) => role === "OWNER" || role === "ADMIN") ?? false;
   const projects = useQuery({
     queryKey: ["projects", workspace?.id],
     queryFn: () => listProjects(workspace!.id),
@@ -39,7 +40,7 @@ export function WorkspaceProjects({ workspaceSlug }: { workspaceSlug: string }) 
 
   return <section aria-labelledby="workspace-projects-title">
     <Typography.Title id="workspace-projects-title" heading={2}>项目</Typography.Title>
-    <Card title="创建项目" size="small">
+    {canManageProjects && <Card title="创建项目" size="small">
       <form onSubmit={submit}>
         <Input aria-label="项目 Key" placeholder="项目 Key，例如 FORGE" value={form.key} onChange={(key) => setForm((value) => ({ ...value, key }))} />
         <Input aria-label="项目名称" placeholder="项目名称" value={form.name} onChange={(name) => setForm((value) => ({ ...value, name }))} />
@@ -47,7 +48,7 @@ export function WorkspaceProjects({ workspaceSlug }: { workspaceSlug: string }) 
         <Button htmlType="submit" type="primary" loading={create.isPending}>创建 Project</Button>
         {create.isError && <RequestError error={create.error} />}
       </form>
-    </Card>
+    </Card>}
     {projects.data.length === 0 ? <Empty description="尚未创建项目" /> : <ul>{projects.data.map((project) => <li key={project.id}>
       <Link href={`/w/${workspaceSlug}/p/${project.key}/overview`}>{project.key} · {project.name}</Link> · {project.status}
     </li>)}</ul>}

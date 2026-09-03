@@ -43,7 +43,7 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "project_members", "projects", "audit_logs", "member_roles", "roles", "workspace_members", "workspaces", "organizations", "users")) {
+                "project_members", "projects", "audit_logs", "member_roles", "workspace_members", "workspaces", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
     }
@@ -133,7 +133,7 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
 
         assertThatThrownBy(() -> bootstrapService.initialize(command)).isInstanceOf(RuntimeException.class);
         for (String table : List.of(
-                "users", "organizations", "workspaces", "workspace_members", "roles", "member_roles", "audit_logs")) {
+                "users", "organizations", "workspaces", "workspace_members", "member_roles", "audit_logs")) {
             assertThat(count(table)).as(table).isZero();
         }
         assertThat(jdbcTemplate.queryForObject(

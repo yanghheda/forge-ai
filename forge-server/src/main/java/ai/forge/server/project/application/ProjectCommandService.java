@@ -1,6 +1,7 @@
 package ai.forge.server.project.application;
 
 import ai.forge.server.common.domain.ResourceNotFoundException;
+import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.project.domain.Project;
 import ai.forge.server.workspace.application.WorkspaceAccessService;
@@ -18,13 +19,17 @@ public class ProjectCommandService {
     /* 提交同一项目事务内项目事实与成员关系的持久化端口。 */
     private final ProjectStore projectStore;
 
-    public ProjectCommandService(WorkspaceAccessService workspaceAccessService, ProjectStore projectStore) {
+    /* 在项目资源加载后执行最终 RBAC 授权的服务。 */
+    private final PermissionEvaluator permissionEvaluator;
+
+    public ProjectCommandService(WorkspaceAccessService workspaceAccessService, ProjectStore projectStore, PermissionEvaluator permissionEvaluator) {
         this.workspaceAccessService = workspaceAccessService;
         this.projectStore = projectStore;
+        this.permissionEvaluator = permissionEvaluator;
     }
 
     public Project create(long userId, long workspaceId, String key, String name, String description) {
-        workspaceAccessService.requireOwner(userId, workspaceId);
+        permissionEvaluator.requireWorkspace(userId, workspaceId, "project.manage");
         return projectStore.createWithCreatorMembership(
                 workspaceId,
                 userId,
@@ -34,7 +39,7 @@ public class ProjectCommandService {
     }
 
     public void archive(long userId, long workspaceId, long projectId, long expectedVersion) {
-        workspaceAccessService.requireOwner(userId, workspaceId);
+        permissionEvaluator.requireProject(userId, workspaceId, projectId, "project.manage");
         Project project = projectStore.findByIdAndWorkspaceId(projectId, workspaceId)
                 .orElseThrow(ResourceNotFoundException::new);
         if (!projectStore.archive(workspaceId, projectId, expectedVersion)) {
@@ -43,7 +48,7 @@ public class ProjectCommandService {
     }
 
     public void addMember(long userId, long workspaceId, long projectId, String email) {
-        workspaceAccessService.requireOwner(userId, workspaceId);
+        permissionEvaluator.requireProject(userId, workspaceId, projectId, "member.manage");
         requireProjectInWorkspace(workspaceId, projectId);
         long memberUserId = workspaceAccessService.requireActiveMemberUserId(
                 workspaceId, email.trim().toLowerCase(Locale.ROOT));
@@ -51,7 +56,7 @@ public class ProjectCommandService {
     }
 
     public void removeMember(long userId, long workspaceId, long projectId, long memberUserId) {
-        workspaceAccessService.requireOwner(userId, workspaceId);
+        permissionEvaluator.requireProject(userId, workspaceId, projectId, "member.manage");
         requireProjectInWorkspace(workspaceId, projectId);
         if (userId == memberUserId) {
             throw new IllegalArgumentException("Project owner cannot remove their own membership");

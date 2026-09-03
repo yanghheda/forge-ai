@@ -39,8 +39,7 @@ public class MybatisPlusInstanceBootstrapStore implements InstanceBootstrapStore
         long workspaceId = bootstrapMapper.lastInsertId();
         bootstrapMapper.insertWorkspaceMember(workspaceId, userId);
         long workspaceMemberId = bootstrapMapper.lastInsertId();
-        bootstrapMapper.insertOwnerRole();
-        long ownerRoleId = bootstrapMapper.lastInsertId();
+        long ownerRoleId = bootstrapMapper.findOwnerRoleId();
         bootstrapMapper.insertMemberRole(workspaceMemberId, ownerRoleId);
         bootstrapMapper.insertBootstrapAudit(
                 workspaceId, userId, command.requestId(), command.organizationSlug(), command.workspaceSlug());

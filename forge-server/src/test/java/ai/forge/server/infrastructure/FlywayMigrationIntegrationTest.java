@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -96,6 +96,19 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void rbacMigrationSeedsDefaultRolesAndCorePermissions() {
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM roles WHERE system_role = TRUE", Integer.class))
+                .isEqualTo(7);
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT code FROM permissions ORDER BY code", String.class))
+                .containsExactly("member.manage", "member.read", "project.manage", "project.read", "workspace.manage", "workspace.read");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
+                        Integer.class))
+                .isEqualTo(6);
+    }
+
+    @Test
     void authenticationAuditAllowsInstanceScopedAnonymousEvents() {
         Map<String, String> nullability = jdbcTemplate.query(
                         "SELECT column_name, is_nullable FROM information_schema.columns "
@@ -123,6 +136,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         copyMigration("V3__identity_workspace_bootstrap.sql");
         copyMigration("V4__authentication_audit_scope.sql");
         copyMigration("V5__project_member_scope.sql");
+        copyMigration("V6__rbac_permissions.sql");
         Files.writeString(
                 temporaryMigrationDirectory.resolve("V1__baseline.sql"),
                 System.lineSeparator() + "-- 模拟错误修改已发布迁移。",

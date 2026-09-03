@@ -22,6 +22,12 @@
 - MySQL 是事实来源；Redis 是可丢失的会话/短期状态；Qdrant 是可重建的派生索引。
 - 外部系统调用不得放在持有数据库行锁的事务中。
 
+## 持久化约定
+
+- 生产代码统一使用 MyBatis 体系访问 MySQL：简单单表 CRUD 使用 MyBatis-Plus；带租户 scope、多表聚合、锁或性能敏感条件的查询使用 `@Mapper` 中可审查的 MyBatis SQL。
+- 不使用或新增 `JdbcTemplate` 生产 Store；测试可使用它直接搭建数据库事实和断言结果，但不得借此绕过生产 Mapper。
+- 所有 Mapper SQL 仍必须显式携带适用的 `workspace_id`、`project_id` 等 scope 条件；改用 MyBatis 不得弱化授权或租户隔离边界。
+
 ## 注释规则
 
 - 解释性注释优先使用中文；标识符、协议名、第三方字段和对外英文文案保持原样。

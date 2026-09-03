@@ -525,6 +525,12 @@ Controller 使用声明式注解只做粗粒度入口保护；Application Servic
 
 ## 7. Backend 模块详细设计
 
+### 7.0 持久化实现约定
+
+- MySQL 访问统一采用 MyBatis 体系。简单单表 CRUD 优先 MyBatis-Plus；包含租户范围、多表聚合、悲观锁或性能敏感 SQL 的 Store 使用 `@Mapper` 中显式、可审查的 MyBatis SQL。
+- Application Service 仅依赖领域 Store 端口，不依赖 Mapper、MyBatis-Plus 或具体 SQL 技术细节。
+- 不新增 `JdbcTemplate` 生产 Store。无论采用何种 Mapper 方式，业务查询仍必须显式传入并在 SQL 中限制 `workspace_id`、`project_id` 等 scope；ORM 不能替代租户过滤。
+
 ### 7.1 模块公开面
 
 | 模块 | Command Service | Query Service | 主要领域事件 |

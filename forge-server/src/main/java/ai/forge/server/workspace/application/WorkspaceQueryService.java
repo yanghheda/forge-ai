@@ -1,6 +1,7 @@
 package ai.forge.server.workspace.application;
 
 import ai.forge.server.workspace.domain.Workspace;
+import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.workspace.domain.WorkspaceMember;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
@@ -16,9 +17,13 @@ public class WorkspaceQueryService {
     /* 返回 Workspace 公开摘要和成员目录的持久化端口。 */
     private final WorkspaceStore workspaceStore;
 
-    public WorkspaceQueryService(WorkspaceAccessService workspaceAccessService, WorkspaceStore workspaceStore) {
+    /* 在返回成员目录前执行最终 RBAC 授权的服务。 */
+    private final PermissionEvaluator permissionEvaluator;
+
+    public WorkspaceQueryService(WorkspaceAccessService workspaceAccessService, WorkspaceStore workspaceStore, PermissionEvaluator permissionEvaluator) {
         this.workspaceAccessService = workspaceAccessService;
         this.workspaceStore = workspaceStore;
+        this.permissionEvaluator = permissionEvaluator;
     }
 
     public List<Workspace> list(long userId) {
@@ -30,7 +35,7 @@ public class WorkspaceQueryService {
     }
 
     public List<WorkspaceMember> members(long userId, long workspaceId) {
-        workspaceAccessService.requireOwner(userId, workspaceId);
+        permissionEvaluator.requireWorkspace(userId, workspaceId, "member.read");
         return workspaceStore.findMembersByWorkspaceId(workspaceId);
     }
 }

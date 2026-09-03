@@ -57,11 +57,8 @@ public interface InstanceBootstrapMapper extends BaseMapper<InstanceSettingsEnti
             """)
     int insertWorkspaceMember(@Param("workspaceId") long workspaceId, @Param("userId") long userId);
 
-    @Insert("""
-            INSERT INTO roles (workspace_id, code, name, system_role, description)
-            VALUES (NULL, 'OWNER', 'Owner', TRUE, '实例初始化创建的 Workspace 所有者角色')
-            """)
-    int insertOwnerRole();
+    @Select("SELECT id FROM roles WHERE code = 'OWNER' AND system_role = TRUE AND workspace_id IS NULL")
+    long findOwnerRoleId();
 
     @Insert("""
             INSERT INTO member_roles (workspace_member_id, role_id, project_id, created_at)
