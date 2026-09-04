@@ -8,6 +8,8 @@ public interface RequirementMaterialStore {
 
     boolean hasPublishedPrd(long workspaceId, long projectId, long workItemId);
 
+    boolean hasPublishedUxSpec(long workspaceId, long projectId, long workItemId);
+
     record RequirementMaterial(
             /* 非空业务目标。 */
             String goal,

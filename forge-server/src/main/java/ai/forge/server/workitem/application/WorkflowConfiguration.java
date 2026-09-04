@@ -15,6 +15,8 @@ public class WorkflowConfiguration {
         return new RequirementWorkflowRegistry(
                 new RequirementMaterialGuard(materialStore),
                 new PublishedPrdGuard(materialStore),
+                new PublishedUxSpecGuard(materialStore),
+                new UxChecklistGuard(),
                 new ReasonRequiredGuard());
     }
 }

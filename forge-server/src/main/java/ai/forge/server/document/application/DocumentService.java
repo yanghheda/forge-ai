@@ -6,6 +6,7 @@ import ai.forge.server.document.domain.Document;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Profile("!test-unit")
 public class DocumentService {
+    /* 本会话开放给 Requirement 的产品与 UX 文档类型。 */
+    private static final Set<String> SUPPORTED_TYPES = Set.of("PRD", "UX_SPEC", "PROTOTYPE_SPEC", "DESIGN_GUIDE");
     /* 项目范围授权的最终服务端判断。 */
     private final PermissionEvaluator permissions;
 
@@ -30,8 +33,8 @@ public class DocumentService {
     public Document create(
         long userId, long workspaceId, long projectId, long workItemId, String type, String title) {
         permissions.requireProject(userId, workspaceId, projectId, "document.create");
-        if (!"PRD".equals(type) || title == null || title.trim().isEmpty()) {
-            throw new IllegalArgumentException("only nonblank PRD documents are supported");
+        if (!SUPPORTED_TYPES.contains(type) || title == null || title.trim().isEmpty()) {
+            throw new IllegalArgumentException("only nonblank Product or UX documents are supported");
         }
         if (!store.requirementExists(workspaceId, projectId, workItemId)) {
             throw new ResourceNotFoundException();

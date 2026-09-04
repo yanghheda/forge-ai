@@ -6,7 +6,14 @@ interface RequestClient {
 export type WorkflowAction =
   | "SUBMIT_PRODUCT_REVIEW"
   | "APPROVE_PRODUCT_REVIEW"
-  | "REJECT_PRODUCT_REVIEW";
+  | "REJECT_PRODUCT_REVIEW"
+  | "SUBMIT_UX_REVIEW"
+  | "APPROVE_UX_REVIEW"
+  | "REJECT_UX_REVIEW"
+  | "START"
+  | "SUBMIT_REVIEW"
+  | "APPROVE"
+  | "REJECT";
 export interface WorkItem {
   id: number;
   workspaceId: number;
@@ -61,6 +68,14 @@ export const listRequirements = (
   client.request<WorkItemPage>(
     `/v1/work-items?workspaceId=${workspaceId}&projectId=${projectId}&type=REQUIREMENT`,
   );
+export const listUxTasks = (
+  workspaceId: number,
+  projectId: number,
+  client: RequestClient = apiClient,
+) =>
+  client.request<WorkItemPage>(
+    `/v1/work-items?workspaceId=${workspaceId}&projectId=${projectId}&type=UX_TASK`,
+  );
 export const createRequirement = (
   input: {
     workspaceId: number;
@@ -111,6 +126,7 @@ export const transitionRequirement = (
   action: WorkflowAction,
   expectedVersion: number,
   reason?: string,
+  checklist?: string[],
   client: RequestClient = apiClient,
 ) =>
   client.request(
@@ -119,6 +135,7 @@ export const transitionRequirement = (
       action,
       expectedVersion,
       reason,
+      checklist,
       idempotencyKey: crypto.randomUUID(),
     }),
   );

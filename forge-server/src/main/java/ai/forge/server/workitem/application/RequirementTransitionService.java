@@ -57,6 +57,29 @@ public class RequirementTransitionService {
             long expectedVersion,
             String idempotencyKey,
             String reason) {
+        return transition(
+                userId,
+                workspaceId,
+                projectId,
+                workItemId,
+                action,
+                expectedVersion,
+                idempotencyKey,
+                reason,
+                null);
+    }
+
+    @Transactional
+    public RequirementTransitionStore.TransitionResult transition(
+            long userId,
+            long workspaceId,
+            long projectId,
+            long workItemId,
+            WorkflowAction action,
+            long expectedVersion,
+            String idempotencyKey,
+            String reason,
+            List<String> checklist) {
         WorkItem current = workItemStore.findByIdAndScope(workspaceId, projectId, workItemId)
                 .orElseThrow(ResourceNotFoundException::new);
         Optional<RequirementTransitionStore.TransitionResult> previous =
@@ -73,7 +96,7 @@ public class RequirementTransitionService {
         TransitionDefinition definition = workflowRegistry.require(current.type(), current.status(), action);
         permissionEvaluator.requireProject(userId, workspaceId, projectId, definition.requiredPermission());
         LinkedHashSet<String> missing = new LinkedHashSet<>();
-        TransitionContext context = new TransitionContext(current, normalizeReason(reason));
+        TransitionContext context = new TransitionContext(current, normalizeReason(reason), checklist);
         for (var guard : definition.guards()) {
             GuardResult result = guard.evaluate(context);
             missing.addAll(result.missing());
@@ -89,7 +112,8 @@ public class RequirementTransitionService {
                 expectedVersion,
                 idempotencyKey,
                 context.reason(),
-                definition);
+                definition,
+                context.checklist());
     }
 
     public List<WorkItemEvent> events(
@@ -112,7 +136,7 @@ public class RequirementTransitionService {
             }
             actions.add(definition.action());
             LinkedHashSet<String> missing = new LinkedHashSet<>();
-            TransitionContext context = new TransitionContext(item, null);
+            TransitionContext context = new TransitionContext(item, null, null);
             definition.guards().forEach(guard -> missing.addAll(guard.evaluate(context).missing()));
             if (!missing.isEmpty()) {
                 guardHints.put(definition.action(), List.copyOf(missing));

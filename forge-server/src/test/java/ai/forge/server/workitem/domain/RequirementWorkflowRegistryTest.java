@@ -11,7 +11,8 @@ class RequirementWorkflowRegistryTest {
 
     private final TransitionGuard allowingGuard = context -> GuardResult.allowed();
     private final RequirementWorkflowRegistry registry =
-            new RequirementWorkflowRegistry(allowingGuard, allowingGuard, allowingGuard);
+            new RequirementWorkflowRegistry(
+                    allowingGuard, allowingGuard, allowingGuard, allowingGuard, allowingGuard);
 
     @Test
     void registersTheFirstProductActionsWithFixedTargetsAndPermissions() {
@@ -34,7 +35,15 @@ class RequirementWorkflowRegistryTest {
     @Test
     void everyRegisteredTargetIsReachableFromTheRequirementInitialState() {
         Set<WorkItemStatus> reachable = Set.of(
-                WorkItemStatus.DRAFT, WorkItemStatus.PRODUCT_REVIEW, WorkItemStatus.UX_IN_PROGRESS);
+                WorkItemStatus.DRAFT,
+                WorkItemStatus.PRODUCT_REVIEW,
+                WorkItemStatus.UX_IN_PROGRESS,
+                WorkItemStatus.UX_REVIEW,
+                WorkItemStatus.READY_FOR_DEV,
+                WorkItemStatus.TODO,
+                WorkItemStatus.IN_PROGRESS,
+                WorkItemStatus.IN_REVIEW,
+                WorkItemStatus.DONE);
         Set<WorkItemStatus> targets = registry.definitions().stream()
                 .map(TransitionDefinition::to)
                 .collect(Collectors.toSet());
@@ -49,7 +58,11 @@ class RequirementWorkflowRegistryTest {
                 boolean legal = status == WorkItemStatus.DRAFT && action == WorkflowAction.SUBMIT_PRODUCT_REVIEW
                         || status == WorkItemStatus.PRODUCT_REVIEW
                                 && (action == WorkflowAction.REJECT_PRODUCT_REVIEW
-                                        || action == WorkflowAction.APPROVE_PRODUCT_REVIEW);
+                                        || action == WorkflowAction.APPROVE_PRODUCT_REVIEW)
+                        || status == WorkItemStatus.UX_IN_PROGRESS && action == WorkflowAction.SUBMIT_UX_REVIEW
+                        || status == WorkItemStatus.UX_REVIEW
+                                && (action == WorkflowAction.REJECT_UX_REVIEW
+                                        || action == WorkflowAction.APPROVE_UX_REVIEW);
                 if (!legal) {
                     assertThatThrownBy(() -> registry.require(WorkItemType.REQUIREMENT, status, action))
                             .isInstanceOf(InvalidTransitionException.class);
@@ -62,6 +75,20 @@ class RequirementWorkflowRegistryTest {
     void taskTypesCannotUseRequirementActions() {
         assertThatThrownBy(() -> registry.require(
                         WorkItemType.DEV_TASK, WorkItemStatus.DRAFT, WorkflowAction.SUBMIT_PRODUCT_REVIEW))
+                .isInstanceOf(InvalidTransitionException.class);
+    }
+
+    @Test
+    void uxTaskMustPassItsLocalReviewBeforeItCanReachDone() {
+        TransitionDefinition submit = registry.require(
+                WorkItemType.UX_TASK, WorkItemStatus.IN_PROGRESS, WorkflowAction.SUBMIT_REVIEW);
+        TransitionDefinition approve = registry.require(
+                WorkItemType.UX_TASK, WorkItemStatus.IN_REVIEW, WorkflowAction.APPROVE);
+
+        assertThat(submit.to()).isEqualTo(WorkItemStatus.IN_REVIEW);
+        assertThat(approve.to()).isEqualTo(WorkItemStatus.DONE);
+        assertThatThrownBy(() -> registry.require(
+                        WorkItemType.UX_TASK, WorkItemStatus.IN_PROGRESS, WorkflowAction.APPROVE))
                 .isInstanceOf(InvalidTransitionException.class);
     }
 

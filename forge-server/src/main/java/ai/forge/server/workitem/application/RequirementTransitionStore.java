@@ -19,7 +19,8 @@ public interface RequirementTransitionStore {
             long expectedVersion,
             String idempotencyKey,
             String reason,
-            TransitionDefinition definition);
+            TransitionDefinition definition,
+            List<String> checklist);
 
     List<WorkItemEvent> findEvents(long workspaceId, long projectId, long workItemId);
 

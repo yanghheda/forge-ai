@@ -189,7 +189,7 @@ public class WorkItemController {
     @PostMapping("/{workItemId}/transitions")
     @Operation(
             summary = "执行 Requirement 固定工作流动作",
-            description = "客户端只提交 Action、expectedVersion 和幂等键；目标状态由服务端 Registry 决定。")
+            description = "客户端只提交 Action、expectedVersion、幂等键和必要的 UX checklist；目标状态由服务端 Registry 决定。")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "转换、评审记录和活动事件已在同一事务提交"),
         @ApiResponse(responseCode = "409", description = "状态、版本或幂等键冲突"),
@@ -211,7 +211,8 @@ public class WorkItemController {
                 body.action(),
                 body.expectedVersion(),
                 body.idempotencyKey(),
-                body.reason());
+                body.reason(),
+                body.checklist());
     }
 
     @GetMapping({"/{workItemId}/activity", "/{workItemId}/events"})
@@ -265,7 +266,9 @@ public class WorkItemController {
             /* 同一 Work Item 内唯一的稳定重试键。 */
             @NotBlank @Size(max = 128) String idempotencyKey,
             /* 退回等动作要求的审计原因；无需原因时可为空。 */
-            @Size(max = 1000) String reason) {}
+            @Size(max = 1000) String reason,
+            /* UX 阶段提交时确认的交付物清单；服务端 Guard 固定核验必需项。 */
+            List<@NotBlank String> checklist) {}
 
     public record RequirementDetailsRequest(
             /* 业务目标；Guard 要求非空。 */ @NotNull String goal,

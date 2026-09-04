@@ -28,5 +28,9 @@ public enum WorkItemStatus {
     /* Requirement 被显式取消且保留关联资产和历史。 */
     CANCELLED,
     /* 角色 Task 刚创建且尚未开始处理的初始状态。 */
-    TODO
+    TODO,
+    /* 角色 Task 正在被负责人处理。 */
+    IN_PROGRESS,
+    /* UX Task 已提交局部评审，尚未完成。 */
+    IN_REVIEW
 }

@@ -8,7 +8,7 @@ export interface Document {
   workspaceId: number;
   projectId: number;
   workItemId: number;
-  type: "PRD";
+  type: "PRD" | "UX_SPEC" | "PROTOTYPE_SPEC" | "DESIGN_GUIDE";
   title: string;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   currentVersionId: number | null;
@@ -33,7 +33,7 @@ export const createDocument = (
     workspaceId: number;
     projectId: number;
     workItemId: number;
-    type: "PRD";
+    type: Document["type"];
     title: string;
   },
   client: RequestClient = apiClient,

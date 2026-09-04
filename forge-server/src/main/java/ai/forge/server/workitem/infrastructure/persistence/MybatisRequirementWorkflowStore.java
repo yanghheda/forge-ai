@@ -49,6 +49,11 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
     }
 
     @Override
+    public boolean hasPublishedUxSpec(long workspaceId, long projectId, long workItemId) {
+        return mapper.countPublishedUxSpec(workspaceId, projectId, workItemId) > 0;
+    }
+
+    @Override
     public Optional<TransitionResult> findResultByIdempotencyKey(
             long workspaceId, long projectId, long workItemId, String idempotencyKey) {
         return mapper.findIdempotentEvent(workspaceId, projectId, workItemId, idempotencyKey).stream()
@@ -65,11 +70,13 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
             long expectedVersion,
             String idempotencyKey,
             String reason,
-            TransitionDefinition definition) {
+            TransitionDefinition definition,
+            List<String> checklist) {
         if (mapper.updateStatus(
                         workspaceId,
                         projectId,
                         workItemId,
+                        definition.type().name(),
                         definition.from().name(),
                         definition.to().name(),
                         expectedVersion)
@@ -84,15 +91,36 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
             }
             throw new VersionConflictException();
         }
-        boolean rejection = definition.action() == WorkflowAction.REJECT_PRODUCT_REVIEW;
-        boolean approval = definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW;
-        mapper.insertReview(
-                workspaceId,
-                projectId,
-                workItemId,
-                rejection ? "REJECTED" : approval ? "APPROVED" : "SUBMITTED",
-                rejection || approval ? actorId : null,
-                rejection ? reason : null);
+        if (definition.type() == ai.forge.server.workitem.domain.WorkItemType.REQUIREMENT) {
+            boolean rejection = definition.action() == WorkflowAction.REJECT_PRODUCT_REVIEW
+                    || definition.action() == WorkflowAction.REJECT_UX_REVIEW;
+            boolean approval = definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW
+                    || definition.action() == WorkflowAction.APPROVE_UX_REVIEW;
+            mapper.insertReview(
+                    workspaceId,
+                    projectId,
+                    workItemId,
+                    definition.action().name().contains("UX") ? "UX_REVIEW" : "PRODUCT_REVIEW",
+                    rejection ? "REJECTED" : approval ? "APPROVED" : "SUBMITTED",
+                    rejection || approval ? actorId : null,
+                    rejection ? reason : null,
+                    checklistJson(checklist),
+                    mapper.publishedArtifactVersions(workspaceId, projectId, workItemId));
+        }
+        if (definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW
+                && mapper.countUxTaskForRequirement(workspaceId, projectId, workItemId) == 0) {
+            long itemNumber = mapper.lockNextItemNumber(projectId);
+            mapper.advanceItemNumber(projectId);
+            String projectKey = mapper.projectKey(workspaceId, projectId);
+            mapper.insertUxTask(
+                    workspaceId,
+                    projectId,
+                    workItemId,
+                    actorId,
+                    itemNumber,
+                    projectKey + "-" + itemNumber,
+                    "UX: " + mapper.requirementTitle(workspaceId, projectId, workItemId));
+        }
         long nextVersion = expectedVersion + 1;
         mapper.insertEvent(
                 workspaceId,
@@ -152,5 +180,13 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
     private String nullableText(Map<String, Object> row, String key) {
         Object value = row.get(key);
         return value == null ? null : value.toString();
+    }
+
+    private String checklistJson(List<String> checklist) {
+        try {
+            return objectMapper.writeValueAsString(checklist == null ? List.of() : checklist);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("UX checklist cannot be serialized", exception);
+        }
     }
 }

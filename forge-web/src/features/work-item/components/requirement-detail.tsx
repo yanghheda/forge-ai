@@ -38,6 +38,7 @@ const missingLabel: Record<string, string> = {
   inScope: "范围",
   acceptanceCriteria: "验收标准",
   publishedPrd: "已发布 PRD",
+  publishedUxSpec: "已发布 UX Spec",
   reason: "退回原因",
 };
 export function RequirementDetail({
@@ -69,6 +70,12 @@ export function RequirementDetail({
     queryFn: () => getWorkItemEvents(workspaceId, projectId, workItemId),
   });
   const [reason, setReason] = useState("");
+  const [checklist, setChecklist] = useState({
+    userFlow: false,
+    pageList: false,
+    keyInteraction: false,
+    exceptionState: false,
+  });
   const invalidate = () =>
     Promise.all([
       qc.invalidateQueries({ queryKey: ["work-item", workItemId] }),
@@ -87,6 +94,17 @@ export function RequirementDetail({
       }),
     onSuccess: () => void invalidate(),
   });
+  const createUxSpec = useMutation({
+    mutationFn: () =>
+      createDocument({
+        workspaceId,
+        projectId,
+        workItemId,
+        type: "UX_SPEC",
+        title: `${detail.data!.title} UX Spec`,
+      }),
+    onSuccess: () => void invalidate(),
+  });
   const transition = useMutation({
     mutationFn: (action: WorkflowAction) =>
       transitionRequirement(
@@ -96,6 +114,11 @@ export function RequirementDetail({
         action,
         detail.data!.version,
         reason,
+        action === "SUBMIT_UX_REVIEW"
+          ? Object.entries(checklist)
+              .filter(([, checked]) => checked)
+              .map(([item]) => item)
+          : undefined,
       ),
     onSuccess: () => void invalidate(),
   });
@@ -103,8 +126,9 @@ export function RequirementDetail({
     return <Spin tip="加载 Requirement…" />;
   if (!detail.data || !materials.data)
     return <Alert type="error" content="Requirement 不存在或无权访问。" />;
-  const prd = documents.data?.[0];
-  const error = createPrd.error ?? transition.error;
+  const prd = documents.data?.find((document) => document.type === "PRD");
+  const uxSpec = documents.data?.find((document) => document.type === "UX_SPEC");
+  const error = createPrd.error ?? createUxSpec.error ?? transition.error;
   const requestId = error instanceof ApiError ? error.requestId : undefined;
   return (
     <section>
@@ -140,6 +164,17 @@ export function RequirementDetail({
             document={prd}
             onChanged={invalidate}
             create={() => createPrd.mutate()}
+          />
+        </Tabs.TabPane>
+        <Tabs.TabPane key="ux" title="UX Spec">
+          <PrdPanel
+            userId={userId}
+            workspaceId={workspaceId}
+            projectId={projectId}
+            workItemId={workItemId}
+            document={uxSpec}
+            onChanged={invalidate}
+            create={() => createUxSpec.mutate()}
           />
         </Tabs.TabPane>
         <Tabs.TabPane key="activity" title="Activity">
@@ -178,6 +213,22 @@ export function RequirementDetail({
               onChange={setReason}
               placeholder="退回原因"
             />
+          )}
+          {detail.data.availableActions.includes("SUBMIT_UX_REVIEW") && (
+            <Space direction="vertical">
+              {Object.keys(checklist).map((item) => (
+                <label key={item}>
+                  <input
+                    type="checkbox"
+                    checked={checklist[item as keyof typeof checklist]}
+                    onChange={(event) =>
+                      setChecklist({ ...checklist, [item]: event.target.checked })
+                    }
+                  />
+                  {missingLabel[item] ?? item}
+                </label>
+              ))}
+            </Space>
           )}
         </Space>
       </Card>

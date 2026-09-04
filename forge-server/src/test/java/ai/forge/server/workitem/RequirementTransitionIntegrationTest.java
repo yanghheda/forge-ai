@@ -59,6 +59,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         jdbcTemplate.update("UPDATE documents SET current_version_id = NULL");
+        jdbcTemplate.update("UPDATE work_items SET parent_id = NULL");
         for (String table : List.of(
                 "outbox_events", "document_versions", "documents", "work_item_events", "review_records",
                 "requirement_details", "work_items", "project_item_sequences",
@@ -349,11 +350,57 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         JsonNode refreshed = objectMapper.readTree(get("/api/v1/work-items/" + requirementId
                         + "?workspaceId=" + workspaceId + "&projectId=" + projectId).getBody());
         assertThat(refreshed.get("status").asText()).isEqualTo("UX_IN_PROGRESS");
-        assertThat(refreshed.get("availableActions")).isEmpty();
+        assertThat(refreshed.get("availableActions").get(0).asText()).isEqualTo("SUBMIT_UX_REVIEW");
         assertThat(jdbcTemplate.queryForList(
                         "SELECT status FROM review_records WHERE work_item_id=? ORDER BY id",
                         String.class, requirementId))
                 .containsExactly("SUBMITTED", "APPROVED");
+    }
+
+    @Test
+    void uxReviewFreezesPublishedSpecAndDoesNotLetUxTaskCompletionBypassRequirementReview() throws Exception {
+        completeMaterials();
+        transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "ux-product-submit", null);
+        publishDocument("PRD", "Login PRD", "Product delivery");
+        transition(WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "ux-product-approve", null);
+
+        long uxTaskId = jdbcTemplate.queryForObject(
+                "SELECT id FROM work_items WHERE parent_id = ? AND type = 'UX_TASK'", Long.class, requirementId);
+        transition(WorkflowAction.START, 0, "ux-task-start", null, uxTaskId);
+        transition(WorkflowAction.SUBMIT_REVIEW, 1, "ux-task-submit", null, uxTaskId);
+        transition(WorkflowAction.APPROVE, 2, "ux-task-approve", null, uxTaskId);
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT status FROM work_items WHERE id = ?", String.class, requirementId))
+                .isEqualTo("UX_IN_PROGRESS");
+
+        ResponseEntity<String> missingSpec = transition(
+                WorkflowAction.SUBMIT_UX_REVIEW, 2, "ux-requirement-missing-spec", null);
+        assertThat(missingSpec.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(objectMapper.readTree(missingSpec.getBody()).at("/details/missing/0").asText())
+                .isEqualTo("publishedUxSpec");
+
+        JsonNode spec = publishDocument("UX_SPEC", "Login UX Spec", "User flow and exception states");
+        JsonNode submitted = objectMapper.readTree(transition(
+                        WorkflowAction.SUBMIT_UX_REVIEW,
+                        2,
+                        "ux-requirement-submit",
+                        null,
+                        requirementId,
+                        List.of("userFlow", "pageList", "keyInteraction", "exceptionState"))
+                .getBody());
+        assertThat(submitted.get("status").asText()).isEqualTo("UX_REVIEW");
+        JsonNode approved = objectMapper.readTree(transition(
+                        WorkflowAction.APPROVE_UX_REVIEW, 3, "ux-requirement-approve", null)
+                .getBody());
+        assertThat(approved.get("status").asText()).isEqualTo("READY_FOR_DEV");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT JSON_CONTAINS(artifact_version_json, JSON_OBJECT('versionId', CAST(? AS UNSIGNED))) "
+                                + "FROM review_records "
+                                + "WHERE work_item_id = ? AND review_type = 'UX_REVIEW' AND status = 'APPROVED'",
+                        String.class,
+                        String.valueOf(spec.get("currentVersionId").asLong()),
+                        requirementId))
+                .isEqualTo("1");
     }
 
     private void transitionAfter(CountDownLatch start, String idempotencyKey) throws InterruptedException {
@@ -380,6 +427,25 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     private ResponseEntity<String> transition(
             WorkflowAction action, long expectedVersion, String idempotencyKey, String reason) {
+        return transition(action, expectedVersion, idempotencyKey, reason, requirementId, null);
+    }
+
+    private ResponseEntity<String> transition(
+            WorkflowAction action,
+            long expectedVersion,
+            String idempotencyKey,
+            String reason,
+            long workItemId) {
+        return transition(action, expectedVersion, idempotencyKey, reason, workItemId, null);
+    }
+
+    private ResponseEntity<String> transition(
+            WorkflowAction action,
+            long expectedVersion,
+            String idempotencyKey,
+            String reason,
+            long workItemId,
+            List<String> checklist) {
         java.util.LinkedHashMap<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("action", action.name());
         body.put("expectedVersion", expectedVersion);
@@ -387,12 +453,42 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         if (reason != null) {
             body.put("reason", reason);
         }
+        if (checklist != null) {
+            body.put("checklist", checklist);
+        }
         return csrf().post(
-                "/api/v1/work-items/" + requirementId + "/transitions?workspaceId=" + workspaceId
+                "/api/v1/work-items/" + workItemId + "/transitions?workspaceId=" + workspaceId
                         + "&projectId=" + projectId,
                 body,
                 ownerCookie,
                 String.class);
+    }
+
+    private JsonNode publishDocument(String type, String title, String text) throws Exception {
+        JsonNode document = objectMapper.readTree(csrf().post(
+                "/api/v1/documents",
+                Map.of("workspaceId", workspaceId, "projectId", projectId, "workItemId", requirementId,
+                        "type", type, "title", title),
+                ownerCookie,
+                String.class).getBody());
+        long documentId = document.get("id").asLong();
+        JsonNode saved = objectMapper.readTree(csrf().post(
+                "/api/v1/documents/" + documentId + "/versions?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of("expectedVersion", 0, "content", Map.of("type", "doc", "content", List.of(
+                        Map.of("type", "paragraph", "content", List.of(
+                                Map.of("type", "text", "text", text)))))),
+                ownerCookie,
+                String.class).getBody());
+        ResponseEntity<String> published = csrf().post(
+                "/api/v1/documents/" + documentId + "/publish?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of("versionId", saved.get("currentVersionId").asLong(),
+                        "expectedVersion", saved.get("version").asLong()),
+                ownerCookie,
+                String.class);
+        assertThat(published.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return objectMapper.readTree(published.getBody());
     }
 
     private void assertUnchangedDraft() {
