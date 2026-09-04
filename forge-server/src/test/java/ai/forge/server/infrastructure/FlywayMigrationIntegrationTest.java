@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("12");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("13");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -110,7 +110,31 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                         Integer.class))
-                .isEqualTo(22);
+                .isEqualTo(23);
+    }
+
+    @Test
+    void agentRunMigrationCreatesCommentedReplayFactsAndPermission() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('agent_runs','agent_steps','agent_events')",
+                        String.class))
+                .containsExactlyInAnyOrder("agent_runs", "agent_steps", "agent_events");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('agent_runs','agent_steps','agent_events') AND column_comment = ''",
+                        Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('agent_runs','agent_steps','agent_events') AND table_comment = ''",
+                        Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id WHERE p.code = 'agent.run' ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "OWNER", "PRODUCT", "UX");
     }
 
     @Test

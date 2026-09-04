@@ -6,6 +6,7 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 @RestControllerAdvice
@@ -27,7 +28,12 @@ public class ApiSuccessResponseAdvice implements ResponseBodyAdvice<Object> {
             ServerHttpRequest request,
             ServerHttpResponse response) {
         String path = request.getURI().getPath();
-        if (!path.startsWith("/api/v1/") || body == null || body instanceof ApiError || body instanceof ApiSuccess<?>) {
+        if (!path.startsWith("/api/v1/")
+                || body == null
+                || body instanceof ApiError
+                || body instanceof ApiSuccess<?>
+                || body instanceof SseEmitter
+                || MediaType.TEXT_EVENT_STREAM.includes(selectedContentType)) {
             return body;
         }
         return ApiSuccess.of(body);

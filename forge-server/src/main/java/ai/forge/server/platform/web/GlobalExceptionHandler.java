@@ -5,6 +5,7 @@ import ai.forge.server.auth.domain.InvalidCredentialsException;
 import ai.forge.server.auth.domain.LoginRateLimitedException;
 import ai.forge.server.auth.domain.UnauthenticatedException;
 import ai.forge.server.auth.domain.WeakPasswordException;
+import ai.forge.server.agent.domain.AgentRunIdempotencyConflictException;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.project.domain.ProjectKeyConflictException;
@@ -20,6 +21,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -92,6 +94,17 @@ public class GlobalExceptionHandler {
             IdempotencyConflictException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, ErrorCode.IDEMPOTENCY_CONFLICT,
                 "Idempotency key was already used for another action", Map.of(), request);
+    }
+
+    @ExceptionHandler(AgentRunIdempotencyConflictException.class)
+    public ResponseEntity<ApiError> handleAgentRunIdempotencyConflict(
+            AgentRunIdempotencyConflictException exception, HttpServletRequest request) {
+        return error(
+                HttpStatus.CONFLICT,
+                ErrorCode.AGENT_RUN_IDEMPOTENCY_CONFLICT,
+                "Agent Run clientRequestId was reused with different input",
+                Map.of(),
+                request);
     }
 
     @ExceptionHandler(RelationConflictException.class)
@@ -203,6 +216,8 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         Object requestIdAttribute = request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
         String requestId = requestIdAttribute instanceof String value ? value : "req_unavailable";
-        return ResponseEntity.status(status).body(new ApiError(code, message, requestId, details));
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ApiError(code, message, requestId, details));
     }
 }
