@@ -1,0 +1,26 @@
+name: create_prd_document
+version: 1
+description: 在指定 Requirement 下创建 PRD 文档；MEDIUM 风险，默认需要确认。
+input_schema:
+  type: object
+  required: [requirementId, title]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    title: { type: string, minLength: 1, maxLength: 200 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: document.create
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/create_prd_document:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4
+  - PRD-10-5

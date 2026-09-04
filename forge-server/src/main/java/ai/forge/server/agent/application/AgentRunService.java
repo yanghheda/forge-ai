@@ -2,6 +2,7 @@ package ai.forge.server.agent.application;
 
 import ai.forge.server.agent.domain.AgentRun;
 import ai.forge.server.agent.domain.AgentSkill;
+import ai.forge.server.agent.domain.MediumToolConfirmation;
 import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.workitem.application.WorkItemStore;
@@ -45,12 +46,16 @@ public class AgentRunService {
             long projectId,
             Long workItemId,
             AgentSkill skill,
+            MediumToolConfirmation mediumToolConfirmation,
             String message,
             String clientRequestId,
             String requestId) {
         permissionEvaluator.requireProject(userId, workspaceId, projectId, "agent.run");
         permissionEvaluator.requireProject(userId, workspaceId, projectId, skill.requiredPermission());
         requireWorkItemScope(userId, workspaceId, projectId, workItemId);
+        MediumToolConfirmation policy = mediumToolConfirmation == null
+                ? MediumToolConfirmation.ASK
+                : mediumToolConfirmation;
         AgentRunStore.CreateResult result = runStore.create(
                 AgentRunIdGenerator.next(),
                 workspaceId,
@@ -58,9 +63,10 @@ public class AgentRunService {
                 workItemId,
                 userId,
                 skill,
+                policy,
                 redact(message),
                 normalizeClientRequestId(clientRequestId),
-                AgentRequestFingerprint.create(skill, workItemId, message),
+                AgentRequestFingerprint.create(skill, workItemId, message, policy),
                 requestId);
         if (result.created()) {
             eventPublisher.publishEvent(new AgentRunRequested(
@@ -70,6 +76,7 @@ public class AgentRunService {
                     workItemId,
                     userId,
                     skill.name(),
+                    policy,
                     message.trim(),
                     requestId));
         }

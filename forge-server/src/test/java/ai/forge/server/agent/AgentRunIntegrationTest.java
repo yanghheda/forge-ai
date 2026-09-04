@@ -132,6 +132,39 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void mediumToolConfirmationDefaultsToAskAndExplicitPolicyIsPersisted() throws Exception {
+        String defaultRunId = data(createRun("default policy", "policy-default")).get("id").asText();
+        String allowedRunId = data(createRun("explicit allow", "policy-allow", "ALLOW")).get("id").asText();
+
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT medium_tool_confirmation FROM agent_runs WHERE id = ?", String.class, defaultRunId))
+                .isEqualTo("ASK");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT medium_tool_confirmation FROM agent_runs WHERE id = ?", String.class, allowedRunId))
+                .isEqualTo("ALLOW");
+    }
+
+    @Test
+    void reusedClientRequestIdWithDifferentMediumConfirmationIsRejectedAsConflict() throws Exception {
+        assertThat(createRun("policy conflict", "policy-conflict").getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<String> conflict = createRun("policy conflict", "policy-conflict", "DENY");
+
+        assertThat(conflict.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(conflict.getBody()).contains("AGENT_RUN_IDEMPOTENCY_CONFLICT");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM agent_runs", Long.class)).isEqualTo(1);
+    }
+
+    @Test
+    void invalidMediumConfirmationValueIsRejected() throws Exception {
+        ResponseEntity<String> rejected = createRun("invalid policy", "policy-invalid", "AUTO");
+
+        assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM agent_runs", Long.class).longValue())
+                .isEqualTo(0);
+    }
+
+    @Test
     void knownRunIdCannotCrossWorkspaceOrProjectScope() throws Exception {
         String runId = data(createRun("scope", "scope-request")).get("id").asText();
 
@@ -189,16 +222,20 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     private ResponseEntity<String> createRun(String message, String clientRequestId) {
-        return csrf().post(
-                "/api/v1/agent-runs",
-                Map.of(
-                        "workspaceId", workspaceId,
-                        "projectId", projectId,
-                        "skill", "PRODUCT",
-                        "message", message,
-                        "clientRequestId", clientRequestId),
-                ownerCookie,
-                String.class);
+        return createRun(message, clientRequestId, null);
+    }
+
+    private ResponseEntity<String> createRun(String message, String clientRequestId, String mediumToolConfirmation) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("workspaceId", workspaceId);
+        body.put("projectId", projectId);
+        body.put("skill", "PRODUCT");
+        body.put("message", message);
+        body.put("clientRequestId", clientRequestId);
+        if (mediumToolConfirmation != null) {
+            body.put("mediumToolConfirmation", mediumToolConfirmation);
+        }
+        return csrf().post("/api/v1/agent-runs", body, ownerCookie, String.class);
     }
 
     private JsonNode awaitTerminal(String runId) throws Exception {

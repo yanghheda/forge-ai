@@ -1,0 +1,12 @@
+name: product
+version: 1
+description: Product Skill：读取项目、工作项与交付图上下文，检索文档，并创建 Requirement 与 PRD 文档。
+allowed_tools:
+  - get_project
+  - get_work_item
+  - get_delivery_graph
+  - search_documents
+  - create_requirement
+  - create_prd_document
+limits:
+  max_tool_calls: 15

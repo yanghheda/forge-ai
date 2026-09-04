@@ -1,0 +1,25 @@
+name: get_work_item
+version: 1
+description: 读取指定工作项的事实快照；类型级读权限由服务端按实际类型在应用服务内最终校验。
+input_schema:
+  type: object
+  required: [workItemId]
+  properties:
+    workItemId: { type: integer, minimum: 1 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: project.read
+risk_level: LOW
+idempotency:
+  required: false
+timeout_ms: 5000
+retry:
+  max_attempts: 2
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/get_work_item:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4
+  - PRD-10-5

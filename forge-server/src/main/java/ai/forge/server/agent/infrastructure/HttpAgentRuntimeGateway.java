@@ -2,6 +2,9 @@ package ai.forge.server.agent.infrastructure;
 
 import ai.forge.server.agent.application.AgentRunRequested;
 import ai.forge.server.agent.application.AgentRuntimeGateway;
+import ai.forge.server.agent.application.SkillContract;
+import ai.forge.server.agent.application.ToolContractRegistry;
+import ai.forge.server.agent.domain.AgentSkill;
 import ai.forge.server.platform.agent.AgentServiceTokenProvider;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
@@ -25,12 +28,17 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
     /* 为每次内部请求签发短时服务身份。 */
     private final AgentServiceTokenProvider tokenProvider;
 
+    /* 提供该 Skill 允许的 Tool 白名单与调用上限。 */
+    private final ToolContractRegistry toolContractRegistry;
+
     public HttpAgentRuntimeGateway(
             RestClient.Builder builder,
             @Value("${forge.infrastructure.agent.base-url}") String baseUrl,
-            AgentServiceTokenProvider tokenProvider) {
+            AgentServiceTokenProvider tokenProvider,
+            ToolContractRegistry toolContractRegistry) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.tokenProvider = tokenProvider;
+        this.toolContractRegistry = toolContractRegistry;
     }
 
     @Override
@@ -59,13 +67,19 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
         List<ResourceRef> refs = requested.workItemId() == null
                 ? List.of()
                 : List.of(new ResourceRef("WORK_ITEM", requested.workItemId().toString(), 0));
+        AgentSkill skill = AgentSkill.valueOf(requested.skill());
+        SkillContract contract = toolContractRegistry.findSkill(requested.skill()).orElseThrow(
+                () -> new IllegalStateException("Skill contract missing for " + requested.skill()));
         return new ContextManifest(
                 requested.runId(),
                 new Subject(requested.userId()),
                 scope,
                 requested.skill(),
-                List.of(),
-                new Policy("ASK", 20, 50_000),
+                toolContractRegistry.effectiveToolNames(skill),
+                new Policy(
+                        requested.mediumToolConfirmation().name(),
+                        contract.maxToolCalls(),
+                        50_000),
                 refs,
                 issuedAt.plus(5, ChronoUnit.MINUTES));
     }
@@ -111,9 +125,9 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
     }
 
     private record Policy(
-            /* MEDIUM 风险在未来 Tool 阶段的默认确认策略。 */
+            /* MEDIUM 风险 Tool 的确认策略：ASK 需确认、ALLOW 直接执行、DENY 拒绝。 */
             String mediumConfirmation,
-            /* Tool 循环硬上限；本轮不会消耗。 */
+            /* Skill 契约声明的 Tool 调用硬上限。 */
             int maxToolCalls,
             /* 模型令牌预算上限。 */
             int tokenBudget) {

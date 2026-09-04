@@ -3,6 +3,7 @@ package ai.forge.server.agent.controller;
 import ai.forge.server.agent.application.AgentRunService;
 import ai.forge.server.agent.application.AgentRunSnapshot;
 import ai.forge.server.agent.domain.AgentSkill;
+import ai.forge.server.agent.domain.MediumToolConfirmation;
 import ai.forge.server.auth.controller.AuthController;
 import ai.forge.server.auth.domain.AuthContext;
 import ai.forge.server.platform.web.RequestIdFilter;
@@ -50,6 +51,7 @@ public class AgentRunController {
                 body.projectId(),
                 body.workItemId(),
                 body.skill(),
+                body.mediumToolConfirmation(),
                 body.message(),
                 body.clientRequestId(),
                 requestId);
@@ -76,6 +78,8 @@ public class AgentRunController {
             @Positive Long workItemId,
             /* 本轮允许的 Product 或 UX Skill。 */
             @NotNull AgentSkill skill,
+            /* 本轮 MEDIUM 风险 Tool 的确认策略；缺省 ASK，非法取值由枚举反序列化拒绝。 */
+            MediumToolConfirmation mediumToolConfirmation,
             /* 仅在请求内交给 Runner，不能原样持久化。 */
             @NotBlank @Size(max = 10000) String message,
             /* 同一用户和项目内的客户端幂等键。 */

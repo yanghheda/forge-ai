@@ -22,7 +22,7 @@ def get_runtime(request: Request) -> RuntimeGateway:
 def start_run(
     run_id: str,
     body: RunStart,
-    _credential: Annotated[None, Depends(require_run_credential)],
+    run_token: Annotated[str, Depends(require_run_credential)],
     runtime: Annotated[RuntimeGateway, Depends(get_runtime)],
 ) -> RunResult:
     """校验路径与 Manifest 一致后按 Run ID 幂等执行最小图。"""
@@ -30,7 +30,7 @@ def start_run(
     if run_id != body.manifest.run_id:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="run id mismatch")
     try:
-        return runtime.start(body)
+        return runtime.start(body, run_token)
     except ValueError as exception:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exception)

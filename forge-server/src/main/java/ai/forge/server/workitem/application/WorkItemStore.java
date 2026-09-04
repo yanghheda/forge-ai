@@ -21,6 +21,19 @@ public interface WorkItemStore {
             Long assigneeUserId,
             Instant dueAt);
 
+    WorkItem createChild(
+            long workspaceId,
+            long projectId,
+            long reporterUserId,
+            WorkItemType type,
+            long parentId,
+            String title,
+            String description,
+            WorkItemStatus status,
+            WorkItemPriority priority,
+            Long assigneeUserId,
+            Instant dueAt);
+
     Optional<WorkItem> findByIdAndScope(long workspaceId, long projectId, long workItemId);
 
     WorkItemPage findPage(

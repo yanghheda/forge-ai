@@ -91,6 +91,9 @@ def test_start_is_idempotent_by_path_run_id(tmp_path) -> None:
     assert repeated.status_code == 200
     assert repeated.json() == first.json()
     assert first.json()["status"] == "SUCCEEDED"
+    # server 端 StartResponse 以 snake_case 解析 state_version；防止 alias 回归。
+    assert "state_version" in first.json()
+    assert first.json()["tool_calls"] == []
 
 
 def test_start_rejects_manifest_for_another_run(tmp_path) -> None:

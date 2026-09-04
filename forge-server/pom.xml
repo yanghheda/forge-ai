@@ -117,6 +117,20 @@
     </dependencies>
 
     <build>
+        <resources>
+            <!-- 默认资源目录：应用配置与 Flyway 迁移脚本，显式声明避免被契约资源覆盖。 -->
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- 仓库级 Tool/Skill 契约是唯一事实来源；打进 classpath 供运行时 Registry 加载。 -->
+            <resource>
+                <directory>../packages/forge-contracts</directory>
+                <includes>
+                    <include>tools/*.yaml</include>
+                    <include>skills/*.yaml</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

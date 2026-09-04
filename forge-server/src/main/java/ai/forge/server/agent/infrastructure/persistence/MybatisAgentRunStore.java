@@ -7,6 +7,7 @@ import ai.forge.server.agent.domain.AgentRunIdempotencyConflictException;
 import ai.forge.server.agent.domain.AgentRunStatus;
 import ai.forge.server.agent.domain.AgentSkill;
 import ai.forge.server.agent.domain.AgentStep;
+import ai.forge.server.agent.domain.MediumToolConfirmation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,6 +49,7 @@ public class MybatisAgentRunStore implements AgentRunStore {
             Long workItemId,
             long userId,
             AgentSkill skill,
+            MediumToolConfirmation mediumToolConfirmation,
             String messageRedacted,
             String clientRequestId,
             String requestHash,
@@ -64,6 +66,7 @@ public class MybatisAgentRunStore implements AgentRunStore {
                     workItemId,
                     userId,
                     skill.name(),
+                    mediumToolConfirmation.name(),
                     messageRedacted,
                     clientRequestId,
                     requestHash);
@@ -217,6 +220,7 @@ public class MybatisAgentRunStore implements AgentRunStore {
                 nullableNumber(row, "work_item_id"),
                 number(row, "user_id"),
                 AgentSkill.valueOf(text(row, "skill")),
+                MediumToolConfirmation.valueOf(text(row, "medium_tool_confirmation")),
                 AgentRunStatus.valueOf(text(row, "status")),
                 number(row, "last_sequence"),
                 instant(row.get("started_at")),

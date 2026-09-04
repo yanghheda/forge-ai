@@ -51,9 +51,42 @@ public class WorkItemCommandService {
                 normalizeTitle(title),
                 normalizeDescription(description),
                 type.initialStatus(),
-                priority,
+                /* Tool 契约允许省略优先级；缺省值由服务端控制。 */
+                priority == null ? WorkItemPriority.MEDIUM : priority,
                 assigneeUserId,
                 dueAt);
+    }
+
+    /* 在既有 Requirement 下创建带 parent 关系的 UX Task；Agent Tool 与人工入口共用同一防线。 */
+    public WorkItem createUxTask(
+            long userId,
+            long workspaceId,
+            long projectId,
+            long requirementId,
+            String title,
+            String description,
+            WorkItemPriority priority,
+            Long assigneeUserId) {
+        permissionEvaluator.requireProject(
+                userId, workspaceId, projectId, WorkItemType.UX_TASK.permissionResource() + ".create");
+        WorkItem parent = workItemStore.findByIdAndScope(workspaceId, projectId, requirementId)
+                .orElseThrow(ResourceNotFoundException::new);
+        if (parent.type() != WorkItemType.REQUIREMENT) {
+            throw new IllegalArgumentException("UX task can only be created under a requirement");
+        }
+        requireActiveAssignee(workspaceId, projectId, assigneeUserId);
+        return workItemStore.createChild(
+                workspaceId,
+                projectId,
+                userId,
+                WorkItemType.UX_TASK,
+                requirementId,
+                normalizeTitle(title),
+                normalizeDescription(description),
+                WorkItemType.UX_TASK.initialStatus(),
+                priority == null ? WorkItemPriority.MEDIUM : priority,
+                assigneeUserId,
+                null);
     }
 
     public WorkItem update(

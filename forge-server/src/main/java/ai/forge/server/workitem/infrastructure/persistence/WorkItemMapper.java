@@ -27,7 +27,7 @@ public interface WorkItemMapper {
             + "status, priority, parent_id, assignee_user_id, reporter_user_id, due_at, severity, blocked_at, "
             + "blocked_reason, blocked_by, created_at, updated_at, deleted_at, version) VALUES "
             + "(#{workspaceId}, #{projectId}, #{itemNumber}, #{itemKey}, #{type}, #{title}, #{description}, "
-            + "#{status}, #{priority}, NULL, #{assigneeUserId}, #{reporterUserId}, #{dueAt}, NULL, NULL, NULL, "
+            + "#{status}, #{priority}, #{parentId}, #{assigneeUserId}, #{reporterUserId}, #{dueAt}, NULL, NULL, NULL, "
             + "NULL, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), NULL, 0)")
     int insert(
             @Param("workspaceId") long workspaceId,
@@ -39,6 +39,7 @@ public interface WorkItemMapper {
             @Param("description") String description,
             @Param("status") String status,
             @Param("priority") String priority,
+            @Param("parentId") Long parentId,
             @Param("assigneeUserId") Long assigneeUserId,
             @Param("reporterUserId") long reporterUserId,
             @Param("dueAt") Instant dueAt);

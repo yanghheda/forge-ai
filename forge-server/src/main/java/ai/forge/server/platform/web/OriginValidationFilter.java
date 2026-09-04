@@ -13,6 +13,8 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -41,7 +43,7 @@ public class OriginValidationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        if (isStateChanging(request.getMethod())) {
+        if (isStateChanging(request.getMethod()) && !internalApi().matches(request)) {
             String origin = request.getHeader(HttpHeaders.ORIGIN);
             if (origin == null || !allowedOrigins.contains(origin)) {
                 errorWriter.write(request, response, ErrorCode.ORIGIN_REJECTED, "Request origin is not allowed");
@@ -49,6 +51,11 @@ public class OriginValidationFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    /* 内部端点只由服务 JWT 保护，不适用浏览器 Origin 语义。 */
+    private RequestMatcher internalApi() {
+        return new AntPathRequestMatcher("/internal/**");
     }
 
     private boolean isStateChanging(String method) {

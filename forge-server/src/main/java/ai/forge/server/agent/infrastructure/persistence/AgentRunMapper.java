@@ -11,10 +11,13 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface AgentRunMapper {
 
-    @Insert("INSERT INTO agent_runs (id, workspace_id, project_id, work_item_id, user_id, skill, message_redacted, "
-            + "client_request_id, request_hash, status, model_provider, model_name, prompt_version, started_at, finished_at, "
-            + "token_input, token_output, cost, error_code, last_sequence, version, created_at, updated_at) VALUES "
-            + "(#{runId}, #{workspaceId}, #{projectId}, #{workItemId}, #{userId}, #{skill}, #{messageRedacted}, "
+    @Insert("INSERT INTO agent_runs (id, workspace_id, project_id, work_item_id, user_id, skill, "
+            + "medium_tool_confirmation, message_redacted, "
+            + "client_request_id, request_hash, status, model_provider, model_name, prompt_version, started_at, "
+            + "finished_at, token_input, token_output, cost, error_code, last_sequence, version, created_at, "
+            + "updated_at) VALUES "
+            + "(#{runId}, #{workspaceId}, #{projectId}, #{workItemId}, #{userId}, #{skill}, "
+            + "#{mediumToolConfirmation}, #{messageRedacted}, "
             + "#{clientRequestId}, #{requestHash}, 'QUEUED', NULL, NULL, 'fake-v1', NULL, NULL, 0, 0, 0, NULL, 1, 0, "
             + "UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))")
     int insertRun(
@@ -24,6 +27,7 @@ public interface AgentRunMapper {
             @Param("workItemId") Long workItemId,
             @Param("userId") long userId,
             @Param("skill") String skill,
+            @Param("mediumToolConfirmation") String mediumToolConfirmation,
             @Param("messageRedacted") String messageRedacted,
             @Param("clientRequestId") String clientRequestId,
             @Param("requestHash") String requestHash);
@@ -41,17 +45,18 @@ public interface AgentRunMapper {
             @Param("requestId") String requestId,
             @Param("payloadJson") String payloadJson);
 
-    @Select("SELECT id, workspace_id, project_id, work_item_id, user_id, skill, status, last_sequence, started_at, "
-            + "finished_at, error_code, created_at FROM agent_runs WHERE workspace_id = #{workspaceId} "
-            + "AND project_id = #{projectId} AND id = #{runId}")
+    @Select("SELECT id, workspace_id, project_id, work_item_id, user_id, skill, medium_tool_confirmation, status, "
+            + "last_sequence, started_at, finished_at, error_code, created_at FROM agent_runs "
+            + "WHERE workspace_id = #{workspaceId} AND project_id = #{projectId} AND id = #{runId}")
     List<Map<String, Object>> findRun(
             @Param("workspaceId") long workspaceId,
             @Param("projectId") long projectId,
             @Param("runId") String runId);
 
-    @Select("SELECT id, workspace_id, project_id, work_item_id, user_id, skill, status, last_sequence, started_at, "
-            + "finished_at, error_code, created_at, request_hash FROM agent_runs WHERE workspace_id = #{workspaceId} "
-            + "AND project_id = #{projectId} AND user_id = #{userId} AND client_request_id = #{clientRequestId}")
+    @Select("SELECT id, workspace_id, project_id, work_item_id, user_id, skill, medium_tool_confirmation, status, "
+            + "last_sequence, started_at, finished_at, error_code, created_at, request_hash FROM agent_runs "
+            + "WHERE workspace_id = #{workspaceId} AND project_id = #{projectId} AND user_id = #{userId} "
+            + "AND client_request_id = #{clientRequestId}")
     List<Map<String, Object>> findByClientRequest(
             @Param("workspaceId") long workspaceId,
             @Param("projectId") long projectId,

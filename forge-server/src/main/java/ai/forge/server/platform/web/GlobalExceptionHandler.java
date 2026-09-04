@@ -6,6 +6,7 @@ import ai.forge.server.auth.domain.LoginRateLimitedException;
 import ai.forge.server.auth.domain.UnauthenticatedException;
 import ai.forge.server.auth.domain.WeakPasswordException;
 import ai.forge.server.agent.domain.AgentRunIdempotencyConflictException;
+import ai.forge.server.agent.domain.ToolExecutionRejectedException;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.document.domain.RagUnavailableException;
@@ -147,6 +148,17 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 ErrorCode.VALIDATION_FAILED,
                 "Request validation failed",
+                Map.of(),
+                request);
+    }
+
+    @ExceptionHandler(ToolExecutionRejectedException.class)
+    public ResponseEntity<ApiError> handleToolExecutionRejected(
+            ToolExecutionRejectedException exception, HttpServletRequest request) {
+        return error(
+                HttpStatus.valueOf(exception.status()),
+                ErrorCode.VALIDATION_FAILED,
+                exception.errorCode(),
                 Map.of(),
                 request);
     }

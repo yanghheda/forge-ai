@@ -41,6 +41,61 @@ public class MybatisWorkItemStore implements WorkItemStore {
             WorkItemPriority priority,
             Long assigneeUserId,
             Instant dueAt) {
+        return insertWorkItem(
+                workspaceId,
+                projectId,
+                reporterUserId,
+                type,
+                null,
+                title,
+                description,
+                status,
+                priority,
+                assigneeUserId,
+                dueAt);
+    }
+
+    @Override
+    @Transactional
+    public WorkItem createChild(
+            long workspaceId,
+            long projectId,
+            long reporterUserId,
+            WorkItemType type,
+            long parentId,
+            String title,
+            String description,
+            WorkItemStatus status,
+            WorkItemPriority priority,
+            Long assigneeUserId,
+            Instant dueAt) {
+        return insertWorkItem(
+                workspaceId,
+                projectId,
+                reporterUserId,
+                type,
+                parentId,
+                title,
+                description,
+                status,
+                priority,
+                assigneeUserId,
+                dueAt);
+    }
+
+    /* 在同一事务内锁定项目编号序列并写入工作项；parentId 为空表示顶层工作项。 */
+    private WorkItem insertWorkItem(
+            long workspaceId,
+            long projectId,
+            long reporterUserId,
+            WorkItemType type,
+            Long parentId,
+            String title,
+            String description,
+            WorkItemStatus status,
+            WorkItemPriority priority,
+            Long assigneeUserId,
+            Instant dueAt) {
         Map<String, Object> sequence = mapper.lockSequence(workspaceId, projectId).stream()
                 .findFirst()
                 .orElseThrow(ResourceNotFoundException::new);
@@ -59,6 +114,7 @@ public class MybatisWorkItemStore implements WorkItemStore {
                 description,
                 status.name(),
                 priority.name(),
+                parentId,
                 assigneeUserId,
                 reporterUserId,
                 dueAt);

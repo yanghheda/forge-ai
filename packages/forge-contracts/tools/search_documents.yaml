@@ -1,0 +1,27 @@
+name: search_documents
+version: 1
+description: 在当前用户有 document.read 权限的项目范围内做语义检索；过滤器由服务端构造，不信任调用方 scope。
+input_schema:
+  type: object
+  required: [query]
+  properties:
+    query: { type: string, minLength: 1, maxLength: 500 }
+    documentType: { type: [string, "null"], minLength: 1, maxLength: 32 }
+    topK: { type: [integer, "null"], minimum: 1, maximum: 30 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: document.read
+risk_level: LOW
+idempotency:
+  required: false
+timeout_ms: 10000
+retry:
+  max_attempts: 2
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/search_documents:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4
+  - PRD-10-5

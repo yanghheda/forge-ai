@@ -1,0 +1,25 @@
+name: get_delivery_graph
+version: 1
+description: 读取以指定 Requirement 为根的交付图投影；节点可见性由服务端按当前权限过滤。
+input_schema:
+  type: object
+  required: [requirementId]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: requirement.read
+risk_level: LOW
+idempotency:
+  required: false
+timeout_ms: 5000
+retry:
+  max_attempts: 2
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/get_delivery_graph:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4
+  - PRD-10-5

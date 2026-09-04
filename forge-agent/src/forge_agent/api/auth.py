@@ -47,12 +47,16 @@ def require_internal_credential(
 
 def require_run_credential(
     request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     claims: Annotated[dict[str, Any], Depends(require_internal_credential)],
-) -> None:
-    """要求短时凭据绑定到当前路径中的唯一 Run。"""
+) -> str:
+    """要求短时凭据绑定到当前路径中的唯一 Run，并原样返回供 Tool 回调透传。"""
 
     if claims.get("run_id") != request.path_params.get("run_id"):
         raise invalid_credential()
+    if credentials is None:
+        raise invalid_credential()
+    return credentials.credentials
 
 
 def invalid_credential() -> HTTPException:

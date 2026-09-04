@@ -15,6 +15,8 @@ public record AgentRun(
         long userId,
         /* 本轮执行的 Skill。 */
         AgentSkill skill,
+        /* 本轮 MEDIUM 风险 Tool 的确认策略；执行时按当前事实重新判定。 */
+        MediumToolConfirmation mediumToolConfirmation,
         /* Backend 权威运行状态。 */
         AgentRunStatus status,
         /* 已持久化的最后事件序号。 */

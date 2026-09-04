@@ -21,3 +21,5 @@ class AgentSettings(BaseSettings):
     internal_jwt_issuer: str = "forge-server"
     internal_jwt_audience: str = "forge-agent"
     checkpoint_path: Path = Path("data/checkpoints.sqlite")
+    server_base_url: str = Field(default="http://forge-server:8080", min_length=1)
+    contracts_root: Path = Path("packages/forge-contracts")

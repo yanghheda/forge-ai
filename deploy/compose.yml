@@ -67,8 +67,11 @@ services:
     environment:
       FORGE_AGENT_INTERNAL_JWT_SECRET: ${FORGE_AGENT_INTERNAL_JWT_SECRET}
       FORGE_AGENT_CHECKPOINT_PATH: /app/data/checkpoints.sqlite
+      FORGE_AGENT_CONTRACTS_ROOT: /app/contracts
+      FORGE_AGENT_SERVER_BASE_URL: http://forge-server:8080
     volumes:
       - agent-checkpoints:/app/data
+      - ../packages/forge-contracts:/app/contracts:ro
     healthcheck:
       test:
         - CMD

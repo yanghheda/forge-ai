@@ -1,0 +1,12 @@
+name: ux
+version: 1
+description: UX Skill：读取项目、工作项与交付图上下文，检索文档，并创建 UX Task 与 UX Spec 文档。
+allowed_tools:
+  - get_project
+  - get_work_item
+  - get_delivery_graph
+  - search_documents
+  - create_ux_task
+  - create_ux_document
+limits:
+  max_tool_calls: 15

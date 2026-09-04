@@ -3,6 +3,7 @@ package ai.forge.server.agent.application;
 import ai.forge.server.agent.domain.AgentEvent;
 import ai.forge.server.agent.domain.AgentRun;
 import ai.forge.server.agent.domain.AgentSkill;
+import ai.forge.server.agent.domain.MediumToolConfirmation;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,7 @@ public interface AgentRunStore {
             Long workItemId,
             long userId,
             AgentSkill skill,
+            MediumToolConfirmation mediumToolConfirmation,
             String messageRedacted,
             String clientRequestId,
             String requestHash,
