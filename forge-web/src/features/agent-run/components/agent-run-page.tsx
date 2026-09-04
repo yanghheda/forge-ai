@@ -1,11 +1,18 @@
 "use client";
 
-import { Alert, Card, Spin, Steps, Typography } from "@arco-design/web-react";
-import { useQuery } from "@tanstack/react-query";
+import { Alert, Button, Card, Space, Spin, Steps, Typography } from "@arco-design/web-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { getCurrentUser } from "@/features/auth";
 import { listProjects } from "@/features/project";
-import { agentEventUrl, getAgentRun, type AgentRunSnapshot } from "../api/agent-run-api";
+import {
+  agentEventUrl,
+  decideApproval,
+  getAgentRun,
+  getRunApproval,
+  type AgentRunSnapshot,
+  type ApprovalSnapshot,
+} from "../api/agent-run-api";
 import {
   initialRunTimelineState,
   reduceRunEvent,
@@ -153,7 +160,69 @@ function AgentRunTimeline({
           ))}
         </Steps>
       </Card>
+      {snapshot.status === "WAITING_APPROVAL" && (
+        <ApprovalCard workspaceId={workspaceId} projectId={projectId} runId={snapshot.id} />
+      )}
     </section>
+  );
+}
+
+function ApprovalCard({
+  workspaceId,
+  projectId,
+  runId,
+}: {
+  workspaceId: number;
+  projectId: number;
+  runId: string;
+}) {
+  const queryClient = useQueryClient();
+  const approval = useQuery({
+    queryKey: ["agent-approval", runId],
+    queryFn: () => getRunApproval(workspaceId, projectId, runId),
+  });
+  const decide = useMutation({
+    mutationFn: ({ snapshot, decision }: { snapshot: ApprovalSnapshot; decision: "APPROVE" | "REJECT" }) =>
+      decideApproval(snapshot, workspaceId, projectId, decision),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["agent-approval", runId] });
+      void queryClient.invalidateQueries({ queryKey: ["agent-run", runId] });
+    },
+  });
+  if (approval.isPending) return <Spin tip="加载审批事实…" />;
+  if (!approval.data) return <Alert type="error" content="审批不存在或当前账户无权访问。" />;
+  const snapshot = approval.data;
+  return (
+    <Card title={`审批：${snapshot.toolName} v${snapshot.toolVersion}`}>
+      <Typography.Paragraph>{snapshot.reason}</Typography.Paragraph>
+      <Typography.Paragraph>风险：{snapshot.riskLevel} · 状态：{snapshot.status}</Typography.Paragraph>
+      <Typography.Paragraph copyable>参数摘要：{snapshot.argumentHash}</Typography.Paragraph>
+      <Typography.Paragraph>过期时间：{new Date(snapshot.expiresAt).toLocaleString()}</Typography.Paragraph>
+      {snapshot.resources.map((resource) => (
+        <Typography.Paragraph key={`${resource.type}:${resource.id}`}>
+          影响资源：{resource.type} {resource.id}，冻结版本 {resource.version}
+        </Typography.Paragraph>
+      ))}
+      {snapshot.status === "PENDING" && (
+        <Space>
+          <Button
+            type="primary"
+            loading={decide.isPending}
+            onClick={() => decide.mutate({ snapshot, decision: "APPROVE" })}
+          >
+            批准并恢复
+          </Button>
+          <Button
+            status="danger"
+            loading={decide.isPending}
+            onClick={() => decide.mutate({ snapshot, decision: "REJECT" })}
+          >
+            拒绝
+          </Button>
+        </Space>
+      )}
+      {decide.isError && <Alert type="error" content="审批决定未提交，请刷新后重试。" />}
+    </Card>
   );
 }
 

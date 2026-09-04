@@ -29,7 +29,8 @@ public interface AgentToolCallMapper {
 
     @Select("SELECT tool_name, tool_version, arguments_json, result_json FROM agent_tool_calls "
             + "WHERE idempotency_key = #{idempotencyKey} "
-            + "AND run_id = #{runId} AND workspace_id = #{workspaceId} AND project_id = #{projectId}")
+            + "AND run_id = #{runId} AND workspace_id = #{workspaceId} AND project_id = #{projectId} "
+            + "AND status = 'SUCCEEDED'")
     List<Map<String, Object>> findSuccessful(
             @Param("workspaceId") long workspaceId,
             @Param("projectId") long projectId,

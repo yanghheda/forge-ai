@@ -63,7 +63,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         /* work_items 存在 parent 自引用外键，先解除指针再清空。 */
         jdbcTemplate.update("UPDATE work_items SET parent_id = NULL");
         for (String table : List.of(
-                "agent_tool_calls", "agent_events", "agent_steps", "agent_runs", "comments",
+                "outbox_events", "agent_tool_calls", "approvals", "agent_events", "agent_steps", "agent_runs", "comments",
                 "work_item_relations", "work_item_labels", "project_policies", "work_item_events",
                 "review_records", "requirement_details", "work_items", "project_item_sequences",
                 "project_members", "projects", "audit_logs", "member_roles", "workspace_members", "workspaces",
@@ -277,7 +277,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void mediumAskPolicyReturnsPendingConfirmation() throws Exception {
+    void mediumAskPolicyPersistsFrozenApprovalAndPausesRun() throws Exception {
         String runId = insertRunningRun("PRODUCT", "ASK");
 
         ResponseEntity<String> response = executeTool(
@@ -285,12 +285,85 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode execution = objectMapper.readTree(response.getBody());
-        assertThat(execution.get("status").asText()).isEqualTo("PENDING_CONFIRMATION");
+        assertThat(execution.get("status").asText()).isEqualTo("WAITING_APPROVAL");
+        assertThat(execution.get("approvalId").asText()).hasSize(26);
         assertThat(execution.get("result").isNull()).isTrue();
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM work_items", Long.class))
                 .isZero();
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM agent_tool_calls", Long.class))
-                .isZero();
+                .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM agent_runs WHERE id = ?", String.class, runId))
+                .isEqualTo("WAITING_APPROVAL");
+        Map<String, Object> approval = jdbcTemplate.queryForMap(
+                "SELECT status, argument_hash, frozen_arguments_encrypted, version FROM approvals WHERE run_id = ?",
+                runId);
+        assertThat(approval.get("status")).isEqualTo("PENDING");
+        assertThat(approval.get("argument_hash").toString()).hasSize(64);
+        assertThat(approval.get("frozen_arguments_encrypted").toString()).doesNotContain("待确认需求");
+        assertThat(((Number) approval.get("version")).longValue()).isZero();
+    }
+
+    @Test
+    void approvedCallResumesWithFrozenInputAndReplaysOnlyOnce() throws Exception {
+        String runId = insertRunningRun("PRODUCT", "ASK");
+        Map<String, Object> arguments = Map.of("title", "审批后的需求");
+        JsonNode waiting = objectMapper.readTree(
+                executeTool("create_requirement", runToken(runId), "call-1", arguments).getBody());
+        String approvalId = waiting.get("approvalId").asText();
+        jdbcTemplate.update(
+                "UPDATE approvals SET status = 'APPROVED', approver_user_id = ?, version = version + 1 WHERE id = ?",
+                ownerId,
+                approvalId);
+        jdbcTemplate.update("UPDATE agent_runs SET status = 'RUNNING' WHERE id = ?", runId);
+
+        JsonNode executed = objectMapper.readTree(
+                executeTool("create_requirement", runToken(runId), "call-1", arguments).getBody());
+        JsonNode replayed = objectMapper.readTree(
+                executeTool("create_requirement", runToken(runId), "call-1", arguments).getBody());
+
+        assertThat(executed.get("status").asText()).isEqualTo("SUCCEEDED");
+        assertThat(replayed.get("replayed").asBoolean()).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM work_items WHERE title = '审批后的需求'", Long.class)).isEqualTo(1);
+    }
+
+    @Test
+    void approvedCallRejectsChangedArguments() throws Exception {
+        String runId = insertRunningRun("PRODUCT", "ASK");
+        JsonNode waiting = objectMapper.readTree(executeTool(
+                "create_requirement", runToken(runId), "call-1", Map.of("title", "冻结需求")).getBody());
+        jdbcTemplate.update("UPDATE approvals SET status = 'APPROVED' WHERE id = ?",
+                waiting.get("approvalId").asText());
+        jdbcTemplate.update("UPDATE agent_runs SET status = 'RUNNING' WHERE id = ?", runId);
+
+        ResponseEntity<String> changed = executeTool(
+                "create_requirement", runToken(runId), "call-1", Map.of("title", "篡改需求"));
+
+        assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(changed.getBody()).contains("APPROVAL_INPUT_CHANGED");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM work_items", Long.class)).isZero();
+    }
+
+    @Test
+    void approvedCallRejectsChangedResourceVersion() throws Exception {
+        var requirement = workItemCommandService.create(ownerId, workspaceId, projectId,
+                WorkItemType.REQUIREMENT, "待设计需求", null, WorkItemPriority.MEDIUM, null, null);
+        String runId = insertRunningRun("UX", "ASK");
+        Map<String, Object> arguments = Map.of("requirementId", requirement.id(), "title", "UX 任务");
+        JsonNode waiting = objectMapper.readTree(
+                executeTool("create_ux_task", runToken(runId), "call-1", arguments).getBody());
+        jdbcTemplate.update("UPDATE approvals SET status = 'APPROVED' WHERE id = ?",
+                waiting.get("approvalId").asText());
+        jdbcTemplate.update("UPDATE work_items SET version = version + 1 WHERE id = ?", requirement.id());
+        jdbcTemplate.update("UPDATE agent_runs SET status = 'RUNNING' WHERE id = ?", runId);
+
+        ResponseEntity<String> changed = executeTool(
+                "create_ux_task", runToken(runId), "call-1", arguments);
+
+        assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(changed.getBody()).contains("RESOURCE_VERSION_CHANGED");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM work_items WHERE type = 'UX_TASK'", Long.class)).isZero();
     }
 
     @Test

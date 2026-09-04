@@ -25,6 +25,23 @@ export interface AgentRunSnapshot {
   steps: AgentStep[];
 }
 
+export interface ApprovalSnapshot {
+  id: string;
+  runId: string;
+  toolCallId: string;
+  toolName: string;
+  toolVersion: number;
+  riskLevel: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+  requestedBy: number;
+  approverUserId: number | null;
+  argumentHash: string;
+  resources: Array<{ type: string; id: string; version: number }>;
+  reason: string;
+  expiresAt: string;
+  version: number;
+}
+
 export function getAgentRun(
   workspaceId: number,
   projectId: number,
@@ -34,6 +51,36 @@ export function getAgentRun(
   return client.request(
     `/v1/agent-runs/${runId}?workspaceId=${workspaceId}&projectId=${projectId}`,
   );
+}
+
+export function getRunApproval(
+  workspaceId: number,
+  projectId: number,
+  runId: string,
+  client: RequestClient = apiClient,
+): Promise<ApprovalSnapshot> {
+  return client.request(
+    `/v1/approvals/by-run/${runId}?workspaceId=${workspaceId}&projectId=${projectId}`,
+  );
+}
+
+export function decideApproval(
+  approval: ApprovalSnapshot,
+  workspaceId: number,
+  projectId: number,
+  decision: "APPROVE" | "REJECT",
+  client: RequestClient = apiClient,
+): Promise<ApprovalSnapshot> {
+  return client.request(`/v1/approvals/${approval.id}:decide`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workspaceId,
+      projectId,
+      decision,
+      expectedVersion: approval.version,
+    }),
+  });
 }
 
 export function agentEventUrl(

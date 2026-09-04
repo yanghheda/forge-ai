@@ -86,7 +86,7 @@ class RunStart(BaseModel):
 class RunResult(BaseModel):
     """最小图完成后返回给 Backend Gateway 的结构化结果；序列化键保持 snake_case。"""
 
-    status: Literal["SUCCEEDED"]
+    status: Literal["SUCCEEDED", "WAITING_APPROVAL"]
     plan: list[str]
     answer: str
     tool_calls: list[ToolCallRecord] = Field(default_factory=list)
@@ -203,7 +203,11 @@ class LangGraphRuntimeGateway:
             self._after_guard,
             {"execute": "execute_tool", "observe": "observe_tool"},
         )
-        graph.add_edge("execute_tool", "observe_tool")
+        graph.add_conditional_edges(
+            "execute_tool",
+            self._after_execution,
+            {"pause": END, "observe": "observe_tool"},
+        )
         graph.add_edge("observe_tool", "select_tool")
         graph.add_edge("finalize", END)
         self._graph = graph.compile(checkpointer=self._checkpointer)
@@ -215,6 +219,14 @@ class LangGraphRuntimeGateway:
             snapshot = self._graph.get_state(config)
             if snapshot.values.get("status") == "SUCCEEDED":
                 return self._result(snapshot.values)
+            if snapshot.values.get("status") == "WAITING_APPROVAL":
+                self._graph.update_state(
+                    config,
+                    {"status": "RUNNING", "pending_execution": None},
+                    as_node="guard_tool",
+                )
+                state = self._graph.invoke(None, config)
+                return self._result(state)
             if snapshot.values:
                 state = self._graph.invoke(None, config)
             else:
@@ -309,7 +321,7 @@ class LangGraphRuntimeGateway:
                 error_message=str(exception),
             )
         return {
-            "pending_selection": None,
+            "pending_selection": (selection if execution.status == "WAITING_APPROVAL" else None),
             "pending_execution": {
                 "toolName": execution.tool_name,
                 "toolCallId": execution.tool_call_id,
@@ -318,7 +330,13 @@ class LangGraphRuntimeGateway:
                 "errorCode": execution.error_code,
                 "errorMessage": execution.error_message,
                 "result": execution.result,
+                "approvalId": execution.approval_id,
             },
+            "status": (
+                "WAITING_APPROVAL"
+                if execution.status == "WAITING_APPROVAL"
+                else state.get("status", "RUNNING")
+            ),
             "state_version": state["state_version"] + 1,
         }
 
@@ -352,6 +370,10 @@ class LangGraphRuntimeGateway:
         return "observe" if state.get("pending_execution") else "execute"
 
     @staticmethod
+    def _after_execution(state: AgentState) -> str:
+        return "pause" if state.get("status") == "WAITING_APPROVAL" else "observe"
+
+    @staticmethod
     def _next_tool_call_id(state: AgentState) -> str:
         # 已观察调用属于 checkpoint 持久状态，以其数量派生序号可在节点重试时保持稳定，
         # 又能确保下一次调用不会复用上一个幂等键。
@@ -362,9 +384,9 @@ class LangGraphRuntimeGateway:
             ToolCallRecord.model_validate(dict(call)) for call in state.get("tool_calls", [])
         ]
         return RunResult(
-            status="SUCCEEDED",
+            status=str(state["status"]),
             plan=list(state["plan"]),
-            answer=str(state["answer"]),
+            answer=str(state.get("answer", "Waiting for approval")),
             tool_calls=tool_calls,
             state_version=int(state["state_version"]),
         )

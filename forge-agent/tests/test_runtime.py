@@ -227,31 +227,48 @@ def test_guard_rejects_tool_when_call_budget_is_exhausted(tmp_path) -> None:
     assert result.tool_calls[0].error_code == "TOOL_CALL_BUDGET_EXCEEDED"
 
 
-def test_pending_confirmation_is_observed_without_retry(tmp_path) -> None:
+def test_waiting_approval_pauses_and_new_runtime_resumes_original_tool_call(tmp_path) -> None:
+    checkpoint = tmp_path / "checkpoints.sqlite"
     transport = StaticToolTransport(
         [
             ToolExecution(
-                status="PENDING_CONFIRMATION",
+                status="WAITING_APPROVAL",
                 tool_name="create_requirement",
                 tool_call_id="call-1",
+                approval_id="01JAPPROVAL000000000000000",
             )
         ]
     )
-    runtime = LangGraphRuntimeGateway(
-        tmp_path / "checkpoints.sqlite", FakeLanguageModel(), transport
+    runtime = LangGraphRuntimeGateway(checkpoint, FakeLanguageModel(), transport)
+    request = RunStart(
+        manifest=manifest(effective_tool_names=["create_requirement"], max_tool_calls=5),
+        message="请创建需求",
     )
 
-    result = runtime.start(
-        RunStart(
-            manifest=manifest(effective_tool_names=["create_requirement"], max_tool_calls=5),
-            message="请创建需求",
-        ),
-        "run-token",
-    )
+    paused = runtime.start(request, "first-token")
 
+    assert paused.status == "WAITING_APPROVAL"
+    assert paused.tool_calls == []
     assert len(transport.requests) == 1
-    assert len(result.tool_calls) == 1
-    assert result.tool_calls[0].status == "PENDING_CONFIRMATION"
+
+    resumed_transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="create_requirement",
+                tool_call_id="call-1",
+                result={"id": 42},
+            )
+        ]
+    )
+    resumed = LangGraphRuntimeGateway(checkpoint, FakeLanguageModel(), resumed_transport).start(
+        request, "renewed-token"
+    )
+
+    assert resumed.status == "SUCCEEDED"
+    assert resumed_transport.requests[0]["tool_call_id"] == "call-1"
+    assert resumed_transport.requests[0]["run_token"] == "renewed-token"
+    assert len(resumed.tool_calls) == 1
 
 
 def test_transport_failure_is_normalized_to_failed_observation(tmp_path) -> None:

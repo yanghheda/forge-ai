@@ -38,6 +38,10 @@ public class AgentDispatcher {
             runStore.start(
                     requested.workspaceId(), requested.projectId(), requested.runId(), requested.requestId());
             AgentRuntimeGateway.RunResult result = runtimeGateway.start(requested);
+            if ("WAITING_APPROVAL".equals(result.status())) {
+                LOGGER.info("Agent Run paused for approval: runId={}", requested.runId());
+                return;
+            }
             runStore.complete(
                     requested.workspaceId(),
                     requested.projectId(),

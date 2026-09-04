@@ -11,13 +11,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class ToolExecution(BaseModel):
     """forge-server 返回的单次 Tool 执行信封。"""
 
-    status: Literal["SUCCEEDED", "PENDING_CONFIRMATION", "REJECTED", "FAILED"]
+    status: Literal["SUCCEEDED", "PENDING_CONFIRMATION", "WAITING_APPROVAL", "REJECTED", "FAILED"]
     tool_name: str
     tool_call_id: str
     replayed: bool = False
     result: dict[str, Any] | None = None
     error_code: str | None = None
     error_message: str | None = None
+    approval_id: str | None = None
 
 
 class ToolTransport(Protocol):
@@ -89,6 +90,7 @@ def _snake_execution(payload: dict[str, Any], tool_name: str, tool_call_id: str)
         result=result if isinstance(result, dict) else None,
         error_code=payload.get("errorCode"),
         error_message=payload.get("errorMessage"),
+        approval_id=payload.get("approvalId"),
     )
 
 
@@ -133,3 +135,4 @@ class ToolCallRecord(BaseModel):
     error_code: str | None = Field(default=None, alias="errorCode")
     error_message: str | None = Field(default=None, alias="errorMessage")
     result: dict[str, Any] | None = None
+    approval_id: str | None = Field(default=None, alias="approvalId")

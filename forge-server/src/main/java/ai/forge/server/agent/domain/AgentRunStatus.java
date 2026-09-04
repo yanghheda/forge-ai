@@ -5,6 +5,8 @@ public enum AgentRunStatus {
     QUEUED(false),
     /* Run 正在执行。 */
     RUNNING(false),
+    /* Run 已保存 checkpoint，等待持久化审批决定。 */
+    WAITING_APPROVAL(false),
     /* Run 已成功完成。 */
     SUCCEEDED(true),
     /* Run 因稳定错误终止。 */

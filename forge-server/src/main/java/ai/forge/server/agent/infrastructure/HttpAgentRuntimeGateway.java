@@ -56,8 +56,9 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
                 .body(new StartRequest(manifest(requested, issuedAt), requested.message()))
                 .retrieve()
                 .body(StartResponse.class);
-        if (response == null || !"SUCCEEDED".equals(response.status())) {
-            throw new IllegalStateException("Agent Runtime returned no successful result");
+        if (response == null || (!"SUCCEEDED".equals(response.status())
+                && !"WAITING_APPROVAL".equals(response.status()))) {
+            throw new IllegalStateException("Agent Runtime returned an unsupported result");
         }
         return new RunResult(response.status(), response.plan(), response.answer(), response.stateVersion());
     }

@@ -39,6 +39,9 @@ public class AgentToolExecuteService {
     /* 持久化 MEDIUM 写操作的幂等事实与结构化结果。 */
     private final AgentToolCallStore toolCallStore;
 
+    /* 把 ASK 策略升级为持久审批并在恢复时验证冻结事实。 */
+    private final ApprovalService approvalService;
+
     /* 执行入口权限的最终服务端校验。 */
     private final PermissionEvaluator permissionEvaluator;
 
@@ -70,6 +73,7 @@ public class AgentToolExecuteService {
             ToolContractRegistry toolContractRegistry,
             AgentRunStore runStore,
             AgentToolCallStore toolCallStore,
+            ApprovalService approvalService,
             PermissionEvaluator permissionEvaluator,
             ProjectQueryService projectQueryService,
             WorkItemQueryService workItemQueryService,
@@ -82,6 +86,7 @@ public class AgentToolExecuteService {
         this.toolContractRegistry = toolContractRegistry;
         this.runStore = runStore;
         this.toolCallStore = toolCallStore;
+        this.approvalService = approvalService;
         this.permissionEvaluator = permissionEvaluator;
         this.projectQueryService = projectQueryService;
         this.workItemQueryService = workItemQueryService;
@@ -131,7 +136,13 @@ public class AgentToolExecuteService {
                         toolName, toolCallId, "Run policy denies MEDIUM tool execution");
             }
             case ASK -> {
-                return AgentToolExecution.pendingConfirmation(toolName, toolCallId);
+                if (!approvalService.existsForCall(workspaceId, projectId, runId, toolCallId)) {
+                    ApprovalSnapshot approval = approvalService.request(run, contract, toolCallId, arguments);
+                    return AgentToolExecution.pendingApproval(toolName, toolCallId, approval.id());
+                }
+                JsonNode frozenArguments = approvalService.requireApproved(run, contract, toolCallId, arguments);
+                return executeApprovedTool(
+                        workspaceId, projectId, runId, toolName, toolCallId, frozenArguments, contract, run);
             }
             case ALLOW -> {
                 return executeIdempotentMediumTool(workspaceId, projectId, runId, toolName, toolCallId, arguments, contract, run);
@@ -139,6 +150,29 @@ public class AgentToolExecuteService {
             default -> throw new ToolExecutionRejectedException(
                     HttpStatus.CONFLICT.value(), "UNSUPPORTED_CONFIRMATION", "Unknown medium confirmation policy");
         }
+    }
+
+    private AgentToolExecution executeApprovedTool(
+            long workspaceId,
+            long projectId,
+            String runId,
+            String toolName,
+            String toolCallId,
+            JsonNode arguments,
+            ToolContract contract,
+            AgentRun run) {
+        return Objects.requireNonNull(transactionTemplate.execute(status -> {
+            var replayed = toolCallStore.findSuccessful(
+                    workspaceId, projectId, runId, runId + ":" + toolCallId);
+            if (replayed.isPresent()) {
+                return replay(toolName, toolCallId, arguments, contract, replayed.orElseThrow());
+            }
+            AgentToolExecution execution = AgentToolExecution.succeeded(
+                    toolName, toolCallId, false,
+                    executeApplicationService(workspaceId, projectId, run, toolName, arguments));
+            approvalService.complete(workspaceId, projectId, runId, toolCallId, execution.result());
+            return execution;
+        }));
     }
 
     /* 以 runId 与 toolCallId 组成的幂等键保证成功副作用只发生一次。 */
@@ -375,7 +409,7 @@ public class AgentToolExecuteService {
         AgentRun run = runStore.find(workspaceId, projectId, runId)
                 .orElseThrow(() -> new ToolExecutionRejectedException(
                         HttpStatus.NOT_FOUND.value(), "RUN_NOT_FOUND", "Run does not exist in scope"));
-        if (run.status() != AgentRunStatus.RUNNING) {
+        if (run.status() != AgentRunStatus.RUNNING && run.status() != AgentRunStatus.WAITING_APPROVAL) {
             throw new ToolExecutionRejectedException(
                     HttpStatus.CONFLICT.value(), "RUN_NOT_ACTIVE", "Run is not in RUNNING state");
         }

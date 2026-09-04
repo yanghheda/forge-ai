@@ -17,25 +17,32 @@ public record AgentToolExecution(
         /* FAILED 时的稳定错误码，其余状态为空。 */
         String errorCode,
         /* FAILED 时的可读错误说明；不包含敏感数据。 */
-        String errorMessage) {
+        String errorMessage,
+        /* 等待审批时返回持久化审批标识；其余状态为空。 */
+        String approvalId) {
 
     public static AgentToolExecution succeeded(
             String toolName, String toolCallId, boolean replayed, JsonNode result) {
-        return new AgentToolExecution("SUCCEEDED", toolName, toolCallId, replayed, result, null, null);
+        return new AgentToolExecution("SUCCEEDED", toolName, toolCallId, replayed, result, null, null, null);
     }
 
     public static AgentToolExecution pendingConfirmation(String toolName, String toolCallId) {
         return new AgentToolExecution(
-                "PENDING_CONFIRMATION", toolName, toolCallId, false, null, null, null);
+                "PENDING_CONFIRMATION", toolName, toolCallId, false, null, null, null, null);
+    }
+
+    public static AgentToolExecution pendingApproval(String toolName, String toolCallId, String approvalId) {
+        return new AgentToolExecution(
+                "WAITING_APPROVAL", toolName, toolCallId, false, null, null, null, approvalId);
     }
 
     public static AgentToolExecution rejected(String toolName, String toolCallId, String reason) {
-        return new AgentToolExecution("REJECTED", toolName, toolCallId, false, null, "MEDIUM_DENIED", reason);
+        return new AgentToolExecution("REJECTED", toolName, toolCallId, false, null, "MEDIUM_DENIED", reason, null);
     }
 
     public static AgentToolExecution failed(
             String toolName, String toolCallId, String errorCode, String errorMessage) {
         return new AgentToolExecution(
-                "FAILED", toolName, toolCallId, false, null, errorCode, errorMessage);
+                "FAILED", toolName, toolCallId, false, null, errorCode, errorMessage, null);
     }
 }
