@@ -50,5 +50,9 @@ public abstract class InfrastructureIntegrationTestBase {
         registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
         registry.add("forge.infrastructure.qdrant.base-url",
                 () -> "http://" + QDRANT.getHost() + ":" + QDRANT.getMappedPort(6333));
+        /* 集成测试手动驱动索引 Worker，禁用后台调度避免与断言竞态。 */
+        registry.add("forge.rag.indexer.schedule-enabled", () -> false);
+        registry.add("forge.rag.indexer.backoff-base", () -> "PT0.2S");
+        registry.add("forge.rag.indexer.lease", () -> "5m");
     }
 }

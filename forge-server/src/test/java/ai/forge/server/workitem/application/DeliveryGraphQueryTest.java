@@ -133,5 +133,10 @@ class DeliveryGraphQueryTest {
         public Optional<ProjectAccess> findProjectAccess(long userId, long workspaceId, long projectId) {
             return Optional.of(new ProjectAccess(true, new LinkedHashSet<>(), permissions));
         }
+
+        @Override
+        public List<Long> findProjectIdsWithPermission(long userId, long workspaceId, String permission) {
+            return List.of();
+        }
     }
 }

@@ -2,6 +2,7 @@ package ai.forge.server.authorization.infrastructure.persistence;
 
 import ai.forge.server.authorization.application.PermissionStore;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.context.annotation.Profile;
@@ -39,5 +40,14 @@ public class MybatisPermissionStore implements PermissionStore {
                 permissionMapper.activeProjectMember(userId, workspaceId, projectId),
                 new LinkedHashSet<>(permissionMapper.projectRoles(userId, workspaceId, projectId)),
                 new LinkedHashSet<>(permissionMapper.projectPermissions(userId, workspaceId, projectId))));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> findProjectIdsWithPermission(long userId, long workspaceId, String permission) {
+        if (!permissionMapper.activeWorkspaceMember(userId, workspaceId)) {
+            return List.of();
+        }
+        return permissionMapper.projectIdsWithPermission(userId, workspaceId, permission);
     }
 }

@@ -1,6 +1,7 @@
 package ai.forge.server.authorization.application;
 
 import ai.forge.server.common.domain.ResourceNotFoundException;
+import java.util.List;
 import java.util.Set;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,11 @@ public class PermissionEvaluator {
             return false;
         }
         return access.permissions().contains(permission);
+    }
+
+    /* 返回用户在指定工作区内对该权限有效的全部项目；空集合表示没有任何可检索范围。 */
+    public List<Long> projectIdsWithPermission(long userId, long workspaceId, String permission) {
+        return permissionStore.findProjectIdsWithPermission(userId, workspaceId, permission);
     }
 
     public Set<String> workspacePermissions(long userId, long workspaceId) {

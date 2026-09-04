@@ -48,6 +48,18 @@ forge:
     qdrant:
       base-url: ${FORGE_QDRANT_BASE_URL}
       health-timeout: 1s
+  rag:
+    embedding:
+      dimension: ${FORGE_RAG_EMBEDDING_DIMENSION:64}
+    qdrant:
+      request-timeout: ${FORGE_RAG_QDRANT_TIMEOUT:10s}
+    indexer:
+      schedule-enabled: ${FORGE_RAG_INDEXER_SCHEDULE_ENABLED:true}
+      poll-interval: ${FORGE_RAG_INDEXER_POLL_INTERVAL:5s}
+      dispatch-batch-size: ${FORGE_RAG_INDEXER_BATCH_SIZE:50}
+      max-attempts: ${FORGE_RAG_INDEXER_MAX_ATTEMPTS:5}
+      backoff-base: ${FORGE_RAG_INDEXER_BACKOFF_BASE:10s}
+      lease: ${FORGE_RAG_INDEXER_LEASE:5m}
 
 management:
   endpoints:

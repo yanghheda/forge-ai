@@ -31,6 +31,8 @@ public enum ErrorCode {
     CSRF_REJECTED,
     /* 修改请求的浏览器来源不在当前实例允许列表。 */
     ORIGIN_REJECTED,
+    /* 检索依赖的派生向量索引暂不可用；文档事实本身仍可读取。 */
+    RAG_UNAVAILABLE,
     /* 未被稳定业务错误覆盖的服务端故障。 */
     INTERNAL_ERROR
 }

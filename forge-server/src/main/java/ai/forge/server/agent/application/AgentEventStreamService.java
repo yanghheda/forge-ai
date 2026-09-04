@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,10 @@ public class AgentEventStreamService {
     /* 在请求线程之外执行可取消的连接循环。 */
     private final TaskExecutor taskExecutor;
 
-    public AgentEventStreamService(AgentRunService runService, TaskExecutor taskExecutor) {
+    public AgentEventStreamService(
+            AgentRunService runService,
+            /* 显式选择应用执行器，避免启用调度后出现多个 TaskExecutor 候选。 */
+            @Qualifier("applicationTaskExecutor") TaskExecutor taskExecutor) {
         this.runService = runService;
         this.taskExecutor = taskExecutor;
     }

@@ -8,6 +8,7 @@ import ai.forge.server.auth.domain.WeakPasswordException;
 import ai.forge.server.agent.domain.AgentRunIdempotencyConflictException;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
+import ai.forge.server.document.domain.RagUnavailableException;
 import ai.forge.server.project.domain.ProjectKeyConflictException;
 import ai.forge.server.workspace.domain.MemberEmailConflictException;
 import ai.forge.server.workitem.domain.IdempotencyConflictException;
@@ -195,6 +196,13 @@ public class GlobalExceptionHandler {
             LoginRateLimitedException exception, HttpServletRequest request) {
         return error(HttpStatus.TOO_MANY_REQUESTS, ErrorCode.LOGIN_RATE_LIMITED,
                 "Too many login attempts", Map.of(), request);
+    }
+
+    @ExceptionHandler(RagUnavailableException.class)
+    public ResponseEntity<ApiError> handleRagUnavailable(
+            RagUnavailableException exception, HttpServletRequest request) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, ErrorCode.RAG_UNAVAILABLE,
+                "Document retrieval is temporarily unavailable", Map.of(), request);
     }
 
     @ExceptionHandler(Exception.class)
