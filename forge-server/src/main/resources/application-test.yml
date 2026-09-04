@@ -17,6 +17,8 @@ server:
         secure: false
 
 forge:
+  security:
+    secret-master-key: ${FORGE_SECRET_MASTER_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
   web:
     allowed-origins: http://localhost
   infrastructure:

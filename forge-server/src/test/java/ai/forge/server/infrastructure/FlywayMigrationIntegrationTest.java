@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("15");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("17");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -110,7 +110,26 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                         Integer.class))
-                .isEqualTo(23);
+                .isEqualTo(26);
+    }
+
+    @Test
+    void gitLabMigrationCreatesCommentedScopedFactsAndPermissions() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('secrets','gitlab_connections','git_repositories')",
+                        String.class))
+                .containsExactlyInAnyOrder("secrets", "gitlab_connections", "git_repositories");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('secrets','gitlab_connections','git_repositories') "
+                                + "AND column_comment = ''",
+                        Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT code FROM permissions WHERE code IN ('integration.manage','repo.read') ORDER BY code",
+                        String.class))
+                .containsExactly("integration.manage", "repo.read");
     }
 
     @Test

@@ -41,6 +41,9 @@ public abstract class InfrastructureIntegrationTestBase {
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.datasource.hikari.connection-timeout", () -> 1000L);
         registry.add("forge.web.allowed-origins", () -> "http://localhost");
+        registry.add(
+                "forge.security.secret-master-key",
+                () -> "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
         registry.add("forge.infrastructure.agent.health-enabled", () -> false);
         registry.add("forge.infrastructure.agent.dispatch-enabled", () -> false);
         registry.add(

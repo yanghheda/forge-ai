@@ -10,6 +10,8 @@ import ai.forge.server.agent.domain.ToolExecutionRejectedException;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.document.domain.RagUnavailableException;
+import ai.forge.server.gitlab.application.GitLabRemoteException;
+import ai.forge.server.gitlab.infrastructure.UnsafeGitLabUrlException;
 import ai.forge.server.project.domain.ProjectKeyConflictException;
 import ai.forge.server.workspace.domain.MemberEmailConflictException;
 import ai.forge.server.workitem.domain.IdempotencyConflictException;
@@ -215,6 +217,29 @@ public class GlobalExceptionHandler {
             RagUnavailableException exception, HttpServletRequest request) {
         return error(HttpStatus.SERVICE_UNAVAILABLE, ErrorCode.RAG_UNAVAILABLE,
                 "Document retrieval is temporarily unavailable", Map.of(), request);
+    }
+
+    @ExceptionHandler(UnsafeGitLabUrlException.class)
+    public ResponseEntity<ApiError> handleUnsafeGitLabUrl(
+            UnsafeGitLabUrlException exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED,
+                "GitLab Base URL is not allowed", Map.of(), request);
+    }
+
+    @ExceptionHandler(GitLabRemoteException.class)
+    public ResponseEntity<ApiError> handleGitLabRemote(
+            GitLabRemoteException exception, HttpServletRequest request) {
+        ErrorCode code = ErrorCode.valueOf(exception.code());
+        HttpStatus status = switch (code) {
+            case GITLAB_UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case GITLAB_FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case GITLAB_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case GITLAB_RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
+            case GITLAB_CONFLICT -> HttpStatus.CONFLICT;
+            case GITLAB_TIMEOUT, GITLAB_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+            default -> HttpStatus.BAD_GATEWAY;
+        };
+        return error(status, code, "GitLab request failed", Map.of(), request);
     }
 
     @ExceptionHandler(Exception.class)

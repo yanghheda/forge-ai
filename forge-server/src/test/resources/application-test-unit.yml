@@ -7,6 +7,8 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 forge:
+  security:
+    secret-master-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
   infrastructure:
     agent:
       health-enabled: false

@@ -33,6 +33,22 @@ public enum ErrorCode {
     ORIGIN_REJECTED,
     /* 检索依赖的派生向量索引暂不可用；文档事实本身仍可读取。 */
     RAG_UNAVAILABLE,
+    /* GitLab Token 未通过远端认证。 */
+    GITLAB_UNAUTHORIZED,
+    /* GitLab Token 缺少当前读取操作权限。 */
+    GITLAB_FORBIDDEN,
+    /* GitLab 远端资源不存在。 */
+    GITLAB_NOT_FOUND,
+    /* GitLab 请求超过远端速率限制。 */
+    GITLAB_RATE_LIMITED,
+    /* GitLab 远端资源状态冲突。 */
+    GITLAB_CONFLICT,
+    /* GitLab 请求超过本地安全超时。 */
+    GITLAB_TIMEOUT,
+    /* GitLab 服务或网络当前不可用。 */
+    GITLAB_UNAVAILABLE,
+    /* GitLab 返回重定向、超限或不符合契约的响应。 */
+    GITLAB_INVALID_RESPONSE,
     /* 未被稳定业务错误覆盖的服务端故障。 */
     INTERNAL_ERROR
 }

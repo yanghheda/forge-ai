@@ -31,6 +31,9 @@ server:
         path: /
 
 forge:
+  security:
+    secret-master-key: ${FORGE_SECRET_MASTER_KEY}
+    secret-key-version: ${FORGE_SECRET_KEY_VERSION:1}
   web:
     allowed-origins: ${FORGE_ALLOWED_ORIGINS:https://localhost}
   auth:
@@ -60,6 +63,11 @@ forge:
       max-attempts: ${FORGE_RAG_INDEXER_MAX_ATTEMPTS:5}
       backoff-base: ${FORGE_RAG_INDEXER_BACKOFF_BASE:10s}
       lease: ${FORGE_RAG_INDEXER_LEASE:5m}
+  gitlab:
+    allow-local-http: ${FORGE_GITLAB_ALLOW_LOCAL_HTTP:false}
+    private-cidr-allowlist: ${FORGE_GITLAB_PRIVATE_CIDR_ALLOWLIST:}
+    request-timeout: ${FORGE_GITLAB_REQUEST_TIMEOUT:5s}
+    max-response-bytes: ${FORGE_GITLAB_MAX_RESPONSE_BYTES:1048576}
 
 management:
   endpoints:

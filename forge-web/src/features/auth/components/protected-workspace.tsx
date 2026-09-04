@@ -29,6 +29,7 @@ export function ProtectedWorkspace({ workspace, children }: { workspace: string;
     <Card size="small">
       <Typography.Text>{currentUser.data.displayName} · {access.name} · {access.roles.join(", ")}</Typography.Text>
       <Link href={`/w/${workspace}/settings/members`}>成员设置</Link>
+      <Link href={`/w/${workspace}/settings/gitlab`}>GitLab 设置</Link>
       <Button type="text" loading={logoutMutation.isPending} onClick={() => logoutMutation.mutate()}>退出</Button>
       <AuthErrorAlert error={logoutMutation.error} />
     </Card>
