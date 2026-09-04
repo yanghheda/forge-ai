@@ -27,5 +27,13 @@ public interface WorkspaceStore {
 
     void activateMember(long workspaceId, long userId);
 
+    void assignWorkspaceRole(long workspaceId, long userId, long roleId);
+
+    Optional<Long> findSystemRoleIdByCode(String roleCode);
+
+    boolean userExistsByNormalizedEmail(String normalizedEmail);
+
+    long createMemberAccount(long workspaceId, String email, String normalizedEmail, String displayName, String passwordHash, long roleId);
+
     void removeMember(long workspaceId, long userId);
 }

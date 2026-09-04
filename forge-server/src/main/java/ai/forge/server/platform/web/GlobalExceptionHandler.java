@@ -8,6 +8,7 @@ import ai.forge.server.auth.domain.WeakPasswordException;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.project.domain.ProjectKeyConflictException;
+import ai.forge.server.workspace.domain.MemberEmailConflictException;
 import ai.forge.server.workitem.domain.IdempotencyConflictException;
 import ai.forge.server.workitem.domain.InvalidTransitionException;
 import ai.forge.server.workitem.domain.RelationConflictException;
@@ -56,6 +57,13 @@ public class GlobalExceptionHandler {
             ProjectKeyConflictException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, ErrorCode.PROJECT_KEY_CONFLICT,
                 "Project key already exists in this workspace", Map.of(), request);
+    }
+
+    @ExceptionHandler(MemberEmailConflictException.class)
+    public ResponseEntity<ApiError> handleMemberEmailConflict(
+            MemberEmailConflictException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.MEMBER_EMAIL_CONFLICT,
+                "A user account already exists for this email", Map.of(), request);
     }
 
     @ExceptionHandler(VersionConflictException.class)

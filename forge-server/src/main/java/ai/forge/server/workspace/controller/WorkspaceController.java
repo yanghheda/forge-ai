@@ -19,6 +19,7 @@ import jakarta.validation.constraints.Size;
 import java.net.URI;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -76,9 +77,10 @@ public class WorkspaceController {
     }
 
     @PostMapping("/{workspaceId}/members")
-    @Operation(summary = "添加 Workspace 成员", description = "权限：该 Workspace 的 OWNER；邮箱必须对应当前已存在且有效的本地账号。")
+    @Operation(summary = "添加 Workspace 成员", description = "权限：该 Workspace 的 OWNER/ADMIN；邮箱必须对应当前已存在且有效的本地账号，并必须指定该成员的角色。")
     @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "成员关系已启用或恢复"),
+        @ApiResponse(responseCode = "204", description = "成员关系已启用或恢复并已分配指定角色"),
+        @ApiResponse(responseCode = "400", description = "角色代码无效或字段格式错误"),
         @ApiResponse(responseCode = "404", description = "Workspace、Owner 范围或已有账号成员关系不存在")
     })
     public ResponseEntity<Void> addMember(
@@ -86,8 +88,26 @@ public class WorkspaceController {
             @Valid @RequestBody AddMemberRequest body,
             HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
-        workspaceCommandService.addMember(context.userId(), workspaceId, body.email());
+        workspaceCommandService.addMember(context.userId(), workspaceId, body.email(), body.role());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{workspaceId}/members/register")
+    @Operation(summary = "创建成员账号", description = "权限：该 Workspace 的 OWNER/ADMIN；创建新本地账号、加入 Workspace 并赋予指定角色，三者同一事务完成。")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "账号、成员关系与角色已原子创建"),
+        @ApiResponse(responseCode = "400", description = "密码不满足要求、角色代码无效或字段格式错误"),
+        @ApiResponse(responseCode = "404", description = "Workspace 或成员管理范围不存在"),
+        @ApiResponse(responseCode = "409", description = "邮箱已被现有本地账号占用")
+    })
+    public ResponseEntity<CreateMemberResponse> createMember(
+            @PathVariable long workspaceId,
+            @Valid @RequestBody CreateMemberRequest body,
+            HttpServletRequest request) {
+        AuthContext context = AuthController.requireContext(request);
+        long userId = workspaceCommandService.createMember(
+                context.userId(), workspaceId, body.email(), body.displayName(), body.password(), body.role());
+        return ResponseEntity.status(HttpStatus.CREATED).body(new CreateMemberResponse(userId));
     }
 
     @DeleteMapping("/{workspaceId}/members/{memberUserId}")
@@ -108,5 +128,21 @@ public class WorkspaceController {
 
     public record AddMemberRequest(
             /* 用于定位既有本地账号的电子邮箱，服务端会规范化后查询。 */
-            @NotBlank @Email @Size(max = 320) String email) {}
+            @NotBlank @Email @Size(max = 320) String email,
+            /* 赋予该成员的工作区级系统角色代码，例如 DEVELOPER 或 PRODUCT。 */
+            @NotBlank @Size(max = 64) String role) {}
+
+    public record CreateMemberRequest(
+            /* 新成员账号的电子邮箱，服务端会规范化为实例内唯一登录键。 */
+            @NotBlank @Email @Size(max = 320) String email,
+            /* 新成员账号在界面展示的名称。 */
+            @NotBlank @Size(max = 120) String displayName,
+            /* 仅用于生成 BCrypt 摘要的初始密码，与初始化规则一致且不回显。 */
+            @NotBlank String password,
+            /* 账号创建后立即赋予的工作区级系统角色代码。 */
+            @NotBlank @Size(max = 64) String role) {}
+
+    public record CreateMemberResponse(
+            /* 新建成员账号的用户标识，便于前端定位该成员。 */
+            long userId) {}
 }

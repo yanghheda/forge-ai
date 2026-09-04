@@ -24,6 +24,10 @@ public class MybatisWorkspaceStore implements WorkspaceStore {
     @Override public Optional<Long> findActiveUserIdByNormalizedEmail(String normalizedEmail) { return mapper.findActiveUserId(normalizedEmail).stream().findFirst(); }
     @Override public Optional<Long> findActiveMemberUserIdByNormalizedEmail(long workspaceId, String normalizedEmail) { return mapper.findActiveMemberUserId(workspaceId, normalizedEmail).stream().findFirst(); }
     @Override public void activateMember(long workspaceId, long userId) { mapper.activateMember(workspaceId, userId); }
+    @Override public void assignWorkspaceRole(long workspaceId, long userId, long roleId) { mapper.assignWorkspaceRole(workspaceId, userId, roleId); }
+    @Override public Optional<Long> findSystemRoleIdByCode(String roleCode) { return mapper.findSystemRoleId(roleCode).stream().findFirst(); }
+    @Override public boolean userExistsByNormalizedEmail(String normalizedEmail) { return mapper.userExists(normalizedEmail); }
+    @Override @Transactional public long createMemberAccount(long workspaceId, String email, String normalizedEmail, String displayName, String passwordHash, long roleId) { mapper.insertUser(email, normalizedEmail, displayName, passwordHash); long userId = mapper.lastInsertId(); mapper.insertMember(workspaceId, userId); mapper.assignWorkspaceRole(workspaceId, userId, roleId); return userId; }
     @Override public void removeMember(long workspaceId, long userId) { mapper.removeMember(workspaceId, userId); }
     private Workspace workspace(Map<String,Object> row) { return new Workspace(number(row,"id"), number(row,"organization_id"), text(row,"name"), text(row,"slug"), true); }
     private long number(Map<String,Object> row, String key) { return ((Number) row.get(key)).longValue(); }

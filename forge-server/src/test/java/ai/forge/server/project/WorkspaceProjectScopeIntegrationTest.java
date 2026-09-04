@@ -115,11 +115,10 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
 
         assertThat(csrf().post(
                 "/api/v1/workspaces/" + workspaceId + "/members",
-                Map.of("email", "member@example.com"), ownerCookie, String.class).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+                Map.of("email", "member@example.com", "role", "PRODUCT"), ownerCookie, String.class).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(csrf().post(
                 "/api/v1/projects/" + projectId + "/members?workspaceId=" + workspaceId,
                 Map.of("email", "member@example.com"), ownerCookie, String.class).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        grantWorkspaceRole(workspaceId, "member@example.com", "PRODUCT");
 
         String memberCookie = login("member@example.com");
         assertThat(get("/api/v1/projects/" + projectId + "?workspaceId=" + workspaceId, memberCookie).getStatusCode())
@@ -151,7 +150,7 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
         createUser("member@example.com");
         csrf().post(
                 "/api/v1/workspaces/" + firstWorkspaceId + "/members",
-                Map.of("email", "member@example.com"), ownerCookie, String.class);
+                Map.of("email", "member@example.com", "role", "PRODUCT"), ownerCookie, String.class);
         long otherProjectId = projectId(createProject(ownerCookie, createWorkspace(ownerCookie, "quality"), "QA"));
         String memberCookie = login("member@example.com");
 
@@ -244,14 +243,6 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
 
     private long userId(String email) {
         return jdbcTemplate.queryForObject("SELECT id FROM users WHERE normalized_email = ?", Long.class, email);
-    }
-
-    private void grantWorkspaceRole(long workspaceId, String email, String roleCode) {
-        jdbcTemplate.update(
-                "INSERT INTO member_roles (workspace_member_id, role_id, project_id, created_at) "
-                        + "SELECT wm.id, r.id, NULL, UTC_TIMESTAMP(6) FROM workspace_members wm CROSS JOIN roles r "
-                        + "JOIN users u ON u.id = wm.user_id WHERE wm.workspace_id = ? AND u.normalized_email = ? AND r.code = ?",
-                workspaceId, email, roleCode);
     }
 
     private ResponseEntity<String> get(String path, String cookie) {

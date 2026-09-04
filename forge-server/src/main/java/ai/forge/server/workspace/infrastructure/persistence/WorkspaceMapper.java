@@ -35,6 +35,14 @@ public interface WorkspaceMapper {
     @Select("SELECT u.id FROM users u WHERE u.status = 'ACTIVE' AND u.normalized_email = #{email}") List<Long> findActiveUserId(@Param("email") String email);
     @Select("SELECT u.id FROM users u JOIN workspace_members wm ON wm.user_id = u.id WHERE wm.workspace_id = #{workspaceId} AND wm.status = 'ACTIVE' AND u.status = 'ACTIVE' AND u.normalized_email = #{email}")
     List<Long> findActiveMemberUserId(@Param("workspaceId") long workspaceId, @Param("email") String email);
+    @Select("SELECT id FROM roles WHERE code = #{roleCode} AND system_role = TRUE AND workspace_id IS NULL")
+    List<Long> findSystemRoleId(@Param("roleCode") String roleCode);
+    @Select("SELECT EXISTS(SELECT 1 FROM users WHERE normalized_email = #{email})")
+    boolean userExists(@Param("email") String normalizedEmail);
+    @Insert("INSERT INTO users (email, normalized_email, display_name, password_hash, status, created_at, updated_at) VALUES (#{email}, #{normalizedEmail}, #{displayName}, #{passwordHash}, 'ACTIVE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))")
+    int insertUser(@Param("email") String email, @Param("normalizedEmail") String normalizedEmail, @Param("displayName") String displayName, @Param("passwordHash") String passwordHash);
+    @Insert("INSERT IGNORE INTO member_roles (workspace_member_id, role_id, project_id, created_at) SELECT wm.id, #{roleId}, NULL, UTC_TIMESTAMP(6) FROM workspace_members wm WHERE wm.workspace_id = #{workspaceId} AND wm.user_id = #{userId} AND wm.status = 'ACTIVE'")
+    int assignWorkspaceRole(@Param("workspaceId") long workspaceId, @Param("userId") long userId, @Param("roleId") long roleId);
     @Insert("INSERT INTO workspace_members (workspace_id, user_id, status, joined_at, created_at, updated_at, version) VALUES (#{workspaceId}, #{userId}, 'ACTIVE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0) ON DUPLICATE KEY UPDATE status = 'ACTIVE', joined_at = UTC_TIMESTAMP(6), updated_at = UTC_TIMESTAMP(6), version = version + 1")
     int activateMember(@Param("workspaceId") long workspaceId, @Param("userId") long userId);
     @Update("UPDATE workspace_members SET status = 'REMOVED', updated_at = UTC_TIMESTAMP(6), version = version + 1 WHERE workspace_id = #{workspaceId} AND user_id = #{userId} AND status = 'ACTIVE'")

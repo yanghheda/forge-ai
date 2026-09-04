@@ -21,8 +21,19 @@ export function listWorkspaceMembers(workspaceId: number, client: RequestClient 
   return client.request(`/v1/workspaces/${workspaceId}/members`);
 }
 
-export function addWorkspaceMember(workspaceId: number, email: string, client: RequestClient = apiClient): Promise<void> {
-  return client.request(`/v1/workspaces/${workspaceId}/members`, jsonRequest({ email }));
+export function addWorkspaceMember(workspaceId: number, email: string, role: string, client: RequestClient = apiClient): Promise<void> {
+  return client.request(`/v1/workspaces/${workspaceId}/members`, jsonRequest({ email, role }));
+}
+
+export interface CreateWorkspaceMemberInput {
+  email: string;
+  displayName: string;
+  password: string;
+  role: string;
+}
+
+export function createWorkspaceMember(workspaceId: number, input: CreateWorkspaceMemberInput, client: RequestClient = apiClient): Promise<void> {
+  return client.request(`/v1/workspaces/${workspaceId}/members/register`, jsonRequest(input));
 }
 
 export function removeWorkspaceMember(workspaceId: number, userId: number, client: RequestClient = apiClient): Promise<void> {
