@@ -58,8 +58,10 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     void initializeRequirement() throws Exception {
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
+        jdbcTemplate.update("UPDATE documents SET current_version_id = NULL");
         for (String table : List.of(
-                "work_item_events", "review_records", "requirement_details", "work_items", "project_item_sequences",
+                "outbox_events", "document_versions", "documents", "work_item_events", "review_records",
+                "requirement_details", "work_items", "project_item_sequences",
                 "project_members", "projects", "audit_logs", "member_roles", "workspace_members", "workspaces",
                 "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
@@ -290,6 +292,68 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         ResponseEntity<String> response = get("/api/v1/work-items/" + requirementId + "/events?workspaceId="
                 + workspaceId + "&projectId=" + (projectId + 999));
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void productCanCompleteTheManualVerticalSliceAndRefreshServerFacts() throws Exception {
+        ResponseEntity<String> details = csrf().put(
+                "/api/v1/work-items/" + requirementId + "/details?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of(
+                        "goal", "Improve login conversion",
+                        "inScope", "Mobile login",
+                        "outOfScope", "Social login",
+                        "acceptanceCriteria", List.of("User can request a code"),
+                        "businessValue", "Reduce churn",
+                        "expectedVersion", 0),
+                ownerCookie,
+                String.class);
+        assertThat(details.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(objectMapper.readTree(details.getBody()).get("version").asLong()).isOne();
+
+        assertThat(transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "product-submit", null).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        ResponseEntity<String> missingPrd = transition(
+                WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "approve-without-prd", null);
+        assertThat(missingPrd.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(objectMapper.readTree(missingPrd.getBody()).at("/details/missing/0").asText())
+                .isEqualTo("publishedPrd");
+
+        JsonNode document = objectMapper.readTree(csrf().post(
+                "/api/v1/documents",
+                Map.of("workspaceId", workspaceId, "projectId", projectId, "workItemId", requirementId,
+                        "type", "PRD", "title", "Login PRD"),
+                ownerCookie,
+                String.class).getBody());
+        long documentId = document.get("id").asLong();
+        JsonNode saved = objectMapper.readTree(csrf().post(
+                "/api/v1/documents/" + documentId + "/versions?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of("expectedVersion", 0, "content", Map.of("type", "doc", "content", List.of(
+                        Map.of("type", "paragraph", "content", List.of(
+                                Map.of("type", "text", "text", "Goal, scope and acceptance criteria")))))),
+                ownerCookie,
+                String.class).getBody());
+        assertThat(csrf().post(
+                        "/api/v1/documents/" + documentId + "/publish?workspaceId=" + workspaceId
+                                + "&projectId=" + projectId,
+                        Map.of("versionId", saved.get("currentVersionId").asLong(),
+                                "expectedVersion", saved.get("version").asLong()),
+                        ownerCookie,
+                        String.class).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        JsonNode approved = objectMapper.readTree(transition(
+                WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "product-approve", null).getBody());
+        assertThat(approved.get("status").asText()).isEqualTo("UX_IN_PROGRESS");
+        JsonNode refreshed = objectMapper.readTree(get("/api/v1/work-items/" + requirementId
+                        + "?workspaceId=" + workspaceId + "&projectId=" + projectId).getBody());
+        assertThat(refreshed.get("status").asText()).isEqualTo("UX_IN_PROGRESS");
+        assertThat(refreshed.get("availableActions")).isEmpty();
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT status FROM review_records WHERE work_item_id=? ORDER BY id",
+                        String.class, requirementId))
+                .containsExactly("SUBMITTED", "APPROVED");
     }
 
     private void transitionAfter(CountDownLatch start, String idempotencyKey) throws InterruptedException {

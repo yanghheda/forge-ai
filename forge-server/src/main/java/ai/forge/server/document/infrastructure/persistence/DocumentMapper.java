@@ -10,11 +10,20 @@ import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface DocumentMapper {
-    @Insert("INSERT INTO documents (workspace_id, project_id, work_item_id, type, title, status, visibility, current_version_id, created_by, created_at, updated_at, deleted_at, version) VALUES (#{workspaceId}, #{projectId}, NULL, #{type}, #{title}, 'DRAFT', 'PROJECT', NULL, #{userId}, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), NULL, 0)")
-    int insertDocument(@Param("workspaceId") long workspaceId, @Param("projectId") long projectId, @Param("userId") long userId, @Param("type") String type, @Param("title") String title);
+    @Select("SELECT COUNT(*) FROM work_items WHERE id=#{workItemId} AND workspace_id=#{workspaceId} "
+            + "AND project_id=#{projectId} AND type='REQUIREMENT' AND deleted_at IS NULL")
+    int countRequirement(@Param("workspaceId") long workspaceId, @Param("projectId") long projectId,
+            @Param("workItemId") long workItemId);
+    @Insert("INSERT INTO documents (workspace_id, project_id, work_item_id, type, title, status, visibility, current_version_id, created_by, created_at, updated_at, deleted_at, version) VALUES (#{workspaceId}, #{projectId}, #{workItemId}, #{type}, #{title}, 'DRAFT', 'PROJECT', NULL, #{userId}, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), NULL, 0)")
+    int insertDocument(@Param("workspaceId") long workspaceId, @Param("projectId") long projectId,
+            @Param("workItemId") long workItemId, @Param("userId") long userId,
+            @Param("type") String type, @Param("title") String title);
     @Select("SELECT LAST_INSERT_ID()") long lastInsertId();
-    @Select("SELECT id, workspace_id, project_id, type, title, status, current_version_id, version, created_at, updated_at FROM documents WHERE id=#{documentId} AND workspace_id=#{workspaceId} AND project_id=#{projectId} AND deleted_at IS NULL")
+    @Select("SELECT id, workspace_id, project_id, work_item_id, type, title, status, current_version_id, version, created_at, updated_at FROM documents WHERE id=#{documentId} AND workspace_id=#{workspaceId} AND project_id=#{projectId} AND deleted_at IS NULL")
     List<Map<String, Object>> findDocument(@Param("workspaceId") long workspaceId, @Param("projectId") long projectId, @Param("documentId") long documentId);
+    @Select("SELECT id, workspace_id, project_id, work_item_id, type, title, status, current_version_id, version, created_at, updated_at FROM documents WHERE workspace_id=#{workspaceId} AND project_id=#{projectId} AND work_item_id=#{workItemId} AND deleted_at IS NULL ORDER BY id")
+    List<Map<String, Object>> findByWorkItem(@Param("workspaceId") long workspaceId,
+            @Param("projectId") long projectId, @Param("workItemId") long workItemId);
     @Select("SELECT id, document_id, version_no, content, plain_text, content_hash, created_by, created_at FROM document_versions WHERE workspace_id=#{workspaceId} AND document_id=#{documentId} ORDER BY version_no DESC")
     List<Map<String, Object>> findVersions(@Param("workspaceId") long workspaceId, @Param("documentId") long documentId);
     @Select("SELECT COALESCE(MAX(version_no), 0) + 1 FROM document_versions WHERE document_id=#{documentId} FOR UPDATE")

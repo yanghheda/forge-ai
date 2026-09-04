@@ -9,8 +9,18 @@ public final class RequirementWorkflowRegistry {
     /* 本轮可执行的产品动作；后续会话按交付物依赖继续注册。 */
     private final Map<WorkflowAction, TransitionDefinition> definitions;
 
-    public RequirementWorkflowRegistry(TransitionGuard requirementMaterialGuard, TransitionGuard reasonGuard) {
+    public RequirementWorkflowRegistry(
+            TransitionGuard requirementMaterialGuard,
+            TransitionGuard publishedPrdGuard,
+            TransitionGuard reasonGuard) {
         EnumMap<WorkflowAction, TransitionDefinition> registered = new EnumMap<>(WorkflowAction.class);
+        register(registered, new TransitionDefinition(
+                WorkItemType.REQUIREMENT,
+                WorkItemStatus.PRODUCT_REVIEW,
+                WorkflowAction.APPROVE_PRODUCT_REVIEW,
+                WorkItemStatus.UX_IN_PROGRESS,
+                "requirement.review",
+                List.of(publishedPrdGuard)));
         register(registered, new TransitionDefinition(
                 WorkItemType.REQUIREMENT,
                 WorkItemStatus.DRAFT,

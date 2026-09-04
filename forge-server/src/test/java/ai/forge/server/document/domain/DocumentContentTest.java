@@ -2,6 +2,8 @@ package ai.forge.server.document.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ai.forge.server.document.application.DocumentContent;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

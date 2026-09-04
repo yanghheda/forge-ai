@@ -44,6 +44,11 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
     }
 
     @Override
+    public boolean hasPublishedPrd(long workspaceId, long projectId, long workItemId) {
+        return mapper.countPublishedPrd(workspaceId, projectId, workItemId) > 0;
+    }
+
+    @Override
     public Optional<TransitionResult> findResultByIdempotencyKey(
             long workspaceId, long projectId, long workItemId, String idempotencyKey) {
         return mapper.findIdempotentEvent(workspaceId, projectId, workItemId, idempotencyKey).stream()
@@ -80,12 +85,13 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
             throw new VersionConflictException();
         }
         boolean rejection = definition.action() == WorkflowAction.REJECT_PRODUCT_REVIEW;
+        boolean approval = definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW;
         mapper.insertReview(
                 workspaceId,
                 projectId,
                 workItemId,
-                rejection ? "REJECTED" : "SUBMITTED",
-                rejection ? actorId : null,
+                rejection ? "REJECTED" : approval ? "APPROVED" : "SUBMITTED",
+                rejection || approval ? actorId : null,
                 rejection ? reason : null);
         long nextVersion = expectedVersion + 1;
         mapper.insertEvent(

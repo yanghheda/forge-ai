@@ -6,6 +6,8 @@ import ai.forge.server.workitem.application.WorkItemCommandService;
 import ai.forge.server.workitem.application.WorkItemPage;
 import ai.forge.server.workitem.application.WorkItemQueryService;
 import ai.forge.server.workitem.application.RequirementTransitionService;
+import ai.forge.server.workitem.application.RequirementDetailsService;
+import ai.forge.server.workitem.domain.RequirementDetails;
 import ai.forge.server.workitem.application.RequirementTransitionStore;
 import ai.forge.server.workitem.domain.WorkItem;
 import ai.forge.server.workitem.domain.WorkItemPriority;
@@ -35,6 +37,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,13 +60,35 @@ public class WorkItemController {
     /* 执行 Requirement 固定 Action，并读取同范围内的追加活动事件。 */
     private final RequirementTransitionService transitionService;
 
+    /* 读写 Requirement 的结构化产品材料。 */
+    private final RequirementDetailsService detailsService;
+
     public WorkItemController(
             WorkItemCommandService commandService,
             WorkItemQueryService queryService,
-            RequirementTransitionService transitionService) {
+            RequirementTransitionService transitionService,
+            RequirementDetailsService detailsService) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.transitionService = transitionService;
+        this.detailsService = detailsService;
+    }
+
+    @GetMapping("/{workItemId}/details")
+    public RequirementDetails details(
+            @PathVariable long workItemId, @RequestParam long workspaceId, @RequestParam long projectId,
+            HttpServletRequest request) {
+        return detailsService.get(AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId);
+    }
+
+    @PutMapping("/{workItemId}/details")
+    public RequirementDetails saveDetails(
+            @PathVariable long workItemId, @RequestParam long workspaceId, @RequestParam long projectId,
+            @Valid @RequestBody RequirementDetailsRequest body, HttpServletRequest request) {
+        return detailsService.save(
+                AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId,
+                body.goal(), body.inScope(), body.outOfScope(), body.acceptanceCriteria(),
+                body.businessValue(), body.expectedVersion());
     }
 
     @PostMapping
@@ -99,13 +124,15 @@ public class WorkItemController {
         @ApiResponse(responseCode = "200", description = "工作项详情"),
         @ApiResponse(responseCode = "404", description = "资源不存在、已删除、越权或 scope 不匹配")
     })
-    public WorkItem get(
+    public WorkItemDetailResponse get(
             @PathVariable long workItemId,
             @RequestParam long workspaceId,
             @RequestParam long projectId,
             HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
-        return queryService.get(context.userId(), workspaceId, projectId, workItemId);
+        WorkItem item = queryService.get(context.userId(), workspaceId, projectId, workItemId);
+        RequirementTransitionService.ActionHints hints = transitionService.hints(context.userId(), item);
+        return WorkItemDetailResponse.from(item, hints);
     }
 
     @GetMapping
@@ -187,7 +214,7 @@ public class WorkItemController {
                 body.reason());
     }
 
-    @GetMapping("/{workItemId}/events")
+    @GetMapping({"/{workItemId}/activity", "/{workItemId}/events"})
     @Operation(summary = "读取 Work Item 活动时间线", description = "按事件 id 升序返回追加写工作流事件。")
     public List<WorkItemEvent> events(
             @PathVariable long workItemId,
@@ -239,4 +266,38 @@ public class WorkItemController {
             @NotBlank @Size(max = 128) String idempotencyKey,
             /* 退回等动作要求的审计原因；无需原因时可为空。 */
             @Size(max = 1000) String reason) {}
+
+    public record RequirementDetailsRequest(
+            /* 业务目标；Guard 要求非空。 */ @NotNull String goal,
+            /* 纳入范围；Guard 要求非空。 */ @NotNull String inScope,
+            /* 排除范围；允许为空。 */ @NotNull String outOfScope,
+            /* 验收标准；Guard 要求至少一条非空值。 */ @NotNull List<@NotBlank String> acceptanceCriteria,
+            /* 业务价值；允许为空。 */ @NotNull String businessValue,
+            /* 客户端读取到的材料版本。 */ @PositiveOrZero long expectedVersion) {}
+
+    public record WorkItemDetailResponse(
+            /* 工作项稳定标识。 */ long id,
+            /* 所属工作区。 */ long workspaceId,
+            /* 所属项目。 */ long projectId,
+            /* 项目内展示编号。 */ String itemKey,
+            /* 工作项类型。 */ WorkItemType type,
+            /* 工作项标题。 */ String title,
+            /* 工作项说明。 */ String description,
+            /* 服务端当前状态。 */ WorkItemStatus status,
+            /* 业务优先级。 */ WorkItemPriority priority,
+            /* 可选负责人。 */ Long assigneeUserId,
+            /* 创建者。 */ long reporterUserId,
+            /* 可选截止时间。 */ Instant dueAt,
+            /* 聚合乐观锁版本。 */ long version,
+            /* 创建时间。 */ Instant createdAt,
+            /* 更新时间。 */ Instant updatedAt,
+            /* 当前身份与状态下可尝试的动作，不替代执行时授权。 */ List<WorkflowAction> availableActions,
+            /* 动作对应的机器可读缺失材料。 */ java.util.Map<WorkflowAction, List<String>> guardHints) {
+        static WorkItemDetailResponse from(WorkItem item, RequirementTransitionService.ActionHints hints) {
+            return new WorkItemDetailResponse(item.id(), item.workspaceId(), item.projectId(), item.itemKey(),
+                    item.type(), item.title(), item.description(), item.status(), item.priority(), item.assigneeUserId(),
+                    item.reporterUserId(), item.dueAt(), item.version(), item.createdAt(), item.updatedAt(),
+                    hints.availableActions(), hints.guardHints());
+        }
+    }
 }

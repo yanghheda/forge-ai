@@ -12,6 +12,9 @@ public class WorkflowConfiguration {
 
     @Bean
     RequirementWorkflowRegistry requirementWorkflowRegistry(RequirementMaterialStore materialStore) {
-        return new RequirementWorkflowRegistry(new RequirementMaterialGuard(materialStore), new ReasonRequiredGuard());
+        return new RequirementWorkflowRegistry(
+                new RequirementMaterialGuard(materialStore),
+                new PublishedPrdGuard(materialStore),
+                new ReasonRequiredGuard());
     }
 }

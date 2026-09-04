@@ -21,6 +21,13 @@ public interface RequirementWorkflowMapper {
             @Param("projectId") long projectId,
             @Param("workItemId") long workItemId);
 
+    @Select("SELECT COUNT(*) FROM documents WHERE workspace_id = #{workspaceId} AND project_id = #{projectId} "
+            + "AND work_item_id = #{workItemId} AND type = 'PRD' AND status = 'PUBLISHED' AND deleted_at IS NULL")
+    int countPublishedPrd(
+            @Param("workspaceId") long workspaceId,
+            @Param("projectId") long projectId,
+            @Param("workItemId") long workItemId);
+
     @Select("SELECT id, event_type, to_status, metadata_json FROM work_item_events "
             + "WHERE workspace_id = #{workspaceId} AND project_id = #{projectId} "
             + "AND work_item_id = #{workItemId} AND idempotency_key = #{idempotencyKey}")

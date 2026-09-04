@@ -14,6 +14,8 @@ import ai.forge.server.workitem.domain.WorkflowGuardFailedException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -98,6 +100,30 @@ public class RequirementTransitionService {
                 userId, workspaceId, projectId, item.type().permissionResource() + ".read");
         return transitionStore.findEvents(workspaceId, projectId, workItemId);
     }
+
+    public ActionHints hints(long userId, WorkItem item) {
+        List<WorkflowAction> actions = new java.util.ArrayList<>();
+        Map<WorkflowAction, List<String>> guardHints = new LinkedHashMap<>();
+        for (TransitionDefinition definition : workflowRegistry.definitions()) {
+            if (definition.type() != item.type() || definition.from() != item.status()
+                    || !permissionEvaluator.hasProjectPermission(
+                            userId, item.workspaceId(), item.projectId(), definition.requiredPermission())) {
+                continue;
+            }
+            actions.add(definition.action());
+            LinkedHashSet<String> missing = new LinkedHashSet<>();
+            TransitionContext context = new TransitionContext(item, null);
+            definition.guards().forEach(guard -> missing.addAll(guard.evaluate(context).missing()));
+            if (!missing.isEmpty()) {
+                guardHints.put(definition.action(), List.copyOf(missing));
+            }
+        }
+        return new ActionHints(List.copyOf(actions), Map.copyOf(guardHints));
+    }
+
+    public record ActionHints(
+            /* 当前用户在当前状态可尝试执行的动作。 */ List<WorkflowAction> availableActions,
+            /* 各动作尚缺少的确定性准入材料。 */ Map<WorkflowAction, List<String>> guardHints) {}
 
     private String normalizeReason(String reason) {
         return reason == null ? null : reason.trim();

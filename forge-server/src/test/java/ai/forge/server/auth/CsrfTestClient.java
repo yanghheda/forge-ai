@@ -35,6 +35,10 @@ public final class CsrfTestClient {
         return exchange(HttpMethod.PATCH, path, body, existingCookie, responseType);
     }
 
+    public <T> ResponseEntity<T> put(String path, Object body, String existingCookie, Class<T> responseType) {
+        return exchange(HttpMethod.PUT, path, body, existingCookie, responseType);
+    }
+
     public <T> ResponseEntity<T> delete(String path, String existingCookie, Class<T> responseType) {
         return exchange(HttpMethod.DELETE, path, null, existingCookie, responseType);
     }
