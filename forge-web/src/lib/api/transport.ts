@@ -7,6 +7,12 @@ interface ErrorEnvelope {
   details?: unknown;
 }
 
+interface SuccessEnvelope {
+  code?: unknown;
+  message?: unknown;
+  data?: unknown;
+}
+
 interface CsrfTokenResponse {
   headerName: string;
   token: string;
@@ -28,6 +34,13 @@ export function resolveApiBaseUrl(): string {
 
 function asErrorEnvelope(value: unknown): ErrorEnvelope | undefined {
   return typeof value === "object" && value !== null ? (value as ErrorEnvelope) : undefined;
+}
+
+function unwrapSuccessEnvelope(value: unknown): unknown {
+  const envelope = typeof value === "object" && value !== null ? (value as SuccessEnvelope) : undefined;
+  return envelope?.code === 0 && envelope.message === "success" && "data" in envelope
+    ? envelope.data
+    : value;
 }
 
 function asDetails(value: unknown): Readonly<Record<string, unknown>> {
@@ -59,7 +72,7 @@ export function createApiTransport({
       headers: { Accept: "application/json" },
     })
       .then(async (response) => {
-        const body = (await readJson(response)) as Partial<CsrfTokenResponse> | undefined;
+        const body = unwrapSuccessEnvelope(await readJson(response)) as Partial<CsrfTokenResponse> | undefined;
         if (!response.ok || typeof body?.headerName !== "string" || typeof body.token !== "string") {
           throw new ApiError({
             code: "CSRF_TOKEN_UNAVAILABLE",
@@ -118,7 +131,7 @@ export function createApiTransport({
     if (path.replace(/^\//, "") === "v1/auth/logout") {
       csrfToken = undefined;
     }
-    return body as T;
+    return unwrapSuccessEnvelope(body) as T;
   }
 
   return {

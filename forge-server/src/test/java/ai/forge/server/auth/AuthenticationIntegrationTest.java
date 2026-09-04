@@ -241,7 +241,8 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     private ResponseEntity<String> get(String path, String cookie) {
-        return restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers(cookie)), String.class);
+        return new CsrfTestClient(restTemplate, objectMapper).unwrapSuccess(
+                restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers(cookie)), String.class));
     }
 
     private ResponseEntity<String> postWithoutBody(String path, String cookie) {

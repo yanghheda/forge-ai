@@ -46,8 +46,10 @@ class ApiWebTest {
         mockMvc.perform(get("/api/v1/system/status"))
                 .andExpect(status().isOk())
                 .andExpect(header().exists(RequestIdFilter.REQUEST_ID_HEADER))
-                .andExpect(jsonPath("$.application").value("forge-server"))
-                .andExpect(jsonPath("$.status").value("UP"));
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.message").value("success"))
+                .andExpect(jsonPath("$.data.application").value("forge-server"))
+                .andExpect(jsonPath("$.data.status").value("UP"));
     }
 
     @Test

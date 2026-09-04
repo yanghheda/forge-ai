@@ -93,6 +93,7 @@ class CsrfIntegrationTest extends InfrastructureIntegrationTestBase {
         ResponseEntity<String> second = restTemplate.getForEntity("/api/v1/setup/status", String.class);
 
         assertThat(first.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(first.getBody()).contains("\"code\":0", "\"message\":\"success\"", "\"data\"");
         assertThat(first.getBody()).contains("\"initialized\":false");
         assertThat(second.getBody()).isEqualTo(first.getBody());
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users", Integer.class)).isZero();
@@ -100,7 +101,7 @@ class CsrfIntegrationTest extends InfrastructureIntegrationTestBase {
 
     private CsrfSession csrfSession() throws Exception {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/auth/csrf", String.class);
-        JsonNode body = objectMapper.readTree(response.getBody());
+        JsonNode body = objectMapper.readTree(response.getBody()).path("data");
         String setCookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
         assertThat(setCookie).isNotBlank();
         return new CsrfSession(setCookie.substring(0, setCookie.indexOf(';')), body.get("token").asText());

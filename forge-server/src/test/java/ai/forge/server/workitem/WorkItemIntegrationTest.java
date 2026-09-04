@@ -365,7 +365,8 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
     private ResponseEntity<String> get(String path, String cookie) {
         HttpHeaders headers = new HttpHeaders();
         headers.set(HttpHeaders.COOKIE, cookie);
-        return restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        return csrf().unwrapSuccess(
+                restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class));
     }
 
     private CsrfTestClient csrf() {

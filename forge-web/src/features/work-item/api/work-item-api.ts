@@ -56,6 +56,28 @@ export interface ActivityItem {
   body: string | null;
   createdAt: string;
 }
+export interface DeliveryGraph {
+  nodes: DeliveryGraphNode[];
+  edges: DeliveryGraphEdge[];
+  truncated: boolean;
+  maxDepth: number;
+  maxNodes: number;
+}
+export interface DeliveryGraphNode {
+  id: string;
+  kind: "WORK_ITEM" | "DOCUMENT";
+  resourceId: number;
+  type: string;
+  title: string;
+  status: string;
+  depth: number;
+}
+export interface DeliveryGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+}
 const json = (method: string, body: unknown): RequestInit => ({
   method,
   headers: { "Content-Type": "application/json" },
@@ -148,4 +170,13 @@ export const getWorkItemActivity = (
 ) =>
   client.request<ActivityItem[]>(
     `/v1/work-items/${id}/activity?workspaceId=${workspaceId}&projectId=${projectId}`,
+  );
+export const getDeliveryGraph = (
+  workspaceId: number,
+  projectId: number,
+  id: number,
+  client: RequestClient = apiClient,
+) =>
+  client.request<DeliveryGraph>(
+    `/v1/work-items/${id}/delivery-graph?workspaceId=${workspaceId}&projectId=${projectId}`,
   );

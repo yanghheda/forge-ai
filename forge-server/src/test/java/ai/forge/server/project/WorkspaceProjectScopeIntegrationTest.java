@@ -257,6 +257,7 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
     private ResponseEntity<String> get(String path, String cookie) {
         HttpHeaders headers = new HttpHeaders();
         headers.set(HttpHeaders.COOKIE, cookie);
-        return restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        return new CsrfTestClient(restTemplate, objectMapper).unwrapSuccess(
+                restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class));
     }
 }

@@ -404,6 +404,12 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         String.valueOf(spec.get("currentVersionId").asLong()),
                         requirementId))
                 .isEqualTo("1");
+
+        JsonNode graph = objectMapper.readTree(get("/api/v1/work-items/" + requirementId
+                + "/delivery-graph?workspaceId=" + workspaceId + "&projectId=" + projectId).getBody());
+        assertThat(graph.get("nodes")).extracting(node -> node.get("type").asText())
+                .contains("REQUIREMENT", "PRD", "UX_TASK", "UX_SPEC");
+        assertThat(graph.get("truncated").asBoolean()).isFalse();
     }
 
     @Test
@@ -515,6 +521,41 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         assertThat(activity.get(0).get("kind").asText()).isEqualTo("EVENT");
         assertThat(activity.get(1).get("kind").asText()).isEqualTo("COMMENT");
         assertThat(activity.get(1).get("body").asText()).isEqualTo("Please verify the API contract.");
+    }
+
+    @Test
+    void deliveryGraphUsesScopedBatchSnapshotForWorkItemsDocumentsAndCycles() throws Exception {
+        long uxTaskId = createWorkItem(projectId, "Design login", "UX_TASK");
+        JsonNode prd = publishDocument("PRD", "Login PRD", "Goal and acceptance criteria");
+        jdbcTemplate.update(
+                "INSERT INTO work_item_relations (workspace_id, project_id, source_id, target_id, relation_type, "
+                        + "created_by, created_at) VALUES (?, ?, ?, ?, 'RELATES_TO', ?, UTC_TIMESTAMP(6)), "
+                        + "(?, ?, ?, ?, 'DEPENDS_ON', ?, UTC_TIMESTAMP(6))",
+                workspaceId,
+                projectId,
+                requirementId,
+                uxTaskId,
+                ownerId,
+                workspaceId,
+                projectId,
+                uxTaskId,
+                requirementId,
+                ownerId);
+
+        ResponseEntity<String> response = get("/api/v1/work-items/" + requirementId
+                + "/delivery-graph?workspaceId=" + workspaceId + "&projectId=" + projectId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode graph = objectMapper.readTree(response.getBody());
+        assertThat(graph.get("nodes")).extracting(node -> node.get("id").asText())
+                .containsExactly("work-item:" + requirementId, "work-item:" + uxTaskId,
+                        "document:" + prd.get("id").asLong());
+        assertThat(graph.get("edges")).hasSize(3);
+        assertThat(graph.get("truncated").asBoolean()).isFalse();
+
+        ResponseEntity<String> wrongProject = get("/api/v1/work-items/" + requirementId
+                + "/delivery-graph?workspaceId=" + workspaceId + "&projectId=" + (projectId + 999));
+        assertThat(wrongProject.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     private void transitionAfter(CountDownLatch start, String idempotencyKey) throws InterruptedException {
@@ -648,7 +689,8 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     private ResponseEntity<String> get(String path) {
         HttpHeaders headers = new HttpHeaders();
         headers.set(HttpHeaders.COOKIE, ownerCookie);
-        return restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        return csrf().unwrapSuccess(
+                restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class));
     }
 
     private CsrfTestClient csrf() {

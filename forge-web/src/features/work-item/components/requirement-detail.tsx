@@ -32,6 +32,7 @@ import {
   transitionRequirement,
   type WorkflowAction,
 } from "../api/work-item-api";
+import { DeliveryGraphPanel } from "./delivery-graph";
 
 const missingLabel: Record<string, string> = {
   goal: "业务目标",
@@ -183,6 +184,13 @@ export function RequirementDetail({
               {item.kind === "COMMENT" ? item.body : `${item.action}${item.reason ? `：${item.reason}` : ""}`}
             </p>
           ))}
+        </Tabs.TabPane>
+        <Tabs.TabPane key="delivery" title="Delivery Graph">
+          <DeliveryGraphPanel
+            workspaceId={workspaceId}
+            projectId={projectId}
+            workItemId={workItemId}
+          />
         </Tabs.TabPane>
       </Tabs>
       <Card title="Product actions">

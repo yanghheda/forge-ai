@@ -51,7 +51,8 @@ public final class CsrfTestClient {
         headers.set(HttpHeaders.ORIGIN, ORIGIN);
         headers.set(HttpHeaders.COOKIE, csrf.cookie());
         headers.set("X-CSRF-TOKEN", csrf.token());
-        return restTemplate.exchange(path, method, new HttpEntity<>(body, headers), responseType);
+        ResponseEntity<T> response = restTemplate.exchange(path, method, new HttpEntity<>(body, headers), responseType);
+        return unwrapSuccess(response, responseType);
     }
 
     private CsrfSession fetch(String existingCookie) {
@@ -62,12 +63,33 @@ public final class CsrfTestClient {
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/v1/auth/csrf", HttpMethod.GET, new HttpEntity<>(headers), String.class);
         try {
-            JsonNode body = objectMapper.readTree(response.getBody());
+            JsonNode body = objectMapper.readTree(response.getBody()).path("data");
             String setCookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
             String cookie = existingCookie != null ? existingCookie : cookiePair(setCookie);
             return new CsrfSession(cookie, body.get("token").asText());
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to read test CSRF response", exception);
+        }
+    }
+
+    public ResponseEntity<String> unwrapSuccess(ResponseEntity<String> response) {
+        return unwrapSuccess(response, String.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> ResponseEntity<T> unwrapSuccess(ResponseEntity<T> response, Class<T> responseType) {
+        if (responseType != String.class || response.getBody() == null || !response.getStatusCode().is2xxSuccessful()) {
+            return response;
+        }
+        try {
+            JsonNode envelope = objectMapper.readTree((String) response.getBody());
+            if (envelope.path("code").asInt(-1) != 0 || !envelope.has("data")) {
+                return response;
+            }
+            T data = (T) objectMapper.writeValueAsString(envelope.get("data"));
+            return new ResponseEntity<>(data, response.getHeaders(), response.getStatusCode());
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to unwrap successful test response", exception);
         }
     }
 

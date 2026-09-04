@@ -6,6 +6,8 @@ import ai.forge.server.workitem.application.WorkItemCommandService;
 import ai.forge.server.workitem.application.WorkItemCollaborationService;
 import ai.forge.server.workitem.application.WorkItemPage;
 import ai.forge.server.workitem.application.WorkItemQueryService;
+import ai.forge.server.workitem.application.DeliveryGraph;
+import ai.forge.server.workitem.application.DeliveryGraphQuery;
 import ai.forge.server.workitem.application.RequirementTransitionService;
 import ai.forge.server.workitem.application.RequirementDetailsService;
 import ai.forge.server.workitem.domain.RequirementDetails;
@@ -71,17 +73,22 @@ public class WorkItemController {
     /* 管理非树状关系、用户评论与统一 Activity 投影。 */
     private final WorkItemCollaborationService collaborationService;
 
+    /* 以有界批量查询投影 Requirement 的端到端交付关系。 */
+    private final DeliveryGraphQuery deliveryGraphQuery;
+
     public WorkItemController(
             WorkItemCommandService commandService,
             WorkItemQueryService queryService,
             RequirementTransitionService transitionService,
             RequirementDetailsService detailsService,
-            WorkItemCollaborationService collaborationService) {
+            WorkItemCollaborationService collaborationService,
+            DeliveryGraphQuery deliveryGraphQuery) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.transitionService = transitionService;
         this.detailsService = detailsService;
         this.collaborationService = collaborationService;
+        this.deliveryGraphQuery = deliveryGraphQuery;
     }
 
     @GetMapping("/{workItemId}/details")
@@ -305,6 +312,19 @@ public class WorkItemController {
             @RequestParam long projectId,
             HttpServletRequest request) {
         return collaborationService.activity(
+                AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId);
+    }
+
+    @GetMapping("/{workItemId}/delivery-graph")
+    @Operation(
+            summary = "读取 Requirement Delivery Graph",
+            description = "逐类授权后，以深度 8、节点 500 的上限批量投影 Work Item、文档与关系。")
+    public DeliveryGraph deliveryGraph(
+            @PathVariable long workItemId,
+            @RequestParam long workspaceId,
+            @RequestParam long projectId,
+            HttpServletRequest request) {
+        return deliveryGraphQuery.get(
                 AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId);
     }
 

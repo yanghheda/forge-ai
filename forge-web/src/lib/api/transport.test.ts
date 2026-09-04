@@ -19,7 +19,7 @@ describe("resolveApiBaseUrl", () => {
 describe("ApiTransport", () => {
   it("携带 Cookie credentials 并解析成功响应", async () => {
     const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ status: "UP" }), {
+      new Response(JSON.stringify({ code: 0, message: "success", data: { status: "UP" } }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -34,6 +34,18 @@ describe("ApiTransport", () => {
       "http://localhost:8080/api/v1/system/status",
       expect.objectContaining({ credentials: "include" }),
     );
+  });
+
+  it("成功信封只在 transport 解包一次", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ code: 0, message: "success", data: { code: 0 } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const transport = createApiTransport({ baseUrl: "/api", fetchImplementation });
+
+    await expect(transport.request("/v1/example")).resolves.toEqual({ code: 0 });
   });
 
   it("将后端错误信封映射为包含 requestId 的 ApiError", async () => {
@@ -84,7 +96,11 @@ describe("ApiTransport", () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ headerName: "X-CSRF-TOKEN", token: "csrf-test-token" }), {
+        new Response(JSON.stringify({
+          code: 0,
+          message: "success",
+          data: { headerName: "X-CSRF-TOKEN", token: "csrf-test-token" },
+        }), {
           status: 200,
           headers: { "content-type": "application/json" },
         }),
@@ -113,9 +129,9 @@ describe("ApiTransport", () => {
     const jsonHeaders = { "content-type": "application/json" };
     const fetchImplementation = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ headerName: "X-CSRF-TOKEN", token: "old" }), { status: 200, headers: jsonHeaders }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, message: "success", data: { headerName: "X-CSRF-TOKEN", token: "old" } }), { status: 200, headers: jsonHeaders }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ code: "CSRF_REJECTED" }), { status: 403, headers: jsonHeaders }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ headerName: "X-CSRF-TOKEN", token: "new" }), { status: 200, headers: jsonHeaders }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, message: "success", data: { headerName: "X-CSRF-TOKEN", token: "new" } }), { status: 200, headers: jsonHeaders }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const transport = createApiTransport({ baseUrl: "/api", fetchImplementation });
 
