@@ -12,7 +12,7 @@ class RequirementWorkflowRegistryTest {
     private final TransitionGuard allowingGuard = context -> GuardResult.allowed();
     private final RequirementWorkflowRegistry registry =
             new RequirementWorkflowRegistry(
-                    allowingGuard, allowingGuard, allowingGuard, allowingGuard, allowingGuard);
+                    allowingGuard, allowingGuard, allowingGuard, allowingGuard, allowingGuard, allowingGuard);
 
     @Test
     void registersTheFirstProductActionsWithFixedTargetsAndPermissions() {
@@ -59,6 +59,7 @@ class RequirementWorkflowRegistryTest {
                         || status == WorkItemStatus.PRODUCT_REVIEW
                                 && (action == WorkflowAction.REJECT_PRODUCT_REVIEW
                                         || action == WorkflowAction.APPROVE_PRODUCT_REVIEW)
+                                || status == WorkItemStatus.PRODUCT_REVIEW && action == WorkflowAction.SKIP_UX
                         || status == WorkItemStatus.UX_IN_PROGRESS && action == WorkflowAction.SUBMIT_UX_REVIEW
                         || status == WorkItemStatus.UX_REVIEW
                                 && (action == WorkflowAction.REJECT_UX_REVIEW

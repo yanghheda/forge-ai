@@ -10,6 +10,10 @@ public interface RequirementMaterialStore {
 
     boolean hasPublishedUxSpec(long workspaceId, long projectId, long workItemId);
 
+    boolean allowsSkipUx(long workspaceId, long projectId);
+
+    boolean hasEligibleSkipUxLabel(long workspaceId, long projectId, long workItemId);
+
     record RequirementMaterial(
             /* 非空业务目标。 */
             String goal,

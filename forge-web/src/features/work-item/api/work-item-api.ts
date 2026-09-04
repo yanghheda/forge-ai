@@ -10,6 +10,7 @@ export type WorkflowAction =
   | "SUBMIT_UX_REVIEW"
   | "APPROVE_UX_REVIEW"
   | "REJECT_UX_REVIEW"
+  | "SKIP_UX"
   | "START"
   | "SUBMIT_REVIEW"
   | "APPROVE"
@@ -46,13 +47,13 @@ export interface RequirementDetails {
   version: number;
   updatedAt: string | null;
 }
-export interface WorkItemEvent {
+export interface ActivityItem {
+  kind: "EVENT" | "COMMENT";
   id: number;
-  action: WorkflowAction;
-  fromStatus: string;
-  toStatus: string;
+  action: WorkflowAction | null;
   actorId: number;
   reason: string | null;
+  body: string | null;
   createdAt: string;
 }
 const json = (method: string, body: unknown): RequestInit => ({
@@ -139,12 +140,12 @@ export const transitionRequirement = (
       idempotencyKey: crypto.randomUUID(),
     }),
   );
-export const getWorkItemEvents = (
+export const getWorkItemActivity = (
   workspaceId: number,
   projectId: number,
   id: number,
   client: RequestClient = apiClient,
 ) =>
-  client.request<WorkItemEvent[]>(
+  client.request<ActivityItem[]>(
     `/v1/work-items/${id}/activity?workspaceId=${workspaceId}&projectId=${projectId}`,
   );

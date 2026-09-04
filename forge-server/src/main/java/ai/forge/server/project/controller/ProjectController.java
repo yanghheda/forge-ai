@@ -4,8 +4,10 @@ import ai.forge.server.auth.controller.AuthController;
 import ai.forge.server.auth.domain.AuthContext;
 import ai.forge.server.project.application.ProjectCommandService;
 import ai.forge.server.project.application.ProjectQueryService;
+import ai.forge.server.project.application.ProjectPolicyService;
 import ai.forge.server.project.domain.Project;
 import ai.forge.server.project.domain.ProjectMember;
+import ai.forge.server.project.domain.ProjectPolicy;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -44,9 +46,16 @@ public class ProjectController {
     /* 项目命令服务，写入时验证 Owner 范围和乐观锁。 */
     private final ProjectCommandService projectCommandService;
 
-    public ProjectController(ProjectQueryService projectQueryService, ProjectCommandService projectCommandService) {
+    /* 管理默认拒绝并使用乐观锁更新的项目工作流策略。 */
+    private final ProjectPolicyService projectPolicyService;
+
+    public ProjectController(
+            ProjectQueryService projectQueryService,
+            ProjectCommandService projectCommandService,
+            ProjectPolicyService projectPolicyService) {
         this.projectQueryService = projectQueryService;
         this.projectCommandService = projectCommandService;
+        this.projectPolicyService = projectPolicyService;
     }
 
     @GetMapping
@@ -135,6 +144,29 @@ public class ProjectController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{projectId}/policy")
+    public ProjectPolicy policy(
+            @PathVariable long projectId,
+            @RequestParam long workspaceId,
+            HttpServletRequest request) {
+        return projectPolicyService.get(
+                AuthController.requireContext(request).userId(), workspaceId, projectId);
+    }
+
+    @PatchMapping("/{projectId}/policy")
+    public ProjectPolicy updatePolicy(
+            @PathVariable long projectId,
+            @RequestParam long workspaceId,
+            @Valid @RequestBody UpdateProjectPolicyRequest body,
+            HttpServletRequest request) {
+        return projectPolicyService.update(
+                AuthController.requireContext(request).userId(),
+                workspaceId,
+                projectId,
+                body.allowSkipUx(),
+                body.expectedVersion());
+    }
+
     public record CreateProjectRequest(
             /* 项目所属 Workspace；服务端会与当前成员范围重新比对。 */
             @NotNull @PositiveOrZero Long workspaceId,
@@ -152,4 +184,8 @@ public class ProjectController {
     public record AddProjectMemberRequest(
             /* 用于定位既有有效 Workspace Member 的电子邮箱。 */
             @NotBlank @Email @Size(max = 320) String email) {}
+
+    public record UpdateProjectPolicyRequest(
+            /* 是否启用受分类与原因约束的 UX 跳过路径。 */ boolean allowSkipUx,
+            /* 客户端读取到的策略版本。 */ @PositiveOrZero long expectedVersion) {}
 }

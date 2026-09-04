@@ -54,6 +54,16 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
     }
 
     @Override
+    public boolean allowsSkipUx(long workspaceId, long projectId) {
+        return mapper.countSkipUxPolicy(workspaceId, projectId) > 0;
+    }
+
+    @Override
+    public boolean hasEligibleSkipUxLabel(long workspaceId, long projectId, long workItemId) {
+        return mapper.countEligibleSkipUxLabel(workspaceId, projectId, workItemId) > 0;
+    }
+
+    @Override
     public Optional<TransitionResult> findResultByIdempotencyKey(
             long workspaceId, long projectId, long workItemId, String idempotencyKey) {
         return mapper.findIdempotentEvent(workspaceId, projectId, workItemId, idempotencyKey).stream()
@@ -91,7 +101,7 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
             }
             throw new VersionConflictException();
         }
-        if (definition.type() == ai.forge.server.workitem.domain.WorkItemType.REQUIREMENT) {
+        if (isReviewAction(definition.action())) {
             boolean rejection = definition.action() == WorkflowAction.REJECT_PRODUCT_REVIEW
                     || definition.action() == WorkflowAction.REJECT_UX_REVIEW;
             boolean approval = definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW
@@ -188,5 +198,14 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("UX checklist cannot be serialized", exception);
         }
+    }
+
+    private boolean isReviewAction(WorkflowAction action) {
+        return action == WorkflowAction.SUBMIT_PRODUCT_REVIEW
+                || action == WorkflowAction.APPROVE_PRODUCT_REVIEW
+                || action == WorkflowAction.REJECT_PRODUCT_REVIEW
+                || action == WorkflowAction.SUBMIT_UX_REVIEW
+                || action == WorkflowAction.APPROVE_UX_REVIEW
+                || action == WorkflowAction.REJECT_UX_REVIEW;
     }
 }

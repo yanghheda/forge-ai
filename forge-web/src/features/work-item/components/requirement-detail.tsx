@@ -27,7 +27,7 @@ import {
 import {
   getRequirementDetails,
   getWorkItem,
-  getWorkItemEvents,
+  getWorkItemActivity,
   saveRequirementDetails,
   transitionRequirement,
   type WorkflowAction,
@@ -65,9 +65,9 @@ export function RequirementDetail({
     queryKey: ["documents", workItemId],
     queryFn: () => listWorkItemDocuments(workspaceId, projectId, workItemId),
   });
-  const events = useQuery({
-    queryKey: ["work-item-events", workItemId],
-    queryFn: () => getWorkItemEvents(workspaceId, projectId, workItemId),
+  const activity = useQuery({
+    queryKey: ["work-item-activity", workItemId],
+    queryFn: () => getWorkItemActivity(workspaceId, projectId, workItemId),
   });
   const [reason, setReason] = useState("");
   const [checklist, setChecklist] = useState({
@@ -81,7 +81,7 @@ export function RequirementDetail({
       qc.invalidateQueries({ queryKey: ["work-item", workItemId] }),
       qc.invalidateQueries({ queryKey: ["requirement-details", workItemId] }),
       qc.invalidateQueries({ queryKey: ["documents", workItemId] }),
-      qc.invalidateQueries({ queryKey: ["work-item-events", workItemId] }),
+      qc.invalidateQueries({ queryKey: ["work-item-activity", workItemId] }),
     ]);
   const createPrd = useMutation({
     mutationFn: () =>
@@ -178,9 +178,9 @@ export function RequirementDetail({
           />
         </Tabs.TabPane>
         <Tabs.TabPane key="activity" title="Activity">
-          {events.data?.map((event) => (
-            <p key={event.id}>
-              {event.action}: {event.fromStatus} → {event.toStatus}
+          {activity.data?.map((item) => (
+            <p key={`${item.kind}-${item.id}`}>
+              {item.kind === "COMMENT" ? item.body : `${item.action}${item.reason ? `：${item.reason}` : ""}`}
             </p>
           ))}
         </Tabs.TabPane>
@@ -206,12 +206,14 @@ export function RequirementDetail({
               ) : null}
             </div>
           ))}
-          {detail.data.availableActions.includes("REJECT_PRODUCT_REVIEW") && (
+          {(detail.data.availableActions.includes("REJECT_PRODUCT_REVIEW")
+            || detail.data.availableActions.includes("REJECT_UX_REVIEW")
+            || detail.data.availableActions.includes("SKIP_UX")) && (
             <Input
-              aria-label="退回原因"
+              aria-label="动作原因"
               value={reason}
               onChange={setReason}
-              placeholder="退回原因"
+              placeholder="退回或跳过原因"
             />
           )}
           {detail.data.availableActions.includes("SUBMIT_UX_REVIEW") && (

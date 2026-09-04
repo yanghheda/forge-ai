@@ -10,6 +10,7 @@ import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.project.domain.ProjectKeyConflictException;
 import ai.forge.server.workitem.domain.IdempotencyConflictException;
 import ai.forge.server.workitem.domain.InvalidTransitionException;
+import ai.forge.server.workitem.domain.RelationConflictException;
 import ai.forge.server.workitem.domain.WorkflowGuardFailedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -83,6 +84,13 @@ public class GlobalExceptionHandler {
             IdempotencyConflictException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, ErrorCode.IDEMPOTENCY_CONFLICT,
                 "Idempotency key was already used for another action", Map.of(), request);
+    }
+
+    @ExceptionHandler(RelationConflictException.class)
+    public ResponseEntity<ApiError> handleRelationConflict(
+            RelationConflictException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.RELATION_CONFLICT,
+                "Work item relation already exists", Map.of(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -13,6 +13,8 @@ public enum ErrorCode {
     WORKFLOW_GUARD_FAILED,
     /* 同一 Work Item 的幂等键已被不同 Action 使用。 */
     IDEMPOTENCY_CONFLICT,
+    /* 相同方向与类型的 Work Item 关系已经存在。 */
+    RELATION_CONFLICT,
     /* 请求结构或字段约束不满足公开契约。 */
     VALIDATION_FAILED,
     /* 单例实例已完成首个 Owner 初始化，公开入口永久关闭。 */

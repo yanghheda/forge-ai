@@ -59,7 +59,9 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "work_item_events", "review_records", "requirement_details", "work_items", "project_item_sequences", "project_members", "projects", "audit_logs", "member_roles",
+                "comments", "work_item_relations", "work_item_labels", "project_policies", "work_item_events",
+                "review_records", "requirement_details", "work_items", "project_item_sequences",
+                "project_members", "projects", "audit_logs", "member_roles",
                 "workspace_members", "workspaces", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }

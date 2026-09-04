@@ -53,15 +53,18 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     private long workspaceId;
     private long projectId;
     private long requirementId;
+    private String ownerEmail;
 
     @BeforeEach
     void initializeRequirement() throws Exception {
+        ownerEmail = "owner-" + java.util.UUID.randomUUID() + "@example.com";
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         jdbcTemplate.update("UPDATE documents SET current_version_id = NULL");
         jdbcTemplate.update("UPDATE work_items SET parent_id = NULL");
         for (String table : List.of(
-                "outbox_events", "document_versions", "documents", "work_item_events", "review_records",
+                "outbox_events", "document_versions", "documents", "comments", "work_item_relations",
+                "work_item_labels", "project_policies", "work_item_events", "review_records",
                 "requirement_details", "work_items", "project_item_sequences",
                 "project_members", "projects", "audit_logs", "member_roles", "workspace_members", "workspaces",
                 "organizations", "users")) {
@@ -70,7 +73,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         ResponseEntity<String> initialized = csrf().post(
                 "/api/v1/setup/initialize",
                 Map.of(
-                        "adminEmail", "owner@example.com",
+                        "adminEmail", ownerEmail,
                         "adminDisplayName", "Forge Owner",
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
@@ -82,7 +85,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         ownerCookie = login();
         ownerId = jdbcTemplate.queryForObject(
-                "SELECT id FROM users WHERE normalized_email = 'owner@example.com'", Long.class);
+                "SELECT id FROM users WHERE normalized_email = ?", Long.class, ownerEmail);
         workspaceId = jdbcTemplate.queryForObject("SELECT id FROM workspaces WHERE slug = 'engineering'", Long.class);
         ResponseEntity<String> project = csrf().post(
                 "/api/v1/projects",
@@ -403,6 +406,117 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 .isEqualTo("1");
     }
 
+    @Test
+    void skipUxRequiresEnabledPolicyEligibleLabelAndAuditReason() throws Exception {
+        completeMaterials();
+        transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "skip-submit", null);
+        publishDocument("PRD", "Backend PRD", "Internal API only");
+
+        ResponseEntity<String> disabled = transition(
+                WorkflowAction.SKIP_UX, 1, "skip-disabled", "No user interface");
+        assertThat(disabled.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(objectMapper.readTree(disabled.getBody()).at("/details/missing/0").asText())
+                .isEqualTo("projectPolicy.allowSkipUx");
+
+        JsonNode defaultPolicy = objectMapper.readTree(get(
+                        "/api/v1/projects/" + projectId + "/policy?workspaceId=" + workspaceId)
+                .getBody());
+        assertThat(defaultPolicy.get("allowSkipUx").asBoolean()).isFalse();
+        ResponseEntity<String> policyUpdated = csrf().patch(
+                "/api/v1/projects/" + projectId + "/policy?workspaceId=" + workspaceId,
+                Map.of("allowSkipUx", true, "expectedVersion", 0),
+                ownerCookie,
+                String.class);
+        assertThat(policyUpdated.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ResponseEntity<String> ordinary = transition(
+                WorkflowAction.SKIP_UX, 1, "skip-ordinary", "No user interface");
+        assertThat(ordinary.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(objectMapper.readTree(ordinary.getBody()).at("/details/missing/0").asText())
+                .isEqualTo("eligibleSkipUxLabel");
+
+        ResponseEntity<String> labelAdded = csrf().post(
+                "/api/v1/work-items/" + requirementId + "/labels?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of("label", "BACKEND_ONLY"),
+                ownerCookie,
+                String.class);
+        assertThat(labelAdded.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        ResponseEntity<String> missingReason = transition(
+                WorkflowAction.SKIP_UX, 1, "skip-no-reason", "  ");
+        assertThat(missingReason.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(objectMapper.readTree(missingReason.getBody()).at("/details/missing/0").asText())
+                .isEqualTo("reason");
+
+        JsonNode skipped = objectMapper.readTree(transition(
+                        WorkflowAction.SKIP_UX, 1, "skip-success", "  API-only change  ")
+                .getBody());
+        assertThat(skipped.get("status").asText()).isEqualTo("READY_FOR_DEV");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT reason FROM work_item_events WHERE work_item_id = ? AND event_type = 'SKIP_UX'",
+                        String.class,
+                        requirementId))
+                .isEqualTo("API-only change");
+    }
+
+    @Test
+    void relationsRejectDuplicateSelfAndCrossProjectWhileActivityMergesComments() throws Exception {
+        long targetId = createWorkItem(projectId, "Related task", "DEV_TASK");
+        ResponseEntity<String> self = csrf().post(
+                "/api/v1/work-items/" + requirementId + "/relations?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of("targetId", requirementId, "relationType", "RELATES_TO"),
+                ownerCookie,
+                String.class);
+        assertThat(self.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        ResponseEntity<String> created = csrf().post(
+                "/api/v1/work-items/" + requirementId + "/relations?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of("targetId", targetId, "relationType", "DEPENDS_ON"),
+                ownerCookie,
+                String.class);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        ResponseEntity<String> duplicate = csrf().post(
+                "/api/v1/work-items/" + requirementId + "/relations?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of("targetId", targetId, "relationType", "DEPENDS_ON"),
+                ownerCookie,
+                String.class);
+        assertThat(duplicate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        JsonNode secondProject = objectMapper.readTree(csrf().post(
+                "/api/v1/projects",
+                Map.of("workspaceId", workspaceId, "key", "OTHER", "name", "Other", "description", "scope"),
+                ownerCookie,
+                String.class).getBody());
+        long crossProjectTarget = createWorkItem(secondProject.get("id").asLong(), "Foreign task", "DEV_TASK");
+        ResponseEntity<String> crossProject = csrf().post(
+                "/api/v1/work-items/" + requirementId + "/relations?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of("targetId", crossProjectTarget, "relationType", "BLOCKS"),
+                ownerCookie,
+                String.class);
+        assertThat(crossProject.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        completeMaterials();
+        transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "activity-event", null);
+        ResponseEntity<String> comment = csrf().post(
+                "/api/v1/work-items/" + requirementId + "/comments?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId,
+                Map.of("body", "  Please verify the API contract.  "),
+                ownerCookie,
+                String.class);
+        assertThat(comment.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        JsonNode activity = objectMapper.readTree(get("/api/v1/work-items/" + requirementId
+                        + "/activity?workspaceId=" + workspaceId + "&projectId=" + projectId)
+                .getBody());
+        assertThat(activity).hasSize(2);
+        assertThat(activity.get(0).get("kind").asText()).isEqualTo("EVENT");
+        assertThat(activity.get(1).get("kind").asText()).isEqualTo("COMMENT");
+        assertThat(activity.get(1).get("body").asText()).isEqualTo("Please verify the API contract.");
+    }
+
     private void transitionAfter(CountDownLatch start, String idempotencyKey) throws InterruptedException {
         start.await();
         transitionService.transition(
@@ -491,6 +605,22 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         return objectMapper.readTree(published.getBody());
     }
 
+    private long createWorkItem(long targetProjectId, String title, String type) throws Exception {
+        ResponseEntity<String> response = csrf().post(
+                "/api/v1/work-items",
+                Map.of(
+                        "workspaceId", workspaceId,
+                        "projectId", targetProjectId,
+                        "type", type,
+                        "title", title,
+                        "description", "relation target",
+                        "priority", "MEDIUM"),
+                ownerCookie,
+                String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return objectMapper.readTree(response.getBody()).get("id").asLong();
+    }
+
     private void assertUnchangedDraft() {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT CONCAT(status, ':', version) FROM work_items WHERE id = ?",
@@ -508,7 +638,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     private String login() {
         ResponseEntity<String> response = csrf().post(
                 "/api/v1/auth/login",
-                Map.of("email", "owner@example.com", "password", "correct-horse-42"),
+                Map.of("email", ownerEmail, "password", "correct-horse-42"),
                 null,
                 String.class);
         String setCookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);

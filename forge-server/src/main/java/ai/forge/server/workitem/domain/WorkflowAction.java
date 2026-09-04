@@ -13,6 +13,8 @@ public enum WorkflowAction {
     APPROVE_UX_REVIEW,
     /* 将 UX 阶段评审退回到交付物补充状态。 */
     REJECT_UX_REVIEW,
+    /* 依据项目策略与显式分类跳过 UX，并保留必填原因。 */
+    SKIP_UX,
     /* 开始处理角色 Task。 */
     START,
     /* 将 UX Task 提交到其局部评审队列。 */

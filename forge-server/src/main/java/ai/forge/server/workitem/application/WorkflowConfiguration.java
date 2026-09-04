@@ -17,6 +17,7 @@ public class WorkflowConfiguration {
                 new PublishedPrdGuard(materialStore),
                 new PublishedUxSpecGuard(materialStore),
                 new UxChecklistGuard(),
+                new UxSkipPolicyGuard(materialStore),
                 new ReasonRequiredGuard());
     }
 }

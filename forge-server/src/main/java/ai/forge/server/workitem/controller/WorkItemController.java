@@ -3,6 +3,7 @@ package ai.forge.server.workitem.controller;
 import ai.forge.server.auth.controller.AuthController;
 import ai.forge.server.auth.domain.AuthContext;
 import ai.forge.server.workitem.application.WorkItemCommandService;
+import ai.forge.server.workitem.application.WorkItemCollaborationService;
 import ai.forge.server.workitem.application.WorkItemPage;
 import ai.forge.server.workitem.application.WorkItemQueryService;
 import ai.forge.server.workitem.application.RequirementTransitionService;
@@ -10,6 +11,10 @@ import ai.forge.server.workitem.application.RequirementDetailsService;
 import ai.forge.server.workitem.domain.RequirementDetails;
 import ai.forge.server.workitem.application.RequirementTransitionStore;
 import ai.forge.server.workitem.domain.WorkItem;
+import ai.forge.server.workitem.domain.ActivityItem;
+import ai.forge.server.workitem.domain.WorkItemRelation;
+import ai.forge.server.workitem.domain.WorkItemRelationType;
+import ai.forge.server.workitem.domain.WorkItemLabel;
 import ai.forge.server.workitem.domain.WorkItemPriority;
 import ai.forge.server.workitem.domain.WorkItemStatus;
 import ai.forge.server.workitem.domain.WorkItemType;
@@ -63,15 +68,20 @@ public class WorkItemController {
     /* 读写 Requirement 的结构化产品材料。 */
     private final RequirementDetailsService detailsService;
 
+    /* 管理非树状关系、用户评论与统一 Activity 投影。 */
+    private final WorkItemCollaborationService collaborationService;
+
     public WorkItemController(
             WorkItemCommandService commandService,
             WorkItemQueryService queryService,
             RequirementTransitionService transitionService,
-            RequirementDetailsService detailsService) {
+            RequirementDetailsService detailsService,
+            WorkItemCollaborationService collaborationService) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.transitionService = transitionService;
         this.detailsService = detailsService;
+        this.collaborationService = collaborationService;
     }
 
     @GetMapping("/{workItemId}/details")
@@ -215,8 +225,8 @@ public class WorkItemController {
                 body.checklist());
     }
 
-    @GetMapping({"/{workItemId}/activity", "/{workItemId}/events"})
-    @Operation(summary = "读取 Work Item 活动时间线", description = "按事件 id 升序返回追加写工作流事件。")
+    @GetMapping("/{workItemId}/events")
+    @Operation(summary = "读取 Work Item 状态事件", description = "按事件 id 升序返回追加写工作流事件。")
     public List<WorkItemEvent> events(
             @PathVariable long workItemId,
             @RequestParam long workspaceId,
@@ -225,6 +235,88 @@ public class WorkItemController {
         AuthContext context = AuthController.requireContext(request);
         return transitionService.events(context.userId(), workspaceId, projectId, workItemId);
     }
+
+    @PostMapping("/{workItemId}/relations")
+    public ResponseEntity<WorkItemRelation> createRelation(
+            @PathVariable long workItemId,
+            @RequestParam long workspaceId,
+            @RequestParam long projectId,
+            @Valid @RequestBody CreateRelationRequest body,
+            HttpServletRequest request) {
+        WorkItemRelation relation = collaborationService.createRelation(
+                AuthController.requireContext(request).userId(),
+                workspaceId,
+                projectId,
+                workItemId,
+                body.targetId(),
+                body.relationType());
+        return ResponseEntity.created(URI.create("/api/v1/work-items/" + workItemId + "/relations/" + relation.id()))
+                .body(relation);
+    }
+
+    @GetMapping("/{workItemId}/relations")
+    public List<WorkItemRelation> relations(
+            @PathVariable long workItemId,
+            @RequestParam long workspaceId,
+            @RequestParam long projectId,
+            HttpServletRequest request) {
+        return collaborationService.relations(
+                AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId);
+    }
+
+    @PostMapping("/{workItemId}/labels")
+    public ResponseEntity<Void> addLabel(
+            @PathVariable long workItemId,
+            @RequestParam long workspaceId,
+            @RequestParam long projectId,
+            @Valid @RequestBody AddLabelRequest body,
+            HttpServletRequest request) {
+        collaborationService.addLabel(
+                AuthController.requireContext(request).userId(),
+                workspaceId,
+                projectId,
+                workItemId,
+                body.label());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{workItemId}/comments")
+    public ResponseEntity<ActivityItem> comment(
+            @PathVariable long workItemId,
+            @RequestParam long workspaceId,
+            @RequestParam long projectId,
+            @Valid @RequestBody CreateCommentRequest body,
+            HttpServletRequest request) {
+        ActivityItem comment = collaborationService.comment(
+                AuthController.requireContext(request).userId(),
+                workspaceId,
+                projectId,
+                workItemId,
+                body.body());
+        return ResponseEntity.created(URI.create("/api/v1/work-items/" + workItemId + "/comments/" + comment.id()))
+                .body(comment);
+    }
+
+    @GetMapping("/{workItemId}/activity")
+    @Operation(summary = "读取统一 Activity", description = "按发生时间合并工作流事件和未删除评论。")
+    public List<ActivityItem> activity(
+            @PathVariable long workItemId,
+            @RequestParam long workspaceId,
+            @RequestParam long projectId,
+            HttpServletRequest request) {
+        return collaborationService.activity(
+                AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId);
+    }
+
+    public record CreateRelationRequest(
+            /* 同一项目内的关系目标工作项。 */ @Positive long targetId,
+            /* 非树状关系的固定业务语义。 */ @NotNull WorkItemRelationType relationType) {}
+
+    public record CreateCommentRequest(
+            /* 写入统一 Activity 的评论正文。 */ @NotBlank @Size(max = 4000) String body) {}
+
+    public record AddLabelRequest(
+            /* 服务端白名单内、可用于 UX 跳过判断的分类。 */ @NotNull WorkItemLabel label) {}
 
     public record CreateWorkItemRequest(
             /* 所属 Workspace；服务端会与项目和当前权限重新比对。 */
