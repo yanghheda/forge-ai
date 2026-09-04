@@ -15,7 +15,10 @@ COPY tests ./tests
 CMD ["pytest", "-q"]
 
 FROM base AS runtime
-RUN groupadd --system forge && useradd --system --gid forge --home-dir /app forge
+RUN groupadd --system forge \
+    && useradd --system --gid forge --home-dir /app forge \
+    && mkdir -p /app/data \
+    && chown forge:forge /app/data
 COPY requirements.runtime.lock ./
 RUN pip install --no-cache-dir -r requirements.runtime.lock
 COPY --chown=forge:forge src ./src

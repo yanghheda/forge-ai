@@ -103,7 +103,7 @@ public class MybatisAgentRunStore implements AgentRunStore {
 
     @Override
     @Transactional
-    public void startFake(long workspaceId, long projectId, String runId, String requestId) {
+    public void start(long workspaceId, long projectId, String runId, String requestId) {
         Map<String, Object> locked = mapper.lockRun(workspaceId, projectId, runId).stream()
                 .findFirst()
                 .orElse(null);
@@ -114,7 +114,7 @@ public class MybatisAgentRunStore implements AgentRunStore {
         if (mapper.markRunning(workspaceId, projectId, runId, firstSequence + 1) != 1) {
             return;
         }
-        mapper.insertFakeStep(workspaceId, projectId, runId);
+        mapper.insertAgentStep(workspaceId, projectId, runId);
         mapper.insertEvent(
                 workspaceId,
                 projectId,
@@ -130,12 +130,17 @@ public class MybatisAgentRunStore implements AgentRunStore {
                 firstSequence + 1,
                 "step.started",
                 requestId,
-                json(Map.of("stepNo", 1, "name", "Prepare fake result", "status", "RUNNING")));
+                json(Map.of("stepNo", 1, "name", "Create plan", "status", "RUNNING")));
     }
 
     @Override
     @Transactional
-    public void completeFake(long workspaceId, long projectId, String runId, String requestId) {
+    public void complete(
+            long workspaceId,
+            long projectId,
+            String runId,
+            String requestId,
+            String summary) {
         Map<String, Object> locked = mapper.lockRun(workspaceId, projectId, runId).stream()
                 .findFirst()
                 .orElse(null);
@@ -143,7 +148,7 @@ public class MybatisAgentRunStore implements AgentRunStore {
             return;
         }
         long firstSequence = number(locked, "last_sequence") + 1;
-        if (mapper.completeFakeStep(workspaceId, projectId, runId) != 1
+        if (mapper.completeAgentStep(workspaceId, projectId, runId, summary) != 1
                 || mapper.markSucceeded(workspaceId, projectId, runId, firstSequence + 1) != 1) {
             throw new IllegalStateException("Fake run state changed unexpectedly");
         }
@@ -156,9 +161,9 @@ public class MybatisAgentRunStore implements AgentRunStore {
                 requestId,
                 json(Map.of(
                         "stepNo", 1,
-                        "name", "Prepare fake result",
+                        "name", "Create plan",
                         "status", "SUCCEEDED",
-                        "summary", "Fake runner completed without LLM")));
+                        "summary", summary)));
         mapper.insertEvent(
                 workspaceId,
                 projectId,
@@ -166,12 +171,12 @@ public class MybatisAgentRunStore implements AgentRunStore {
                 firstSequence + 1,
                 "agent.completed",
                 requestId,
-                json(Map.of("status", "SUCCEEDED", "summary", "Fake run completed")));
+                json(Map.of("status", "SUCCEEDED", "summary", summary)));
     }
 
     @Override
     @Transactional
-    public void failFake(
+    public void fail(
             long workspaceId, long projectId, String runId, String requestId, String errorCode) {
         Map<String, Object> locked = mapper.lockRun(workspaceId, projectId, runId).stream()
                 .findFirst()

@@ -28,11 +28,11 @@ public interface AgentRunStore {
     List<AgentEvent> findEventsAfter(
             long workspaceId, long projectId, String runId, long afterSequence, int limit);
 
-    void startFake(long workspaceId, long projectId, String runId, String requestId);
+    void start(long workspaceId, long projectId, String runId, String requestId);
 
-    void completeFake(long workspaceId, long projectId, String runId, String requestId);
+    void complete(long workspaceId, long projectId, String runId, String requestId, String summary);
 
-    void failFake(long workspaceId, long projectId, String runId, String requestId, String errorCode);
+    void fail(long workspaceId, long projectId, String runId, String requestId, String errorCode);
 
     record CreateResult(
             /* 已创建或由幂等键命中的 Run。 */

@@ -2,6 +2,7 @@ package ai.forge.server.agent.infrastructure;
 
 import ai.forge.server.agent.application.AgentRunRequested;
 import ai.forge.server.agent.application.AgentRunStore;
+import ai.forge.server.agent.application.AgentRuntimeGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -13,16 +14,20 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @Profile("!test-unit")
-@ConditionalOnProperty(name = "forge.infrastructure.agent.dispatch-enabled", havingValue = "false")
-public class FakeAgentDispatcher {
+@ConditionalOnProperty(name = "forge.infrastructure.agent.dispatch-enabled", matchIfMissing = true)
+public class AgentDispatcher {
 
-    /* 仅为 Server 基础设施测试保留，不参与任何真实运行环境。 */
-    private static final Logger LOGGER = LoggerFactory.getLogger(FakeAgentDispatcher.class);
+    /* 记录跨进程调度故障，Run 事件只暴露稳定错误码。 */
+    private static final Logger LOGGER = LoggerFactory.getLogger(AgentDispatcher.class);
 
-    /* 通过事务方法推进 Run 并写入持久 Trace。 */
+    /* 调用真实 FastAPI 内部端点。 */
+    private final AgentRuntimeGateway runtimeGateway;
+
+    /* 将 Agent 结果投影为 Backend 权威 Run、Step 与 Event。 */
     private final AgentRunStore runStore;
 
-    public FakeAgentDispatcher(AgentRunStore runStore) {
+    public AgentDispatcher(AgentRuntimeGateway runtimeGateway, AgentRunStore runStore) {
+        this.runtimeGateway = runtimeGateway;
         this.runStore = runStore;
     }
 
@@ -32,20 +37,25 @@ public class FakeAgentDispatcher {
         try {
             runStore.start(
                     requested.workspaceId(), requested.projectId(), requested.runId(), requested.requestId());
+            AgentRuntimeGateway.RunResult result = runtimeGateway.start(requested);
             runStore.complete(
                     requested.workspaceId(),
                     requested.projectId(),
                     requested.runId(),
                     requested.requestId(),
-                    "Fake runner completed without LLM");
+                    result.answer());
+            LOGGER.info(
+                    "Agent Run completed: runId={}, checkpointVersion={}",
+                    requested.runId(),
+                    result.stateVersion());
         } catch (RuntimeException exception) {
-            LOGGER.error("Fake Agent Run failed: runId={}", requested.runId(), exception);
+            LOGGER.error("Agent Run dispatch failed: runId={}", requested.runId(), exception);
             runStore.fail(
                     requested.workspaceId(),
                     requested.projectId(),
                     requested.runId(),
                     requested.requestId(),
-                    "FAKE_RUNNER_FAILED");
+                    "AGENT_GATEWAY_FAILED");
         }
     }
 }

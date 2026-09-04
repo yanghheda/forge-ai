@@ -13,4 +13,4 @@ FORGE_AGENT_PYTHON=forge-agent/.venv/bin/python make agent-test
 FORGE_AGENT_PYTHON=forge-agent/.venv/bin/python make contracts-check
 ```
 
-`/healthz` 只用于容器存活检查；`/internal/v1/health/ready` 必须携带由 `forge-server` 签发的短时服务 JWT。当前 `RuntimeGateway` 只是框架隔离边界，不包含 Deep Agents、Agent Run 或业务 Tool。
+`/healthz` 只用于容器存活检查；`/internal/v1/health/ready` 和 Run 启动端点必须携带由 `forge-server` 签发的短时服务 JWT。`RuntimeGateway` 使用 LangGraph 的有界最小图与 SQLite Checkpoint，Fake LLM 只验证计划、完成和恢复链路；本轮不包含业务 Tool。

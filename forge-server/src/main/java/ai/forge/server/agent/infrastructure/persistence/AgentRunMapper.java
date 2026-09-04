@@ -94,22 +94,23 @@ public interface AgentRunMapper {
             @Param("lastSequence") long lastSequence);
 
     @Insert("INSERT INTO agent_steps (run_id, step_no, type, name, status, input_summary, output_summary, "
-            + "error_code, started_at, finished_at) SELECT r.id, 1, 'FAKE', 'Prepare fake result', "
+            + "error_code, started_at, finished_at) SELECT r.id, 1, 'PLAN', 'Create plan', "
             + "'RUNNING', 'Request content redacted', NULL, NULL, UTC_TIMESTAMP(6), NULL FROM agent_runs r "
             + "WHERE r.id = #{runId} AND r.workspace_id = #{workspaceId} AND r.project_id = #{projectId}")
-    int insertFakeStep(
+    int insertAgentStep(
             @Param("workspaceId") long workspaceId,
             @Param("projectId") long projectId,
             @Param("runId") String runId);
 
-    @Update("UPDATE agent_steps SET status = 'SUCCEEDED', output_summary = 'Fake runner completed without LLM', "
+    @Update("UPDATE agent_steps SET status = 'SUCCEEDED', output_summary = #{summary}, "
             + "finished_at = UTC_TIMESTAMP(6) WHERE run_id = #{runId} AND step_no = 1 AND status = 'RUNNING' "
             + "AND EXISTS (SELECT 1 FROM agent_runs r WHERE r.id = agent_steps.run_id "
             + "AND r.workspace_id = #{workspaceId} AND r.project_id = #{projectId})")
-    int completeFakeStep(
+    int completeAgentStep(
             @Param("workspaceId") long workspaceId,
             @Param("projectId") long projectId,
-            @Param("runId") String runId);
+            @Param("runId") String runId,
+            @Param("summary") String summary);
 
     @Update("UPDATE agent_runs SET status = 'SUCCEEDED', finished_at = UTC_TIMESTAMP(6), "
             + "last_sequence = #{lastSequence}, updated_at = UTC_TIMESTAMP(6), version = version + 1 "

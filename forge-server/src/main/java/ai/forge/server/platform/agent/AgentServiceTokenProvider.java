@@ -40,13 +40,28 @@ public class AgentServiceTokenProvider {
     }
 
     public String createToken(Instant issuedAt) {
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        return encode(baseClaims(issuedAt).build());
+    }
+
+    public String createRunToken(Instant issuedAt, String runId, long workspaceId, long projectId) {
+        JwtClaimsSet claims = baseClaims(issuedAt)
+                .claim("run_id", runId)
+                .claim("workspace_id", workspaceId)
+                .claim("project_id", projectId)
+                .build();
+        return encode(claims);
+    }
+
+    private JwtClaimsSet.Builder baseClaims(Instant issuedAt) {
+        return JwtClaimsSet.builder()
                 .issuer("forge-server")
                 .subject("forge-server")
                 .audience(List.of("forge-agent"))
                 .issuedAt(issuedAt)
-                .expiresAt(issuedAt.plus(tokenTtl))
-                .build();
+                .expiresAt(issuedAt.plus(tokenTtl));
+    }
+
+    private String encode(JwtClaimsSet claims) {
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
     }

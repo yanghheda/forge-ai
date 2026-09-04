@@ -24,7 +24,7 @@ public class AgentRunService {
     /* 持久化 Run、Step 与 Event 权威事实。 */
     private final AgentRunStore runStore;
 
-    /* 在创建事务提交后触发 Fake dispatcher。 */
+    /* 在创建事务提交后触发真实 Agent Gateway。 */
     private final ApplicationEventPublisher eventPublisher;
 
     public AgentRunService(
@@ -63,8 +63,15 @@ public class AgentRunService {
                 AgentRequestFingerprint.create(skill, workItemId, message),
                 requestId);
         if (result.created()) {
-            eventPublisher.publishEvent(
-                    new AgentRunRequested(result.run().id(), workspaceId, projectId, requestId));
+            eventPublisher.publishEvent(new AgentRunRequested(
+                    result.run().id(),
+                    workspaceId,
+                    projectId,
+                    workItemId,
+                    userId,
+                    skill.name(),
+                    message.trim(),
+                    requestId));
         }
         return snapshot(workspaceId, projectId, result.run().id());
     }

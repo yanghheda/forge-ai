@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
@@ -22,7 +22,7 @@ def get_settings(request: Request) -> AgentSettings:
 def require_internal_credential(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     settings: Annotated[AgentSettings, Depends(get_settings)],
-) -> None:
+) -> dict[str, Any]:
     """只接受 forge-server 签发给 forge-agent 的短时 HS256 JWT。"""
 
     if credentials is None or credentials.scheme.lower() != "bearer":
@@ -41,6 +41,17 @@ def require_internal_credential(
         raise invalid_credential() from exception
 
     if claims.get("sub") != "forge-server":
+        raise invalid_credential()
+    return claims
+
+
+def require_run_credential(
+    request: Request,
+    claims: Annotated[dict[str, Any], Depends(require_internal_credential)],
+) -> None:
+    """要求短时凭据绑定到当前路径中的唯一 Run。"""
+
+    if claims.get("run_id") != request.path_params.get("run_id"):
         raise invalid_credential()
 
 

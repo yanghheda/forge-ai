@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,3 +20,4 @@ class AgentSettings(BaseSettings):
     internal_jwt_secret: str = Field(min_length=32, repr=False)
     internal_jwt_issuer: str = "forge-server"
     internal_jwt_audience: str = "forge-agent"
+    checkpoint_path: Path = Path("data/checkpoints.sqlite")

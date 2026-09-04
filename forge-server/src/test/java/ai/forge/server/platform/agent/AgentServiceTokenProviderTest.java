@@ -32,6 +32,19 @@ class AgentServiceTokenProviderTest {
     }
 
     @Test
+    void createsRunTokenBoundToBackendScope() {
+        Instant issuedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        AgentServiceTokenProvider provider = new AgentServiceTokenProvider(SECRET, Duration.ofMinutes(5));
+
+        Jwt jwt = decoder().decode(provider.createRunToken(issuedAt, "run-1", 2, 10));
+
+        assertThat(jwt.getClaimAsString("run_id")).isEqualTo("run-1");
+        assertThat(((Number) jwt.getClaim("workspace_id")).longValue()).isEqualTo(2);
+        assertThat(((Number) jwt.getClaim("project_id")).longValue()).isEqualTo(10);
+        assertThat(jwt.getExpiresAt()).isEqualTo(issuedAt.plus(Duration.ofMinutes(5)));
+    }
+
+    @Test
     void rejectsWeakSecret() {
         assertThatThrownBy(() -> new AgentServiceTokenProvider("too-short", Duration.ofSeconds(30)))
                 .isInstanceOf(IllegalArgumentException.class)

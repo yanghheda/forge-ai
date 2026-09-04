@@ -32,7 +32,11 @@ def create_token(
 
 
 def client() -> TestClient:
-    settings = AgentSettings(internal_jwt_secret=SECRET, _env_file=None)
+    settings = AgentSettings(
+        internal_jwt_secret=SECRET,
+        checkpoint_path=":memory:",
+        _env_file=None,
+    )
     return TestClient(create_app(settings))
 
 

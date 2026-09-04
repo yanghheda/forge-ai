@@ -66,6 +66,9 @@ services:
       target: runtime
     environment:
       FORGE_AGENT_INTERNAL_JWT_SECRET: ${FORGE_AGENT_INTERNAL_JWT_SECRET}
+      FORGE_AGENT_CHECKPOINT_PATH: /app/data/checkpoints.sqlite
+    volumes:
+      - agent-checkpoints:/app/data
     healthcheck:
       test:
         - CMD
@@ -134,5 +137,6 @@ networks:
     internal: true
 
 volumes:
+  agent-checkpoints:
   mysql-data:
   qdrant-data:
