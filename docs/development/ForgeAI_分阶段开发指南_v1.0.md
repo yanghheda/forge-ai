@@ -106,7 +106,7 @@ docs(adr): record session authentication decision
 | P0 工程基础 | 01–05 | 三应用可运行，契约与 CI 骨架存在 | Monorepo、构建、迁移、契约、Compose |
 | P1 身份与租户 | 06–10 | Admin 初始化、登录、Workspace/Project 隔离 | Session、CSRF、RBAC、多租户测试 |
 | P2 Product/UX 核心 | 11–17 | Requirement → PRD → UX Review → Ready for Dev | 聚合、乐观锁、状态机、版本、Graph |
-| P3 Agent 基础与 Product/UX Skill | 18–22 | Agent 受控创建 UX 资产，Trace/SSE 可恢复 | LangGraph、Tool、RAG、SSE、审批前置 |
+| P3 Agent 基础与 Product/UX Skill | 18–22 | Agent 受控创建 UX 资产，Trace/SSE 可恢复 | Deep Agents、Tool、RAG、SSE、审批前置 |
 | P4 Development/GitLab | 23–27 | Branch/MR/Pipeline 与需求关联 | Adapter、Secret、Webhook、最终一致性 |
 | P5 QA/Release | 28–31 | QA 回流、Precheck、审批和模拟部署 | 测试聚合、确定性规则、HIGH 操作 |
 | P6 完整交付 | 32–34 | 黄金 Demo、部署文档和面试材料 | E2E、安全、可观测、运维、叙事 |
@@ -381,7 +381,7 @@ docs(adr): record session authentication decision
 
 **复盘问题：** 为什么不用 WebSocket？为什么先查快照再订阅？Reducer 怎样做到重复事件幂等？
 
-### 会话 19：Agent Gateway、LangGraph 最小图与 Checkpoint
+### 会话 19：Agent Gateway、Deep Agents 最小图与 Checkpoint
 
 **结果：** Backend 调度真实 FastAPI；Fake LLM 驱动最小图产生计划/完成事件；Checkpoint 可恢复。
 

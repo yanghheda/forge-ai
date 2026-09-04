@@ -426,7 +426,7 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 
 ### 10.6 Agent Runtime
 
-首选 Python 3.12 + FastAPI + LangChain + LangGraph + Deep Agents。使用本项目的 Agent Gateway/Runtime Adapter 隔离框架变化；Tool Contract 与 Java 业务 API 不依赖某个具体 Agent Runtime。
+首选 Python 3.12 + FastAPI + Deep Agents（基于 LangGraph）。使用本项目的 Agent Gateway/Runtime Adapter 隔离框架变化；Tool Contract 与 Java 业务 API 不依赖某个具体 Agent Runtime。
 
 ---
 
@@ -445,7 +445,7 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 |---|---|---|
 | `forge-web` | Next.js + React + TypeScript + Arco Design | Web 工作台 |
 | `forge-server` | Java 21 + Spring Boot 3.x | 业务权威、API、权限、工作流、集成 |
-| `forge-agent` | Python 3.12 + FastAPI + LangGraph/Deep Agents | Agent Runtime、RAG、Tool Calling |
+| `forge-agent` | Python 3.12 + FastAPI + Deep Agents（基于 LangGraph） | Agent Runtime、RAG、Tool Calling |
 | 数据库 | MySQL 8 | 业务事实、配置、Trace、审计 |
 | 会话/缓存 | Redis | Spring Session、短期状态、限流 |
 | 向量检索 | Qdrant | 项目文档向量索引 |
@@ -637,7 +637,7 @@ MVP 以一条真实交付闭环能否运行定义完成：
 6. Work Item 使用统一表 + `type`。
 7. Workflow 先采用自定义固定状态机，不引入 Spring State Machine。
 8. 文档使用版本模型，发布版本异步分块并索引到 Qdrant。
-9. Agent Runtime 使用 LangGraph/Deep Agents，但通过 ForgeAI Adapter 隔离。
+9. Agent Runtime 使用 Deep Agents（基于 LangGraph），但通过 ForgeAI Adapter 隔离。
 10. 本地开发时 MySQL/Redis/Qdrant 必须运行于本机 Docker Desktop Compose 网络；最终上线时运行于腾讯云 CVM 的私有 Docker 网络，生产可按策略替换外部服务。
 
 ---
@@ -666,7 +666,7 @@ MVP 以一条真实交付闭环能否运行定义完成：
 forge-ai/
 ├── forge-web/       # Next.js + TypeScript + Arco Design
 ├── forge-server/    # Java 21 + Spring Boot
-├── forge-agent/     # Python 3.12 + FastAPI + LangGraph/Deep Agents
+├── forge-agent/     # Python 3.12 + FastAPI + Deep Agents（基于 LangGraph）
 ├── packages/
 ├── deploy/
 ├── docs/
@@ -683,9 +683,9 @@ forge-ai/
 
 ## 25. 参考资料
 
-1. LangChain Deep Agents: <https://github.com/langchain-ai/deepagents>
-2. LangGraph: <https://github.com/langchain-ai/langgraph>
-3. Deep Agents documentation: <https://docs.langchain.com/oss/python/deepagents/overview>
+1. LangChain Deep Agents（Agent Runtime）：<https://github.com/langchain-ai/deepagents>
+2. Deep Agents documentation：<https://docs.langchain.com/oss/python/deepagents/overview>
+3. LangGraph（Deep Agents 底层图框架）：<https://github.com/langchain-ai/langgraph>
 
 > Agent 框架、库版本和外部服务能力可能变化；工程实施时应锁定兼容版本，并用 ForgeAI 自身的 Gateway、Tool Contract 和测试隔离框架升级。
 

@@ -27,7 +27,7 @@
 
 - **forge-web**：基于 Next.js 的团队工作台、交付视图、文档、Agent 过程与审批界面。
 - **forge-server**：基于 Spring Boot 的唯一业务权威，负责身份、权限、状态机、事务、集成、审计和持久化。
-- **forge-agent**：基于 FastAPI 的上下文构建、RAG、LangGraph/Deep Agent、Tool Calling、Checkpoint 和评测服务。
+- **forge-agent**：基于 FastAPI 的上下文构建、RAG、Deep Agents（基于 LangGraph）、Tool Calling、Checkpoint 和评测服务。
 - **MySQL**：业务事实、配置、Agent Trace、审批与审计。
 - **Redis**：Spring Session、短期执行状态、限流与必要缓存。
 - **Qdrant**：由文档派生的向量索引，可从 MySQL 与附件重建。
@@ -84,7 +84,7 @@ MVP 采用模块化单体、REST + SSE、GitLab API 优先和 Docker Compose：�
 | 授权 | 自定义认证中间件 + Custom RBAC | MVP 权限边界可控；后续可替换/接入企业认证 |
 | 业务库 | MySQL 8 | 作为业务唯一事实来源 |
 | Agent | Python 3.12、FastAPI、Pydantic | 适配 AI/Agent 生态，契约明确 |
-| Runtime | LangChain + LangGraph + Deep Agents | 状态、Tool、审批、Checkpoint 与多阶段执行 |
+| Runtime | Deep Agents（基于 LangGraph） | 状态、Tool、审批、Checkpoint 与多阶段执行 |
 | 向量库 | Qdrant | 与 MySQL 解耦，支持过滤和自托管 |
 | 实时事件 | SSE | Agent 主要为服务器单向事件流，无需 WebSocket 复杂度 |
 | SCM/CI | GitLab Adapter + GitLab CI | 复用既有系统，不重造 Git/CI |
@@ -1308,7 +1308,7 @@ ForgeAI 仓库至少包含：
 | MVP 范围过大 | 无法完成完整闭环 | 以黄金 Demo 纵向切片，暂缓 Figma/Browser/K8s 等能力 |
 | Agent 行为不稳定 | 错误工具或参数 | Tool Schema、白名单、结构化输出、审批、固定 Eval |
 | 权限遗漏 | 数据泄露或越权操作 | Backend 执行点鉴权、租户条件、权限矩阵和安全测试 |
-| LangChain/LangGraph 版本变动 | Runtime 维护成本 | 锁版本、封装 Runtime 接口、ADR 记录升级 |
+| Deep Agents/LangGraph 版本变动 | Runtime 维护成本 | 锁版本、封装 Runtime 接口、ADR 记录升级 |
 | 外部 GitLab 不稳定 | 同步延迟、重复操作 | Adapter、超时、幂等、Webhook + 定时补偿 |
 | Qdrant 与文档不一致 | 错误检索 | 版本化索引、状态表、可重建和一致性任务 |
 | 自托管升级困难 | 用户数据风险 | Flyway、固定镜像、备份/恢复演练、向后兼容迁移 |
@@ -1346,7 +1346,7 @@ ForgeAI 仓库至少包含：
 3. 默认 RBAC 权限矩阵与服务端授权点清单。
 4. OpenAPI/Swagger v1：Auth、Workspace、Project、Work Item、Document；补齐中文 API 描述、安全定义与错误码。
 5. Tool Contract v1：通用读取 + Product + UX。
-6. Agent LangGraph 节点、状态、Checkpoint 与审批恢复协议。
+6. Agent Deep Agents 图节点、状态、Checkpoint 与审批恢复协议。
 7. SSE Event Schema 与前端 Reducer。
 8. GitLab Adapter SPI、错误码和 Webhook Contract。
 9. 本机 Docker Desktop Compose、腾讯云 Compose/Nginx、Secret、备份与初始化管理员方案。

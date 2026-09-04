@@ -694,7 +694,7 @@ POST /internal/v1/tools/{toolName}:execute
 
 Manifest 不含明文 Secret，不把完整角色/权限交给模型。Tool 名称集合是运行入口时的上限，Backend 执行时按当前权限再次收紧。
 
-### 9.3 LangGraph 节点
+### 9.3 Deep Agents 图节点
 
 | 节点 | 输入 | 输出 | 失败处理 |
 |---|---|---|---|

@@ -27,7 +27,7 @@
 - `AgentRunIntegrationTest.streamScopeViolationIsHiddenAsNotFound`：验证 SSE 与快照使用相同项目 scope。
 - `run-reducer.test.ts`：验证重复事件幂等、跳号不推进连续游标、Step 投影和终态关闭。
 - `FlywayMigrationIntegrationTest.agentRunMigrationCreatesCommentedReplayFactsAndPermission`：验证 V13 表、中文元数据注释和 `agent.run` 角色映射。
-- 它们不能证明什么：当前没有高并发长 Run、代理/负载均衡缓冲、浏览器后台冻结或 Redis 唤醒压力数据；Fake Runner 也不能证明 LangGraph、Checkpoint、Tool 或审批恢复正确。
+- 它们不能证明什么：当前没有高并发长 Run、代理/负载均衡缓冲、浏览器后台冻结或 Redis 唤醒压力数据；Fake Runner 也不能证明 Deep Agents、Checkpoint、Tool 或审批恢复正确。
 
 ## 仍不清楚的问题
 

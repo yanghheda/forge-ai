@@ -46,7 +46,7 @@
 | 16 | UX 跳过、关系与 Activity | `PRD` 7.2；`DETAIL` 4.4、5.2–5.3、6 |
 | 17 | Delivery Graph 与 Product/UX E2E | `PRD` 6.3、7；`DETAIL` 4.4–4.5、16.3 |
 | 18 | Agent Run、Trace 与 SSE | `ARCH` 11–12；`DETAIL` 4.8、9.1、10 |
-| 19 | Agent Gateway、LangGraph、Checkpoint | `DETAIL` 2.1–2.3、8.4、9.1–9.4 |
+| 19 | Agent Gateway、Deep Agents、Checkpoint | `DETAIL` 2.1–2.3、8.4、9.1–9.4 |
 | 20 | Outbox、索引、权限过滤 RAG | `ARCH` 14、18.1；`DETAIL` 3.4、4.5、9.8、14.2 |
 | 21 | Tool Registry 与 Product/UX Tool | `ARCH` 13；`DETAIL` 8.4、9.5–9.6 |
 | 22 | 审批、暂停/恢复与 Agent E2E | `ARCH` 13.3–13.4；`DETAIL` 4.8、9.7、16.4 |
@@ -77,7 +77,7 @@
 | 文档、版本、附件、编辑器 | `DETAIL` 4.5、8.3、13.4、14.3 |
 | API、DTO、错误、分页、幂等 | `ARCH` 10；`DETAIL` 3.2–3.3、8 |
 | MySQL、Flyway、Mapper、事务、锁、Outbox | `DETAIL` 3.3–3.4、4.1、7 |
-| Agent Run、LangGraph、Checkpoint、Skill | `ARCH` 12；`DETAIL` 4.8、9.1–9.5 |
+| Agent Run、Deep Agents、Checkpoint、Skill | `ARCH` 12；`DETAIL` 4.8、9.1–9.5 |
 | Tool、风险、审批、暂停与恢复 | `ARCH` 13；`DETAIL` 8.4、9.6–9.7 |
 | RAG、Embedding、Qdrant、索引 | `ARCH` 14；`DETAIL` 4.5、9.8 |
 | SSE、事件重放、Reducer | `ARCH` 11；`DETAIL` 10 |
