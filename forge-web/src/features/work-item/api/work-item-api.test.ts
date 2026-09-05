@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createDevTask, getDeliveryGraph, startDevelopment } from "./work-item-api";
+import {
+  completeDevTask,
+  createDevTask,
+  getDeliveryGraph,
+  getDevelopmentSummary,
+  startDevelopment,
+} from "./work-item-api";
 
 describe("work item API", () => {
   it("按 Workspace、Project 和 Requirement 范围读取 Delivery Graph", async () => {
@@ -33,6 +39,26 @@ describe("work item API", () => {
     expect(client.request).toHaveBeenNthCalledWith(
       2,
       "/v1/development/tasks/40/start",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("读取开发汇总并用任务版本完成 Dev Task", async () => {
+    const client = { request: vi.fn().mockResolvedValue({ tasks: [] }) };
+
+    await getDevelopmentSummary(10, 20, 30, client);
+    await completeDevTask(
+      { workspaceId: 10, projectId: 20, taskId: 40, expectedVersion: 3 },
+      client,
+    );
+
+    expect(client.request).toHaveBeenNthCalledWith(
+      1,
+      "/v1/development/requirements/30?workspaceId=10&projectId=20",
+    );
+    expect(client.request).toHaveBeenNthCalledWith(
+      2,
+      "/v1/development/tasks/40/complete",
       expect.objectContaining({ method: "POST" }),
     );
   });

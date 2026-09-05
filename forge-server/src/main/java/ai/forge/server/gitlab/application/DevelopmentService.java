@@ -117,6 +117,16 @@ public class DevelopmentService {
         return store.complete(context, branch, mergeRequest, reconciled);
     }
 
+    public WorkItem completeTask(
+            long userId,
+            long workspaceId,
+            long projectId,
+            long devTaskId,
+            long expectedVersion) {
+        permissions.requireProject(userId, workspaceId, projectId, "task.edit");
+        return store.completeTask(workspaceId, projectId, devTaskId, expectedVersion);
+    }
+
     static String branchName(WorkItem task) {
         String normalized = Normalizer.normalize(task.title(), Normalizer.Form.NFKD)
                 .toLowerCase(Locale.ROOT)

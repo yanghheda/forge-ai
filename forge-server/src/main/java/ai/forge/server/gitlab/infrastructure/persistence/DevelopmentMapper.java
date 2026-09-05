@@ -121,4 +121,16 @@ public interface DevelopmentMapper {
             @Param("idempotencyKey") String idempotencyKey,
             @Param("branchId") long branchId,
             @Param("mergeRequestId") long mergeRequestId);
+
+    @Update("UPDATE work_items t JOIN work_items r ON r.id=t.parent_id "
+            + "AND r.workspace_id=t.workspace_id AND r.project_id=t.project_id "
+            + "SET t.status='DONE',t.version=t.version+1,t.updated_at=UTC_TIMESTAMP(6) "
+            + "WHERE t.id=#{taskId} AND t.workspace_id=#{workspaceId} AND t.project_id=#{projectId} "
+            + "AND t.type='DEV_TASK' AND t.status='IN_PROGRESS' AND t.version=#{expectedVersion} "
+            + "AND r.type='REQUIREMENT' AND r.status='IN_DEVELOPMENT'")
+    int completeTask(
+            @Param("workspaceId") long workspaceId,
+            @Param("projectId") long projectId,
+            @Param("taskId") long taskId,
+            @Param("expectedVersion") long expectedVersion);
 }

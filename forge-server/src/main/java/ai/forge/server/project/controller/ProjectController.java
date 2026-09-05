@@ -164,6 +164,7 @@ public class ProjectController {
                 workspaceId,
                 projectId,
                 body.allowSkipUx(),
+                body.ciRequired(),
                 body.expectedVersion());
     }
 
@@ -187,5 +188,6 @@ public class ProjectController {
 
     public record UpdateProjectPolicyRequest(
             /* 是否启用受分类与原因约束的 UX 跳过路径。 */ boolean allowSkipUx,
+            /* 是否要求 MR 当前 head 的 Pipeline 成功后才能提交 QA。 */ boolean ciRequired,
             /* 客户端读取到的策略版本。 */ @PositiveOrZero long expectedVersion) {}
 }

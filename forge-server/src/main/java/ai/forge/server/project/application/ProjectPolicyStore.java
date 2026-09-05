@@ -11,6 +11,7 @@ public interface ProjectPolicyStore {
             long workspaceId,
             long projectId,
             boolean allowSkipUx,
+            boolean ciRequired,
             long userId,
             long expectedVersion);
 }

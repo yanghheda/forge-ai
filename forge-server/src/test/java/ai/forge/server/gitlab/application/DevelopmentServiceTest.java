@@ -108,6 +108,17 @@ class DevelopmentServiceTest {
         assertThat(store.reads).isEqualTo(reads);
     }
 
+    @Test
+    void completesAnInProgressDevTaskThroughTheScopedStore() {
+        FakeStore store = new FakeStore();
+
+        WorkItem completed = service(store, new FakeProvider())
+                .completeTask(1L, 7L, 9L, 12L, 3L);
+
+        assertThat(completed.status()).isEqualTo(WorkItemStatus.DONE);
+        assertThat(store.completedTaskExpectedVersion).isEqualTo(3L);
+    }
+
     private static DevelopmentService service(FakeStore store, FakeProvider provider) {
         return new DevelopmentService(permissions(true), store, provider);
     }
@@ -153,6 +164,7 @@ class DevelopmentServiceTest {
         private Long parentId;
         private boolean completed;
         private int reads;
+        private Long completedTaskExpectedVersion;
 
         @Override
         public Optional<WorkItem> findWorkItem(long workspaceId, long projectId, long workItemId) {
@@ -185,6 +197,16 @@ class DevelopmentServiceTest {
                 boolean reconciled) {
             completed = true;
             return new DevelopmentResult(branch, mergeRequest, reconciled);
+        }
+
+        @Override
+        public WorkItem completeTask(
+                long workspaceId,
+                long projectId,
+                long taskId,
+                long expectedVersion) {
+            completedTaskExpectedVersion = expectedVersion;
+            return item(WorkItemType.DEV_TASK, WorkItemStatus.DONE);
         }
     }
 

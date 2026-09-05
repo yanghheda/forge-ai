@@ -11,13 +11,16 @@ import org.springframework.context.annotation.Profile;
 public class WorkflowConfiguration {
 
     @Bean
-    RequirementWorkflowRegistry requirementWorkflowRegistry(RequirementMaterialStore materialStore) {
+    RequirementWorkflowRegistry requirementWorkflowRegistry(
+            RequirementMaterialStore materialStore,
+            DevelopmentQaStore developmentQaStore) {
         return new RequirementWorkflowRegistry(
                 new RequirementMaterialGuard(materialStore),
                 new PublishedPrdGuard(materialStore),
                 new PublishedUxSpecGuard(materialStore),
                 new UxChecklistGuard(),
                 new UxSkipPolicyGuard(materialStore),
-                new ReasonRequiredGuard());
+                new ReasonRequiredGuard(),
+                new DevelopmentQaGuard(developmentQaStore));
     }
 }

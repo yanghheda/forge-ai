@@ -15,6 +15,8 @@ public enum WorkflowAction {
     REJECT_UX_REVIEW,
     /* 依据项目策略与显式分类跳过 UX，并保留必填原因。 */
     SKIP_UX,
+    /* 在 Dev Task 与项目 CI 策略满足后提交质量验证。 */
+    SUBMIT_FOR_QA,
     /* 开始处理角色 Task。 */
     START,
     /* 将 UX Task 提交到其局部评审队列。 */

@@ -23,26 +23,29 @@ public interface ProjectMapper {
     @Insert("INSERT INTO project_item_sequences (project_id, next_value, version) VALUES (#{projectId}, 1, 0)")
     int insertItemSequence(@Param("projectId") long projectId);
 
-    @Insert("INSERT INTO project_policies (project_id, workspace_id, allow_skip_ux, updated_by, updated_at, version) "
-        + "VALUES (#{projectId}, #{workspaceId}, FALSE, #{userId}, UTC_TIMESTAMP(6), 0)")
+    @Insert("INSERT INTO project_policies "
+        + "(project_id, workspace_id, allow_skip_ux, ci_required, updated_by, updated_at, version) "
+        + "VALUES (#{projectId}, #{workspaceId}, FALSE, TRUE, #{userId}, UTC_TIMESTAMP(6), 0)")
     int insertDefaultPolicy(
         @Param("workspaceId") long workspaceId,
         @Param("projectId") long projectId,
         @Param("userId") long userId);
 
-    @Select("SELECT project_id, workspace_id, allow_skip_ux, updated_by, updated_at, version "
+    @Select("SELECT project_id, workspace_id, allow_skip_ux, ci_required, updated_by, updated_at, version "
         + "FROM project_policies WHERE workspace_id = #{workspaceId} AND project_id = #{projectId}")
     List<Map<String, Object>> findPolicy(
         @Param("workspaceId") long workspaceId,
         @Param("projectId") long projectId);
 
-    @Update("UPDATE project_policies SET allow_skip_ux = #{allowSkipUx}, updated_by = #{userId}, "
+    @Update("UPDATE project_policies SET allow_skip_ux = #{allowSkipUx}, ci_required = #{ciRequired}, "
+        + "updated_by = #{userId}, "
         + "updated_at = UTC_TIMESTAMP(6), version = version + 1 WHERE workspace_id = #{workspaceId} "
         + "AND project_id = #{projectId} AND version = #{expectedVersion}")
     int updatePolicy(
         @Param("workspaceId") long workspaceId,
         @Param("projectId") long projectId,
         @Param("allowSkipUx") boolean allowSkipUx,
+        @Param("ciRequired") boolean ciRequired,
         @Param("userId") long userId,
         @Param("expectedVersion") long expectedVersion);
 

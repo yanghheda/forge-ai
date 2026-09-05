@@ -41,9 +41,10 @@ public class ProjectPolicyService {
             long workspaceId,
             long projectId,
             boolean allowSkipUx,
+            boolean ciRequired,
             long expectedVersion) {
         requireProject(userId, workspaceId, projectId);
-        if (!policyStore.update(workspaceId, projectId, allowSkipUx, userId, expectedVersion)) {
+        if (!policyStore.update(workspaceId, projectId, allowSkipUx, ciRequired, userId, expectedVersion)) {
             throw new VersionConflictException();
         }
         return get(userId, workspaceId, projectId);

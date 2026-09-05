@@ -3,6 +3,8 @@ package ai.forge.server.gitlab.controller;
 import ai.forge.server.auth.controller.AuthController;
 import ai.forge.server.gitlab.application.DevelopmentResult;
 import ai.forge.server.gitlab.application.DevelopmentService;
+import ai.forge.server.workitem.application.DevelopmentQaQuery;
+import ai.forge.server.workitem.application.DevelopmentQaSummary;
 import ai.forge.server.workitem.domain.WorkItem;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
 import org.springframework.context.annotation.Profile;
@@ -31,8 +34,12 @@ public class DevelopmentController {
     /* 执行状态、权限、幂等与外部资源 reconcile 的应用服务。 */
     private final DevelopmentService service;
 
-    public DevelopmentController(DevelopmentService service) {
+    /* 返回与 QA Guard 使用同一事实投影的开发页面汇总。 */
+    private final DevelopmentQaQuery developmentQaQuery;
+
+    public DevelopmentController(DevelopmentService service, DevelopmentQaQuery developmentQaQuery) {
         this.service = service;
+        this.developmentQaQuery = developmentQaQuery;
     }
 
     @PostMapping("/requirements/{requirementId}/tasks")
@@ -56,6 +63,34 @@ public class DevelopmentController {
                 taskId, body.targetBranch(), body.idempotencyKey());
     }
 
+    @PostMapping("/tasks/{taskId}/complete")
+    @Operation(summary = "完成 Dev Task", description = "仅允许完成 IN_DEVELOPMENT Requirement 下的 IN_PROGRESS 任务。")
+    public WorkItem completeTask(
+            @PathVariable long taskId,
+            @Valid @RequestBody CompleteDevTaskRequest body,
+            HttpServletRequest request) {
+        return service.completeTask(
+                AuthController.requireContext(request).userId(),
+                body.workspaceId(),
+                body.projectId(),
+                taskId,
+                body.expectedVersion());
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/requirements/{requirementId}")
+    @Operation(summary = "读取 Development 汇总", description = "返回 Dev Task、Branch、MR、Pipeline 与 CI 策略快照。")
+    public DevelopmentQaSummary summary(
+            @PathVariable long requirementId,
+            @org.springframework.web.bind.annotation.RequestParam long workspaceId,
+            @org.springframework.web.bind.annotation.RequestParam long projectId,
+            HttpServletRequest request) {
+        return developmentQaQuery.get(
+                AuthController.requireContext(request).userId(),
+                workspaceId,
+                projectId,
+                requirementId);
+    }
+
     public record CreateDevTaskRequest(
             /* Dev Task 所属工作区。 */ @Positive long workspaceId,
             /* Dev Task 所属项目。 */ @Positive long projectId,
@@ -68,4 +103,9 @@ public class DevelopmentController {
             /* Dev Task 所属项目。 */ @Positive long projectId,
             /* 可选目标分支；为空时使用仓库默认分支。 */ @Size(max = 255) String targetBranch,
             /* 项目范围内稳定的调用幂等键。 */ @NotBlank @Size(max = 128) String idempotencyKey) {}
+
+    public record CompleteDevTaskRequest(
+            /* Dev Task 所属工作区。 */ @Positive long workspaceId,
+            /* Dev Task 所属项目。 */ @Positive long projectId,
+            /* 客户端读取到的 Dev Task 聚合版本。 */ @PositiveOrZero long expectedVersion) {}
 }

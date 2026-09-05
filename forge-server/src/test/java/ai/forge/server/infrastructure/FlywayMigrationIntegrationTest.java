@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("19");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("20");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -110,7 +110,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                 Integer.class))
-                .isEqualTo(27);
+                .isEqualTo(28);
     }
 
     @Test
@@ -282,6 +282,22 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                                 + "'work_item_relations','comments') AND table_comment = ''",
                         Integer.class))
                 .isZero();
+    }
+
+    @Test
+    void developmentQaMigrationAddsDocumentedDefaultSafePolicyAndPermission() {
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT CONCAT(column_default, ':', column_comment) FROM information_schema.columns "
+                                + "WHERE table_schema = DATABASE() AND table_name = 'project_policies' "
+                                + "AND column_name = 'ci_required'",
+                        String.class))
+                .isEqualTo("1:提交 QA 前是否强制每个 Dev Task 的 MR 当前 head Pipeline 成功；无仓库时不放行");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id=rp.role_id "
+                                + "JOIN permissions p ON p.id=rp.permission_id "
+                                + "WHERE p.code='development.submit' ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "DEVELOPER", "OWNER");
     }
 
     @Test

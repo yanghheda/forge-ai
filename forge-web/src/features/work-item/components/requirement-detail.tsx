@@ -34,6 +34,7 @@ import {
   type WorkflowAction,
 } from "../api/work-item-api";
 import { DeliveryGraphPanel } from "./delivery-graph";
+import { DevelopmentPanel } from "./development-panel";
 
 const missingLabel: Record<string, string> = {
   goal: "业务目标",
@@ -42,6 +43,14 @@ const missingLabel: Record<string, string> = {
   publishedPrd: "已发布 PRD",
   publishedUxSpec: "已发布 UX Spec",
   reason: "退回原因",
+  devTask: "Dev Task",
+  devTaskIncomplete: "未完成的 Dev Task",
+  repository: "可用 GitLab 仓库",
+  mergeRequest: "Dev Task 关联 MR",
+  pipeline: "MR Pipeline",
+  pipelineRunning: "运行完成的 Pipeline",
+  pipelineFailed: "成功的 Pipeline",
+  pipelineHeadMismatch: "MR 当前 head 的成功 Pipeline",
 };
 export function RequirementDetail({
   workspaceId,
@@ -245,6 +254,14 @@ export function RequirementDetail({
       </Card>
       {detail.data.status === "READY_FOR_DEV" && (
         <DevTaskPanel
+          workspaceId={workspaceId}
+          projectId={projectId}
+          requirementId={workItemId}
+          onChanged={invalidate}
+        />
+      )}
+      {(detail.data.status === "READY_FOR_DEV" || detail.data.status === "IN_DEVELOPMENT") && (
+        <DevelopmentPanel
           workspaceId={workspaceId}
           projectId={projectId}
           requirementId={workItemId}

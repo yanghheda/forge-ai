@@ -15,6 +15,7 @@ import ai.forge.server.workitem.domain.WorkItem;
 import ai.forge.server.workitem.domain.WorkItemPriority;
 import ai.forge.server.workitem.domain.WorkItemStatus;
 import ai.forge.server.workitem.domain.WorkItemType;
+import ai.forge.server.common.domain.VersionConflictException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
@@ -116,6 +117,22 @@ public class MybatisDevelopmentStore implements DevelopmentStore {
         mapper.completeOperation(context.task().workspaceId(), context.task().projectId(), context.task().id(),
                 context.idempotencyKey(), branch.id(), mergeRequest.id());
         return new DevelopmentResult(branch, mergeRequest, reconciled);
+    }
+
+    @Override
+    @Transactional
+    public WorkItem completeTask(
+            long workspaceId,
+            long projectId,
+            long taskId,
+            long expectedVersion) {
+        workItems.findByIdAndScope(workspaceId, projectId, taskId)
+                .orElseThrow(ResourceNotFoundException::new);
+        if (mapper.completeTask(workspaceId, projectId, taskId, expectedVersion) != 1) {
+            throw new VersionConflictException();
+        }
+        return workItems.findByIdAndScope(workspaceId, projectId, taskId)
+                .orElseThrow(ResourceNotFoundException::new);
     }
 
     private Branch branch(Map<String, Object> row) {

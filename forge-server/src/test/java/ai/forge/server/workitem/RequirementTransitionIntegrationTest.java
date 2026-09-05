@@ -63,7 +63,9 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         jdbcTemplate.update("UPDATE documents SET current_version_id = NULL");
         jdbcTemplate.update("UPDATE work_items SET parent_id = NULL");
         for (String table : List.of(
-                "outbox_events", "document_versions", "documents", "comments", "work_item_relations",
+                "webhook_deliveries", "pipeline_runs", "source_control_operations", "merge_requests", "branches",
+                "git_repositories", "gitlab_connections", "secrets", "outbox_events", "document_versions",
+                "documents", "comments", "work_item_relations",
                 "work_item_labels", "project_policies", "work_item_events", "review_records",
                 "requirement_details", "work_items", "project_item_sequences",
                 "project_members", "projects", "audit_logs", "member_roles", "workspace_members", "workspaces",
@@ -465,6 +467,110 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     }
 
     @Test
+    void submitForQaExplainsMissingRepositoryAndCiOptionalAllowsCompletedTasks() throws Exception {
+        long taskId = prepareDevelopmentRequirement("DONE");
+
+        ResponseEntity<String> required = transition(
+                WorkflowAction.SUBMIT_FOR_QA, 0, "qa-required-no-repo", null);
+
+        assertThat(required.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(objectMapper.readTree(required.getBody()).at("/details/missing/0").asText())
+                .isEqualTo("repository");
+        JsonNode summary = objectMapper.readTree(get(
+                "/api/v1/development/requirements/" + requirementId + "?workspaceId=" + workspaceId
+                        + "&projectId=" + projectId)
+                .getBody());
+        assertThat(summary.get("ciRequired").asBoolean()).isTrue();
+        assertThat(summary.at("/tasks/0/id").asLong()).isEqualTo(taskId);
+
+        ResponseEntity<String> policyUpdated = csrf().patch(
+                "/api/v1/projects/" + projectId + "/policy?workspaceId=" + workspaceId,
+                Map.of("allowSkipUx", false, "ciRequired", false, "expectedVersion", 0),
+                ownerCookie,
+                String.class);
+        assertThat(policyUpdated.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> submitted = transition(
+                WorkflowAction.SUBMIT_FOR_QA, 0, "qa-optional", null);
+        assertThat(submitted.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(objectMapper.readTree(submitted.getBody()).get("status").asText())
+                .isEqualTo("READY_FOR_QA");
+    }
+
+    @Test
+    void successfulPipelineForAnOldCommitDoesNotReleaseTheGuard() throws Exception {
+        long taskId = prepareDevelopmentRequirement("DONE");
+        long repositoryId = insertRepository();
+        jdbcTemplate.update(
+                "INSERT INTO merge_requests (workspace_id,repository_id,work_item_id,remote_mr_iid,title,"
+                        + "source_branch,target_branch,state,web_url,head_sha,remote_updated_at,last_synced_at,version) "
+                        + "VALUES (?,?,?,7,'MR','feature/task','main','opened','https://gitlab.example/mr/7',"
+                        + "'new-head',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                workspaceId,
+                repositoryId,
+                taskId);
+        long mergeRequestId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbcTemplate.update(
+                "INSERT INTO pipeline_runs (workspace_id,repository_id,merge_request_id,remote_pipeline_id,ref,"
+                        + "commit_sha,status,web_url,remote_updated_at,last_synced_at,summary_json) "
+                        + "VALUES (?,?,?,9,'feature/task','old-head','success','https://gitlab.example/p/9',"
+                        + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),JSON_OBJECT())",
+                workspaceId,
+                repositoryId,
+                mergeRequestId);
+
+        ResponseEntity<String> response = transition(
+                WorkflowAction.SUBMIT_FOR_QA, 0, "qa-stale-pipeline", null);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(objectMapper.readTree(response.getBody()).at("/details/missing/0").asText())
+                .isEqualTo("pipelineHeadMismatch");
+    }
+
+    @Test
+    void completingADevTaskUsesItsVersionAndConcurrentQaSubmissionHasOneWinner() throws Exception {
+        long taskId = prepareDevelopmentRequirement("IN_PROGRESS");
+        ResponseEntity<String> completed = csrf().post(
+                "/api/v1/development/tasks/" + taskId + "/complete",
+                Map.of("workspaceId", workspaceId, "projectId", projectId, "expectedVersion", 0),
+                ownerCookie,
+                String.class);
+        assertThat(completed.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(objectMapper.readTree(completed.getBody()).get("status").asText()).isEqualTo("DONE");
+        jdbcTemplate.update(
+                "UPDATE project_policies SET ci_required=FALSE WHERE workspace_id=? AND project_id=?",
+                workspaceId,
+                projectId);
+
+        CountDownLatch start = new CountDownLatch(1);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            List<Future<?>> futures = List.of(
+                    executor.submit(() -> {
+                        submitQaAfter(start, "qa-race-a");
+                        return null;
+                    }),
+                    executor.submit(() -> {
+                        submitQaAfter(start, "qa-race-b");
+                        return null;
+                    }));
+            start.countDown();
+            int successes = 0;
+            int conflicts = 0;
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                    successes++;
+                } catch (ExecutionException exception) {
+                    assertThat(exception.getCause()).isInstanceOf(VersionConflictException.class);
+                    conflicts++;
+                }
+            }
+            assertThat(successes).isOne();
+            assertThat(conflicts).isOne();
+        }
+    }
+
+    @Test
     void relationsRejectDuplicateSelfAndCrossProjectWhileActivityMergesComments() throws Exception {
         long targetId = createWorkItem(projectId, "Related task", "DEV_TASK");
         ResponseEntity<String> self = csrf().post(
@@ -571,6 +677,19 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 null);
     }
 
+    private void submitQaAfter(CountDownLatch start, String idempotencyKey) throws InterruptedException {
+        start.await();
+        transitionService.transition(
+                ownerId,
+                workspaceId,
+                projectId,
+                requirementId,
+                WorkflowAction.SUBMIT_FOR_QA,
+                0,
+                idempotencyKey,
+                null);
+    }
+
     private void completeMaterials() {
         jdbcTemplate.update(
                 "INSERT INTO requirement_details (work_item_id, workspace_id, goal, in_scope, out_of_scope, "
@@ -578,6 +697,48 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         + "(?, ?, 'Ship safely', 'Transition API', '', JSON_ARRAY('State changes'), '', UTC_TIMESTAMP(6), 0)",
                 requirementId,
                 workspaceId);
+    }
+
+    private long prepareDevelopmentRequirement(String taskStatus) {
+        jdbcTemplate.update(
+                "UPDATE work_items SET status='IN_DEVELOPMENT' WHERE id=?",
+                requirementId);
+        jdbcTemplate.update(
+                "INSERT INTO work_items (workspace_id,project_id,item_number,item_key,type,title,description,status,"
+                        + "priority,parent_id,reporter_user_id,created_at,updated_at,version) "
+                        + "VALUES (?,?,2,'FORGE-2','DEV_TASK','Implement','',?,'MEDIUM',?,?,"
+                        + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                workspaceId,
+                projectId,
+                taskStatus,
+                requirementId,
+                ownerId);
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+    }
+
+    private long insertRepository() {
+        jdbcTemplate.update(
+                "INSERT INTO secrets (workspace_id,type,ciphertext,iv,key_version,fingerprint,created_at) "
+                        + "VALUES (?,'GITLAB_TOKEN','cipher','iv',1,'fingerprint',UTC_TIMESTAMP(6))",
+                workspaceId);
+        long secretId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbcTemplate.update(
+                "INSERT INTO gitlab_connections (workspace_id,name,base_url,credential_secret_id,status,created_by,"
+                        + "created_at,updated_at,version) VALUES (?,'GitLab','https://gitlab.example',?,'ACTIVE',?,"
+                        + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                workspaceId,
+                secretId,
+                ownerId);
+        long connectionId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbcTemplate.update(
+                "INSERT INTO git_repositories (workspace_id,project_id,connection_id,remote_project_id,"
+                        + "path_with_namespace,http_url,default_branch,status,last_synced_at,created_at,updated_at,version) "
+                        + "VALUES (?,?,?,'100','forge/project','https://gitlab.example/forge/project','main','ACTIVE',"
+                        + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                workspaceId,
+                projectId,
+                connectionId);
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
 
     private ResponseEntity<String> transition(

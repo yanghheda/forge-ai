@@ -12,7 +12,13 @@ class RequirementWorkflowRegistryTest {
     private final TransitionGuard allowingGuard = context -> GuardResult.allowed();
     private final RequirementWorkflowRegistry registry =
             new RequirementWorkflowRegistry(
-                    allowingGuard, allowingGuard, allowingGuard, allowingGuard, allowingGuard, allowingGuard);
+                    allowingGuard,
+                    allowingGuard,
+                    allowingGuard,
+                    allowingGuard,
+                    allowingGuard,
+                    allowingGuard,
+                    allowingGuard);
 
     @Test
     void registersTheFirstProductActionsWithFixedTargetsAndPermissions() {
@@ -40,6 +46,7 @@ class RequirementWorkflowRegistryTest {
                 WorkItemStatus.UX_IN_PROGRESS,
                 WorkItemStatus.UX_REVIEW,
                 WorkItemStatus.READY_FOR_DEV,
+                WorkItemStatus.READY_FOR_QA,
                 WorkItemStatus.TODO,
                 WorkItemStatus.IN_PROGRESS,
                 WorkItemStatus.IN_REVIEW,
@@ -63,7 +70,9 @@ class RequirementWorkflowRegistryTest {
                         || status == WorkItemStatus.UX_IN_PROGRESS && action == WorkflowAction.SUBMIT_UX_REVIEW
                         || status == WorkItemStatus.UX_REVIEW
                                 && (action == WorkflowAction.REJECT_UX_REVIEW
-                                        || action == WorkflowAction.APPROVE_UX_REVIEW);
+                                        || action == WorkflowAction.APPROVE_UX_REVIEW)
+                        || status == WorkItemStatus.IN_DEVELOPMENT
+                                && action == WorkflowAction.SUBMIT_FOR_QA;
                 if (!legal) {
                     assertThatThrownBy(() -> registry.require(WorkItemType.REQUIREMENT, status, action))
                             .isInstanceOf(InvalidTransitionException.class);
@@ -99,5 +108,17 @@ class RequirementWorkflowRegistryTest {
                 WorkItemType.REQUIREMENT, WorkflowAction.SUBMIT_PRODUCT_REVIEW);
 
         assertThat(definition.requiredPermission()).isEqualTo("requirement.edit");
+    }
+
+    @Test
+    void submitForQaHasAFixedTargetPermissionAndGuard() {
+        TransitionDefinition definition = registry.require(
+                WorkItemType.REQUIREMENT,
+                WorkItemStatus.IN_DEVELOPMENT,
+                WorkflowAction.SUBMIT_FOR_QA);
+
+        assertThat(definition.to()).isEqualTo(WorkItemStatus.READY_FOR_QA);
+        assertThat(definition.requiredPermission()).isEqualTo("development.submit");
+        assertThat(definition.guards()).containsExactly(allowingGuard);
     }
 }

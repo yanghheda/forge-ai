@@ -11,6 +11,7 @@ export type WorkflowAction =
   | "APPROVE_UX_REVIEW"
   | "REJECT_UX_REVIEW"
   | "SKIP_UX"
+  | "SUBMIT_FOR_QA"
   | "START"
   | "SUBMIT_REVIEW"
   | "APPROVE"
@@ -82,6 +83,28 @@ export interface DevelopmentResult {
   branch: { id: number; name: string; commitSha: string };
   mergeRequest: { id: number; remoteMrIid: number; webUrl: string; state: string };
   reconciled: boolean;
+}
+export interface DevelopmentQaTask {
+  id: number;
+  itemKey: string;
+  title: string;
+  status: string;
+  version: number;
+  branchName: string | null;
+  branchCommitSha: string | null;
+  mergeRequestId: number | null;
+  mergeRequestUrl: string | null;
+  mergeRequestHeadSha: string | null;
+  pipelineId: number | null;
+  pipelineCommitSha: string | null;
+  pipelineStatus: string | null;
+  pipelineLastSyncedAt: string | null;
+}
+export interface DevelopmentQaSummary {
+  requirementId: number;
+  ciRequired: boolean;
+  repositoryConfigured: boolean;
+  tasks: DevelopmentQaTask[];
 }
 const json = (method: string, body: unknown): RequestInit => ({
   method,
@@ -211,5 +234,27 @@ export const startDevelopment = (
 ) =>
   client.request<DevelopmentResult>(
     `/v1/development/tasks/${input.taskId}/start`,
+    json("POST", input),
+  );
+export const getDevelopmentSummary = (
+  workspaceId: number,
+  projectId: number,
+  requirementId: number,
+  client: RequestClient = apiClient,
+) =>
+  client.request<DevelopmentQaSummary>(
+    `/v1/development/requirements/${requirementId}?workspaceId=${workspaceId}&projectId=${projectId}`,
+  );
+export const completeDevTask = (
+  input: {
+    workspaceId: number;
+    projectId: number;
+    taskId: number;
+    expectedVersion: number;
+  },
+  client: RequestClient = apiClient,
+) =>
+  client.request<WorkItem>(
+    `/v1/development/tasks/${input.taskId}/complete`,
     json("POST", input),
   );

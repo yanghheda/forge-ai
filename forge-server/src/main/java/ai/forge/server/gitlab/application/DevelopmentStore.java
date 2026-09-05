@@ -19,4 +19,10 @@ public interface DevelopmentStore {
 
     DevelopmentResult complete(
             DevelopmentContext context, Branch branch, MergeRequest mergeRequest, boolean reconciled);
+
+    WorkItem completeTask(
+            long workspaceId,
+            long projectId,
+            long taskId,
+            long expectedVersion);
 }

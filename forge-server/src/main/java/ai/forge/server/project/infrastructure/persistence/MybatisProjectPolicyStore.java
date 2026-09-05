@@ -30,9 +30,11 @@ public class MybatisProjectPolicyStore implements ProjectPolicyStore {
             long workspaceId,
             long projectId,
             boolean allowSkipUx,
+            boolean ciRequired,
             long userId,
             long expectedVersion) {
-        return mapper.updatePolicy(workspaceId, projectId, allowSkipUx, userId, expectedVersion) == 1;
+        return mapper.updatePolicy(
+                workspaceId, projectId, allowSkipUx, ciRequired, userId, expectedVersion) == 1;
     }
 
     private ProjectPolicy policy(Map<String, Object> row) {
@@ -40,6 +42,7 @@ public class MybatisProjectPolicyStore implements ProjectPolicyStore {
                 number(row, "project_id"),
                 number(row, "workspace_id"),
                 booleanValue(row.get("allow_skip_ux")),
+                booleanValue(row.get("ci_required")),
                 number(row, "updated_by"),
                 ((LocalDateTime) row.get("updated_at")).toInstant(ZoneOffset.UTC),
                 number(row, "version"));
