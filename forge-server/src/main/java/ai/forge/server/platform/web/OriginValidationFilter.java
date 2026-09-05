@@ -43,7 +43,9 @@ public class OriginValidationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        if (isStateChanging(request.getMethod()) && !internalApi().matches(request)) {
+        if (isStateChanging(request.getMethod())
+                && !internalApi().matches(request)
+                && !webhookApi().matches(request)) {
             String origin = request.getHeader(HttpHeaders.ORIGIN);
             if (origin == null || !allowedOrigins.contains(origin)) {
                 errorWriter.write(request, response, ErrorCode.ORIGIN_REJECTED, "Request origin is not allowed");
@@ -56,6 +58,11 @@ public class OriginValidationFilter extends OncePerRequestFilter {
     /* 内部端点只由服务 JWT 保护，不适用浏览器 Origin 语义。 */
     private RequestMatcher internalApi() {
         return new AntPathRequestMatcher("/internal/**");
+    }
+
+    /* Webhook 使用独立 Secret 验证，不具备浏览器 Origin Header。 */
+    private RequestMatcher webhookApi() {
+        return new AntPathRequestMatcher("/api/v1/gitlab/webhooks/**");
     }
 
     private boolean isStateChanging(String method) {

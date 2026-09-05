@@ -4,6 +4,18 @@ interface RequestClient {
   request<T = unknown>(path: string, init?: RequestInit): Promise<T>;
 }
 
+export interface PipelineRun {
+  id: number;
+  remotePipelineId: number;
+  ref: string;
+  commitSha: string;
+  status: string;
+  webUrl: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  lastSyncedAt: string;
+}
+
 export interface GitLabConnection {
   id: number;
   workspaceId: number;
@@ -79,4 +91,24 @@ export function bindRepository(
   client: RequestClient = apiClient,
 ): Promise<unknown> {
   return client.request("/v1/gitlab/repositories/bind", jsonRequest("POST", input));
+}
+
+export function listPipelines(
+  workspaceId: number,
+  projectId: number,
+  client: RequestClient = apiClient,
+): Promise<PipelineRun[]> {
+  return client.request(
+    `/v1/development/pipelines?workspaceId=${workspaceId}&projectId=${projectId}`,
+  );
+}
+
+export function triggerPipeline(
+  input: { workspaceId: number; projectId: number; ref: string },
+  client: RequestClient = apiClient,
+): Promise<PipelineRun> {
+  return client.request(
+    "/v1/development/pipelines",
+    jsonRequest("POST", input),
+  );
 }

@@ -68,6 +68,14 @@ forge:
     private-cidr-allowlist: ${FORGE_GITLAB_PRIVATE_CIDR_ALLOWLIST:}
     request-timeout: ${FORGE_GITLAB_REQUEST_TIMEOUT:5s}
     max-response-bytes: ${FORGE_GITLAB_MAX_RESPONSE_BYTES:1048576}
+    max-log-tail-bytes: ${FORGE_GITLAB_MAX_LOG_TAIL_BYTES:65536}
+    webhook:
+      max-payload-bytes: ${FORGE_GITLAB_WEBHOOK_MAX_PAYLOAD_BYTES:262144}
+      schedule-enabled: ${FORGE_GITLAB_WEBHOOK_SCHEDULE_ENABLED:true}
+      poll-interval: ${FORGE_GITLAB_WEBHOOK_POLL_INTERVAL:1s}
+      lease: ${FORGE_GITLAB_WEBHOOK_LEASE:1m}
+      max-attempts: ${FORGE_GITLAB_WEBHOOK_MAX_ATTEMPTS:5}
+      backoff-base: ${FORGE_GITLAB_WEBHOOK_BACKOFF_BASE:5s}
 
 management:
   endpoints:

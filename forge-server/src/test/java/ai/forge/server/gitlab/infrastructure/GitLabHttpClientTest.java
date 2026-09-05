@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ai.forge.server.gitlab.application.GitLabRemoteException;
+import ai.forge.server.gitlab.application.PipelineContext;
 import ai.forge.server.gitlab.application.RepositoryDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
@@ -81,6 +82,26 @@ class GitLabHttpClientTest {
         });
         assertRemoteCode(() -> client(Duration.ofSeconds(1)).test(baseUrl, "glpat-sensitive"),
                 "GITLAB_INVALID_RESPONSE");
+    }
+
+    @Test
+    void triggersPipelineAndReadsBoundedJobTrace() {
+        server.createContext("/api/v4/projects/123/pipeline", exchange -> {
+            assertThat(exchange.getRequestMethod()).isEqualTo("POST");
+            assertThat(exchange.getRequestHeaders().getFirst("PRIVATE-TOKEN")).isEqualTo("glpat-sensitive");
+            respond(exchange, 201, "{\"id\":81,\"ref\":\"main\",\"sha\":\"abc\","
+                    + "\"status\":\"pending\",\"web_url\":\"https://gitlab.example/pipelines/81\","
+                    + "\"created_at\":\"2026-09-06T10:00:00Z\"}");
+        });
+        server.createContext("/api/v4/projects/123/jobs/99/trace", exchange ->
+                respond(exchange, 200, "0123456789"));
+        PipelineContext context = new PipelineContext(7L, 9L, 41L, 21L, baseUrl, "123", "glpat-sensitive");
+        GitLabHttpClient client = client(Duration.ofSeconds(1));
+
+        assertThat(client.triggerPipeline(context, "main").remotePipelineId()).isEqualTo(81L);
+        assertThat(client.getJobLog(context, 81L, 99L, 6))
+                .asString()
+                .isEqualTo("012345");
     }
 
     private GitLabHttpClient client(Duration timeout) {

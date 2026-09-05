@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("18");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("19");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -109,8 +109,8 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                         "workspace.manage", "workspace.read");
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
-                        Integer.class))
-                .isEqualTo(26);
+                Integer.class))
+                .isEqualTo(27);
     }
 
     @Test
@@ -145,6 +145,30 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                                 + "AND column_comment = ''",
                         Integer.class))
                 .isZero();
+    }
+
+    @Test
+    void pipelineWebhookMigrationCreatesCommentedDeliveryAndSnapshotFacts() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('pipeline_runs','webhook_deliveries')",
+                        String.class))
+                .containsExactlyInAnyOrder("pipeline_runs", "webhook_deliveries");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('pipeline_runs','webhook_deliveries') AND column_comment = ''",
+                        Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('pipeline_runs','webhook_deliveries') AND table_comment = ''",
+                        Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id=rp.role_id "
+                                + "JOIN permissions p ON p.id=rp.permission_id WHERE p.code='repo.write' ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "DEVELOPER", "OWNER");
     }
 
     @Test

@@ -13,6 +13,7 @@ import ai.forge.server.document.domain.RagUnavailableException;
 import ai.forge.server.gitlab.application.GitLabRemoteException;
 import ai.forge.server.gitlab.application.DevelopmentStateException;
 import ai.forge.server.gitlab.application.RemoteResourceConflictException;
+import ai.forge.server.gitlab.application.WebhookRejectedException;
 import ai.forge.server.gitlab.infrastructure.UnsafeGitLabUrlException;
 import ai.forge.server.project.domain.ProjectKeyConflictException;
 import ai.forge.server.workspace.domain.MemberEmailConflictException;
@@ -256,6 +257,15 @@ public class GlobalExceptionHandler {
             DevelopmentStateException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, ErrorCode.DEVELOPMENT_STATE_CONFLICT,
                 "Development cannot start from the current state", Map.of(), request);
+    }
+
+    @ExceptionHandler(WebhookRejectedException.class)
+    public ResponseEntity<ApiError> handleWebhookRejected(
+            WebhookRejectedException exception, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.valueOf(exception.status());
+        return error(status, ErrorCode.WEBHOOK_REJECTED,
+                status == HttpStatus.PAYLOAD_TOO_LARGE ? "Webhook payload is too large" : "Webhook authentication failed",
+                Map.of(), request);
     }
 
     @ExceptionHandler(Exception.class)

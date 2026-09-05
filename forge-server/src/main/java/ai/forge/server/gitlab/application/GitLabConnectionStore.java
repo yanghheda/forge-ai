@@ -19,6 +19,10 @@ public interface GitLabConnectionStore {
     Optional<GitLabConnection> rotateCredential(
             long workspaceId, long connectionId, long expectedVersion, EncryptedSecret encryptedSecret);
 
+    default void configureWebhookSecret(long workspaceId, long connectionId, EncryptedSecret encryptedSecret) {
+        throw new UnsupportedOperationException("webhook secret configuration is not implemented");
+    }
+
     void recordTest(long workspaceId, long connectionId, boolean successful);
 
     GitRepository bindRepository(

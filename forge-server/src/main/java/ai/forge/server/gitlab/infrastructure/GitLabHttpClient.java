@@ -3,10 +3,12 @@ package ai.forge.server.gitlab.infrastructure;
 import ai.forge.server.gitlab.application.ConnectionTestResult;
 import ai.forge.server.gitlab.application.DevelopmentContext;
 import ai.forge.server.gitlab.application.GitLabRemoteException;
+import ai.forge.server.gitlab.application.PipelineContext;
 import ai.forge.server.gitlab.application.RepositoryDto;
 import ai.forge.server.gitlab.application.SourceControlProvider;
 import ai.forge.server.gitlab.domain.Branch;
 import ai.forge.server.gitlab.domain.MergeRequest;
+import ai.forge.server.gitlab.domain.PipelineRun;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -147,6 +149,32 @@ public class GitLabHttpClient implements SourceControlProvider {
                 projectPath(context) + "/merge_requests", body));
     }
 
+    @Override
+    public PipelineRun triggerPipeline(PipelineContext context, String ref) {
+        JsonNode response = postForm(context.baseUrl(), context.token(), projectPath(context) + "/pipeline",
+                "ref=" + encode(ref));
+        LocalDateTime updatedAt = date(response.path("updated_at").asText(
+                response.path("created_at").asText(null)));
+        return new PipelineRun(0L, context.workspaceId(), context.repositoryId(), null,
+                response.path("id").asLong(), required(response, "ref"), required(response, "sha"),
+                required(response, "status"), required(response, "web_url"),
+                nullableDate(response, "started_at"), nullableDate(response, "finished_at"),
+                updatedAt, LocalDateTime.now(ZoneOffset.UTC), "{}");
+    }
+
+    @Override
+    public byte[] getJobLog(PipelineContext context, long pipelineId, long jobId, int maxBytes) {
+        URI baseUrl = urlPolicy.validate(context.baseUrl());
+        HttpRequest request = HttpRequest.newBuilder(baseUrl.resolve(baseUrl.getPath()
+                        + projectPath(context) + "/jobs/" + jobId + "/trace"))
+                .timeout(requestTimeout)
+                .header("Accept", "text/plain")
+                .header("PRIVATE-TOKEN", context.token())
+                .GET()
+                .build();
+        return sendBytes(request, Math.min(maxBytes, maxResponseBytes + 1));
+    }
+
     private JsonNode postForm(String rawBaseUrl, String token, String path, String body) {
         URI baseUrl = urlPolicy.validate(rawBaseUrl);
         HttpRequest request = HttpRequest.newBuilder(baseUrl.resolve(baseUrl.getPath() + path))
@@ -191,7 +219,28 @@ public class GitLabHttpClient implements SourceControlProvider {
         }
     }
 
+    private byte[] sendBytes(HttpRequest request, int limit) {
+        try {
+            HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            validateStatus(response.statusCode());
+            try (InputStream body = response.body()) {
+                return body.readNBytes(limit);
+            }
+        } catch (java.net.http.HttpTimeoutException exception) {
+            throw new GitLabRemoteException("GITLAB_TIMEOUT", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new GitLabRemoteException("GITLAB_UNAVAILABLE", exception);
+        } catch (IOException exception) {
+            throw new GitLabRemoteException("GITLAB_UNAVAILABLE", exception);
+        }
+    }
+
     private String projectPath(DevelopmentContext context) {
+        return "/api/v4/projects/" + encode(context.remoteProjectId());
+    }
+
+    private String projectPath(PipelineContext context) {
         return "/api/v4/projects/" + encode(context.remoteProjectId());
     }
 
@@ -235,6 +284,11 @@ public class GitLabHttpClient implements SourceControlProvider {
         } catch (java.time.format.DateTimeParseException exception) {
             throw new GitLabRemoteException("GITLAB_INVALID_RESPONSE", exception);
         }
+    }
+
+    private static LocalDateTime nullableDate(JsonNode node, String field) {
+        String value = node.path(field).asText(null);
+        return value == null || value.isBlank() ? null : date(value);
     }
 
     private static void validateStatus(int status) {

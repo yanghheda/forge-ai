@@ -71,6 +71,17 @@ public class MybatisGitLabConnectionStore implements GitLabConnectionStore {
 
     @Override
     @Transactional
+    public void configureWebhookSecret(long workspaceId, long connectionId, EncryptedSecret encrypted) {
+        mapper.insertWebhookSecret(workspaceId, encrypted.ciphertext(), encrypted.iv(),
+                encrypted.keyVersion(), encrypted.fingerprint());
+        long secretId = mapper.lastInsertId();
+        if (mapper.attachWebhookSecret(workspaceId, connectionId, secretId) != 1) {
+            throw new IllegalStateException("GitLab connection disappeared while configuring webhook");
+        }
+    }
+
+    @Override
+    @Transactional
     public void recordTest(long workspaceId, long connectionId, boolean successful) {
         mapper.recordTest(workspaceId, connectionId, successful ? "ACTIVE" : "ERROR");
     }

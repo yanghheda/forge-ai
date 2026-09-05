@@ -43,10 +43,11 @@ public class CsrfConfiguration {
     /* 需要 CSRF 校验的是非安全方法，且排除只依赖服务 JWT 的内部端点。 */
     private RequestMatcher csrfProtectedMatcher() {
         RequestMatcher internal = new AntPathRequestMatcher("/internal/**");
+        RequestMatcher webhook = new AntPathRequestMatcher("/api/v1/gitlab/webhooks/**");
         RequestMatcher nonSafe = request -> !HttpMethod.GET.matches(request.getMethod())
                 && !HttpMethod.HEAD.matches(request.getMethod())
                 && !HttpMethod.OPTIONS.matches(request.getMethod())
                 && !HttpMethod.TRACE.matches(request.getMethod());
-        return request -> !internal.matches(request) && nonSafe.matches(request);
+        return request -> !internal.matches(request) && !webhook.matches(request) && nonSafe.matches(request);
     }
 }

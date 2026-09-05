@@ -20,6 +20,18 @@ public interface GitLabConnectionMapper {
             @Param("keyVersion") int keyVersion,
             @Param("fingerprint") String fingerprint);
 
+    @Insert("INSERT INTO secrets (workspace_id,type,ciphertext,iv,key_version,fingerprint,created_at,rotated_at) "
+            + "VALUES (#{workspaceId},'GITLAB_WEBHOOK_SECRET',#{ciphertext},#{iv},#{keyVersion},#{fingerprint},"
+            + "UTC_TIMESTAMP(6),NULL)")
+    int insertWebhookSecret(@Param("workspaceId") long workspaceId,
+            @Param("ciphertext") String ciphertext, @Param("iv") String iv,
+            @Param("keyVersion") int keyVersion, @Param("fingerprint") String fingerprint);
+
+    @Update("UPDATE gitlab_connections SET webhook_secret_id=#{secretId},updated_at=UTC_TIMESTAMP(6),version=version+1 "
+            + "WHERE workspace_id=#{workspaceId} AND id=#{connectionId}")
+    int attachWebhookSecret(@Param("workspaceId") long workspaceId,
+            @Param("connectionId") long connectionId, @Param("secretId") long secretId);
+
     @Select("SELECT LAST_INSERT_ID()")
     long lastInsertId();
 

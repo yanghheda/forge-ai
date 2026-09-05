@@ -2,6 +2,7 @@ package ai.forge.server.gitlab.application;
 
 import ai.forge.server.gitlab.domain.Branch;
 import ai.forge.server.gitlab.domain.MergeRequest;
+import ai.forge.server.gitlab.domain.PipelineRun;
 import java.util.Optional;
 
 public interface SourceControlProvider {
@@ -31,5 +32,13 @@ public interface SourceControlProvider {
             String title,
             String idempotencyKey) {
         throw new UnsupportedOperationException("merge request operations are not implemented");
+    }
+
+    default PipelineRun triggerPipeline(PipelineContext context, String ref) {
+        throw new UnsupportedOperationException("pipeline operations are not implemented");
+    }
+
+    default byte[] getJobLog(PipelineContext context, long pipelineId, long jobId, int maxBytes) {
+        throw new UnsupportedOperationException("pipeline log operations are not implemented");
     }
 }

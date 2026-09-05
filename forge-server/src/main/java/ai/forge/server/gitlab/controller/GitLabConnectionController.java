@@ -79,6 +79,17 @@ public class GitLabConnectionController {
         return service.test(AuthController.requireContext(request).userId(), workspaceId, connectionId);
     }
 
+    @PostMapping("/connections/{connectionId}/webhook-secret")
+    @Operation(summary = "配置 Webhook Secret", description = "权限：integration.manage；响应永不返回 Secret。")
+    public ResponseEntity<Void> configureWebhookSecret(
+            @PathVariable long connectionId,
+            @Valid @RequestBody ConfigureWebhookSecretRequest body,
+            HttpServletRequest request) {
+        service.configureWebhookSecret(AuthController.requireContext(request).userId(), body.workspaceId(),
+                connectionId, body.secret());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/repositories/bind")
     @Operation(summary = "绑定项目仓库", description = "权限：project.manage 与 repo.read；先读远端再短事务保存快照。")
     public GitRepository bind(@Valid @RequestBody BindRepositoryRequest body, HttpServletRequest request) {
@@ -106,4 +117,9 @@ public class GitLabConnectionController {
             /* 接收仓库绑定的 ForgeAI 项目标识。 */ @Positive long projectId,
             /* 读取远端仓库所用的同 Workspace 连接标识。 */ @Positive long connectionId,
             /* GitLab 数字 ID 或 URL 编码前的完整项目路径。 */ @NotBlank @Size(max = 500) String remoteProjectId) {}
+
+    public record ConfigureWebhookSecretRequest(
+            /* 连接所属 Workspace，服务端重新校验管理权限。 */ @Positive long workspaceId,
+            /* 与 GitLab Webhook 配置一致且只在本次请求内存在的 Secret。 */
+            @NotBlank @Size(min = 16, max = 2000) String secret) {}
 }

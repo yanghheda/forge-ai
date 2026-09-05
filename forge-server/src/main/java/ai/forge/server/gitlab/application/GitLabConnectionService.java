@@ -77,6 +77,13 @@ public class GitLabConnectionService {
         }
     }
 
+    public void configureWebhookSecret(long userId, long workspaceId, long connectionId, String secret) {
+        permissions.requireWorkspace(userId, workspaceId, "integration.manage");
+        store.findConnection(workspaceId, connectionId).orElseThrow(ResourceNotFoundException::new);
+        EncryptedSecret encrypted = secrets.encrypt(workspaceId, "GITLAB_WEBHOOK_SECRET", secret);
+        store.configureWebhookSecret(workspaceId, connectionId, encrypted);
+    }
+
     public GitRepository bindRepository(
             long userId, long workspaceId, long projectId, long connectionId, String remoteProjectId) {
         permissions.requireProject(userId, workspaceId, projectId, "project.manage");
