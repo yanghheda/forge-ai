@@ -26,6 +26,7 @@ import {
 } from "@/features/document";
 import {
   getRequirementDetails,
+  createDevTask,
   getWorkItem,
   getWorkItemActivity,
   saveRequirementDetails,
@@ -242,7 +243,66 @@ export function RequirementDetail({
           )}
         </Space>
       </Card>
+      {detail.data.status === "READY_FOR_DEV" && (
+        <DevTaskPanel
+          workspaceId={workspaceId}
+          projectId={projectId}
+          requirementId={workItemId}
+          onChanged={invalidate}
+        />
+      )}
     </section>
+  );
+}
+
+function DevTaskPanel({
+  workspaceId,
+  projectId,
+  requirementId,
+  onChanged,
+}: {
+  workspaceId: number;
+  projectId: number;
+  requirementId: number;
+  onChanged: () => Promise<unknown>;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const create = useMutation({
+    mutationFn: () =>
+      createDevTask({ workspaceId, projectId, requirementId, title, description }),
+    onSuccess: () => {
+      setTitle("");
+      setDescription("");
+      void onChanged();
+    },
+  });
+  return (
+    <Card title="Development">
+      <Space direction="vertical" style={{ width: "100%" }}>
+        <Input
+          aria-label="Dev Task 标题"
+          value={title}
+          onChange={setTitle}
+          placeholder="输入研发任务标题"
+        />
+        <Input.TextArea
+          aria-label="Dev Task 说明"
+          value={description}
+          onChange={setDescription}
+          placeholder="实现范围与约束"
+        />
+        <Button
+          type="primary"
+          disabled={!title.trim()}
+          loading={create.isPending}
+          onClick={() => create.mutate()}
+        >
+          创建 Dev Task
+        </Button>
+        {create.isError && <Alert type="error" content={create.error.message} />}
+      </Space>
+    </Card>
   );
 }
 

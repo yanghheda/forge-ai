@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("17");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("18");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -130,6 +130,21 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                         "SELECT code FROM permissions WHERE code IN ('integration.manage','repo.read') ORDER BY code",
                         String.class))
                 .containsExactly("integration.manage", "repo.read");
+    }
+
+    @Test
+    void developmentMigrationCreatesCommentedBranchMergeRequestAndOperationFacts() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('branches','merge_requests','source_control_operations')",
+                        String.class))
+                .containsExactlyInAnyOrder("branches", "merge_requests", "source_control_operations");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('branches','merge_requests','source_control_operations') "
+                                + "AND column_comment = ''",
+                        Integer.class))
+                .isZero();
     }
 
     @Test

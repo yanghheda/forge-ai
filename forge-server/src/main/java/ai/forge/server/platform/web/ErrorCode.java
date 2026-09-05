@@ -49,6 +49,10 @@ public enum ErrorCode {
     GITLAB_UNAVAILABLE,
     /* GitLab 返回重定向、超限或不符合契约的响应。 */
     GITLAB_INVALID_RESPONSE,
+    /* 同名远端 Branch 已指向不同基准 SHA，禁止覆盖或错误复用。 */
+    REMOTE_RESOURCE_CONFLICT,
+    /* Requirement 或 Dev Task 当前状态不允许启动研发。 */
+    DEVELOPMENT_STATE_CONFLICT,
     /* 未被稳定业务错误覆盖的服务端故障。 */
     INTERNAL_ERROR
 }

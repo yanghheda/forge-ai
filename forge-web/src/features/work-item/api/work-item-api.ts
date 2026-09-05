@@ -78,6 +78,11 @@ export interface DeliveryGraphEdge {
   target: string;
   type: string;
 }
+export interface DevelopmentResult {
+  branch: { id: number; name: string; commitSha: string };
+  mergeRequest: { id: number; remoteMrIid: number; webUrl: string; state: string };
+  reconciled: boolean;
+}
 const json = (method: string, body: unknown): RequestInit => ({
   method,
   headers: { "Content-Type": "application/json" },
@@ -179,4 +184,32 @@ export const getDeliveryGraph = (
 ) =>
   client.request<DeliveryGraph>(
     `/v1/work-items/${id}/delivery-graph?workspaceId=${workspaceId}&projectId=${projectId}`,
+  );
+export const createDevTask = (
+  input: {
+    workspaceId: number;
+    projectId: number;
+    requirementId: number;
+    title: string;
+    description: string;
+  },
+  client: RequestClient = apiClient,
+) =>
+  client.request<WorkItem>(
+    `/v1/development/requirements/${input.requirementId}/tasks`,
+    json("POST", input),
+  );
+export const startDevelopment = (
+  input: {
+    workspaceId: number;
+    projectId: number;
+    taskId: number;
+    targetBranch?: string;
+    idempotencyKey: string;
+  },
+  client: RequestClient = apiClient,
+) =>
+  client.request<DevelopmentResult>(
+    `/v1/development/tasks/${input.taskId}/start`,
+    json("POST", input),
   );

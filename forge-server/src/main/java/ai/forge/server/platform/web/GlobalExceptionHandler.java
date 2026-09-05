@@ -11,6 +11,8 @@ import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.document.domain.RagUnavailableException;
 import ai.forge.server.gitlab.application.GitLabRemoteException;
+import ai.forge.server.gitlab.application.DevelopmentStateException;
+import ai.forge.server.gitlab.application.RemoteResourceConflictException;
 import ai.forge.server.gitlab.infrastructure.UnsafeGitLabUrlException;
 import ai.forge.server.project.domain.ProjectKeyConflictException;
 import ai.forge.server.workspace.domain.MemberEmailConflictException;
@@ -240,6 +242,20 @@ public class GlobalExceptionHandler {
             default -> HttpStatus.BAD_GATEWAY;
         };
         return error(status, code, "GitLab request failed", Map.of(), request);
+    }
+
+    @ExceptionHandler(RemoteResourceConflictException.class)
+    public ResponseEntity<ApiError> handleRemoteResourceConflict(
+            RemoteResourceConflictException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.REMOTE_RESOURCE_CONFLICT,
+                "Remote branch exists at a different base SHA", Map.of(), request);
+    }
+
+    @ExceptionHandler(DevelopmentStateException.class)
+    public ResponseEntity<ApiError> handleDevelopmentStateConflict(
+            DevelopmentStateException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.DEVELOPMENT_STATE_CONFLICT,
+                "Development cannot start from the current state", Map.of(), request);
     }
 
     @ExceptionHandler(Exception.class)
