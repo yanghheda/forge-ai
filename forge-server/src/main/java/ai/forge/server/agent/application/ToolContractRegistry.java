@@ -131,8 +131,15 @@ public class ToolContractRegistry {
         return new SkillContract(
                 text(document, "name"),
                 version.intValue(),
+                nullableText(document, "prompt_version"),
+                nullableText(document, "context_template"),
                 toolNames.stream().map(String::valueOf).toList(),
                 calls.intValue());
+    }
+
+    private String nullableText(Map<String, Object> document, String key) {
+        Object value = document.get(key);
+        return value == null ? null : value.toString();
     }
 
     private List<Map<String, Object>> yamlDocuments(String location) {

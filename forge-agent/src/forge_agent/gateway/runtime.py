@@ -61,11 +61,13 @@ class ContextManifest(BaseModel):
     run_id: str = Field(min_length=1)
     subject: ManifestSubject
     scope: ManifestScope
-    skill: Literal["PRODUCT", "UX"]
+    skill: Literal["PRODUCT", "UX", "DEVELOPER"]
     effective_tool_names: list[str]
     policy: ManifestPolicy
     resource_refs: list[ResourceReference]
     expires_at: datetime
+    prompt_version: str | None = None
+    context_template: str | None = None
 
     def require_active(self, now: datetime | None = None) -> None:
         """拒绝无时区或过期 Manifest，避免恢复时沿用陈旧上下文。"""

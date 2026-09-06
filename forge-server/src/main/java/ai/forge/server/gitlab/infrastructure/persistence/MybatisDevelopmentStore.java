@@ -4,6 +4,7 @@ import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.gitlab.application.DevelopmentContext;
 import ai.forge.server.gitlab.application.DevelopmentResult;
 import ai.forge.server.gitlab.application.DevelopmentStore;
+import ai.forge.server.gitlab.application.PendingDevelopmentOperation;
 import ai.forge.server.gitlab.application.EncryptedSecret;
 import ai.forge.server.gitlab.application.SecretService;
 import ai.forge.server.gitlab.domain.Branch;
@@ -77,7 +78,7 @@ public class MybatisDevelopmentStore implements DevelopmentStore {
                 ? text(row, "default_branch") : targetBranch.trim();
         String requestHash = sha256(devTaskId + "\n" + target);
         try {
-            mapper.insertOperation(workspaceId, projectId, devTaskId, idempotencyKey, requestHash);
+            mapper.insertOperation(workspaceId, projectId, devTaskId, idempotencyKey, requestHash, target);
         } catch (DuplicateKeyException exception) {
             Map<String, Object> operation = mapper.findOperation(workspaceId, projectId, idempotencyKey).stream()
                     .findFirst().orElseThrow();
@@ -133,6 +134,44 @@ public class MybatisDevelopmentStore implements DevelopmentStore {
         }
         return workItems.findByIdAndScope(workspaceId, projectId, taskId)
                 .orElseThrow(ResourceNotFoundException::new);
+    }
+
+    @Override
+    @Transactional
+    public Optional<PendingDevelopmentOperation> findPendingOperation() {
+        Optional<PendingDevelopmentOperation> operation = mapper.findPendingOperation().stream().findFirst()
+                .map(row -> new PendingDevelopmentOperation(
+                number(row, "workspace_id"),
+                number(row, "project_id"),
+                number(row, "work_item_id"),
+                text(row, "target_branch"),
+                text(row, "idempotency_key"),
+                ((Number) row.get("attempt_count")).intValue()));
+        operation.ifPresent(value -> mapper.leaseOperation(
+                value.workspaceId(), value.projectId(), value.workItemId(), value.idempotencyKey()));
+        return operation;
+    }
+
+    @Override
+    @Transactional
+    public void defer(PendingDevelopmentOperation operation, String errorCode) {
+        mapper.deferOperation(
+                operation.workspaceId(),
+                operation.projectId(),
+                operation.workItemId(),
+                operation.idempotencyKey(),
+                errorCode);
+    }
+
+    @Override
+    @Transactional
+    public void requireManualRecovery(PendingDevelopmentOperation operation, String errorCode) {
+        mapper.requireManualRecovery(
+                operation.workspaceId(),
+                operation.projectId(),
+                operation.workItemId(),
+                operation.idempotencyKey(),
+                errorCode);
     }
 
     private Branch branch(Map<String, Object> row) {

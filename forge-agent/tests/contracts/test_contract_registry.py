@@ -41,6 +41,29 @@ def test_registry_resolves_skill_allowlist_case_insensitively() -> None:
     assert registry.effective_tool_names("UNKNOWN") == []
 
 
+def test_developer_skill_excludes_qa_and_deployment_writes() -> None:
+    registry = ToolContractRegistry(REPO_CONTRACTS)
+
+    allowed = registry.effective_tool_names("DEVELOPER")
+    developer = registry.find_skill("DEVELOPER")
+
+    assert allowed == [
+        "get_project",
+        "get_work_item",
+        "get_delivery_graph",
+        "search_documents",
+        "create_tech_design",
+        "create_dev_task",
+        "start_development",
+        "get_pipeline_log",
+    ]
+    assert "deploy_release" not in allowed
+    assert "create_test_case" not in allowed
+    assert developer is not None
+    assert developer.prompt_version == "developer-system-v1"
+    assert developer.context_template == "developer-context-v1"
+
+
 def test_registry_missing_tool_directory_fails_fast(tmp_path: Path) -> None:
     (tmp_path / "skills").mkdir()
 

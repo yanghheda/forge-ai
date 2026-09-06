@@ -33,15 +33,54 @@ public interface DevelopmentMapper {
             @Param("branchName") String branchName);
 
     @Insert("INSERT INTO source_control_operations "
-            + "(workspace_id,project_id,work_item_id,operation_type,idempotency_key,request_hash,status,created_at,updated_at) "
-            + "VALUES (#{workspaceId},#{projectId},#{workItemId},'START_DEVELOPMENT',#{idempotencyKey},#{requestHash},"
+            + "(workspace_id,project_id,work_item_id,operation_type,idempotency_key,request_hash,target_branch,status,created_at,updated_at) "
+            + "VALUES (#{workspaceId},#{projectId},#{workItemId},'START_DEVELOPMENT',#{idempotencyKey},#{requestHash},#{targetBranch},"
             + "'PROCESSING',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))")
     int insertOperation(
             @Param("workspaceId") long workspaceId,
             @Param("projectId") long projectId,
             @Param("workItemId") long workItemId,
             @Param("idempotencyKey") String idempotencyKey,
-            @Param("requestHash") String requestHash);
+            @Param("requestHash") String requestHash,
+            @Param("targetBranch") String targetBranch);
+
+    @Select("SELECT workspace_id,project_id,work_item_id,target_branch,idempotency_key,attempt_count "
+            + "FROM source_control_operations WHERE status='PROCESSING' "
+            + "AND updated_at < UTC_TIMESTAMP(6) - INTERVAL 30 SECOND "
+            + "AND (next_attempt_at IS NULL OR next_attempt_at <= UTC_TIMESTAMP(6)) "
+            + "ORDER BY updated_at,id LIMIT 1 FOR UPDATE SKIP LOCKED")
+    List<Map<String, Object>> findPendingOperation();
+
+    @Update("UPDATE source_control_operations SET next_attempt_at=UTC_TIMESTAMP(6) + INTERVAL 30 SECOND "
+            + "WHERE workspace_id=#{workspaceId} AND project_id=#{projectId} AND work_item_id=#{workItemId} "
+            + "AND idempotency_key=#{idempotencyKey} AND status='PROCESSING'")
+    int leaseOperation(
+            @Param("workspaceId") long workspaceId,
+            @Param("projectId") long projectId,
+            @Param("workItemId") long workItemId,
+            @Param("idempotencyKey") String idempotencyKey);
+
+    @Update("UPDATE source_control_operations SET attempt_count=attempt_count+1,last_error_code=#{errorCode},"
+            + "next_attempt_at=UTC_TIMESTAMP(6) + INTERVAL LEAST(300,POW(2,LEAST(attempt_count,8))) SECOND,"
+            + "updated_at=UTC_TIMESTAMP(6) WHERE workspace_id=#{workspaceId} AND project_id=#{projectId} "
+            + "AND work_item_id=#{workItemId} AND idempotency_key=#{idempotencyKey} AND status='PROCESSING'")
+    int deferOperation(
+            @Param("workspaceId") long workspaceId,
+            @Param("projectId") long projectId,
+            @Param("workItemId") long workItemId,
+            @Param("idempotencyKey") String idempotencyKey,
+            @Param("errorCode") String errorCode);
+
+    @Update("UPDATE source_control_operations SET status='MANUAL_ACTION_REQUIRED',last_error_code=#{errorCode},"
+            + "next_attempt_at=NULL,updated_at=UTC_TIMESTAMP(6) WHERE workspace_id=#{workspaceId} "
+            + "AND project_id=#{projectId} AND work_item_id=#{workItemId} "
+            + "AND idempotency_key=#{idempotencyKey} AND status='PROCESSING'")
+    int requireManualRecovery(
+            @Param("workspaceId") long workspaceId,
+            @Param("projectId") long projectId,
+            @Param("workItemId") long workItemId,
+            @Param("idempotencyKey") String idempotencyKey,
+            @Param("errorCode") String errorCode);
 
     @Select("SELECT request_hash,status FROM source_control_operations WHERE workspace_id=#{workspaceId} "
             + "AND project_id=#{projectId} AND idempotency_key=#{idempotencyKey}")

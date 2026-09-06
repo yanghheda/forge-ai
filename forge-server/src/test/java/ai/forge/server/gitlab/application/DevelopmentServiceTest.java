@@ -119,6 +119,23 @@ class DevelopmentServiceTest {
         assertThat(store.completedTaskExpectedVersion).isEqualTo(3L);
     }
 
+    @Test
+    void reconciliationReusesFrozenOperationAndDefersRateLimit() {
+        FakeStore store = new FakeStore();
+        store.pending = Optional.of(new PendingDevelopmentOperation(
+                7L, 9L, 12L, "release", "idem-recovery", 0));
+        FakeProvider provider = new FakeProvider();
+        provider.rateLimited = true;
+
+        boolean processed = service(store, provider).reconcileNext();
+
+        assertThat(processed).isTrue();
+        assertThat(store.lastTargetBranch).isEqualTo("release");
+        assertThat(store.lastIdempotencyKey).isEqualTo("idem-recovery");
+        assertThat(store.deferredErrorCode).isEqualTo("GITLAB_RATE_LIMITED");
+        assertThat(store.completed).isFalse();
+    }
+
     private static DevelopmentService service(FakeStore store, FakeProvider provider) {
         return new DevelopmentService(permissions(true), store, provider);
     }
@@ -165,6 +182,10 @@ class DevelopmentServiceTest {
         private boolean completed;
         private int reads;
         private Long completedTaskExpectedVersion;
+        private Optional<PendingDevelopmentOperation> pending = Optional.empty();
+        private String lastTargetBranch;
+        private String lastIdempotencyKey;
+        private String deferredErrorCode;
 
         @Override
         public Optional<WorkItem> findWorkItem(long workspaceId, long projectId, long workItemId) {
@@ -188,8 +209,22 @@ class DevelopmentServiceTest {
         public DevelopmentContext begin(long workspaceId, long projectId, long devTaskId, String targetBranch,
                 String idempotencyKey) {
             reads++;
+            lastTargetBranch = targetBranch;
+            lastIdempotencyKey = idempotencyKey;
             return new DevelopmentContext(item(WorkItemType.DEV_TASK, WorkItemStatus.TODO), 11L, 41L, 21L,
                     "https://gitlab.example", "123", "main", "abc", "token", idempotencyKey, false);
+        }
+
+        @Override
+        public Optional<PendingDevelopmentOperation> findPendingOperation() {
+            Optional<PendingDevelopmentOperation> result = pending;
+            pending = Optional.empty();
+            return result;
+        }
+
+        @Override
+        public void defer(PendingDevelopmentOperation operation, String errorCode) {
+            deferredErrorCode = errorCode;
         }
 
         @Override

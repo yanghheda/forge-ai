@@ -8,6 +8,8 @@ import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.document.application.DocumentService;
 import ai.forge.server.document.application.RagSearchService;
 import ai.forge.server.document.application.SearchChunk;
+import ai.forge.server.gitlab.application.DevelopmentService;
+import ai.forge.server.gitlab.application.PipelineService;
 import ai.forge.server.project.application.ProjectQueryService;
 import ai.forge.server.workitem.application.DeliveryGraph;
 import ai.forge.server.workitem.application.DeliveryGraphQuery;
@@ -63,6 +65,12 @@ public class AgentToolExecuteService {
     /* 文档创建 Tool 的后端应用服务。 */
     private final DocumentService documentService;
 
+    /* Developer 写 Tool 复用人工路径的状态、GitLab 幂等与恢复编排。 */
+    private final DevelopmentService developmentService;
+
+    /* Developer 只读 CI Tool 复用日志大小限制与脱敏边界。 */
+    private final PipelineService pipelineService;
+
     /* 构造结构化结果投影；复用全局 JavaTime 配置。 */
     private final ObjectMapper objectMapper;
 
@@ -81,6 +89,8 @@ public class AgentToolExecuteService {
             DeliveryGraphQuery deliveryGraphQuery,
             RagSearchService ragSearchService,
             DocumentService documentService,
+            DevelopmentService developmentService,
+            PipelineService pipelineService,
             ObjectMapper objectMapper,
             PlatformTransactionManager transactionManager) {
         this.toolContractRegistry = toolContractRegistry;
@@ -94,6 +104,8 @@ public class AgentToolExecuteService {
         this.deliveryGraphQuery = deliveryGraphQuery;
         this.ragSearchService = ragSearchService;
         this.documentService = documentService;
+        this.developmentService = developmentService;
+        this.pipelineService = pipelineService;
         this.objectMapper = objectMapper;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -161,6 +173,10 @@ public class AgentToolExecuteService {
             JsonNode arguments,
             ToolContract contract,
             AgentRun run) {
+        if ("start_development".equals(toolName)) {
+            return executeRecoverableRemoteTool(
+                    workspaceId, projectId, runId, toolName, toolCallId, arguments, contract, run, true);
+        }
         return Objects.requireNonNull(transactionTemplate.execute(status -> {
             var replayed = toolCallStore.findSuccessful(
                     workspaceId, projectId, runId, runId + ":" + toolCallId);
@@ -185,6 +201,10 @@ public class AgentToolExecuteService {
             JsonNode arguments,
             ToolContract contract,
             AgentRun run) {
+        if ("start_development".equals(toolName)) {
+            return executeRecoverableRemoteTool(
+                    workspaceId, projectId, runId, toolName, toolCallId, arguments, contract, run, false);
+        }
         String idempotencyKey = runId + ":" + toolCallId;
         try {
             return Objects.requireNonNull(transactionTemplate.execute(status -> {
@@ -212,6 +232,53 @@ public class AgentToolExecuteService {
             }));
         } catch (DuplicateKeyException exception) {
             /* 并发相同调用只允许唯一事务提交；输家回滚业务副作用后重放赢家结果。 */
+            return toolCallStore.findSuccessful(workspaceId, projectId, runId, idempotencyKey)
+                    .map(stored -> replay(toolName, toolCallId, arguments, contract, stored))
+                    .orElseThrow(() -> exception);
+        }
+    }
+
+    /* GitLab 网络调用绝不位于本地事务内；崩溃空窗由 DevelopmentService 的远端 reconcile 收敛。 */
+    private AgentToolExecution executeRecoverableRemoteTool(
+            long workspaceId,
+            long projectId,
+            String runId,
+            String toolName,
+            String toolCallId,
+            JsonNode arguments,
+            ToolContract contract,
+            AgentRun run,
+            boolean approved) {
+        String idempotencyKey = runId + ":" + toolCallId;
+        var replayed = toolCallStore.findSuccessful(workspaceId, projectId, runId, idempotencyKey);
+        if (replayed.isPresent()) {
+            return replay(toolName, toolCallId, arguments, contract, replayed.orElseThrow());
+        }
+        AgentToolExecution execution = AgentToolExecution.succeeded(
+                toolName,
+                toolCallId,
+                false,
+                executeApplicationService(workspaceId, projectId, run, toolName, arguments));
+        try {
+            return Objects.requireNonNull(transactionTemplate.execute(status -> {
+                if (approved) {
+                    approvalService.complete(workspaceId, projectId, runId, toolCallId, execution.result());
+                } else {
+                    toolCallStore.record(
+                            workspaceId,
+                            projectId,
+                            runId,
+                            toolCallId,
+                            toolName,
+                            contract.version(),
+                            contract.riskLevel(),
+                            arguments.toString(),
+                            execution.result().toString(),
+                            idempotencyKey);
+                }
+                return execution;
+            }));
+        } catch (DuplicateKeyException exception) {
             return toolCallStore.findSuccessful(workspaceId, projectId, runId, idempotencyKey)
                     .map(stored -> replay(toolName, toolCallId, arguments, contract, stored))
                     .orElseThrow(() -> exception);
@@ -250,6 +317,11 @@ public class AgentToolExecuteService {
                 case "create_ux_task" -> createUxTask(workspaceId, projectId, run, arguments);
                 case "create_prd_document" -> createDocument(workspaceId, projectId, run, arguments, "PRD");
                 case "create_ux_document" -> createDocument(workspaceId, projectId, run, arguments, "UX_SPEC");
+                case "create_tech_design" -> createDocument(
+                        workspaceId, projectId, run, arguments, "TECH_DESIGN");
+                case "create_dev_task" -> createDevTask(workspaceId, projectId, run, arguments);
+                case "start_development" -> startDevelopment(workspaceId, projectId, run, arguments);
+                case "get_pipeline_log" -> pipelineLog(workspaceId, projectId, run, arguments);
                 default -> throw new ToolExecutionRejectedException(
                         HttpStatus.NOT_FOUND.value(), "TOOL_NOT_FOUND", "Tool has no backend executor");
             };
@@ -384,6 +456,58 @@ public class AgentToolExecuteService {
         result.put("parentId", arguments.path("requirementId").asLong());
         result.put("status", item.status().name());
         result.put("version", item.version());
+        return result;
+    }
+
+    private JsonNode createDevTask(long workspaceId, long projectId, AgentRun run, JsonNode arguments) {
+        var item = developmentService.createDevTask(
+                run.userId(),
+                workspaceId,
+                projectId,
+                arguments.path("requirementId").asLong(),
+                arguments.path("title").asText(),
+                textOrNull(arguments, "description"),
+                longOrNull(arguments, "assigneeId"));
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("id", item.id());
+        result.put("itemKey", item.itemKey());
+        result.put("parentId", arguments.path("requirementId").asLong());
+        result.put("status", item.status().name());
+        result.put("version", item.version());
+        return result;
+    }
+
+    private JsonNode startDevelopment(long workspaceId, long projectId, AgentRun run, JsonNode arguments) {
+        var result = developmentService.start(
+                run.userId(),
+                workspaceId,
+                projectId,
+                arguments.path("devTaskId").asLong(),
+                textOrNull(arguments, "targetBranch"),
+                run.id() + ":dev-task:" + arguments.path("devTaskId").asLong());
+        ObjectNode output = objectMapper.createObjectNode();
+        output.put("branchId", result.branch().id());
+        output.put("branchName", result.branch().name());
+        output.put("mergeRequestId", result.mergeRequest().id());
+        output.put("mergeRequestIid", result.mergeRequest().remoteMrIid());
+        output.put("mergeRequestUrl", result.mergeRequest().webUrl());
+        output.put("reconciled", result.reconciled());
+        return output;
+    }
+
+    private JsonNode pipelineLog(long workspaceId, long projectId, AgentRun run, JsonNode arguments) {
+        var log = pipelineService.logTail(
+                run.userId(),
+                workspaceId,
+                projectId,
+                arguments.path("pipelineId").asLong(),
+                arguments.path("jobId").asLong());
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("pipelineId", log.pipelineId());
+        result.put("jobId", log.jobId());
+        result.put("content", log.content());
+        result.put("truncated", log.truncated());
+        result.put("redacted", log.redacted());
         return result;
     }
 

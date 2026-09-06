@@ -57,6 +57,42 @@ public class DevelopmentService {
             String requestedTargetBranch, String idempotencyKey) {
         permissions.requireProject(userId, workspaceId, projectId, "task.edit");
         permissions.requireProject(userId, workspaceId, projectId, "repo.read");
+        return startScoped(workspaceId, projectId, devTaskId, requestedTargetBranch, idempotencyKey);
+    }
+
+    public boolean reconcileNext() {
+        Optional<PendingDevelopmentOperation> pending = store.findPendingOperation();
+        if (pending.isEmpty()) {
+            return false;
+        }
+        PendingDevelopmentOperation operation = pending.orElseThrow();
+        try {
+            startScoped(
+                    operation.workspaceId(),
+                    operation.projectId(),
+                    operation.workItemId(),
+                    operation.targetBranch(),
+                    operation.idempotencyKey());
+        } catch (RemoteResourceConflictException exception) {
+            store.requireManualRecovery(operation, "REMOTE_RESOURCE_CONFLICT");
+        } catch (DevelopmentStateException | ResourceNotFoundException exception) {
+            store.requireManualRecovery(operation, "LOCAL_STATE_CHANGED");
+        } catch (GitLabRemoteException exception) {
+            if (canRetryRecovery(exception)) {
+                store.defer(operation, exception.code());
+            } else {
+                store.requireManualRecovery(operation, exception.code());
+            }
+        }
+        return true;
+    }
+
+    private DevelopmentResult startScoped(
+            long workspaceId,
+            long projectId,
+            long devTaskId,
+            String requestedTargetBranch,
+            String idempotencyKey) {
         DevelopmentContext context = store.begin(
                 workspaceId, projectId, devTaskId, requestedTargetBranch, requireText(idempotencyKey));
         String targetBranch = requestedTargetBranch == null || requestedTargetBranch.isBlank()
@@ -146,6 +182,12 @@ public class DevelopmentService {
 
     private static boolean canReconcile(GitLabRemoteException exception) {
         return "GITLAB_TIMEOUT".equals(exception.code()) || "GITLAB_CONFLICT".equals(exception.code());
+    }
+
+    private static boolean canRetryRecovery(GitLabRemoteException exception) {
+        return "GITLAB_RATE_LIMITED".equals(exception.code())
+                || "GITLAB_TIMEOUT".equals(exception.code())
+                || "GITLAB_UNAVAILABLE".equals(exception.code());
     }
 
     private static String normalizeTitle(String value) {

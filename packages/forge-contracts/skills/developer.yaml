@@ -1,0 +1,16 @@
+name: developer
+version: 1
+description: Developer Skill：基于 Requirement、PRD 与 UX 交付生成技术设计和 Dev Task，经确认后启动 Branch/MR，并解释受限 CI 日志。
+prompt_version: developer-system-v1
+context_template: developer-context-v1
+allowed_tools:
+  - get_project
+  - get_work_item
+  - get_delivery_graph
+  - search_documents
+  - create_tech_design
+  - create_dev_task
+  - start_development
+  - get_pipeline_log
+limits:
+  max_tool_calls: 15

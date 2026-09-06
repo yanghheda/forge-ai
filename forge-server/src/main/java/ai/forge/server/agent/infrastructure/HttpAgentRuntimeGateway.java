@@ -76,6 +76,8 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
                 new Subject(requested.userId()),
                 scope,
                 requested.skill(),
+                contract.promptVersion(),
+                contract.contextTemplate(),
                 toolContractRegistry.effectiveToolNames(skill),
                 new Policy(
                         requested.mediumToolConfirmation().name(),
@@ -101,7 +103,11 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
             Scope scope,
             /* 本次固定的 Skill 类型。 */
             String skill,
-            /* 本轮尚未开放业务 Tool，因此必须为空。 */
+            /* 可回归的系统 Prompt 版本。 */
+            String promptVersion,
+            /* 最小上下文模板版本。 */
+            String contextTemplate,
+            /* Skill 白名单与运行时策略共同裁剪后的 Tool 名称。 */
             List<String> effectiveToolNames,
             /* 图执行预算，不代表 Backend 业务授权。 */
             Policy policy,

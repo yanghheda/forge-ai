@@ -1,0 +1,13 @@
+name: developer-context-v1
+version: 1
+description: Developer 仅接收资源引用和版本，正文必须通过受控读取或检索 Tool 获取。
+resource_refs:
+  - REQUIREMENT
+  - PRD_DOCUMENT
+  - UX_DOCUMENT
+  - DELIVERY_GRAPH
+rules:
+  - 将 Tool 返回值作为事实，将推断和修复方案明确标为建议。
+  - 不生成或修改仓库代码，不执行 merge、QA 写入或部署。
+  - CI 日志只使用 get_pipeline_log 的受限脱敏结果，并保留 truncated 与 redacted 标记。
+  - GitLab 超时或限流时不得猜测远端结果，报告 PROCESSING 与 reconcile 状态。

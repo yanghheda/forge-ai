@@ -1,0 +1,24 @@
+name: create_tech_design
+version: 1
+description: 在指定 Requirement 下创建 Tech Design 文档；只创建受版本控制的文档事实，不修改代码。
+input_schema:
+  type: object
+  required: [requirementId, title]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    title: { type: string, minLength: 1, maxLength: 200 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: document.create
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/create_tech_design:execute
+sensitive_fields: []
+requirement_ids: [PRD-10-6]

@@ -25,4 +25,16 @@ public interface DevelopmentStore {
             long projectId,
             long taskId,
             long expectedVersion);
+
+    default Optional<PendingDevelopmentOperation> findPendingOperation() {
+        return Optional.empty();
+    }
+
+    default void defer(PendingDevelopmentOperation operation, String errorCode) {
+        /* 无持久实现的测试 Store 不参与后台恢复。 */
+    }
+
+    default void requireManualRecovery(PendingDevelopmentOperation operation, String errorCode) {
+        /* 无持久实现的测试 Store 不参与后台恢复。 */
+    }
 }

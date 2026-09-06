@@ -1,0 +1,24 @@
+name: get_pipeline_log
+version: 1
+description: 读取受字节上限与 Secret 脱敏保护的 Pipeline Job 日志尾部，供 Developer 解释失败事实与建议。
+input_schema:
+  type: object
+  required: [pipelineId, jobId]
+  properties:
+    pipelineId: { type: integer, minimum: 1 }
+    jobId: { type: integer, minimum: 1 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: repo.read
+risk_level: LOW
+idempotency:
+  required: false
+timeout_ms: 10000
+retry:
+  max_attempts: 2
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/get_pipeline_log:execute
+sensitive_fields: [content]
+requirement_ids: [PRD-10-6]

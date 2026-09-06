@@ -40,6 +40,22 @@ class PipelineServiceTest {
         assertThat(provider.requestedBytes).isEqualTo(7);
     }
 
+    @Test
+    void redactsCredentialsBeforeReturningLogToAgentOrUi() {
+        FakeStore store = new FakeStore();
+        FakeProvider provider = new FakeProvider();
+        provider.log = ("PRIVATE-TOKEN: top-secret\nAuthorization: Bearer abc.def\n"
+                + "clone https://oauth2:glpat-1234567890abcdef@gitlab.example/repo.git")
+                .getBytes(StandardCharsets.UTF_8);
+
+        PipelineService.PipelineLogTail tail = service(store, provider, 4096)
+                .logTail(1L, 7L, 9L, 1L, 99L);
+
+        assertThat(tail.content()).doesNotContain("top-secret", "abc.def", "glpat-1234567890abcdef");
+        assertThat(tail.content()).contains("PRIVATE-TOKEN: [REDACTED]");
+        assertThat(tail.redacted()).isTrue();
+    }
+
     private static PipelineService service(FakeStore store, FakeProvider provider, int maxBytes) {
         PermissionStore permissionStore = new PermissionStore() {
             @Override

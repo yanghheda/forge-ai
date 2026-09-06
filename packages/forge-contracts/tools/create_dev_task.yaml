@@ -1,0 +1,26 @@
+name: create_dev_task
+version: 1
+description: 在 READY_FOR_DEV Requirement 下创建 Dev Task；状态和父子范围由 forge-server 校验。
+input_schema:
+  type: object
+  required: [requirementId, title]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    title: { type: string, minLength: 1, maxLength: 255 }
+    description: { type: string, maxLength: 10000 }
+    assigneeId: { type: [integer, "null"], minimum: 1 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: task.create
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/create_dev_task:execute
+sensitive_fields: []
+requirement_ids: [PRD-10-6]

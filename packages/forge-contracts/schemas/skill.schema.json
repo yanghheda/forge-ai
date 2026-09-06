@@ -9,6 +9,8 @@
     "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "version": { "type": "integer", "minimum": 1 },
     "description": { "type": "string", "minLength": 1 },
+    "prompt_version": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "context_template": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "allowed_tools": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
@@ -24,4 +26,3 @@
     }
   }
 }
-

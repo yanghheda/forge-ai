@@ -39,6 +39,8 @@ class SkillContract:
     name: str
     allowed_tools: tuple[str, ...]
     max_tool_calls: int
+    prompt_version: str | None
+    context_template: str | None
 
 
 class ToolContractRegistry:
@@ -105,6 +107,12 @@ class ToolContractRegistry:
                 max_tool_calls=int(limits.get("max_tool_calls", 0))
                 if isinstance(limits, dict)
                 else 0,
+                prompt_version=(
+                    str(document["prompt_version"]) if "prompt_version" in document else None
+                ),
+                context_template=(
+                    str(document["context_template"]) if "context_template" in document else None
+                ),
             )
 
     def _validate_skill_references(self) -> None:

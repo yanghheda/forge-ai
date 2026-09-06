@@ -15,8 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Profile("!test-unit")
 public class DocumentService {
-    /* 本会话开放给 Requirement 的产品与 UX 文档类型。 */
-    private static final Set<String> SUPPORTED_TYPES = Set.of("PRD", "UX_SPEC", "PROTOTYPE_SPEC", "DESIGN_GUIDE");
+    /* 当前阶段开放给 Requirement 的产品、UX 与技术设计文档类型。 */
+    private static final Set<String> SUPPORTED_TYPES = Set.of(
+            "PRD", "UX_SPEC", "PROTOTYPE_SPEC", "DESIGN_GUIDE", "TECH_DESIGN");
     /* 项目范围授权的最终服务端判断。 */
     private final PermissionEvaluator permissions;
 

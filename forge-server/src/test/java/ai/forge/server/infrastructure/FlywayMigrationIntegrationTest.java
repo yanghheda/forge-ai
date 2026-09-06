@@ -3,6 +3,7 @@ package ai.forge.server.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ai.forge.server.gitlab.application.DevelopmentStore;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,12 +28,15 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private DevelopmentStore developmentStore;
+
     @TempDir
     private Path temporaryMigrationDirectory;
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("20");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("21");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -145,6 +149,14 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                                 + "AND column_comment = ''",
                         Integer.class))
                 .isZero();
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() "
+                                + "AND table_name='source_control_operations' AND column_name IN "
+                                + "('target_branch','attempt_count','next_attempt_at','last_error_code')",
+                        String.class))
+                .containsExactlyInAnyOrder(
+                        "target_branch", "attempt_count", "next_attempt_at", "last_error_code");
+        assertThat(developmentStore.findPendingOperation()).isEmpty();
     }
 
     @Test

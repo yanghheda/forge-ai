@@ -42,6 +42,7 @@ class ToolContractRegistryTest {
     void effectiveToolNamesMatchSkillAllowlist() {
         List<String> product = registry.effectiveToolNames(AgentSkill.PRODUCT);
         List<String> ux = registry.effectiveToolNames(AgentSkill.UX);
+        List<String> developer = registry.effectiveToolNames(AgentSkill.DEVELOPER);
 
         assertThat(product).containsExactly(
                 "get_project", "get_work_item", "get_delivery_graph", "search_documents",
@@ -49,11 +50,15 @@ class ToolContractRegistryTest {
         assertThat(ux).containsExactly(
                 "get_project", "get_work_item", "get_delivery_graph", "search_documents",
                 "create_ux_task", "create_ux_document");
+        assertThat(developer).containsExactly(
+                "get_project", "get_work_item", "get_delivery_graph", "search_documents",
+                "create_tech_design", "create_dev_task", "start_development", "get_pipeline_log")
+                .doesNotContain("deploy_release", "create_test_case");
     }
 
     @Test
     void unknownToolAndSkillAreAbsent() {
         assertThat(registry.findTool("deploy_release")).isEmpty();
-        assertThat(registry.findSkill("developer")).isEmpty();
+        assertThat(registry.findSkill("unknown")).isEmpty();
     }
 }
