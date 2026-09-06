@@ -44,6 +44,7 @@ class ToolContractRegistryTest {
         List<String> ux = registry.effectiveToolNames(AgentSkill.UX);
         List<String> developer = registry.effectiveToolNames(AgentSkill.DEVELOPER);
         List<String> qa = registry.effectiveToolNames(AgentSkill.QA);
+        List<String> release = registry.effectiveToolNames(AgentSkill.RELEASE);
 
         assertThat(product).containsExactly(
                 "get_project", "get_work_item", "get_delivery_graph", "search_documents",
@@ -59,6 +60,9 @@ class ToolContractRegistryTest {
                 "get_project", "get_work_item", "get_delivery_graph", "search_documents",
                 "create_test_case", "create_bug")
                 .doesNotContain("update_test_result", "deploy_release");
+        assertThat(release).containsExactly(
+                "get_project", "get_release_precheck", "get_delivery_graph", "update_release_note")
+                .doesNotContain("run_release_precheck", "deploy_release");
     }
 
     @Test

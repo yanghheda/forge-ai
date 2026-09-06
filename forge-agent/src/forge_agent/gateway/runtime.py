@@ -61,7 +61,7 @@ class ContextManifest(BaseModel):
     run_id: str = Field(min_length=1)
     subject: ManifestSubject
     scope: ManifestScope
-    skill: Literal["PRODUCT", "UX", "DEVELOPER"]
+    skill: Literal["PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE"]
     effective_tool_names: list[str]
     policy: ManifestPolicy
     resource_refs: list[ResourceReference]

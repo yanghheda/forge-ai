@@ -1,0 +1,12 @@
+name: release
+version: 1
+description: Release Skill：解释 Backend Precheck 失败原因并生成或编辑 Release Note 草稿，不判断 PASS 或执行部署。
+prompt_version: release-system-v1
+context_template: release-context-v1
+allowed_tools:
+  - get_project
+  - get_release_precheck
+  - get_delivery_graph
+  - update_release_note
+limits:
+  max_tool_calls: 12

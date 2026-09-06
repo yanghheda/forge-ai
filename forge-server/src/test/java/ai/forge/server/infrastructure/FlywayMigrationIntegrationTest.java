@@ -36,7 +36,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("23");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("24");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -44,6 +44,24 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                                 + "WHERE table_schema = DATABASE() AND table_name = 'instance_settings'",
                         String.class))
                 .isEqualTo("utf8mb4_0900_ai_ci");
+    }
+
+    @Test
+    void releaseMigrationCreatesCommentedImmutableSnapshotFactsAndPermissions() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('releases','release_items','release_prechecks')",
+                        String.class))
+                .containsExactlyInAnyOrder("releases", "release_items", "release_prechecks");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('releases','release_items','release_prechecks') "
+                                + "AND column_comment = ''",
+                        Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT code FROM permissions WHERE code LIKE 'release.%' ORDER BY code", String.class))
+                .containsExactly("release.manage", "release.precheck", "release.read");
     }
 
     @Test
@@ -116,7 +134,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                 Integer.class))
-                .isEqualTo(36);
+                .isEqualTo(39);
     }
 
     @Test

@@ -1,0 +1,18 @@
+name: get_release_precheck
+version: 1
+description: 读取 Release Candidate 与 Backend 已计算的最新 Precheck；不得自行决定 PASS。
+input_schema:
+  type: object
+  required: [releaseId]
+  properties:
+    releaseId: { type: integer, minimum: 1 }
+  additionalProperties: false
+output_schema: { type: object }
+required_permission: release.read
+risk_level: LOW
+idempotency: { required: false }
+timeout_ms: 5000
+retry: { max_attempts: 1 }
+backend_mapping: { method: POST, path: /internal/v1/tools/get_release_precheck:execute }
+sensitive_fields: []
+requirement_ids: [REL-002, REL-003]

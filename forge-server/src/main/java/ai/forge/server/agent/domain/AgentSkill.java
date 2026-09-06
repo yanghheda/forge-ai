@@ -8,7 +8,9 @@ public enum AgentSkill {
     /* 使用 Requirement、交付文档和 GitLab 受控能力执行开发规划与启动。 */
     DEVELOPER("task.create"),
     /* 生成 Test Case 与 Bug 草稿，不写人工执行结果。 */
-    QA("qa.manage");
+    QA("qa.manage"),
+    /* 解释后端 Precheck 并起草 Release Note，不决定 PASS。 */
+    RELEASE("release.read");
 
     /* 启动该 Skill 前必须具备的项目权限。 */
     private final String requiredPermission;

@@ -13,6 +13,7 @@ import ai.forge.server.gitlab.application.PipelineService;
 import ai.forge.server.project.application.ProjectQueryService;
 import ai.forge.server.qa.application.BugService;
 import ai.forge.server.qa.application.QaService;
+import ai.forge.server.release.application.ReleaseService;
 import ai.forge.server.workitem.application.DeliveryGraph;
 import ai.forge.server.workitem.application.DeliveryGraphQuery;
 import ai.forge.server.workitem.application.WorkItemCommandService;
@@ -79,6 +80,9 @@ public class AgentToolExecuteService {
     /* QA Agent 创建 Bug 草稿时复用人工入口的关系与状态约束。 */
     private final BugService bugService;
 
+    /* Release Agent 只读后端 Precheck，并通过受控写入口编辑 Note。 */
+    private final ReleaseService releaseService;
+
     /* 构造结构化结果投影；复用全局 JavaTime 配置。 */
     private final ObjectMapper objectMapper;
 
@@ -101,6 +105,7 @@ public class AgentToolExecuteService {
             PipelineService pipelineService,
             QaService qaService,
             BugService bugService,
+            ReleaseService releaseService,
             ObjectMapper objectMapper,
             PlatformTransactionManager transactionManager) {
         this.toolContractRegistry = toolContractRegistry;
@@ -118,6 +123,7 @@ public class AgentToolExecuteService {
         this.pipelineService = pipelineService;
         this.qaService = qaService;
         this.bugService = bugService;
+        this.releaseService = releaseService;
         this.objectMapper = objectMapper;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -336,6 +342,8 @@ public class AgentToolExecuteService {
                 case "get_pipeline_log" -> pipelineLog(workspaceId, projectId, run, arguments);
                 case "create_test_case" -> createTestCase(workspaceId, projectId, run, arguments);
                 case "create_bug" -> createBug(workspaceId, projectId, run, arguments);
+                case "get_release_precheck" -> releasePrecheck(workspaceId, projectId, run, arguments);
+                case "update_release_note" -> updateReleaseNote(workspaceId, projectId, run, arguments);
                 default -> throw new ToolExecutionRejectedException(
                         HttpStatus.NOT_FOUND.value(), "TOOL_NOT_FOUND", "Tool has no backend executor");
             };
@@ -346,6 +354,32 @@ public class AgentToolExecuteService {
             throw new ToolExecutionRejectedException(
                     HttpStatus.BAD_REQUEST.value(), "INVALID_ARGUMENT", "Tool arguments violate business rules");
         }
+    }
+
+    private JsonNode releasePrecheck(long workspaceId, long projectId, AgentRun run, JsonNode arguments) {
+        var release = releaseService.get(
+                run.userId(), workspaceId, projectId, arguments.path("releaseId").asLong());
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("releaseId", release.id());
+        result.put("versionName", release.versionName());
+        result.put("releaseVersion", release.version());
+        if (release.latestPrecheck() == null) {
+            result.putNull("precheck");
+        } else {
+            result.set("precheck", objectMapper.valueToTree(release.latestPrecheck()));
+        }
+        return result;
+    }
+
+    private JsonNode updateReleaseNote(long workspaceId, long projectId, AgentRun run, JsonNode arguments) {
+        var release = releaseService.updateNote(
+                run.userId(), workspaceId, projectId, arguments.path("releaseId").asLong(),
+                arguments.path("note").asText(), arguments.path("expectedVersion").asLong());
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("releaseId", release.id());
+        result.put("releaseVersion", release.version());
+        result.put("note", release.releaseNote());
+        return result;
     }
 
     private JsonNode project(long workspaceId, long projectId, AgentRun run) {

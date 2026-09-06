@@ -1,0 +1,20 @@
+name: update_release_note
+version: 1
+description: 写入人工可继续编辑的 Release Note 草稿；不运行或覆盖 Precheck。
+input_schema:
+  type: object
+  required: [releaseId, expectedVersion, note]
+  properties:
+    releaseId: { type: integer, minimum: 1 }
+    expectedVersion: { type: integer, minimum: 0 }
+    note: { type: string, minLength: 1, maxLength: 100000 }
+  additionalProperties: false
+output_schema: { type: object }
+required_permission: release.manage
+risk_level: MEDIUM
+idempotency: { required: true }
+timeout_ms: 5000
+retry: { max_attempts: 1 }
+backend_mapping: { method: POST, path: /internal/v1/tools/update_release_note:execute }
+sensitive_fields: []
+requirement_ids: [REL-003]

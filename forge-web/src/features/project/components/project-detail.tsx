@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getCurrentUser } from "@/features/auth";
 import { PipelinePanel } from "@/features/gitlab";
+import { ReleasePanel } from "@/features/release";
 import { ProductSlice } from "@/features/work-item";
 
 import { archiveProject, getProject, listProjects } from "../api/project-api";
@@ -97,6 +98,7 @@ export function ProjectDetail({
         projectKey={projectKey}
       />
       <PipelinePanel workspaceId={workspace.id} projectId={project.data.id} />
+      <ReleasePanel workspaceId={workspace.id} projectId={project.data.id} />
       {canManageProjects && (
         <ProjectMembers
           workspaceId={workspace.id}
