@@ -1,0 +1,29 @@
+name: create_bug
+version: 1
+description: 创建关联 Requirement 的 Bug 草稿；状态、关系与租户范围由 forge-server 校验。
+input_schema:
+  type: object
+  required: [requirementId, title, severity, reproductionSteps, expectedResult, actualResult]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    testRunId: { type: integer, minimum: 1 }
+    testResultId: { type: integer, minimum: 1 }
+    devTaskId: { type: integer, minimum: 1 }
+    title: { type: string, minLength: 1, maxLength: 255 }
+    severity: { type: string, enum: [BLOCKER, CRITICAL, MAJOR, MINOR] }
+    reproductionSteps:
+      type: array
+      minItems: 1
+      items: { type: string, minLength: 1, maxLength: 2000 }
+    expectedResult: { type: string, minLength: 1, maxLength: 20000 }
+    actualResult: { type: string, minLength: 1, maxLength: 20000 }
+  additionalProperties: false
+output_schema: { type: object }
+required_permission: bug.create
+risk_level: MEDIUM
+idempotency: { required: true }
+timeout_ms: 5000
+retry: { max_attempts: 1 }
+backend_mapping: { method: POST, path: /internal/v1/tools/create_bug:execute }
+sensitive_fields: []
+requirement_ids: [QA-003, QA-005]

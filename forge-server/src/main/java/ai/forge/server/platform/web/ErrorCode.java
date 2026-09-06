@@ -53,6 +53,8 @@ public enum ErrorCode {
     REMOTE_RESOURCE_CONFLICT,
     /* Requirement 或 Dev Task 当前状态不允许启动研发。 */
     DEVELOPMENT_STATE_CONFLICT,
+    /* Test Run 当前状态或执行完整性不允许所请求的 QA 动作。 */
+    QA_STATE_CONFLICT,
     /* Webhook Secret 无效或 payload 超过接收上限。 */
     WEBHOOK_REJECTED,
     /* 未被稳定业务错误覆盖的服务端故障。 */

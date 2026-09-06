@@ -16,7 +16,8 @@ public final class RequirementWorkflowRegistry {
         TransitionGuard uxChecklistGuard,
         TransitionGuard skipUxPolicyGuard,
         TransitionGuard reasonGuard,
-        TransitionGuard developmentQaGuard) {
+        TransitionGuard developmentQaGuard,
+        TransitionGuard qaPassGuard) {
         EnumMap<WorkflowAction, TransitionDefinition> registered = new EnumMap<>(WorkflowAction.class);
         register(registered, new TransitionDefinition(
             WorkItemType.REQUIREMENT,
@@ -74,6 +75,27 @@ public final class RequirementWorkflowRegistry {
             WorkItemStatus.READY_FOR_QA,
             "development.submit",
             List.of(developmentQaGuard)));
+        register(registered, new TransitionDefinition(
+            WorkItemType.REQUIREMENT,
+            WorkItemStatus.READY_FOR_QA,
+            WorkflowAction.START_QA,
+            WorkItemStatus.IN_QA,
+            "qa.execute",
+            List.of()));
+        register(registered, new TransitionDefinition(
+            WorkItemType.REQUIREMENT,
+            WorkItemStatus.IN_QA,
+            WorkflowAction.QA_PASS,
+            WorkItemStatus.READY_FOR_RELEASE,
+            "qa.execute",
+            List.of(qaPassGuard)));
+        register(registered, new TransitionDefinition(
+            WorkItemType.REQUIREMENT,
+            WorkItemStatus.IN_QA,
+            WorkflowAction.QA_FAIL,
+            WorkItemStatus.IN_DEVELOPMENT,
+            "qa.execute",
+            List.of()));
         register(registered, new TransitionDefinition(
             WorkItemType.UX_TASK,
             WorkItemStatus.TODO,

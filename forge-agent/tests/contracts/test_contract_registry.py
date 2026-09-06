@@ -64,6 +64,24 @@ def test_developer_skill_excludes_qa_and_deployment_writes() -> None:
     assert developer.context_template == "developer-context-v1"
 
 
+def test_qa_skill_can_only_create_drafts() -> None:
+    registry = ToolContractRegistry(REPO_CONTRACTS)
+
+    allowed = registry.effective_tool_names("QA")
+
+    assert allowed == [
+        "get_project",
+        "get_work_item",
+        "get_delivery_graph",
+        "search_documents",
+        "create_test_case",
+        "create_bug",
+    ]
+    assert "update_test_result" not in allowed
+    assert registry.find_tool("create_test_case").medium_risk
+    assert registry.find_tool("create_bug").medium_risk
+
+
 def test_registry_missing_tool_directory_fails_fast(tmp_path: Path) -> None:
     (tmp_path / "skills").mkdir()
 

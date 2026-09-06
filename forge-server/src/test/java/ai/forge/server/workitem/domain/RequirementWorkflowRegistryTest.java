@@ -18,6 +18,7 @@ class RequirementWorkflowRegistryTest {
                     allowingGuard,
                     allowingGuard,
                     allowingGuard,
+                    allowingGuard,
                     allowingGuard);
 
     @Test
@@ -46,7 +47,10 @@ class RequirementWorkflowRegistryTest {
                 WorkItemStatus.UX_IN_PROGRESS,
                 WorkItemStatus.UX_REVIEW,
                 WorkItemStatus.READY_FOR_DEV,
+                WorkItemStatus.IN_DEVELOPMENT,
                 WorkItemStatus.READY_FOR_QA,
+                WorkItemStatus.IN_QA,
+                WorkItemStatus.READY_FOR_RELEASE,
                 WorkItemStatus.TODO,
                 WorkItemStatus.IN_PROGRESS,
                 WorkItemStatus.IN_REVIEW,
@@ -72,7 +76,10 @@ class RequirementWorkflowRegistryTest {
                                 && (action == WorkflowAction.REJECT_UX_REVIEW
                                         || action == WorkflowAction.APPROVE_UX_REVIEW)
                         || status == WorkItemStatus.IN_DEVELOPMENT
-                                && action == WorkflowAction.SUBMIT_FOR_QA;
+                                && action == WorkflowAction.SUBMIT_FOR_QA
+                        || status == WorkItemStatus.READY_FOR_QA && action == WorkflowAction.START_QA
+                        || status == WorkItemStatus.IN_QA
+                                && (action == WorkflowAction.QA_PASS || action == WorkflowAction.QA_FAIL);
                 if (!legal) {
                     assertThatThrownBy(() -> registry.require(WorkItemType.REQUIREMENT, status, action))
                             .isInstanceOf(InvalidTransitionException.class);
@@ -120,5 +127,29 @@ class RequirementWorkflowRegistryTest {
         assertThat(definition.to()).isEqualTo(WorkItemStatus.READY_FOR_QA);
         assertThat(definition.requiredPermission()).isEqualTo("development.submit");
         assertThat(definition.guards()).containsExactly(allowingGuard);
+    }
+
+    @Test
+    void qaActionsHaveFixedTargetsPermissionsAndServerGuard() {
+        TransitionDefinition start = registry.require(
+                WorkItemType.REQUIREMENT, WorkItemStatus.READY_FOR_QA, WorkflowAction.START_QA);
+        TransitionDefinition pass = registry.require(
+                WorkItemType.REQUIREMENT, WorkItemStatus.IN_QA, WorkflowAction.QA_PASS);
+
+        assertThat(start.to()).isEqualTo(WorkItemStatus.IN_QA);
+        assertThat(start.requiredPermission()).isEqualTo("qa.execute");
+        assertThat(start.guards()).isEmpty();
+        assertThat(pass.to()).isEqualTo(WorkItemStatus.READY_FOR_RELEASE);
+        assertThat(pass.requiredPermission()).isEqualTo("qa.execute");
+        assertThat(pass.guards()).containsExactly(allowingGuard);
+    }
+
+    @Test
+    void qaFailureReturnsRequirementToDevelopment() {
+        TransitionDefinition failure = registry.require(
+                WorkItemType.REQUIREMENT, WorkItemStatus.IN_QA, WorkflowAction.QA_FAIL);
+
+        assertThat(failure.to()).isEqualTo(WorkItemStatus.IN_DEVELOPMENT);
+        assertThat(failure.requiredPermission()).isEqualTo("qa.execute");
     }
 }

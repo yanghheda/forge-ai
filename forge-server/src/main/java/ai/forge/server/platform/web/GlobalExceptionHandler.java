@@ -16,6 +16,7 @@ import ai.forge.server.gitlab.application.RemoteResourceConflictException;
 import ai.forge.server.gitlab.application.WebhookRejectedException;
 import ai.forge.server.gitlab.infrastructure.UnsafeGitLabUrlException;
 import ai.forge.server.project.domain.ProjectKeyConflictException;
+import ai.forge.server.qa.application.QaStateException;
 import ai.forge.server.workspace.domain.MemberEmailConflictException;
 import ai.forge.server.workitem.domain.IdempotencyConflictException;
 import ai.forge.server.workitem.domain.InvalidTransitionException;
@@ -257,6 +258,13 @@ public class GlobalExceptionHandler {
             DevelopmentStateException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, ErrorCode.DEVELOPMENT_STATE_CONFLICT,
                 "Development cannot start from the current state", Map.of(), request);
+    }
+
+    @ExceptionHandler(QaStateException.class)
+    public ResponseEntity<ApiError> handleQaStateConflict(
+            QaStateException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.QA_STATE_CONFLICT,
+                "QA operation is not available from the current state", Map.of(), request);
     }
 
     @ExceptionHandler(WebhookRejectedException.class)

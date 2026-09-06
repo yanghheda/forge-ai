@@ -35,6 +35,7 @@ import {
 } from "../api/work-item-api";
 import { DeliveryGraphPanel } from "./delivery-graph";
 import { DevelopmentPanel } from "./development-panel";
+import { QaPanel } from "./qa-panel";
 
 const missingLabel: Record<string, string> = {
   goal: "业务目标",
@@ -51,6 +52,11 @@ const missingLabel: Record<string, string> = {
   pipelineRunning: "运行完成的 Pipeline",
   pipelineFailed: "成功的 Pipeline",
   pipelineHeadMismatch: "MR 当前 head 的成功 Pipeline",
+  completedTestRun: "已完成 Test Run",
+  testNotRun: "全部用例执行完成",
+  testFailed: "无失败用例",
+  testBlocked: "无阻塞用例",
+  mandatoryTestSkipped: "P0/P1 用例全部 PASS",
 };
 export function RequirementDetail({
   workspaceId,
@@ -262,6 +268,14 @@ export function RequirementDetail({
       )}
       {(detail.data.status === "READY_FOR_DEV" || detail.data.status === "IN_DEVELOPMENT") && (
         <DevelopmentPanel
+          workspaceId={workspaceId}
+          projectId={projectId}
+          requirementId={workItemId}
+          onChanged={invalidate}
+        />
+      )}
+      {(detail.data.status === "READY_FOR_QA" || detail.data.status === "IN_QA") && (
+        <QaPanel
           workspaceId={workspaceId}
           projectId={projectId}
           requirementId={workItemId}

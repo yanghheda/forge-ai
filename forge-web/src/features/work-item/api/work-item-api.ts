@@ -12,6 +12,8 @@ export type WorkflowAction =
   | "REJECT_UX_REVIEW"
   | "SKIP_UX"
   | "SUBMIT_FOR_QA"
+  | "START_QA"
+  | "QA_PASS"
   | "START"
   | "SUBMIT_REVIEW"
   | "APPROVE"
@@ -106,6 +108,62 @@ export interface DevelopmentQaSummary {
   repositoryConfigured: boolean;
   tasks: DevelopmentQaTask[];
 }
+export type TestResultStatus = "NOT_RUN" | "PASS" | "FAIL" | "BLOCKED" | "SKIPPED";
+export interface TestCaseView {
+  id: number;
+  requirementId: number;
+  title: string;
+  preconditions: string;
+  steps: string[];
+  expectedResult: string;
+  priority: "P0" | "P1" | "P2";
+  version: number;
+}
+export interface TestResultView {
+  id: number;
+  testCaseId: number;
+  title: string;
+  priority: "P0" | "P1" | "P2";
+  status: TestResultStatus;
+  actualResult: string;
+  evidence: string[];
+  version: number;
+}
+export interface TestRunView {
+  id: number;
+  requirementId: number;
+  environment: string;
+  status: "DRAFT" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  summary: null | {
+    total: number;
+    passed: number;
+    failed: number;
+    blocked: number;
+    skipped: number;
+    notRun: number;
+    mandatorySkipped: number;
+  };
+  decision: { passed: boolean; missing: string[] };
+  results: TestResultView[];
+  version: number;
+}
+export interface BugView {
+  id: number;
+  itemKey: string;
+  title: string;
+  status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "VERIFIED" | "CLOSED" | "CANCELLED";
+  severity: "BLOCKER" | "CRITICAL" | "MAJOR" | "MINOR";
+  requirementId: number;
+  testRunId: number | null;
+  testResultId: number | null;
+  reproductionSteps: string[];
+  expectedResult: string;
+  actualResult: string;
+  fixNote: string | null;
+  fixEvidence: string[];
+  version: number;
+}
+export type BugAction = "START_FIX" | "RESOLVE" | "VERIFY" | "CLOSE" | "REOPEN" | "CANCEL";
 const json = (method: string, body: unknown): RequestInit => ({
   method,
   headers: { "Content-Type": "application/json" },
@@ -258,3 +316,109 @@ export const completeDevTask = (
     `/v1/development/tasks/${input.taskId}/complete`,
     json("POST", input),
   );
+export const listTestCases = (
+  workspaceId: number,
+  projectId: number,
+  requirementId: number,
+  client: RequestClient = apiClient,
+) => client.request<TestCaseView[]>(
+  `/v1/qa/requirements/${requirementId}/cases?workspaceId=${workspaceId}&projectId=${projectId}`,
+);
+export const createTestCase = (
+  input: {
+    workspaceId: number;
+    projectId: number;
+    requirementId: number;
+    title: string;
+    preconditions: string;
+    steps: string[];
+    expectedResult: string;
+    priority: "P0" | "P1" | "P2";
+  },
+  client: RequestClient = apiClient,
+) => client.request<TestCaseView>(
+  `/v1/qa/requirements/${input.requirementId}/cases`,
+  json("POST", input),
+);
+export const getLatestTestRun = (
+  workspaceId: number,
+  projectId: number,
+  requirementId: number,
+  client: RequestClient = apiClient,
+) => client.request<TestRunView>(
+  `/v1/qa/requirements/${requirementId}/runs/latest?workspaceId=${workspaceId}&projectId=${projectId}`,
+);
+export const createTestRun = (
+  input: { workspaceId: number; projectId: number; requirementId: number; environment: string },
+  client: RequestClient = apiClient,
+) => client.request<TestRunView>(
+  `/v1/qa/requirements/${input.requirementId}/runs`,
+  json("POST", input),
+);
+export const updateTestResult = (
+  input: {
+    workspaceId: number;
+    projectId: number;
+    runId: number;
+    resultId: number;
+    status: Exclude<TestResultStatus, "NOT_RUN">;
+    expectedVersion: number;
+  },
+  client: RequestClient = apiClient,
+) => client.request<TestResultView>(
+  `/v1/qa/runs/${input.runId}/results/${input.resultId}`,
+  json("PUT", { ...input, actualResult: "", evidence: [] }),
+);
+export const completeTestRun = (
+  input: { workspaceId: number; projectId: number; runId: number; expectedVersion: number },
+  client: RequestClient = apiClient,
+) => client.request<TestRunView>(
+  `/v1/qa/runs/${input.runId}/complete`,
+  json("POST", input),
+);
+export const reopenTestRun = (
+  input: { workspaceId: number; projectId: number; runId: number; expectedVersion: number; reason: string },
+  client: RequestClient = apiClient,
+) => client.request<TestRunView>(
+  `/v1/qa/runs/${input.runId}/reopen`,
+  json("POST", input),
+);
+export const listBugs = (
+  workspaceId: number,
+  projectId: number,
+  requirementId: number,
+  client: RequestClient = apiClient,
+) => client.request<BugView[]>(
+  `/v1/bugs?workspaceId=${workspaceId}&projectId=${projectId}&requirementId=${requirementId}`,
+);
+export const createBug = (
+  input: {
+    workspaceId: number;
+    projectId: number;
+    requirementId: number;
+    testRunId?: number;
+    testResultId?: number;
+    title: string;
+    severity: BugView["severity"];
+    reproductionSteps: string[];
+    expectedResult: string;
+    actualResult: string;
+  },
+  client: RequestClient = apiClient,
+) => client.request<BugView>("/v1/bugs", json("POST", input));
+export const transitionBug = (
+  input: {
+    workspaceId: number;
+    projectId: number;
+    bugId: number;
+    action: BugAction;
+    expectedVersion: number;
+    reason?: string;
+    fixEvidence?: string[];
+    idempotencyKey: string;
+  },
+  client: RequestClient = apiClient,
+) => client.request<BugView>(
+  `/v1/bugs/${input.bugId}/transitions`,
+  json("POST", input),
+);

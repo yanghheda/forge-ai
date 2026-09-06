@@ -1,0 +1,14 @@
+name: qa
+version: 1
+description: QA Skill：读取交付上下文并生成 Test Case 或 Bug 草稿，执行结论始终由人工入口记录。
+prompt_version: qa-system-v1
+context_template: qa-context-v1
+allowed_tools:
+  - get_project
+  - get_work_item
+  - get_delivery_graph
+  - search_documents
+  - create_test_case
+  - create_bug
+limits:
+  max_tool_calls: 15

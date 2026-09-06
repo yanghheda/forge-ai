@@ -17,6 +17,12 @@ public enum WorkflowAction {
     SKIP_UX,
     /* 在 Dev Task 与项目 CI 策略满足后提交质量验证。 */
     SUBMIT_FOR_QA,
+    /* 由 QA 人员显式开始 Requirement 的质量验证。 */
+    START_QA,
+    /* 在确定性测试统计通过后提交发布准备。 */
+    QA_PASS,
+    /* QA 发现失败并将 Requirement 回流研发处理。 */
+    QA_FAIL,
     /* 开始处理角色 Task。 */
     START,
     /* 将 UX Task 提交到其局部评审队列。 */

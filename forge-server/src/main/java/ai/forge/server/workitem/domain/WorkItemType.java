@@ -8,7 +8,9 @@ public enum WorkItemType {
     /* 承载研发实现工作的角色任务。 */
     DEV_TASK(WorkItemStatus.TODO, "task"),
     /* 承载质量验证工作的角色任务。 */
-    QA_TASK(WorkItemStatus.TODO, "task");
+    QA_TASK(WorkItemStatus.TODO, "task"),
+    /* 承载可追踪修复与独立验证生命周期的缺陷。 */
+    BUG(WorkItemStatus.OPEN, "bug");
 
     /* 该类型创建时由服务端写入且客户端不能指定的状态。 */
     private final WorkItemStatus initialStatus;

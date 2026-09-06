@@ -32,5 +32,13 @@ public enum WorkItemStatus {
     /* 角色 Task 正在被负责人处理。 */
     IN_PROGRESS,
     /* UX Task 已提交局部评审，尚未完成。 */
-    IN_REVIEW
+    IN_REVIEW,
+    /* Bug 已创建并等待研发开始修复。 */
+    OPEN,
+    /* Bug 已由研发声明修复并等待独立验证。 */
+    RESOLVED,
+    /* Bug 的修复结果已由 QA 或管理员验证。 */
+    VERIFIED,
+    /* Bug 已在验证后完成关闭。 */
+    CLOSED
 }

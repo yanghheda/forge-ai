@@ -11,6 +11,8 @@ import ai.forge.server.document.application.SearchChunk;
 import ai.forge.server.gitlab.application.DevelopmentService;
 import ai.forge.server.gitlab.application.PipelineService;
 import ai.forge.server.project.application.ProjectQueryService;
+import ai.forge.server.qa.application.BugService;
+import ai.forge.server.qa.application.QaService;
 import ai.forge.server.workitem.application.DeliveryGraph;
 import ai.forge.server.workitem.application.DeliveryGraphQuery;
 import ai.forge.server.workitem.application.WorkItemCommandService;
@@ -71,6 +73,12 @@ public class AgentToolExecuteService {
     /* Developer 只读 CI Tool 复用日志大小限制与脱敏边界。 */
     private final PipelineService pipelineService;
 
+    /* QA Agent 仅创建 Test Case 草稿，不写执行结论。 */
+    private final QaService qaService;
+
+    /* QA Agent 创建 Bug 草稿时复用人工入口的关系与状态约束。 */
+    private final BugService bugService;
+
     /* 构造结构化结果投影；复用全局 JavaTime 配置。 */
     private final ObjectMapper objectMapper;
 
@@ -91,6 +99,8 @@ public class AgentToolExecuteService {
             DocumentService documentService,
             DevelopmentService developmentService,
             PipelineService pipelineService,
+            QaService qaService,
+            BugService bugService,
             ObjectMapper objectMapper,
             PlatformTransactionManager transactionManager) {
         this.toolContractRegistry = toolContractRegistry;
@@ -106,6 +116,8 @@ public class AgentToolExecuteService {
         this.documentService = documentService;
         this.developmentService = developmentService;
         this.pipelineService = pipelineService;
+        this.qaService = qaService;
+        this.bugService = bugService;
         this.objectMapper = objectMapper;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -322,6 +334,8 @@ public class AgentToolExecuteService {
                 case "create_dev_task" -> createDevTask(workspaceId, projectId, run, arguments);
                 case "start_development" -> startDevelopment(workspaceId, projectId, run, arguments);
                 case "get_pipeline_log" -> pipelineLog(workspaceId, projectId, run, arguments);
+                case "create_test_case" -> createTestCase(workspaceId, projectId, run, arguments);
+                case "create_bug" -> createBug(workspaceId, projectId, run, arguments);
                 default -> throw new ToolExecutionRejectedException(
                         HttpStatus.NOT_FOUND.value(), "TOOL_NOT_FOUND", "Tool has no backend executor");
             };
@@ -508,6 +522,38 @@ public class AgentToolExecuteService {
         result.put("content", log.content());
         result.put("truncated", log.truncated());
         result.put("redacted", log.redacted());
+        return result;
+    }
+
+    private JsonNode createTestCase(long workspaceId, long projectId, AgentRun run, JsonNode arguments) {
+        List<String> steps = new java.util.ArrayList<>();
+        arguments.path("steps").forEach(step -> steps.add(step.asText()));
+        var created = qaService.createCase(run.userId(), workspaceId, projectId,
+                arguments.path("requirementId").asLong(), arguments.path("title").asText(),
+                textOrNull(arguments, "preconditions"), steps, arguments.path("expectedResult").asText(),
+                ai.forge.server.qa.domain.TestCasePriority.valueOf(arguments.path("priority").asText()));
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("id", created.id());
+        result.put("requirementId", created.requirementId());
+        result.put("status", "DRAFT");
+        result.put("version", created.version());
+        return result;
+    }
+
+    private JsonNode createBug(long workspaceId, long projectId, AgentRun run, JsonNode arguments) {
+        List<String> steps = new java.util.ArrayList<>();
+        arguments.path("reproductionSteps").forEach(step -> steps.add(step.asText()));
+        var created = bugService.create(run.userId(), workspaceId, projectId,
+                arguments.path("requirementId").asLong(), longOrNull(arguments, "testRunId"),
+                longOrNull(arguments, "testResultId"), longOrNull(arguments, "devTaskId"),
+                arguments.path("title").asText(),
+                ai.forge.server.qa.domain.BugSeverity.valueOf(arguments.path("severity").asText()), steps,
+                arguments.path("expectedResult").asText(), arguments.path("actualResult").asText());
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("id", created.id());
+        result.put("itemKey", created.itemKey());
+        result.put("status", created.status().name());
+        result.put("version", created.version());
         return result;
     }
 

@@ -1,0 +1,26 @@
+name: create_test_case
+version: 1
+description: 为 QA 中的 Requirement 创建待人工执行的 Test Case 草稿，不产生 PASS/FAIL 事实。
+input_schema:
+  type: object
+  required: [requirementId, title, steps, expectedResult, priority]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    title: { type: string, minLength: 1, maxLength: 255 }
+    preconditions: { type: string, maxLength: 20000 }
+    steps:
+      type: array
+      minItems: 1
+      items: { type: string, minLength: 1, maxLength: 2000 }
+    expectedResult: { type: string, minLength: 1, maxLength: 20000 }
+    priority: { type: string, enum: [P0, P1, P2] }
+  additionalProperties: false
+output_schema: { type: object }
+required_permission: qa.manage
+risk_level: MEDIUM
+idempotency: { required: true }
+timeout_ms: 5000
+retry: { max_attempts: 1 }
+backend_mapping: { method: POST, path: /internal/v1/tools/create_test_case:execute }
+sensitive_fields: []
+requirement_ids: [QA-001, QA-004]

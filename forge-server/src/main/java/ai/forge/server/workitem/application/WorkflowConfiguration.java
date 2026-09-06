@@ -2,6 +2,8 @@ package ai.forge.server.workitem.application;
 
 import ai.forge.server.workitem.domain.ReasonRequiredGuard;
 import ai.forge.server.workitem.domain.RequirementWorkflowRegistry;
+import ai.forge.server.qa.application.QaPassGuard;
+import ai.forge.server.qa.application.QaStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -13,7 +15,8 @@ public class WorkflowConfiguration {
     @Bean
     RequirementWorkflowRegistry requirementWorkflowRegistry(
             RequirementMaterialStore materialStore,
-            DevelopmentQaStore developmentQaStore) {
+            DevelopmentQaStore developmentQaStore,
+            QaStore qaStore) {
         return new RequirementWorkflowRegistry(
                 new RequirementMaterialGuard(materialStore),
                 new PublishedPrdGuard(materialStore),
@@ -21,6 +24,7 @@ public class WorkflowConfiguration {
                 new UxChecklistGuard(),
                 new UxSkipPolicyGuard(materialStore),
                 new ReasonRequiredGuard(),
-                new DevelopmentQaGuard(developmentQaStore));
+                new DevelopmentQaGuard(developmentQaStore),
+                new QaPassGuard(qaStore));
     }
 }
