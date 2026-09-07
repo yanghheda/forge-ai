@@ -14,6 +14,7 @@ import ai.forge.server.project.application.ProjectQueryService;
 import ai.forge.server.qa.application.BugService;
 import ai.forge.server.qa.application.QaService;
 import ai.forge.server.release.application.ReleaseService;
+import ai.forge.server.release.application.DeploymentService;
 import ai.forge.server.workitem.application.DeliveryGraph;
 import ai.forge.server.workitem.application.DeliveryGraphQuery;
 import ai.forge.server.workitem.application.WorkItemCommandService;
@@ -82,6 +83,8 @@ public class AgentToolExecuteService {
 
     /* Release Agent 只读后端 Precheck，并通过受控写入口编辑 Note。 */
     private final ReleaseService releaseService;
+    /* HIGH 审批通过后创建明确标记的模拟部署。 */
+    private final DeploymentService deploymentService;
 
     /* 构造结构化结果投影；复用全局 JavaTime 配置。 */
     private final ObjectMapper objectMapper;
@@ -106,6 +109,7 @@ public class AgentToolExecuteService {
             QaService qaService,
             BugService bugService,
             ReleaseService releaseService,
+            DeploymentService deploymentService,
             ObjectMapper objectMapper,
             PlatformTransactionManager transactionManager) {
         this.toolContractRegistry = toolContractRegistry;
@@ -124,6 +128,7 @@ public class AgentToolExecuteService {
         this.qaService = qaService;
         this.bugService = bugService;
         this.releaseService = releaseService;
+        this.deploymentService = deploymentService;
         this.objectMapper = objectMapper;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -143,11 +148,26 @@ public class AgentToolExecuteService {
             throw new ToolExecutionRejectedException(
                     HttpStatus.FORBIDDEN.value(), "PERMISSION_DENIED", "Current run user lacks tool permission");
         }
+        if (contract.highRisk()) {
+            return executeHighTool(workspaceId, projectId, runId, toolName, toolCallId, arguments, contract, run);
+        }
         if (contract.mediumRisk()) {
             return executeMediumTool(workspaceId, projectId, runId, toolName, toolCallId, arguments, contract, run);
         }
         return AgentToolExecution.succeeded(
                 toolName, toolCallId, false, executeApplicationService(workspaceId, projectId, run, toolName, arguments));
+    }
+
+    /* HIGH 工具永远人工审批；Run 的 ALLOW 或 DENY 只适用于 MEDIUM。 */
+    private AgentToolExecution executeHighTool(long workspaceId, long projectId, String runId, String toolName,
+            String toolCallId, JsonNode arguments, ToolContract contract, AgentRun run) {
+        if (!approvalService.existsForCall(workspaceId, projectId, runId, toolCallId)) {
+            ApprovalSnapshot approval = approvalService.request(run, contract, toolCallId, arguments);
+            return AgentToolExecution.pendingApproval(toolName, toolCallId, approval.id());
+        }
+        JsonNode frozenArguments = approvalService.requireApproved(run, contract, toolCallId, arguments);
+        return executeApprovedTool(workspaceId, projectId, runId, toolName, toolCallId,
+                frozenArguments, contract, run);
     }
 
     /* MEDIUM 写操作受 Run 确认策略与幂等键双重保护。 */
@@ -195,6 +215,10 @@ public class AgentToolExecuteService {
             return executeRecoverableRemoteTool(
                     workspaceId, projectId, runId, toolName, toolCallId, arguments, contract, run, true);
         }
+        if ("deploy_release".equals(toolName)) {
+            return executeApprovedDeployment(workspaceId, projectId, runId, toolName, toolCallId,
+                    arguments, contract, run);
+        }
         return Objects.requireNonNull(transactionTemplate.execute(status -> {
             var replayed = toolCallStore.findSuccessful(
                     workspaceId, projectId, runId, runId + ":" + toolCallId);
@@ -207,6 +231,23 @@ public class AgentToolExecuteService {
             approvalService.complete(workspaceId, projectId, runId, toolCallId, execution.result());
             return execution;
         }));
+    }
+
+    /* HIGH 失败不会自动重试；仅成功结果写入原 Tool Call 并可安全重放。 */
+    private AgentToolExecution executeApprovedDeployment(long workspaceId, long projectId, String runId,
+            String toolName, String toolCallId, JsonNode arguments, ToolContract contract, AgentRun run) {
+        var replayed = toolCallStore.findSuccessful(workspaceId, projectId, runId, runId + ":" + toolCallId);
+        if (replayed.isPresent()) {
+            return replay(toolName, toolCallId, arguments, contract, replayed.orElseThrow());
+        }
+        String approvalId = approvalService.approvalIdForCall(workspaceId, projectId, runId, toolCallId);
+        var deployment = deploymentService.requestFromApprovedAgent(run.userId(), workspaceId, projectId,
+                arguments.path("releaseId").asLong(), arguments.path("simulateFailure").asBoolean(false),
+                runId + ":" + toolCallId, approvalId, runId);
+        AgentToolExecution execution = AgentToolExecution.succeeded(
+                toolName, toolCallId, false, objectMapper.valueToTree(deployment));
+        approvalService.complete(workspaceId, projectId, runId, toolCallId, execution.result());
+        return execution;
     }
 
     /* 以 runId 与 toolCallId 组成的幂等键保证成功副作用只发生一次。 */

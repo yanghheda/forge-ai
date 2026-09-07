@@ -27,10 +27,23 @@ export interface ReleaseView {
   projectId: number;
   versionName: string;
   environment: string;
-  status: "DRAFT" | "PRECHECKED";
+  status: "DRAFT" | "PRECHECKED" | "READY_FOR_APPROVAL" | "APPROVED" | "DEPLOYING" | "RELEASED" | "FAILED";
   releaseNote: string;
   itemIds: number[];
   latestPrecheck: PrecheckSnapshot | null;
+  version: number;
+}
+
+export interface DeploymentView {
+  id: number;
+  releaseId: number;
+  mode: "SIMULATED";
+  status: "PENDING_APPROVAL" | "APPROVED" | "DEPLOYING" | "SUCCEEDED" | "FAILED" | "REJECTED" | "EXPIRED";
+  requestedBy: number;
+  approverUserId: number | null;
+  approvalExpiresAt: string;
+  resultCode: string | null;
+  resultSummary: string | null;
   version: number;
 }
 
@@ -67,3 +80,34 @@ export const runPrecheck = (
   input: { workspaceId: number; projectId: number; releaseId: number },
   client: RequestClient = apiClient,
 ) => client.request<PrecheckSnapshot>(`/v1/releases/${input.releaseId}/prechecks`, json("POST", input));
+
+export const requestDeployment = (
+  input: { workspaceId: number; projectId: number; releaseId: number; simulateFailure: boolean; idempotencyKey: string },
+  client: RequestClient = apiClient,
+) => client.request<DeploymentView>(
+  `/v1/releases/${input.releaseId}/deployments`,
+  json("POST", input),
+);
+
+export const listDeployments = (
+  workspaceId: number,
+  projectId: number,
+  releaseId: number,
+  client: RequestClient = apiClient,
+) => client.request<DeploymentView[]>(
+  `/v1/releases/${releaseId}/deployments?workspaceId=${workspaceId}&projectId=${projectId}`,
+);
+
+export const decideDeployment = (
+  input: {
+    workspaceId: number;
+    projectId: number;
+    deploymentId: number;
+    decision: "APPROVE" | "REJECT";
+    expectedVersion: number;
+  },
+  client: RequestClient = apiClient,
+) => client.request<DeploymentView>(
+  `/v1/releases/deployments/${input.deploymentId}:decide`,
+  json("POST", input),
+);

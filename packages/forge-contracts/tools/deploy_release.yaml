@@ -1,0 +1,20 @@
+name: deploy_release
+version: 1
+description: 对当前 PASS Release 执行明确标记的模拟部署；HIGH 风险，永远需要另一位用户人工审批。
+input_schema:
+  type: object
+  required: [releaseId, idempotencyKey]
+  properties:
+    releaseId: { type: integer, minimum: 1 }
+    idempotencyKey: { type: string, minLength: 1, maxLength: 64 }
+    simulateFailure: { type: boolean }
+  additionalProperties: false
+output_schema: { type: object }
+required_permission: release.deploy
+risk_level: HIGH
+idempotency: { required: true }
+timeout_ms: 5000
+retry: { max_attempts: 1 }
+backend_mapping: { method: POST, path: /internal/v1/tools/deploy_release:execute }
+sensitive_fields: []
+requirement_ids: [REL-004]

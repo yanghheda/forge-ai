@@ -26,4 +26,9 @@ public record ToolContract(
     public boolean mediumRisk() {
         return "MEDIUM".equals(riskLevel);
     }
+
+    /* HIGH 风险工具无条件进入人工审批，不受 Run 的 MEDIUM 策略影响。 */
+    public boolean highRisk() {
+        return "HIGH".equals(riskLevel);
+    }
 }

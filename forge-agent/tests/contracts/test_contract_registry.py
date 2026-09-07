@@ -82,6 +82,17 @@ def test_qa_skill_can_only_create_drafts() -> None:
     assert registry.find_tool("create_bug").medium_risk
 
 
+def test_release_deployment_is_high_risk_and_never_available_to_developer() -> None:
+    registry = ToolContractRegistry(REPO_CONTRACTS)
+
+    deploy = registry.find_tool("deploy_release")
+
+    assert deploy is not None
+    assert deploy.risk_level == "HIGH"
+    assert "deploy_release" in registry.effective_tool_names("RELEASE")
+    assert "deploy_release" not in registry.effective_tool_names("DEVELOPER")
+
+
 def test_registry_missing_tool_directory_fails_fast(tmp_path: Path) -> None:
     (tmp_path / "skills").mkdir()
 

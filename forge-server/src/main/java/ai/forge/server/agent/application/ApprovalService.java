@@ -7,6 +7,7 @@ import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.workitem.application.WorkItemStore;
+import ai.forge.server.release.application.ReleaseStore;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,15 +43,19 @@ public class ApprovalService {
     private final WorkItemStore workItemStore;
     /* 拒绝审批时把 Run 推进到稳定终态。 */
     private final AgentRunStore runStore;
+    /* 冻结 HIGH 部署所影响的 Release 聚合版本。 */
+    private final ReleaseStore releaseStore;
 
     public ApprovalService(ApprovalStore store, ApprovalCipher cipher, ObjectMapper objectMapper,
-            PermissionEvaluator permissionEvaluator, WorkItemStore workItemStore, AgentRunStore runStore) {
+            PermissionEvaluator permissionEvaluator, WorkItemStore workItemStore, AgentRunStore runStore,
+            ReleaseStore releaseStore) {
         this.store = store;
         this.cipher = cipher;
         this.objectMapper = objectMapper;
         this.permissionEvaluator = permissionEvaluator;
         this.workItemStore = workItemStore;
         this.runStore = runStore;
+        this.releaseStore = releaseStore;
     }
 
     @Transactional
@@ -62,7 +67,9 @@ public class ApprovalService {
         try {
             store.insert(approvalId, run.workspaceId(), run.projectId(), run.id(), toolCallId,
                     contract.riskLevel(), run.userId(), contract.name(), contract.version(), hash,
-                    cipher.encrypt(normalized), json(resources), "MEDIUM Tool requires explicit confirmation",
+                    cipher.encrypt(normalized), json(resources), contract.highRisk()
+                            ? "HIGH Tool always requires another user's approval"
+                            : "MEDIUM Tool requires explicit confirmation",
                     LocalDateTime.ofInstant(Instant.now().plus(APPROVAL_TTL), ZoneOffset.UTC));
             store.insertWaitingToolCall(run.workspaceId(), run.projectId(), run.id(), toolCallId,
                     contract.name(), contract.version(), contract.riskLevel(), hash, normalized,
@@ -166,6 +173,10 @@ public class ApprovalService {
         return !store.findByCall(workspaceId, projectId, runId, toolCallId).isEmpty();
     }
 
+    public String approvalIdForCall(long workspaceId, long projectId, String runId, String toolCallId) {
+        return findByCall(workspaceId, projectId, runId, toolCallId).id();
+    }
+
     public void complete(long workspaceId, long projectId, String runId, String toolCallId, JsonNode result) {
         store.completeToolCall(workspaceId, projectId, runId, toolCallId, result.toString());
     }
@@ -206,11 +217,26 @@ public class ApprovalService {
                     .orElseThrow(ResourceNotFoundException::new);
             return List.of(new ApprovalSnapshot.ResourceVersion("WORK_ITEM", Long.toString(id), item.version()));
         }
+        if ("deploy_release".equals(toolName)) {
+            long id = arguments.path("releaseId").asLong();
+            var release = releaseStore.find(run.workspaceId(), run.projectId(), id)
+                    .orElseThrow(ResourceNotFoundException::new);
+            return List.of(new ApprovalSnapshot.ResourceVersion("RELEASE", Long.toString(id), release.version()));
+        }
         return List.of();
     }
 
     private void requireResourceVersions(AgentRun run, List<ApprovalSnapshot.ResourceVersion> resources) {
         for (ApprovalSnapshot.ResourceVersion resource : resources) {
+            if ("RELEASE".equals(resource.type())) {
+                long current = releaseStore.find(run.workspaceId(), run.projectId(), Long.parseLong(resource.id()))
+                        .orElseThrow(ResourceNotFoundException::new).version();
+                if (current != resource.version()) {
+                    throw new ToolExecutionRejectedException(HttpStatus.CONFLICT.value(), "RESOURCE_VERSION_CHANGED",
+                            "Resource changed after approval request");
+                }
+                continue;
+            }
             if (!"WORK_ITEM".equals(resource.type())) {
                 throw new ToolExecutionRejectedException(HttpStatus.CONFLICT.value(), "RESOURCE_VERSION_CHANGED",
                         "Unsupported frozen resource type");

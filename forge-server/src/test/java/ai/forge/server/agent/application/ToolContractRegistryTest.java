@@ -61,13 +61,16 @@ class ToolContractRegistryTest {
                 "create_test_case", "create_bug")
                 .doesNotContain("update_test_result", "deploy_release");
         assertThat(release).containsExactly(
-                "get_project", "get_release_precheck", "get_delivery_graph", "update_release_note")
-                .doesNotContain("run_release_precheck", "deploy_release");
+                "get_project", "get_release_precheck", "get_delivery_graph", "update_release_note",
+                "deploy_release")
+                .doesNotContain("run_release_precheck");
     }
 
     @Test
     void unknownToolAndSkillAreAbsent() {
-        assertThat(registry.findTool("deploy_release")).isEmpty();
+        ToolContract deploy = registry.findTool("deploy_release").orElseThrow();
+        assertThat(deploy.highRisk()).isTrue();
+        assertThat(deploy.requiredPermission()).isEqualTo("release.deploy");
         assertThat(registry.findSkill("unknown")).isEmpty();
     }
 }

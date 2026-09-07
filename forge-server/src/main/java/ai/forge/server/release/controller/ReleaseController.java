@@ -4,6 +4,8 @@ import ai.forge.server.auth.controller.AuthController;
 import ai.forge.server.release.application.PrecheckSnapshot;
 import ai.forge.server.release.application.ReleaseService;
 import ai.forge.server.release.application.ReleaseView;
+import ai.forge.server.release.application.DeploymentService;
+import ai.forge.server.release.application.DeploymentView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,9 +38,12 @@ public class ReleaseController {
 
     /* 发布授权、聚合与确定性检查的应用服务。 */
     private final ReleaseService service;
+    /* HIGH 审批与模拟部署应用服务。 */
+    private final DeploymentService deployments;
 
-    public ReleaseController(ReleaseService service) {
+    public ReleaseController(ReleaseService service, DeploymentService deployments) {
         this.service = service;
+        this.deployments = deployments;
     }
 
     @PostMapping
@@ -80,6 +85,30 @@ public class ReleaseController {
                 body.projectId(), releaseId);
     }
 
+    @PostMapping("/{releaseId}/deployments")
+    @Operation(summary = "申请模拟部署", description = "只创建 SIMULATED 部署与 HIGH 审批，不执行生产发布。")
+    public DeploymentView requestDeployment(@PathVariable long releaseId,
+            @Valid @RequestBody DeploymentRequest body, HttpServletRequest request) {
+        return deployments.request(AuthController.requireContext(request).userId(), body.workspaceId(),
+                body.projectId(), releaseId, body.simulateFailure(), body.idempotencyKey(), requestId(request));
+    }
+
+    @GetMapping("/{releaseId}/deployments")
+    @Operation(summary = "列出模拟部署记录")
+    public List<DeploymentView> listDeployments(@PathVariable long releaseId, @RequestParam long workspaceId,
+            @RequestParam long projectId, HttpServletRequest request) {
+        return deployments.list(AuthController.requireContext(request).userId(), workspaceId, projectId, releaseId);
+    }
+
+    @PostMapping("/deployments/{deploymentId}:decide")
+    @Operation(summary = "决定 HIGH 模拟部署审批")
+    public DeploymentView decideDeployment(@PathVariable long deploymentId,
+            @Valid @RequestBody DeploymentDecisionRequest body, HttpServletRequest request) {
+        return deployments.decide(AuthController.requireContext(request).userId(), body.workspaceId(),
+                body.projectId(), deploymentId, "APPROVE".equals(body.decision()), body.expectedVersion(),
+                requestId(request));
+    }
+
     public record CreateReleaseRequest(
             /* Release 所属工作区。 */ @Positive long workspaceId,
             /* Release 所属项目。 */ @Positive long projectId,
@@ -97,4 +126,22 @@ public class ReleaseController {
     public record ReleaseScopeRequest(
             /* Release 所属工作区。 */ @Positive long workspaceId,
             /* Release 所属项目。 */ @Positive long projectId) {}
+
+    public record DeploymentRequest(
+            /* Release 所属工作区。 */ @Positive long workspaceId,
+            /* Release 所属项目。 */ @Positive long projectId,
+            /* 确定性失败演示开关；仍不连接真实环境。 */ boolean simulateFailure,
+            /* 防止重复点击产生多个部署请求。 */ @NotBlank @Size(max = 128) String idempotencyKey) {}
+
+    public record DeploymentDecisionRequest(
+            /* 部署所属工作区。 */ @Positive long workspaceId,
+            /* 部署所属项目。 */ @Positive long projectId,
+            /* 审批决定，只允许 APPROVE 或 REJECT。 */ @jakarta.validation.constraints.Pattern(
+                    regexp = "APPROVE|REJECT") String decision,
+            /* 部署审批乐观锁版本。 */ @PositiveOrZero long expectedVersion) {}
+
+    private String requestId(HttpServletRequest request) {
+        Object value = request.getAttribute("requestId");
+        return value == null ? java.util.UUID.randomUUID().toString() : value.toString();
+    }
 }

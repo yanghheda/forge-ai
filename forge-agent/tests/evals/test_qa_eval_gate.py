@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from conftest import REPO_CONTRACTS
+
 from forge_agent.contracts.registry import ToolContractRegistry
 
 CASES = Path(__file__).with_name("qa.jsonl")
