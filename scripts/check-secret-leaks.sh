@@ -8,7 +8,15 @@ scan_file() {
   local file="$1"
   local matches
   local status
-  if matches="$(rg --line-number --pcre2 "${pattern}" "${file}")"; then
+  if command -v rg >/dev/null 2>&1; then
+    if matches="$(rg --line-number --pcre2 "${pattern}" "${file}")"; then
+      printf '%s\n' "${matches}"
+      echo "Secret 扫描失败：${file} 命中高置信凭据格式" >&2
+      return 1
+    else
+      status="$?"
+    fi
+  elif matches="$(grep -En "${pattern}" "${file}")"; then
     printf '%s\n' "${matches}"
     echo "Secret 扫描失败：${file} 命中高置信凭据格式" >&2
     return 1
