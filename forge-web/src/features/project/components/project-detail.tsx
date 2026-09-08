@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Card, Spin, Typography } from "@arco-design/web-react";
+import { Alert, Button, Spin, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getCurrentUser } from "@/features/auth";
@@ -11,6 +11,7 @@ import { ProductSlice } from "@/features/work-item";
 import { archiveProject, getProject, listProjects } from "../api/project-api";
 import { ProjectMembers } from "./project-members";
 import { RequestError } from "./workspace-projects";
+import styles from "./project-detail.module.css";
 
 export function ProjectDetail({
   workspaceSlug,
@@ -70,40 +71,22 @@ export function ProjectDetail({
 
   return (
     <section aria-labelledby="project-detail-title">
-      <Typography.Title id="project-detail-title" heading={2}>
-        {project.data.key} · {project.data.name}
-      </Typography.Title>
-      <Typography.Paragraph>
-        {project.data.description || "尚未填写项目说明。"}
-      </Typography.Paragraph>
-      <Card title="项目状态" size="small">
-        <Typography.Text>
-          {project.data.status} · version {project.data.version}
-        </Typography.Text>
+      <div className={styles.hero}><div><div className={styles.eyebrow}>{project.data.key} · PROJECT OVERVIEW</div><Typography.Title id="project-detail-title" heading={2}>{project.data.name}</Typography.Title><Typography.Paragraph>{project.data.description || "尚未填写项目说明。"}</Typography.Paragraph></div><div className={styles.heroActions}><span className={styles.status}><i />{project.data.status === "ACTIVE" ? "项目活跃" : "已归档"}</span>
         {canManageProjects && project.data.status === "ACTIVE" && (
-          <Button
-            status="warning"
-            loading={archive.isPending}
-            onClick={() => archive.mutate()}
-          >
-            归档 Project
-          </Button>
+          <Button status="warning" loading={archive.isPending} onClick={() => archive.mutate()}>归档 Project</Button>
         )}
-        {archive.isError && <RequestError error={archive.error} />}
-      </Card>
-      <ProductSlice
+      </div></div>
+      {archive.isError && <RequestError error={archive.error} />}
+      <div className={styles.metrics}><article><small>当前版本</small><strong>v{project.data.version}</strong><span>业务数据版本</span></article><article><small>交付阶段</small><strong>Product</strong><span>等待需求进入流程</span></article><article><small>更新时间</small><strong>{new Date(project.data.updatedAt).toLocaleDateString("zh-CN")}</strong><span>最近项目变更</span></article></div>
+      <div className={styles.sectionHeading} id="requirements"><div><span>DELIVERY PIPELINE</span><h2>交付工作台</h2></div><p>按阶段查看进度、风险与下一步操作</p></div>
+      <div className={styles.panels}><ProductSlice
         workspaceId={workspace.id}
         projectId={project.data.id}
         workspaceSlug={workspaceSlug}
         projectKey={projectKey}
-      />
-      <PipelinePanel workspaceId={workspace.id} projectId={project.data.id} />
-      <ReleasePanel workspaceId={workspace.id} projectId={project.data.id} />
+      /><PipelinePanel workspaceId={workspace.id} projectId={project.data.id} /><ReleasePanel workspaceId={workspace.id} projectId={project.data.id} /></div>
       {canManageProjects && (
-        <ProjectMembers
-          workspaceId={workspace.id}
-          projectId={project.data.id}
-        />
+        <div className={styles.members}><ProjectMembers workspaceId={workspace.id} projectId={project.data.id} /></div>
       )}
     </section>
   );

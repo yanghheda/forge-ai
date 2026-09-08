@@ -61,6 +61,31 @@ class DeliveryGraphQueryTest {
     }
 
     @Test
+    void includesOnlyAuthorizedExternalDeliveryArtifacts() {
+        DeliveryGraphStore.Snapshot snapshot = new DeliveryGraphStore.Snapshot(
+                List.of(item(1, null, WorkItemType.REQUIREMENT)),
+                List.of(),
+                List.of(),
+                List.of(
+                        new DeliveryGraphStore.Artifact(
+                                "merge-request:9", "work-item:1", 9, "SOURCE_CONTROL",
+                                "MERGE_REQUEST", "MR !9", "MERGED", "repo.read"),
+                        new DeliveryGraphStore.Artifact(
+                                "pipeline:10", "merge-request:9", 10, "SOURCE_CONTROL",
+                                "PIPELINE", "Pipeline #10", "SUCCESS", "repo.read"),
+                        new DeliveryGraphStore.Artifact(
+                                "release:11", "work-item:1", 11, "RELEASE",
+                                "RELEASE", "v1", "RELEASED", "release.read")));
+
+        DeliveryGraph graph = query(snapshot, Set.of("requirement.read", "repo.read")).get(7, 10, 20, 1);
+
+        assertThat(graph.nodes()).extracting(DeliveryGraph.Node::id)
+                .containsExactly("work-item:1", "merge-request:9", "pipeline:10");
+        assertThat(graph.edges()).extracting(DeliveryGraph.Edge::type)
+                .containsExactly("HAS_ARTIFACT", "HAS_ARTIFACT");
+    }
+
+    @Test
     void truncatesAtFiveHundredNodes() {
         List<DeliveryGraphStore.Item> items = new ArrayList<>();
         List<DeliveryGraphStore.Relation> relations = new ArrayList<>();
@@ -101,14 +126,16 @@ class DeliveryGraphQueryTest {
     }
 
     private Set<String> allPermissions() {
-        return Set.of("requirement.read", "ux.read", "task.read", "document.read");
+        return Set.of(
+                "requirement.read", "ux.read", "task.read", "document.read",
+                "repo.read", "qa.read", "release.read");
     }
 
     private DeliveryGraphStore.Snapshot snapshot(
             List<DeliveryGraphStore.Item> items,
             List<DeliveryGraphStore.Relation> relations,
             List<DeliveryGraphStore.Document> documents) {
-        return new DeliveryGraphStore.Snapshot(items, relations, documents);
+        return new DeliveryGraphStore.Snapshot(items, relations, documents, List.of());
     }
 
     private DeliveryGraphStore.Item item(long id, Long parentId, WorkItemType type) {

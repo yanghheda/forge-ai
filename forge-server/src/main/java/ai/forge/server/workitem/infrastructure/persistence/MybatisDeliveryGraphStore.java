@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 @Profile("!test-unit")
 public class MybatisDeliveryGraphStore implements DeliveryGraphStore {
 
-    /* 使用三条带完整租户范围的查询构成交付图一致性快照。 */
+    /* 使用带完整租户范围的查询构成交付图快照。 */
     private final DeliveryGraphMapper mapper;
 
     public MybatisDeliveryGraphStore(DeliveryGraphMapper mapper) {
@@ -23,7 +23,8 @@ public class MybatisDeliveryGraphStore implements DeliveryGraphStore {
         return new Snapshot(
                 mapper.findItems(workspaceId, projectId).stream().map(this::item).toList(),
                 mapper.findRelations(workspaceId, projectId).stream().map(this::relation).toList(),
-                mapper.findDocuments(workspaceId, projectId).stream().map(this::document).toList());
+                mapper.findDocuments(workspaceId, projectId).stream().map(this::document).toList(),
+                mapper.findArtifacts(workspaceId, projectId).stream().map(this::artifact).toList());
     }
 
     private Item item(Map<String, Object> row) {
@@ -51,6 +52,18 @@ public class MybatisDeliveryGraphStore implements DeliveryGraphStore {
                 text(row, "type"),
                 text(row, "title"),
                 text(row, "status"));
+    }
+
+    private Artifact artifact(Map<String, Object> row) {
+        return new Artifact(
+                text(row, "node_id"),
+                text(row, "parent_node_id"),
+                number(row, "resource_id"),
+                text(row, "kind"),
+                text(row, "type"),
+                text(row, "title"),
+                text(row, "status"),
+                text(row, "required_permission"));
     }
 
     private long number(Map<String, Object> row, String key) {

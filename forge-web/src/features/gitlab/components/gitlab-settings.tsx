@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { getCurrentUser } from "@/features/auth";
+import ui from "@/components/workbench/workbench.module.css";
 import { bindRepository, createConnection, listConnections, rotateToken, testConnection } from "../api/gitlab-api";
 
 export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
@@ -51,7 +52,11 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: "100%" }}>
+    <section className={ui.page}>
+      <header className={ui.pageHeader}>
+        <div><span className={ui.eyebrow}>INTEGRATIONS</span><h1>GitLab 集成</h1><p>管理连接凭据、健康状态与项目仓库绑定。</p></div>
+      </header>
+      <div className={ui.twoColumns}>
       <Card title="新增 GitLab 连接">
         <Form layout="vertical" onSubmit={() => create.mutate()}>
           <Form.Item label="连接名称" required>
@@ -96,6 +101,7 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
           )}
         />
       </Card>
+      </div>
 
       <Card title="绑定项目仓库">
         <Form layout="vertical" onSubmit={() => bind.mutate()}>
@@ -111,6 +117,6 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
           <Button htmlType="submit" loading={bind.isPending}>读取并绑定仓库</Button>
         </Form>
       </Card>
-    </Space>
+    </section>
   );
 }

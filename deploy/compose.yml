@@ -31,7 +31,8 @@ services:
   forge-server:
     profiles: ["applications"]
     build:
-      context: ../forge-server
+      context: ..
+      dockerfile: forge-server/Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: test
       FORGE_MYSQL_URL: jdbc:mysql://mysql:3306/${FORGE_MYSQL_DATABASE}
@@ -42,6 +43,7 @@ services:
       FORGE_AGENT_BASE_URL: http://forge-agent:8000
       FORGE_AGENT_INTERNAL_JWT_SECRET: ${FORGE_AGENT_INTERNAL_JWT_SECRET}
       FORGE_SECRET_MASTER_KEY: ${FORGE_SECRET_MASTER_KEY}
+      FORGE_GITLAB_PROVIDER: ${FORGE_GITLAB_PROVIDER:-demo}
       FORGE_ALLOWED_ORIGINS: http://127.0.0.1:${FORGE_WEB_PORT:-3000},http://localhost:${FORGE_WEB_PORT:-3000}
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/actuator/health/readiness"]

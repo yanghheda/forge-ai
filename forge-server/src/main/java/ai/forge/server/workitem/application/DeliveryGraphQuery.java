@@ -89,6 +89,32 @@ public class DeliveryGraphQuery {
                 nodes.add(documentNode(document, itemDepth + 1));
             }
         }
+        boolean artifactProgress;
+        do {
+            artifactProgress = false;
+            Map<String, Integer> nodeDepths = nodes.stream()
+                    .collect(java.util.stream.Collectors.toMap(DeliveryGraph.Node::id, DeliveryGraph.Node::depth));
+            for (DeliveryGraphStore.Artifact artifact : snapshot.artifacts().stream()
+                    .sorted(Comparator.comparing(DeliveryGraphStore.Artifact::nodeId)
+                            .thenComparing(DeliveryGraphStore.Artifact::parentNodeId))
+                    .toList()) {
+                if (nodeDepths.containsKey(artifact.nodeId())
+                        || !permissions.hasProjectPermission(
+                                userId, workspaceId, projectId, artifact.requiredPermission())) {
+                    continue;
+                }
+                Integer parentDepth = nodeDepths.get(artifact.parentNodeId());
+                if (parentDepth == null) {
+                    continue;
+                }
+                if (parentDepth + 1 > MAX_DEPTH || nodes.size() == MAX_NODES) {
+                    truncated = true;
+                    continue;
+                }
+                nodes.add(artifactNode(artifact, parentDepth + 1));
+                artifactProgress = true;
+            }
+        } while (artifactProgress && nodes.size() < MAX_NODES);
         return new DeliveryGraph(
                 List.copyOf(nodes),
                 edges(snapshot, includedItems, nodes),
@@ -180,6 +206,17 @@ public class DeliveryGraphQuery {
                 depth);
     }
 
+    private DeliveryGraph.Node artifactNode(DeliveryGraphStore.Artifact artifact, int depth) {
+        return new DeliveryGraph.Node(
+                artifact.nodeId(),
+                artifact.kind(),
+                artifact.resourceId(),
+                artifact.type(),
+                artifact.title(),
+                artifact.status(),
+                depth);
+    }
+
     private List<DeliveryGraph.Edge> edges(
             DeliveryGraphStore.Snapshot snapshot,
             Set<Long> includedItems,
@@ -212,6 +249,15 @@ public class DeliveryGraphQuery {
                         "work-item:" + document.workItemId(),
                         documentId,
                         "HAS_DOCUMENT"));
+            }
+        }
+        for (DeliveryGraphStore.Artifact artifact : snapshot.artifacts()) {
+            if (nodeIds.contains(artifact.parentNodeId()) && nodeIds.contains(artifact.nodeId())) {
+                result.add(new DeliveryGraph.Edge(
+                        "artifact:" + artifact.parentNodeId() + ":" + artifact.nodeId(),
+                        artifact.parentNodeId(),
+                        artifact.nodeId(),
+                        "HAS_ARTIFACT"));
             }
         }
         return result.stream().sorted(Comparator.comparing(DeliveryGraph.Edge::id)).toList();

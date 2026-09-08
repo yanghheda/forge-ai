@@ -1,11 +1,12 @@
 "use client";
 
-import { Alert, Button, Card, Input, Select, Space, Spin } from "@arco-design/web-react";
+import { Alert, Button, Card, Input, Select, Spin, Tag } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { getCurrentUser } from "@/features/auth";
 import { isApiError } from "@/lib/api";
+import ui from "@/components/workbench/workbench.module.css";
 
 import { addWorkspaceMember, createWorkspaceMember, listWorkspaceMembers, removeWorkspaceMember } from "../api/workspace-api";
 
@@ -32,33 +33,32 @@ export function WorkspaceMembers({ workspaceSlug }: { workspaceSlug: string }) {
   if (currentUser.isPending || members.isPending) return <Spin tip="正在加载 Workspace 成员…" />;
   if (!workspace) return <Alert type="error" content="当前账户无权访问此 Workspace。" />;
   if (currentUser.isError || members.isError) return <ErrorAlert error={currentUser.error ?? members.error} />;
-  return <section aria-labelledby="workspace-members-title">
-    <Card title="Workspace 成员" id="workspace-members-title">
-      <Space direction="vertical" style={{ width: "100%" }}>
+  return <section className={ui.page} aria-labelledby="workspace-members-title">
+    <header className={ui.pageHeader}><div><span className={ui.eyebrow}>ACCESS CONTROL</span><h1 id="workspace-members-title">成员与权限</h1><p>管理 Workspace 账号、角色和访问状态。</p></div></header>
+    <div className={ui.twoColumns}>
         <Card size="small" title="创建成员账号">
-          <Space>
+          <div className={ui.stack}>
             <Input aria-label="新成员邮箱" value={create.email} placeholder="邮箱" onChange={(value) => setCreate((current) => ({ ...current, email: value }))} />
             <Input aria-label="新成员名称" value={create.displayName} placeholder="显示名称" onChange={(value) => setCreate((current) => ({ ...current, displayName: value }))} />
             <Select aria-label="新成员角色" value={create.role} onChange={(value) => setCreate((current) => ({ ...current, role: value }))} options={ROLE_OPTIONS} />
-          </Space>
-          <Space>
             <Input.Password aria-label="新成员初始密码" value={create.password} placeholder="初始密码" onChange={(value) => setCreate((current) => ({ ...current, password: value }))} />
             <Button type="primary" disabled={!create.email.trim() || !create.displayName.trim() || !create.password} loading={createMutation.isPending} onClick={() => createMutation.mutate()}>创建账号</Button>
-          </Space>
+          </div>
           {createMutation.isError && <ErrorAlert error={createMutation.error} />}
         </Card>
         <Card size="small" title="添加已有账号">
-          <Space>
+          <div className={ui.stack}>
             <Input aria-label="Workspace 成员邮箱" value={email} placeholder="已有账号邮箱" onChange={setEmail} />
             <Select aria-label="成员角色" value={role} onChange={setRole} options={ROLE_OPTIONS} />
             <Button type="primary" disabled={!email.trim()} loading={add.isPending} onClick={() => add.mutate()}>添加成员</Button>
-          </Space>
+          </div>
           {add.isError && <ErrorAlert error={add.error} />}
         </Card>
-        <ul>{members.data.map((member) => <li key={member.id}>{member.displayName} · {member.email} · {member.active ? "ACTIVE" : "REMOVED"}
-          {member.active && <Button type="text" status="danger" loading={remove.isPending} onClick={() => remove.mutate(member.userId)}>移除</Button>}
-        </li>)}</ul>
-      </Space>
+    </div>
+    <Card title={`Workspace 成员 · ${members.data.length}`}>
+      <div className={ui.list}>{members.data.map((member) => <div className={ui.listItem} key={member.id}><span className={ui.itemMain}><span className={ui.itemTitle}>{member.displayName}</span><span className={ui.itemMeta}>{member.email}</span></span><span className={ui.itemActions}><Tag color={member.active ? "green" : "gray"}>{member.active ? "ACTIVE" : "REMOVED"}</Tag>
+          {member.active && <Button type="text" status="danger" loading={remove.isPending} onClick={() => remove.mutate(member.userId)}>移除</Button>}</span>
+        </div>)}</div>
     </Card>
   </section>;
 }

@@ -1,3 +1,17 @@
-.card { width: min(100%, 520px); }
-.form { display: grid; gap: 16px; }
-.form label { display: grid; gap: 6px; font-weight: 500; }
+.page { display: grid; grid-template-columns: minmax(360px, .9fr) 1.25fr; min-height: 100vh; background: #fff; }
+.story { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 100vh; padding: 42px clamp(34px,5vw,72px); overflow: hidden; color: #fff; background: #101626; }
+.story::after { position: absolute; right: -200px; bottom: -180px; width: 520px; height: 520px; border: 1px solid rgba(126,118,255,.22); border-radius: 50%; box-shadow: 0 0 90px rgba(99,91,255,.13), inset 0 0 90px rgba(99,91,255,.08); content: ""; }
+.logo { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; color: #fff; font-size: 18px; font-weight: 750; text-decoration: none; }
+.logo span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #635bff; }
+.storyContent { position: relative; z-index: 1; max-width: 430px; }
+.kicker { display: flex; align-items: center; gap: 8px; color: #8983ff; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; }
+.story h1 { margin: 22px 0 14px; font-size: clamp(38px,4vw,58px); line-height: 1.08; letter-spacing: -2px; }
+.storyContent>p { color: #929caf; font-size: 15px; line-height: 1.7; }
+.story ul { display: grid; gap: 14px; margin: 34px 0 0; padding: 0; list-style: none; color: #c4cad6; font-size: 13px; }
+.story li { display: flex; align-items: center; gap: 10px; }.story li svg { color: #7770ff; }.story>small { position: relative; z-index: 1; color: #5d687b; }
+.formSide { display: grid; align-content: center; justify-items: center; min-width: 0; padding: 48px 24px; background: radial-gradient(circle at 80% 15%, #f0efff 0, #fff 38%); }
+.card { width: min(100%, 500px); padding: 14px; border: 0; box-shadow: 0 24px 70px rgba(16,24,40,.11); }
+.formHeading { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }.formHeading>span { display: grid; flex: 0 0 42px; width: 42px; height: 42px; place-items: center; border-radius: 10px; color: #635bff; font-size: 13px; font-weight: 700; background: #eeedff; }.formHeading h4,.formHeading p { margin: 0; }.formHeading p { color: #8a93a3; font-size: 12px; }
+.form { display: grid; gap: 17px; }.form label { display: grid; gap: 7px; color: #344054; font-size: 12px; font-weight: 600; }.form :global(.arco-input-wrapper) { height: 42px; background: #fafbfc; }.form button { margin-top: 4px; height: 44px; }
+.security { display: flex; align-items: center; gap: 6px; margin-top: 24px; color: #98a2b3; font-size: 11px; }.loading { display: grid; min-height: 100vh; place-items: center; padding: 24px; }
+@media (max-width: 780px) { .page { grid-template-columns: 1fr; }.story { display: block; min-height: 190px; padding: 28px 24px; }.storyContent { margin-top: 34px; }.story h1 { margin: 12px 0 8px; font-size: 30px; }.story ul,.story>small { display: none; }.formSide { padding: 36px 16px; } }

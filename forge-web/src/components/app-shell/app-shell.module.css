@@ -1,34 +1,55 @@
 .shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
-  background: var(--forge-color-canvas);
+  transition: grid-template-columns .2s ease;
 }
-
-.header {
+.collapsed { grid-template-columns: 76px minmax(0, 1fr); }
+.sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
-  align-items: center;
-  gap: var(--forge-space-4);
-  height: 64px;
-  padding: 0 var(--forge-space-6);
-  color: #ffffff;
-  background: var(--forge-color-brand);
+  flex-direction: column;
+  height: 100vh;
+  padding: 20px 13px 14px;
+  color: #c9d1df;
+  background: linear-gradient(180deg, #111827 0%, #0c1220 100%);
+  box-shadow: inset -1px 0 rgba(255, 255, 255, .04);
 }
-
-.brand {
-  margin: 0;
-  color: inherit;
-}
-
-.subtitle {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.sider {
-  padding: var(--forge-space-4);
-  background: var(--forge-color-surface);
-  border-right: 1px solid var(--forge-color-border);
-}
-
-.content {
-  min-width: 0;
-  padding: var(--forge-space-6);
+.brand { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 8px; color: #fff; text-decoration: none; }
+.brandMark { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; border: 1px solid rgba(255, 255, 255, .12); border-radius: 11px; font-weight: 800; background: linear-gradient(145deg, #7c74ff, #4f46e5); box-shadow: 0 8px 22px rgba(99, 91, 255, .35); }
+.brand strong,
+.brand small { display: block; white-space: nowrap; }
+.brand strong { font-size: 17px; letter-spacing: -.2px; }
+.brand small { margin-top: 2px; color: #8490a5; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.nav { flex: 1; margin-top: 28px; }
+.navLabel { height: 20px; margin: 20px 11px 8px; color: #667085; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+.navItem { display: flex; align-items: center; gap: 12px; min-height: 44px; margin: 4px 0; padding: 0 12px; overflow: hidden; border: 1px solid transparent; border-radius: 9px; color: #aab4c5; font-size: 14px; font-weight: 560; text-decoration: none; white-space: nowrap; transition: .15s ease; }
+.navItem:hover { color: #fff; background: rgba(255, 255, 255, .055); }
+.navItem.active { border-color: rgba(145, 139, 255, .16); color: #fff; background: linear-gradient(90deg, rgba(99, 91, 255, .3), rgba(99, 91, 255, .12)); box-shadow: inset 3px 0 #918bff; }
+.navIcon { display: grid; flex: 0 0 20px; place-items: center; font-size: 18px; }
+.collapseButton,
+.mobileMenu { border: 0; cursor: pointer; }
+.collapseButton { display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 0 13px; border-radius: 8px; color: #8490a5; background: transparent; }
+.collapseButton:hover { color: #fff; background: rgba(255, 255, 255, .06); }
+.workspace { min-width: 0; }
+.topbar { position: sticky; top: 0; z-index: 8; display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 0 32px; border-bottom: 1px solid rgba(228, 231, 236, .9); background: rgba(255, 255, 255, .9); backdrop-filter: blur(18px); }
+.breadcrumb { display: flex; align-items: center; gap: 9px; color: var(--forge-color-muted); font-size: 13px; text-transform: capitalize; }
+.breadcrumb b { color: #d0d5dd; }
+.breadcrumb strong { color: var(--forge-color-text); }
+.systemState { display: flex; align-items: center; gap: 8px; color: var(--forge-color-muted); font-size: 12px; }
+.systemState i { width: 7px; height: 7px; border-radius: 50%; background: #12b76a; box-shadow: 0 0 0 4px #e8f8f1; }
+.mobileMenu { display: none; color: var(--forge-color-text); background: transparent; font-size: 20px; }
+.content { width: 100%; max-width: 1480px; min-height: calc(100vh - 64px); margin: 0 auto; padding: 32px clamp(22px, 3vw, 42px) 52px; }
+.publicPage { min-height: 100vh; }
+@media (max-width: 800px) {
+  .shell,
+  .collapsed { grid-template-columns: 1fr; }
+  .sidebar { position: fixed; width: 248px; transform: translateX(0); transition: transform .2s ease; box-shadow: 18px 0 45px rgba(16, 24, 40, .16); }
+  .collapsed .sidebar { transform: translateX(-100%); }
+  .mobileMenu { display: grid; place-items: center; }
+  .topbar { justify-content: flex-start; gap: 16px; padding: 0 18px; }
+  .systemState { margin-left: auto; font-size: 0; }
+  .content { padding: 22px 16px 36px; }
 }

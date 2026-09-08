@@ -19,6 +19,7 @@ import {
   type AgentEventEnvelope,
   type RunTimelineState,
 } from "../model/run-reducer";
+import ui from "@/components/workbench/workbench.module.css";
 
 const eventTypes = [
   "agent.queued",
@@ -140,10 +141,17 @@ function AgentRunTimeline({
   const timeline = useRunTimeline(workspaceId, projectId, snapshot);
   const steps = Object.values(timeline.steps).sort((left, right) => left.stepNo - right.stepNo);
   return (
-    <section>
-      <Typography.Title heading={2}>Agent Run</Typography.Title>
+    <section className={ui.page}>
+      <header className={ui.pageHeader}>
+        <div>
+          <span className={ui.eyebrow}>AGENT EXECUTION</span>
+          <h1>Agent Run</h1>
+          <p>查看执行步骤、实时事件与人工审批。</p>
+        </div>
+      </header>
       <Typography.Paragraph copyable>{snapshot.id}</Typography.Paragraph>
-      <Card title={`状态：${timeline.final?.status ?? snapshot.status}`}>
+      <Card className={ui.panel} title={`状态：${timeline.final?.status ?? snapshot.status}`}>
+        <div className={ui.content}>
         <Typography.Text type="secondary">
           连接：{timeline.connectionState} · 连续事件序号：{timeline.lastSequence}
         </Typography.Text>
@@ -159,6 +167,7 @@ function AgentRunTimeline({
             />
           ))}
         </Steps>
+        </div>
       </Card>
       {snapshot.status === "WAITING_APPROVAL" && (
         <ApprovalCard workspaceId={workspaceId} projectId={projectId} runId={snapshot.id} />

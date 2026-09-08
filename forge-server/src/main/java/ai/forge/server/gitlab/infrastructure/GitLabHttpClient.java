@@ -27,9 +27,11 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "forge.gitlab.provider", havingValue = "real", matchIfMissing = true)
 public class GitLabHttpClient implements SourceControlProvider {
 
     /* 每次请求前重新执行 DNS 与网段校验的 Base URL 策略。 */

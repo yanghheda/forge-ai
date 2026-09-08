@@ -15,6 +15,11 @@ for variable in FORGE_MYSQL_URL FORGE_MYSQL_USERNAME \
     exit 1
   fi
 done
+if ! grep -q '^    allowed-origins: ${FORGE_ALLOWED_ORIGINS:http://localhost}$' \
+  forge-server/src/main/resources/application-test.yml; then
+  echo '基础设施配置检查失败：test profile 必须允许 Compose 注入 Web Origin 白名单' >&2
+  exit 1
+fi
 if ! grep -q '^    password: ${FORGE_MYSQL_PASSWORD}$' forge-server/src/main/resources/application-dev.yml; then
   echo '基础设施配置检查失败：application-dev.yml 不得提交数据库密码默认值' >&2
   exit 1
@@ -40,6 +45,16 @@ for name in ("forge-web", "forge-server", "forge-agent", "mysql", "redis", "qdra
     assert service.get("healthcheck"), f"{name} 必须声明 healthcheck"
 assert services["forge-server"].get("environment", {}).get("SPRING_PROFILES_ACTIVE") == "test", (
     "Compose Smoke 中 forge-server 必须显式使用 test profile"
+)
+assert services["forge-server"].get("environment", {}).get("FORGE_GITLAB_PROVIDER") == "demo", (
+    "Compose Smoke 中 forge-server 必须使用确定性 GitLab provider"
+)
+server_build = services["forge-server"].get("build", {})
+assert server_build.get("context", "").endswith("/forge-ai"), (
+    "forge-server 构建上下文必须包含仓库级 forge-contracts"
+)
+assert server_build.get("dockerfile", "").endswith("forge-server/Dockerfile"), (
+    "forge-server 必须继续使用模块内 Dockerfile"
 )
 for name in ("forge-server", "forge-agent", "mysql", "redis", "qdrant"):
     assert not services[name].get("ports"), f"{name} 不得映射宿主机端口"

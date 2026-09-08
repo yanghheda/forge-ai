@@ -1,10 +1,28 @@
 :root {
-  --forge-color-brand: #162d4d;
-  --forge-color-canvas: #f5f7fa;
+  --forge-color-brand: #635bff;
+  --forge-color-brand-strong: #4f46e5;
+  --forge-color-brand-soft: #eeedff;
+  --forge-color-canvas: #f4f6fa;
   --forge-color-surface: #ffffff;
-  --forge-color-border: #e5e8ef;
+  --forge-color-surface-subtle: #f8f9fc;
+  --forge-color-sidebar: #111827;
+  --forge-color-text: #172033;
+  --forge-color-muted: #667085;
+  --forge-color-border: #e4e7ec;
+  --forge-color-success: #12a271;
+  --forge-color-warning: #dc6803;
+  --forge-color-danger: #d92d20;
+  --forge-color-info: #2563eb;
+  --forge-radius-sm: 8px;
+  --forge-radius-md: 12px;
+  --forge-radius-lg: 16px;
+  --forge-space-2: 8px;
+  --forge-space-3: 12px;
   --forge-space-4: 16px;
+  --forge-space-5: 20px;
   --forge-space-6: 24px;
+  --forge-shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.05), 0 1px 2px rgba(16, 24, 40, 0.03);
+  --forge-shadow-md: 0 14px 36px rgba(16, 24, 40, 0.09);
 }
 
 * {
@@ -18,7 +36,32 @@ body {
 }
 
 body {
-  color: #1d2129;
+  color: var(--forge-color-text);
   background: var(--forge-color-canvas);
-  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+a { color: inherit; }
+button, input, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+::selection { color: #fff; background: var(--forge-color-brand); }
+.arco-card { border-color: var(--forge-color-border); border-radius: var(--forge-radius-md); box-shadow: var(--forge-shadow-sm); }
+.arco-card-header { min-height: 54px; padding: 0 20px; border-bottom-color: #eef0f4; }
+.arco-card-header-title { color: var(--forge-color-text); font-size: 15px; font-weight: 700; }
+.arco-card-body { padding: 20px; }
+.arco-btn { min-height: 36px; border-radius: var(--forge-radius-sm); font-weight: 600; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+.arco-btn:not(.arco-btn-disabled):hover { transform: translateY(-1px); }
+.arco-btn-primary:not(.arco-btn-status-danger):not(.arco-btn-status-warning) { border-color: var(--forge-color-brand); background: var(--forge-color-brand); }
+.arco-btn-primary:not(.arco-btn-disabled) { box-shadow: 0 5px 14px rgba(99, 91, 255, .18); }
+.arco-input-wrapper, .arco-textarea-wrapper, .arco-select-view, .arco-input-number { border-radius: var(--forge-radius-sm); background: #fff; }
+.arco-input-wrapper, .arco-select-view, .arco-input-number { min-height: 38px; }
+.arco-form-label-item > label { color: #344054; font-size: 13px; font-weight: 650; }
+.arco-alert { border-radius: 10px; }
+.arco-tag { border-radius: 99px; font-weight: 650; }
+.arco-tabs-header-title { padding-right: 18px; padding-left: 18px; color: var(--forge-color-muted); font-size: 14px; }
+.arco-tabs-header-title-active { color: var(--forge-color-brand-strong); font-weight: 650; }
+.arco-list-item { border-bottom-color: #eef0f4; }
+.arco-empty-description { color: var(--forge-color-muted); }
+.arco-spin { width: 100%; }
+@media (hover: none) { .arco-btn:not(.arco-btn-disabled):hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }

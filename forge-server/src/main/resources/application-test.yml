@@ -20,7 +20,7 @@ forge:
   security:
     secret-master-key: ${FORGE_SECRET_MASTER_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
   web:
-    allowed-origins: http://localhost
+    allowed-origins: ${FORGE_ALLOWED_ORIGINS:http://localhost}
   infrastructure:
     agent:
       base-url: ${FORGE_AGENT_BASE_URL:http://forge-agent:8000}

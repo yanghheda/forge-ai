@@ -7,6 +7,7 @@ import {
   Input,
   Space,
   Spin,
+  Tag,
   Tabs,
   Typography,
 } from "@arco-design/web-react";
@@ -23,6 +24,7 @@ import {
   publishDocumentVersion,
   saveDocumentVersion,
   type ProseMirrorDocument,
+  type DocumentVersion,
 } from "@/features/document";
 import {
   getRequirementDetails,
@@ -36,6 +38,7 @@ import {
 import { DeliveryGraphPanel } from "./delivery-graph";
 import { DevelopmentPanel } from "./development-panel";
 import { QaPanel } from "./qa-panel";
+import styles from "./requirement-detail.module.css";
 
 const missingLabel: Record<string, string> = {
   goal: "业务目标",
@@ -43,6 +46,10 @@ const missingLabel: Record<string, string> = {
   acceptanceCriteria: "验收标准",
   publishedPrd: "已发布 PRD",
   publishedUxSpec: "已发布 UX Spec",
+  userFlow: "用户流",
+  pageList: "页面清单",
+  keyInteraction: "关键交互",
+  exceptionState: "异常状态",
   reason: "退回原因",
   devTask: "Dev Task",
   devTaskIncomplete: "未完成的 Dev Task",
@@ -58,6 +65,60 @@ const missingLabel: Record<string, string> = {
   testBlocked: "无阻塞用例",
   mandatoryTestSkipped: "P0/P1 用例全部 PASS",
 };
+
+const uxChecklistItems = [
+  "userFlow",
+  "pageList",
+  "keyInteraction",
+  "exceptionState",
+] as const;
+type UxChecklist = Record<(typeof uxChecklistItems)[number], boolean>;
+
+export function UxReviewChecklist({
+  checklist,
+  needsPublishedUxSpec,
+  onChange,
+}: {
+  checklist: UxChecklist;
+  needsPublishedUxSpec: boolean;
+  onChange: (item: keyof UxChecklist, checked: boolean) => void;
+}) {
+  return (
+    <>
+      {needsPublishedUxSpec && (
+        <Alert
+          type="warning"
+          content="请先在 UX Spec 页签创建文档、保存版本并发布，再确认以下交付检查项。"
+        />
+      )}
+      <Space direction="vertical">
+        {uxChecklistItems.map((item) => (
+          <label key={item}>
+            <input
+              type="checkbox"
+              checked={checklist[item]}
+              onChange={(event) => onChange(item, event.target.checked)}
+            />{" "}
+            {missingLabel[item] ?? item}
+          </label>
+        ))}
+      </Space>
+    </>
+  );
+}
+
+export function selectEditableVersion(
+  versions: DocumentVersion[] | undefined,
+  currentVersionId: number | null,
+) {
+  return versions?.find((version) => version.id === currentVersionId) ?? versions?.[0];
+}
+
+export function unresolvedUxReviewHints(hints: string[] | undefined, checklist: UxChecklist) {
+  return (hints ?? []).filter(
+    (hint) => !uxChecklistItems.includes(hint as keyof UxChecklist) || !checklist[hint as keyof UxChecklist],
+  );
+}
 export function RequirementDetail({
   workspaceId,
   projectId,
@@ -145,23 +206,35 @@ export function RequirementDetail({
     return <Alert type="error" content="Requirement 不存在或无权访问。" />;
   const prd = documents.data?.find((document) => document.type === "PRD");
   const uxSpec = documents.data?.find((document) => document.type === "UX_SPEC");
+  const uxReviewHints = unresolvedUxReviewHints(
+    detail.data.guardHints.SUBMIT_UX_REVIEW,
+    checklist,
+  );
   const error = createPrd.error ?? createUxSpec.error ?? transition.error;
   const requestId = error instanceof ApiError ? error.requestId : undefined;
   return (
-    <section>
-      <Typography.Title heading={2}>
-        {detail.data.itemKey} · {detail.data.title}
-      </Typography.Title>
-      <Typography.Text>
-        {detail.data.status} · version {detail.data.version}
-      </Typography.Text>
+    <section className={styles.page}>
+      <header className={styles.header}>
+        <div>
+          <Typography.Text className={styles.eyebrow}>REQUIREMENT DETAIL</Typography.Text>
+          <Typography.Title heading={2} className={styles.title}>
+            <span>{detail.data.itemKey}</span>
+            {detail.data.title}
+          </Typography.Title>
+        </div>
+        <div className={styles.statusGroup}>
+          <Tag color="arcoblue">{detail.data.status}</Tag>
+          <Typography.Text type="secondary">版本 {detail.data.version}</Typography.Text>
+        </div>
+      </header>
       {error && (
         <Alert
+          className={styles.pageAlert}
           type="error"
           content={`${error.message}${requestId ? `（requestId: ${requestId}）` : ""}`}
         />
       )}
-      <Tabs defaultActiveTab="details">
+      <Tabs defaultActiveTab="details" className={styles.tabs}>
         <Tabs.TabPane key="details" title="Requirement">
           <DetailsForm
             key={materials.data.version}
@@ -174,6 +247,7 @@ export function RequirementDetail({
         </Tabs.TabPane>
         <Tabs.TabPane key="prd" title="PRD">
           <PrdPanel
+            documentType="PRD"
             userId={userId}
             workspaceId={workspaceId}
             projectId={projectId}
@@ -185,6 +259,7 @@ export function RequirementDetail({
         </Tabs.TabPane>
         <Tabs.TabPane key="ux" title="UX Spec">
           <PrdPanel
+            documentType="UX Spec"
             userId={userId}
             workspaceId={workspaceId}
             projectId={projectId}
@@ -209,21 +284,44 @@ export function RequirementDetail({
           />
         </Tabs.TabPane>
       </Tabs>
-      <Card title="Product actions">
-        <Space direction="vertical">
+      {detail.data.availableActions.length > 0 && (
+      <Card title="阶段操作" className={styles.actionCard}>
+        <Space direction="vertical" style={{ width: "100%" }}>
+          {detail.data.availableActions.includes("SUBMIT_UX_REVIEW") && (
+            <UxReviewChecklist
+              checklist={checklist}
+              needsPublishedUxSpec={
+                detail.data.guardHints.SUBMIT_UX_REVIEW?.includes("publishedUxSpec") ?? false
+              }
+              onChange={(item, checked) =>
+                setChecklist((current) => ({ ...current, [item]: checked }))
+              }
+            />
+          )}
           {detail.data.availableActions.map((action) => (
             <div key={action}>
               <Button
+                type={action === "SUBMIT_UX_REVIEW" ? "primary" : "secondary"}
                 loading={transition.isPending}
+                disabled={
+                  action === "SUBMIT_UX_REVIEW" &&
+                  (uxSpec?.status !== "PUBLISHED" || uxReviewHints.length > 0)
+                }
                 onClick={() => transition.mutate(action)}
               >
                 {action}
               </Button>
-              {detail.data.guardHints[action]?.length ? (
+              {(action === "SUBMIT_UX_REVIEW"
+                ? uxReviewHints
+                : detail.data.guardHints[action]
+              )?.length ? (
                 <Typography.Text type="secondary">
                   {" "}
                   缺少：
-                  {detail.data.guardHints[action]!.map(
+                  {(action === "SUBMIT_UX_REVIEW"
+                    ? uxReviewHints
+                    : detail.data.guardHints[action]
+                  )!.map(
                     (value) => missingLabel[value] ?? value,
                   ).join("、")}
                 </Typography.Text>
@@ -240,24 +338,10 @@ export function RequirementDetail({
               placeholder="退回或跳过原因"
             />
           )}
-          {detail.data.availableActions.includes("SUBMIT_UX_REVIEW") && (
-            <Space direction="vertical">
-              {Object.keys(checklist).map((item) => (
-                <label key={item}>
-                  <input
-                    type="checkbox"
-                    checked={checklist[item as keyof typeof checklist]}
-                    onChange={(event) =>
-                      setChecklist({ ...checklist, [item]: event.target.checked })
-                    }
-                  />
-                  {missingLabel[item] ?? item}
-                </label>
-              ))}
-            </Space>
-          )}
         </Space>
       </Card>
+      )}
+      <div className={styles.phasePanels}>
       {detail.data.status === "READY_FOR_DEV" && (
         <DevTaskPanel
           workspaceId={workspaceId}
@@ -282,6 +366,7 @@ export function RequirementDetail({
           onChanged={invalidate}
         />
       )}
+      </div>
     </section>
   );
 }
@@ -440,6 +525,7 @@ export function RequirementRoute({
 }
 
 function PrdPanel({
+  documentType,
   userId,
   workspaceId,
   projectId,
@@ -447,6 +533,7 @@ function PrdPanel({
   onChanged,
   create,
 }: {
+  documentType: "PRD" | "UX Spec";
   userId: number;
   workspaceId: number;
   projectId: number;
@@ -472,45 +559,73 @@ function PrdPanel({
     onSuccess: () => void onChanged(),
   });
   const publish = useMutation({
-    mutationFn: () =>
+    mutationFn: (versionId: number) =>
       publishDocumentVersion(
         workspaceId,
         projectId,
         document!.id,
-        document!.currentVersionId!,
+        versionId,
         document!.version,
       ),
     onSuccess: () => void onChanged(),
   });
-  if (!document) return <Button onClick={create}>创建关联 PRD</Button>;
-  const current = versions.data?.find(
-    (version) => version.id === document.currentVersionId,
-  );
+  if (!document) return <Button onClick={create}>创建关联 {documentType}</Button>;
+  const current = selectEditableVersion(versions.data, document.currentVersionId);
   return (
-    <Space direction="vertical">
-      <Typography.Text>
-        {document.title} · {document.status} · version {document.version}
-      </Typography.Text>
-      <DocumentEditor
-        userId={userId}
-        documentId={document.id}
-        baseVersion={document.version}
-        serverContent={
-          current?.content ?? { type: "doc", content: [{ type: "paragraph" }] }
-        }
-        onSave={(content) => save.mutateAsync(content).then(() => undefined)}
-      />
-      <Button
-        disabled={!document.currentVersionId}
-        onClick={() => publish.mutate()}
-      >
-        发布当前版本
-      </Button>
-      {versions.data?.map((version) => (
-        <Typography.Text key={version.id}>
-          历史 v{version.versionNo} · {version.contentHash.slice(0, 8)}
-        </Typography.Text>
-      ))}
-    </Space>
+    <div className={styles.documentLayout}>
+      <div className={styles.editorPane}>
+        <div className={styles.documentHeader}>
+          <div>
+            <Typography.Title heading={5}>{document.title}</Typography.Title>
+            <Typography.Text type="secondary">文档版本 {document.version}</Typography.Text>
+          </div>
+          <div className={styles.publishGroup}>
+            <Tag color={document.status === "PUBLISHED" ? "green" : "orange"}>
+              {document.status}
+            </Tag>
+            <Button
+              type="primary"
+              loading={publish.isPending}
+              disabled={!current}
+              onClick={() => current && publish.mutate(current.id)}
+            >
+              {current ? `发布 v${current.versionNo}` : "暂无可发布版本"}
+            </Button>
+          </div>
+        </div>
+        <div className={styles.editorSurface}>
+          <DocumentEditor
+            userId={userId}
+            documentId={document.id}
+            baseVersion={document.version}
+            serverContent={
+              current?.content ?? { type: "doc", content: [{ type: "paragraph" }] }
+            }
+            onSave={(content) => save.mutateAsync(content).then(() => undefined)}
+          />
+        </div>
+        {(save.isError || publish.isError) && (
+          <Alert type="error" content={(save.error ?? publish.error)?.message} />
+        )}
+      </div>
+      <aside className={styles.historyPane}>
+        <div className={styles.historyHeader}>
+          <Typography.Text className={styles.historyTitle}>版本历史</Typography.Text>
+          <Typography.Text type="secondary">{versions.data?.length ?? 0} 个版本</Typography.Text>
+        </div>
+        <div className={styles.historyList}>
+          {versions.data?.map((version) => (
+            <div className={styles.historyItem} key={version.id}>
+              <strong>v{version.versionNo}</strong>
+              <code>{version.contentHash.slice(0, 8)}</code>
+              {version.id === current?.id && <span>最新</span>}
+            </div>
+          ))}
+          {!versions.isPending && versions.data?.length === 0 && (
+            <Typography.Text type="secondary">保存后将在这里生成版本记录。</Typography.Text>
+          )}
+        </div>
+      </aside>
+    </div>
   );
 }

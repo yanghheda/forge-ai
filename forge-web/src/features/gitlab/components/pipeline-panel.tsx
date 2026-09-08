@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { listPipelines, triggerPipeline } from "../api/gitlab-api";
+import ui from "@/components/workbench/workbench.module.css";
 
 export function PipelinePanel({
   workspaceId,
@@ -29,9 +30,9 @@ export function PipelinePanel({
   });
 
   return (
-    <Card title="Development · Pipelines">
+    <Card title="持续集成 · Pipelines">
       <Space direction="vertical" style={{ width: "100%" }}>
-        <Space>
+        <div className={ui.inlineForm}>
           <Input aria-label="Pipeline ref" value={ref} onChange={setRef} />
           <Button
             type="primary"
@@ -41,21 +42,21 @@ export function PipelinePanel({
           >
             触发 Pipeline
           </Button>
-        </Space>
+        </div>
         {trigger.isError && <Alert type="error" content={trigger.error.message} />}
         {pipelines.isPending && <Spin tip="正在同步 Pipeline 状态…" />}
         {pipelines.isError && <Alert type="error" content={pipelines.error.message} />}
         {pipelines.data?.map((pipeline) => (
-          <Card key={pipeline.id} size="small">
-            <Space>
-              <Typography.Text>#{pipeline.remotePipelineId}</Typography.Text>
+          <div className={ui.listItem} key={pipeline.id}>
+            <div className={ui.itemMain}>
+              <span className={ui.itemTitle}>Pipeline #{pipeline.remotePipelineId}</span>
+              <span className={ui.itemMeta}>同步于 {new Date(pipeline.lastSyncedAt).toLocaleString()}</span>
+            </div>
+            <div className={ui.itemActions}>
               <Tag>{pipeline.ref}</Tag>
               <Tag color={statusColor(pipeline.status)}>{pipeline.status}</Tag>
-              <Typography.Text type="secondary">
-                同步于 {new Date(pipeline.lastSyncedAt).toLocaleString()}
-              </Typography.Text>
-            </Space>
-          </Card>
+            </div>
+          </div>
         ))}
         {pipelines.data?.length === 0 && (
           <Typography.Text type="secondary">尚无 Pipeline 快照。</Typography.Text>

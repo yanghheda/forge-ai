@@ -1,0 +1,151 @@
+.editor {
+  overflow: hidden;
+  border: 1px solid var(--forge-color-border);
+  border-radius: 12px;
+  background: var(--forge-color-surface);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+}
+
+.draftAlert {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid #fedf89;
+  color: #93370d;
+  background: #fffaeb;
+  font-size: 12px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--forge-color-border);
+  background: var(--forge-color-surface-subtle);
+}
+
+.toolGroup {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.toolGroup button {
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--forge-color-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.toolGroup button:hover {
+  color: var(--forge-color-text);
+  background: #eceff5;
+}
+
+.toolGroup button[aria-pressed="true"] {
+  color: var(--forge-color-brand-strong);
+  background: var(--forge-color-brand-soft);
+}
+
+.separator {
+  width: 1px;
+  height: 22px;
+  background: var(--forge-color-border);
+}
+
+.paper {
+  min-height: 300px;
+  padding: 38px clamp(28px, 6vw, 72px);
+  background: #fff;
+}
+
+.paper :global(.tiptap) {
+  min-height: 220px;
+  color: var(--forge-color-text);
+  font-size: 15px;
+  line-height: 1.85;
+  outline: none;
+}
+
+.paper :global(.tiptap p) {
+  margin: 0 0 14px;
+}
+
+.paper :global(.tiptap h2) {
+  margin: 28px 0 12px;
+  font-size: 22px;
+  line-height: 1.4;
+}
+
+.paper :global(.tiptap ul),
+.paper :global(.tiptap ol) {
+  padding-left: 24px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 9px 12px 9px 16px;
+  border-top: 1px solid var(--forge-color-border);
+  background: var(--forge-color-surface-subtle);
+}
+
+.saved,
+.unsaved {
+  font-size: 11px;
+}
+
+.saved {
+  color: var(--forge-color-muted);
+}
+
+.unsaved {
+  color: #b54708;
+}
+
+.saveButton {
+  height: 36px;
+  padding: 0 15px;
+  border: 1px solid var(--forge-color-border);
+  border-radius: 7px;
+  color: var(--forge-color-text);
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.saveButton:hover:not(:disabled) {
+  border-color: #c7c2ff;
+  color: var(--forge-color-brand-strong);
+  background: var(--forge-color-brand-soft);
+}
+
+.saveButton:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+@media (max-width: 640px) {
+  .toolbar {
+    overflow-x: auto;
+  }
+
+  .paper {
+    min-height: 240px;
+    padding: 26px 20px;
+  }
+
+  .footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -22,6 +22,7 @@ export interface WorkItem {
   id: number;
   workspaceId: number;
   projectId: number;
+  type?: "REQUIREMENT" | "UX_TASK" | "DEV_TASK" | "QA_TASK" | "BUG";
   itemKey: string;
   title: string;
   description: string;
@@ -68,7 +69,7 @@ export interface DeliveryGraph {
 }
 export interface DeliveryGraphNode {
   id: string;
-  kind: "WORK_ITEM" | "DOCUMENT";
+  kind: "WORK_ITEM" | "DOCUMENT" | "SOURCE_CONTROL" | "QA" | "RELEASE";
   resourceId: number;
   type: string;
   title: string;

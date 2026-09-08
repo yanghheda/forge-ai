@@ -9,7 +9,8 @@
     "lint": "eslint src vitest.config.ts vitest.setup.ts",
     "lint:boundaries": "node tests/module-boundaries/check-boundaries.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@arco-design/web-react": "2.66.16",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.2",
+    "@playwright/test": "^1.55.1",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",

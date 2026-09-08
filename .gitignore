@@ -23,6 +23,9 @@ node_modules/
 .next/
 coverage/
 *.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/
 
 # Python
 __pycache__/

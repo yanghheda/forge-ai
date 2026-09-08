@@ -1,10 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useShellStore } from "@/stores/use-shell-store";
 
 import { AppShell } from "./app-shell";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/w/forge" }));
 
 describe("AppShell", () => {
   beforeEach(() => {

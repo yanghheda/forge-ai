@@ -16,7 +16,7 @@ public record DeliveryGraph(
 
     public record Node(
             /* 带类型前缀的响应内稳定节点标识。 */ String id,
-            /* WORK_ITEM 或 DOCUMENT，用于客户端选择展示方式。 */ String kind,
+            /* WORK_ITEM、DOCUMENT 或外部交付领域，用于客户端选择展示方式。 */ String kind,
             /* 数据库中的业务标识。 */ long resourceId,
             /* 节点的稳定业务类型。 */ String type,
             /* 面向用户的节点标题。 */ String title,

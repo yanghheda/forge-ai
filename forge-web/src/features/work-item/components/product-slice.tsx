@@ -6,13 +6,14 @@ import {
   Card,
   Input,
   Select,
-  Space,
+  Tag,
   Typography,
 } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { createRequirement, listRequirements } from "../api/work-item-api";
+import ui from "@/components/workbench/workbench.module.css";
 
 export function ProductSlice({
   workspaceId,
@@ -49,9 +50,13 @@ export function ProductSlice({
     },
   });
   return (
-    <Card title="Product Requirements" size="small">
-      <Space direction="vertical" style={{ width: "100%" }}>
-        <Space>
+    <Card title="产品需求" size="small" className={ui.panel}>
+      <div className={ui.panelIntro}>
+        <div>
+          <strong>需求队列</strong>
+          <p>创建需求并推进 Product、UX、研发与 QA 交付流程。</p>
+        </div>
+        <div className={ui.inlineForm}>
           <Input
             aria-label="Requirement 标题"
             value={title}
@@ -75,7 +80,9 @@ export function ProductSlice({
           >
             创建
           </Button>
-        </Space>
+        </div>
+      </div>
+      <div className={ui.content}>
         {create.isError && (
           <Alert type="error" content={create.error.message} />
         )}
@@ -83,19 +90,26 @@ export function ProductSlice({
           <Alert type="error" content={requirements.error.message} />
         )}
         {requirements.data?.items.length === 0 && (
-          <Typography.Text>
+          <div className={ui.empty}><Typography.Text type="secondary">
             暂无 Requirement，可从上方开始人工交付闭环。
-          </Typography.Text>
+          </Typography.Text></div>
         )}
+        <div className={ui.list}>
         {requirements.data?.items.map((item) => (
           <Link
+            className={ui.listItem}
             key={item.id}
             href={`/w/${workspaceSlug}/p/${projectKey}/requirements/${item.id}`}
           >
-            {item.itemKey} · {item.title} · {item.status}
+            <span className={ui.itemMain}>
+              <span className={ui.itemTitle}>{item.title}</span>
+              <span className={ui.itemMeta}>{item.itemKey} · 优先级 {item.priority}</span>
+            </span>
+            <Tag color={item.status === "READY_FOR_DEV" ? "green" : "arcoblue"}>{item.status}</Tag>
           </Link>
         ))}
-      </Space>
+        </div>
+      </div>
     </Card>
   );
 }

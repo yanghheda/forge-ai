@@ -1,0 +1,10 @@
+.git
+.idea
+**/.next
+**/node_modules
+forge-server/target
+**/.venv
+**/__pycache__
+**/*.log
+deploy/.env
+data

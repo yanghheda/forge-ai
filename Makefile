@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down apps-up apps-ready apps-down smoke ci
+.PHONY: help format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down apps-up apps-ready apps-down demo-seed demo-e2e golden-regression smoke ci
 
 help: ## 显示公开开发命令
 	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-16s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -58,6 +58,15 @@ apps-ready: ## 查看三应用与基础设施健康状态
 
 apps-down: ## 停止三应用与基础设施并保留数据卷
 	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml down
+
+demo-seed: ## 可重复装载黄金 Demo 业务事实
+	@./scripts/load-golden-demo.sh
+
+demo-e2e: ## 装载黄金 Demo 并运行 Playwright 回溯
+	@./scripts/run-golden-demo.sh
+
+golden-regression: ## 运行黄金 Demo 九类负向回归门禁
+	@./scripts/test-golden-regressions.sh
 
 smoke: ## 运行三应用 Compose Smoke 并自动停止服务
 	@./tests/three-app-smoke.sh
