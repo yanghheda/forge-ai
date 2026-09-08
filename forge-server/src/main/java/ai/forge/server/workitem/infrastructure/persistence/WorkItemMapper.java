@@ -56,8 +56,8 @@ public interface WorkItemMapper {
             @Param("projectId") long projectId,
             @Param("workItemId") long workItemId);
 
-    @Select("<script>SELECT id, workspace_id, project_id, item_number, item_key, type, title, description, status, "
-            + "priority, assignee_user_id, reporter_user_id, due_at, version, created_at, updated_at "
+    @Select("<script>SELECT id, workspace_id, project_id, item_number, item_key, type, title, status, "
+            + "priority, assignee_user_id, due_at, version, created_at, updated_at "
             + "FROM work_items WHERE workspace_id = #{workspaceId} AND project_id = #{projectId} "
             + "AND deleted_at IS NULL <if test='type != null'>AND type = #{type}</if> "
             + "<if test='status != null'>AND status = #{status}</if> "

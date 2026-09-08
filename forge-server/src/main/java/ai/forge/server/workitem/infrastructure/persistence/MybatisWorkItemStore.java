@@ -2,6 +2,7 @@ package ai.forge.server.workitem.infrastructure.persistence;
 
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.workitem.application.WorkItemPage;
+import ai.forge.server.workitem.application.WorkItemSummary;
 import ai.forge.server.workitem.application.WorkItemStore;
 import ai.forge.server.workitem.domain.WorkItem;
 import ai.forge.server.workitem.domain.WorkItemPriority;
@@ -139,13 +140,31 @@ public class MybatisWorkItemStore implements WorkItemStore {
             int pageSize) {
         String typeValue = type == null ? null : type.name();
         String statusValue = status == null ? null : status.name();
-        List<WorkItem> items = mapper.findPage(
+        List<WorkItemSummary> items = mapper.findPage(
                         workspaceId, projectId, typeValue, statusValue, pageSize, (page - 1) * pageSize)
                 .stream()
-                .map(this::workItem)
+                .map(this::workItemSummary)
                 .toList();
         return new WorkItemPage(
                 items, page, pageSize, mapper.countPage(workspaceId, projectId, typeValue, statusValue));
+    }
+
+    private WorkItemSummary workItemSummary(Map<String, Object> row) {
+        return new WorkItemSummary(
+                number(row, "id"),
+                number(row, "workspace_id"),
+                number(row, "project_id"),
+                number(row, "item_number"),
+                text(row, "item_key"),
+                WorkItemType.valueOf(text(row, "type")),
+                text(row, "title"),
+                WorkItemStatus.valueOf(text(row, "status")),
+                WorkItemPriority.valueOf(text(row, "priority")),
+                nullableNumber(row, "assignee_user_id"),
+                instant(row.get("due_at")),
+                number(row, "version"),
+                instant(row.get("created_at")),
+                instant(row.get("updated_at")));
     }
 
     @Override

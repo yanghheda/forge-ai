@@ -34,8 +34,9 @@ export interface WorkItemDetail extends WorkItem {
   availableActions: WorkflowAction[];
   guardHints: Partial<Record<WorkflowAction, string[]>>;
 }
+export type WorkItemSummary = Omit<WorkItem, "description">;
 export interface WorkItemPage {
-  items: WorkItem[];
+  items: WorkItemSummary[];
   page: number;
   pageSize: number;
   total: number;

@@ -12,8 +12,8 @@ import {
   getWorkItem,
   listUxTasks,
   transitionRequirement,
-  type WorkItem,
   type WorkItemDetail,
+  type WorkItemSummary,
   type WorkflowAction,
 } from "../api/work-item-api";
 
@@ -31,7 +31,7 @@ export function UxTaskList({
 }: {
   workspaceSlug: string;
   projectKey: string;
-  tasks: WorkItem[];
+  tasks: WorkItemSummary[];
 }) {
   if (tasks.length === 0) return <Typography.Text>暂无待处理 UX Task。</Typography.Text>;
   return (

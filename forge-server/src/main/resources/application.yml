@@ -78,10 +78,20 @@ forge:
       backoff-base: ${FORGE_GITLAB_WEBHOOK_BACKOFF_BASE:5s}
 
 management:
+  prometheus:
+    metrics:
+      export:
+        enabled: true
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 100ms,300ms,500ms,1s,5s
   endpoint:
     health:
       probes:
@@ -90,6 +100,8 @@ management:
       group:
         readiness:
           include: readinessState,db,redis
+    prometheus:
+      access: read-only
   health:
     status:
       order: DOWN,OUT_OF_SERVICE,DEGRADED,UNKNOWN,UP

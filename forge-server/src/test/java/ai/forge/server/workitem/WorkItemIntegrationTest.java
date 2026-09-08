@@ -109,7 +109,7 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void readsPagesThroughProjectScopeAndUsesTheProjectTypeStatusIndex() throws Exception {
+    void readsSummaryPagesThroughScopeAndUsesThePaginationIndex() throws Exception {
         create("REQUIREMENT", "First", "MEDIUM");
         create("DEV_TASK", "Second", "MEDIUM");
         create("DEV_TASK", "Third", "HIGH");
@@ -123,14 +123,17 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(page.get("total").asLong()).isEqualTo(2);
         assertThat(page.get("items").size()).isEqualTo(1);
         assertThat(page.get("items").get(0).get("itemKey").asText()).isEqualTo("FORGE-3");
+        assertThat(page.get("items").get(0).has("description")).isFalse();
 
         List<String> usedKeys = jdbcTemplate.query(
-                "EXPLAIN SELECT id FROM work_items FORCE INDEX (idx_work_items_project_type_status) "
-                        + "WHERE project_id = ? AND type = 'DEV_TASK' AND status = 'TODO' AND deleted_at IS NULL "
+                "EXPLAIN SELECT id FROM work_items FORCE INDEX (idx_work_items_scope_type_status_page) "
+                        + "WHERE workspace_id = ? AND project_id = ? AND type = 'DEV_TASK' "
+                        + "AND status = 'TODO' AND deleted_at IS NULL "
                         + "ORDER BY item_number DESC LIMIT 1",
                 (resultSet, rowNumber) -> resultSet.getString("key"),
+                workspaceId,
                 projectId);
-        assertThat(usedKeys).contains("idx_work_items_project_type_status");
+        assertThat(usedKeys).contains("idx_work_items_scope_type_status_page");
     }
 
     @Test

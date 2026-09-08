@@ -18,8 +18,22 @@ forge:
       health-enabled: false
 
 management:
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   endpoint:
     health:
       group:
         readiness:
           include: readinessState
+    prometheus:
+      access: read-only

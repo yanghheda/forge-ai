@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down apps-up apps-ready apps-down demo-seed demo-e2e golden-regression smoke ci
+.PHONY: help format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down apps-up apps-ready apps-down demo-seed demo-e2e golden-regression hardening-test hardening-performance hardening-faults smoke ci
 
 help: ## 显示公开开发命令
 	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-16s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -67,6 +67,15 @@ demo-e2e: ## 装载黄金 Demo 并运行 Playwright 回溯
 
 golden-regression: ## 运行黄金 Demo 九类负向回归门禁
 	@./scripts/test-golden-regressions.sh
+
+hardening-test: ## 运行会话 33 安全、可靠性与泄密负向门禁
+	@./scripts/test-session33-hardening.sh
+
+hardening-performance: ## 使用 10k Work Item 验证真实分页 P95 与索引
+	@./scripts/run-session33-performance.sh
+
+hardening-faults: ## 逐项执行 DB、Redis、Qdrant 与 Agent 故障演练
+	@./scripts/run-session33-fault-drills.sh
 
 smoke: ## 运行三应用 Compose Smoke 并自动停止服务
 	@./tests/three-app-smoke.sh

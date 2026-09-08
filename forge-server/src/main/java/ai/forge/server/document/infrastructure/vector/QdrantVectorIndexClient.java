@@ -214,9 +214,12 @@ public class QdrantVectorIndexClient implements VectorIndexClient {
 
     private void requireOk(QdrantResponse response, String operation) {
         if (response.status() < 200 || response.status() >= 300) {
-            throw unavailable(operation + " returned HTTP_" + response.status()
-                    + " body=" + response.json());
+            throw unavailable(remoteFailureMessage(operation, response.status()));
         }
+    }
+
+    static String remoteFailureMessage(String operation, int status) {
+        return operation + " returned HTTP_" + status;
     }
 
     private QdrantResponse get(String path) {
