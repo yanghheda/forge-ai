@@ -10,7 +10,7 @@ import { AppProviders } from "./providers";
 
 export const metadata: Metadata = {
   title: "ForgeAI",
-  description: "AI-Native Software Delivery Workbench",
+  description: "AI 原生软件交付工作台",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

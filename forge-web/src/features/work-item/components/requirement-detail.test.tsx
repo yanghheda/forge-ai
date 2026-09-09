@@ -53,11 +53,11 @@ describe("document version selection", () => {
   ];
 
   it("草稿 currentVersionId 缺失时仍选择最新历史版本用于发布", () => {
-    expect(selectEditableVersion(versions, null)?.id).toBe(30);
+    expect(selectEditableVersion(versions)?.id).toBe(30);
   });
 
-  it("优先选择服务端指定的当前版本", () => {
-    expect(selectEditableVersion(versions, 20)?.id).toBe(20);
+  it("已有发布版本时仍优先展示最新保存的草稿版本", () => {
+    expect(selectEditableVersion(versions)?.id).toBe(30);
   });
 });
 

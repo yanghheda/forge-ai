@@ -3,6 +3,8 @@
 import { Alert, Button, Card, Space, Tag, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { formatRequestError } from "@/lib/api";
+
 import {
   completeDevTask,
   getDevelopmentSummary,
@@ -49,12 +51,12 @@ export function DevelopmentPanel({
       completeDevTask({ workspaceId, projectId, taskId, expectedVersion }),
     onSuccess: refresh,
   });
-  if (summary.isPending) return <Card title="Development">正在加载开发交付状态…</Card>;
+  if (summary.isPending) return <Card title="开发交付">正在加载开发交付状态…</Card>;
   if (!summary.data) return <Alert type="error" content="开发交付状态不可用。" />;
   const error = start.error ?? complete.error;
   return (
-    <Card title="Development delivery">
-      {error && <Alert type="error" content={error.message} />}
+    <Card title="开发交付">
+      {error && <Alert type="error" content={formatRequestError(error)} />}
       <DevelopmentSummaryView
         summary={summary.data}
         busy={start.isPending || complete.isPending}
@@ -79,7 +81,7 @@ export function DevelopmentSummaryView({
   return (
     <Space direction="vertical" style={{ width: "100%" }}>
       <Typography.Text>
-        CI policy：{summary.ciRequired ? "MR 当前 head 必须成功" : "Optional"}
+        CI 策略：{summary.ciRequired ? "MR 当前 head 必须成功" : "非必需"}
       </Typography.Text>
       {summary.ciRequired && !summary.repositoryConfigured && (
         <Alert type="warning" content="项目尚未绑定可用 GitLab 仓库，当前策略不会放行 QA。" />
@@ -117,7 +119,7 @@ export function DevelopmentSummaryView({
         );
       })}
       {summary.tasks.length === 0 && (
-        <Typography.Text type="secondary">尚未创建 Dev Task。</Typography.Text>
+        <Typography.Text type="secondary">尚未创建研发任务。</Typography.Text>
       )}
     </Space>
   );

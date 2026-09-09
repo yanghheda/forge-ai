@@ -13,8 +13,10 @@ const chain = {
 };
 const editor = {
   chain: () => chain,
+  commands: { setContent: vi.fn() },
   getJSON: () => ({ type: "doc", content: [{ type: "paragraph" }] }),
   isActive: () => false,
+  setEditable: vi.fn(),
 };
 
 vi.mock("@tiptap/react", () => ({
@@ -25,9 +27,12 @@ vi.mock("@tiptap/react", () => ({
 import { DocumentEditor } from "./document-editor";
 
 describe("DocumentEditor", () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
 
-  it("提供格式工具栏、纸张内容区和版本保存入口", async () => {
+  it("默认以只读方式展示内容，点击编辑后才显示格式工具栏和保存入口", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
       <DocumentEditor
@@ -39,9 +44,14 @@ describe("DocumentEditor", () => {
       />,
     );
 
-    expect(screen.getByLabelText("文档格式工具栏")).toBeInTheDocument();
     expect(screen.getByTestId("editor-content")).toBeInTheDocument();
+    expect(screen.queryByLabelText("文档格式工具栏")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存为新版本" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑文档" }));
+    expect(screen.getByLabelText("文档格式工具栏")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "保存为新版本" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(editor.getJSON()));
+    expect(screen.getByRole("button", { name: "编辑文档" })).toBeInTheDocument();
   });
 });

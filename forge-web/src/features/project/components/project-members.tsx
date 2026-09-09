@@ -18,11 +18,11 @@ export function ProjectMembers({ workspaceId, projectId }: { workspaceId: number
 
   if (members.isPending) return <Spin tip="正在加载项目成员…" />;
   if (members.isError) return <RequestError error={members.error} />;
-  return <Card title="Project 成员" size="small">
+  return <Card title="项目成员" size="small">
     <div className={ui.inlineForm}><Input aria-label="项目成员邮箱" value={email} placeholder="已有账号邮箱" onChange={setEmail} />
     <Button type="primary" disabled={!email.trim()} loading={add.isPending} onClick={() => add.mutate()}>添加成员</Button></div>
     {add.isError && <RequestError error={add.error} />}
-    <div className={ui.list}>{members.data.map((member) => <div className={ui.listItem} key={member.id}><span className={ui.itemTitle}>{member.displayName}</span><span className={ui.itemActions}><Tag color={member.active ? "green" : "gray"}>{member.active ? "ACTIVE" : "REMOVED"}</Tag>
+    <div className={ui.list}>{members.data.map((member) => <div className={ui.listItem} key={member.id}><span className={ui.itemTitle}>{member.displayName}</span><span className={ui.itemActions}><Tag color={member.active ? "green" : "gray"}>{member.active ? "在职" : "已移除"}</Tag>
       {member.active && <Button type="text" status="danger" loading={remove.isPending} onClick={() => remove.mutate(member.userId)}>移除</Button>}</span>
     </div>)}</div>
   </Card>;

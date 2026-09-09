@@ -4,6 +4,9 @@ import { Alert, Button, Card, Input, Select, Space, Tag, Typography } from "@arc
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { formatRequestError } from "@/lib/api";
+import { bugActionLabel, guardHintLabel, testResultLabel } from "@/lib/labels";
+
 import {
   completeTestRun,
   createBug,
@@ -90,13 +93,13 @@ export function QaPanel({ workspaceId, projectId, requirementId, onChanged }: {
   });
   const error = createCase.error ?? createRun.error ?? update.error ?? complete.error ?? reopen.error ?? createFailureBug.error ?? moveBug.error;
   return (
-    <Card title="QA verification">
+    <Card title="QA 验证">
       <Space direction="vertical" style={{ width: "100%" }}>
-        {error && <Alert type="error" content={error.message} />}
+        {error && <Alert type="error" content={formatRequestError(error)} />}
         <Space>
-          <Input aria-label="Test Case 标题" value={title} onChange={setTitle} />
+          <Input aria-label="测试用例标题" value={title} onChange={setTitle} />
           <Button disabled={!title.trim()} onClick={() => createCase.mutate()}>创建用例</Button>
-          <Button disabled={!cases.data?.length} onClick={() => createRun.mutate()}>创建 Run</Button>
+          <Button disabled={!cases.data?.length} onClick={() => createRun.mutate()}>创建测试执行</Button>
         </Space>
         <Typography.Text>有效用例：{cases.data?.length ?? 0}</Typography.Text>
         {run.data && <QaRunView run={run.data} busy={update.isPending} onResult={(resultId, status, version) => update.mutate({ resultId, status, version })} onCreateBug={(result) => createFailureBug.mutate(result)} onComplete={() => complete.mutate()} onReopen={() => reopen.mutate()} />}
@@ -120,15 +123,15 @@ export function QaRunView({ run, busy, onResult, onCreateBug, onComplete, onReop
       {run.results.map((result) => (
         <Card key={result.id} size="small" title={`${result.priority} · ${result.title}`}>
           <Select aria-label={`${result.title} 结果`} value={result.status} disabled={busy || run.status === "COMPLETED"} onChange={(status) => status !== "NOT_RUN" && onResult(result.id, status, result.version)}>
-            {["NOT_RUN", "PASS", "FAIL", "BLOCKED", "SKIPPED"].map((status) => <Select.Option key={status} value={status}>{status}</Select.Option>)}
+            {["NOT_RUN", "PASS", "FAIL", "BLOCKED", "SKIPPED"].map((status) => <Select.Option key={status} value={status}>{testResultLabel(status)}</Select.Option>)}
           </Select>
           {result.status === "FAIL" && onCreateBug && <Button onClick={() => onCreateBug(result)}>创建关联 Bug</Button>}
         </Card>
       ))}
-      {run.summary && <Alert type={run.decision.passed ? "success" : "warning"} content={`PASS ${run.summary.passed}/${run.summary.total}；${run.decision.passed ? "允许 QA PASS" : run.decision.missing.join("、")}`} />}
+      {run.summary && <Alert type={run.decision.passed ? "success" : "warning"} content={`通过 ${run.summary.passed}/${run.summary.total}；${run.decision.passed ? "允许 QA 通过" : run.decision.missing.map((value) => guardHintLabel(value)).join("、")}`} />}
       {run.status === "COMPLETED"
-        ? <Button onClick={onReopen}>Reopen Run</Button>
-        : <Button disabled={run.results.some((result) => result.status === "NOT_RUN")} onClick={onComplete}>完成 Run</Button>}
+        ? <Button onClick={onReopen}>重新打开测试执行</Button>
+        : <Button disabled={run.results.some((result) => result.status === "NOT_RUN")} onClick={onComplete}>完成测试执行</Button>}
     </Space>
   );
 }
@@ -182,7 +185,7 @@ export function BugList({ bugs, onAction }: {
                   disabled={action === "RESOLVE" && (!fixNotes[bug.id]?.trim() || !fixEvidence[bug.id]?.trim())}
                   onClick={() => onAction(bug, action, fixNotes[bug.id], fixEvidence[bug.id])}
                 >
-                  {action}
+                  {bugActionLabel(action)}
                 </Button>
               )}
             </Space>

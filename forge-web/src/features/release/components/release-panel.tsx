@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { listRequirements } from "@/features/work-item";
+import { formatRequestError } from "@/lib/api";
 
 import {
   createRelease,
@@ -60,9 +61,9 @@ export function ReleasePanel({ workspaceId, projectId }: { workspaceId: number; 
   });
 
   return (
-    <Card title="Release candidates">
+    <Card title="发布候选版本">
       <Space direction="vertical" style={{ width: "100%" }}>
-        <Input aria-label="Release version" value={versionName} onChange={setVersionName} placeholder="v1.0.0" />
+        <Input aria-label="发布版本号" value={versionName} onChange={setVersionName} placeholder="v1.0.0" />
         <Checkbox.Group value={selected} onChange={(values) => setSelected(values.map(Number))}>
           {(requirements.data?.items ?? []).map((item) => (
             <Checkbox key={item.id} value={item.id}>
@@ -71,10 +72,10 @@ export function ReleasePanel({ workspaceId, projectId }: { workspaceId: number; 
           ))}
         </Checkbox.Group>
         <Button disabled={!versionName.trim() || selected.length === 0} onClick={() => create.mutate()}>
-          创建 Release Candidate
+          创建发布候选版本
         </Button>
         {(create.error || note.error || precheck.error) && (
-          <Alert type="error" content={(create.error ?? note.error ?? precheck.error)?.message} />
+          <Alert type="error" content={formatRequestError(create.error ?? note.error ?? precheck.error)} />
         )}
         {(releases.data ?? []).map((release) => (
           <ReleaseCard
@@ -134,18 +135,18 @@ export function ReleaseCard({ release, onSaveNote, onPrecheck }: {
   return (
     <Card size="small" title={`${release.versionName} · ${release.environment}`}>
       <Space direction="vertical" style={{ width: "100%" }}>
-        <Input.TextArea aria-label={`${release.versionName} Release Note`} value={draft} onChange={setDraft} />
+        <Input.TextArea aria-label={`${release.versionName} 发布说明`} value={draft} onChange={setDraft} />
         <Space>
           <Button disabled={!draft.trim()} onClick={() => onSaveNote(draft)}>
-            保存 Release Note
+            保存发布说明
           </Button>
           <Button type="primary" onClick={onPrecheck}>
-            运行 Precheck
+            运行预检
           </Button>
         </Space>
         <Alert
           type="warning"
-          content="SIMULATED only：不会连接或改变生产环境。"
+          content="仅模拟执行：不会连接或改变生产环境。"
         />
         <Button
           status="warning"
@@ -155,7 +156,7 @@ export function ReleaseCard({ release, onSaveNote, onPrecheck }: {
           申请 HIGH 审批并模拟部署
         </Button>
         {(deploy.error || decide.error) && (
-          <Alert type="error" content={(deploy.error ?? decide.error)?.message} />
+          <Alert type="error" content={formatRequestError(deploy.error ?? decide.error)} />
         )}
         {(deploymentQuery.data ?? []).map((deployment) => (
           <DeploymentCard
@@ -167,12 +168,12 @@ export function ReleaseCard({ release, onSaveNote, onPrecheck }: {
         {release.latestPrecheck && (
           <>
             {!release.latestPrecheck.current && (
-              <Alert type="warning" content="关键资源版本已变化，请重新运行 Precheck。" />
+              <Alert type="warning" content="关键资源版本已变化，请重新运行预检。" />
             )}
-            <Typography.Text>Precheck #{release.latestPrecheck.id}</Typography.Text>
+            <Typography.Text>预检 #{release.latestPrecheck.id}</Typography.Text>
             {release.latestPrecheck.checks.map((check) => (
               <Space key={check.rule}>
-                <Tag color={check.passed ? "green" : "red"}>{check.passed ? "PASS" : "FAIL"}</Tag>
+                <Tag color={check.passed ? "green" : "red"}>{check.passed ? "通过" : "未通过"}</Tag>
                 <Typography.Text>{check.rule}</Typography.Text>
                 {!check.passed && <Typography.Text>{check.details.join("、")}</Typography.Text>}
               </Space>
@@ -189,9 +190,9 @@ export function DeploymentCard({ deployment, onDecide }: {
   onDecide: (decision: "APPROVE" | "REJECT") => void;
 }) {
   return (
-    <Card size="small" title={`Deployment #${deployment.id}`}>
+    <Card size="small" title={`部署 #${deployment.id}`}>
       <Space direction="vertical">
-        <Tag color="orange">SIMULATED · 非生产部署</Tag>
+        <Tag color="orange">模拟部署 · 非生产环境</Tag>
         <Typography.Text>{deployment.status}</Typography.Text>
         {deployment.status === "PENDING_APPROVAL" && (
           <Space>

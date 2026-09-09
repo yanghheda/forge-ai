@@ -44,10 +44,10 @@ describe("ReleaseCard", () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText("关键资源版本已变化，请重新运行 Precheck。")).toBeInTheDocument();
-    expect(screen.getAllByText("FAIL")).toHaveLength(6);
+    expect(screen.getByText("关键资源版本已变化，请重新运行预检。")).toBeInTheDocument();
+    expect(screen.getAllByText("未通过")).toHaveLength(6);
     expect(screen.getByText("QA_PASSED")).toBeInTheDocument();
-    expect(screen.getByText("SIMULATED only：不会连接或改变生产环境。")).toBeInTheDocument();
+    expect(screen.getByText("仅模拟执行：不会连接或改变生产环境。")).toBeInTheDocument();
   });
 
   it("labels deployment as simulated and exposes explicit approval decisions", () => {
@@ -69,7 +69,7 @@ describe("ReleaseCard", () => {
       />,
     );
 
-    expect(screen.getByText("SIMULATED · 非生产部署")).toBeInTheDocument();
+    expect(screen.getByText("模拟部署 · 非生产环境")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "批准" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "拒绝" })).toBeInTheDocument();
   });

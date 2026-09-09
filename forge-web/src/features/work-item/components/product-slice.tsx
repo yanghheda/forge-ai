@@ -12,8 +12,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
-import { createRequirement, listRequirements } from "../api/work-item-api";
+
 import ui from "@/components/workbench/workbench.module.css";
+import { formatRequestError } from "@/lib/api";
+import { priorityLabel } from "@/lib/labels";
+
+import { createRequirement, listRequirements } from "../api/work-item-api";
 
 export function ProductSlice({
   workspaceId,
@@ -58,17 +62,17 @@ export function ProductSlice({
         </div>
         <div className={ui.inlineForm}>
           <Input
-            aria-label="Requirement 标题"
+            aria-label="需求标题"
             value={title}
             onChange={setTitle}
-            placeholder="新建 Requirement"
+            placeholder="新建需求"
           />
           <Select
             aria-label="优先级"
             value={priority}
             onChange={setPriority}
             options={["LOW", "MEDIUM", "HIGH", "URGENT"].map((value) => ({
-              label: value,
+              label: priorityLabel(value),
               value,
             }))}
           />
@@ -84,14 +88,14 @@ export function ProductSlice({
       </div>
       <div className={ui.content}>
         {create.isError && (
-          <Alert type="error" content={create.error.message} />
+          <Alert type="error" content={formatRequestError(create.error)} />
         )}
         {requirements.isError && (
-          <Alert type="error" content={requirements.error.message} />
+          <Alert type="error" content={formatRequestError(requirements.error)} />
         )}
         {requirements.data?.items.length === 0 && (
           <div className={ui.empty}><Typography.Text type="secondary">
-            暂无 Requirement，可从上方开始人工交付闭环。
+            暂无需求，可从上方开始人工交付闭环。
           </Typography.Text></div>
         )}
         <div className={ui.list}>
@@ -103,7 +107,7 @@ export function ProductSlice({
           >
             <span className={ui.itemMain}>
               <span className={ui.itemTitle}>{item.title}</span>
-              <span className={ui.itemMeta}>{item.itemKey} · 优先级 {item.priority}</span>
+              <span className={ui.itemMeta}>{item.itemKey} · 优先级 {priorityLabel(item.priority)}</span>
             </span>
             <Tag color={item.status === "READY_FOR_DEV" ? "green" : "arcoblue"}>{item.status}</Tag>
           </Link>

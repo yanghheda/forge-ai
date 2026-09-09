@@ -41,7 +41,7 @@ describe("ProtectedWorkspace", () => {
 
     authApi.getCurrentUser.mockResolvedValue({ id: 1, email: "owner@example.com", displayName: "Owner", workspaces: [] });
     render(<ProtectedWorkspace workspace="engineering"><div>不可见</div></ProtectedWorkspace>, { wrapper });
-    expect(await screen.findByText("当前账户无权访问此 Workspace。")).toBeInTheDocument();
+    expect(await screen.findByText("当前账户无权访问此工作空间。")).toBeInTheDocument();
     expect(screen.queryByText("不可见")).not.toBeInTheDocument();
   });
 });

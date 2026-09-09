@@ -13,9 +13,11 @@ import {
 } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
 import { getCurrentUser } from "@/features/auth";
 import { listProjects } from "@/features/project";
-import { ApiError } from "@/lib/api/api-error";
+import { formatRequestError } from "@/lib/api";
+import { guardHintLabel, workflowActionLabel } from "@/lib/labels";
 import {
   createDocument,
   DocumentEditor,
@@ -31,40 +33,14 @@ import {
   createDevTask,
   getWorkItem,
   getWorkItemActivity,
-  saveRequirementDetails,
   transitionRequirement,
   type WorkflowAction,
 } from "../api/work-item-api";
 import { DeliveryGraphPanel } from "./delivery-graph";
 import { DevelopmentPanel } from "./development-panel";
 import { QaPanel } from "./qa-panel";
+import { RequirementMaterials } from "./requirement-materials";
 import styles from "./requirement-detail.module.css";
-
-const missingLabel: Record<string, string> = {
-  goal: "业务目标",
-  inScope: "范围",
-  acceptanceCriteria: "验收标准",
-  publishedPrd: "已发布 PRD",
-  publishedUxSpec: "已发布 UX Spec",
-  userFlow: "用户流",
-  pageList: "页面清单",
-  keyInteraction: "关键交互",
-  exceptionState: "异常状态",
-  reason: "退回原因",
-  devTask: "Dev Task",
-  devTaskIncomplete: "未完成的 Dev Task",
-  repository: "可用 GitLab 仓库",
-  mergeRequest: "Dev Task 关联 MR",
-  pipeline: "MR Pipeline",
-  pipelineRunning: "运行完成的 Pipeline",
-  pipelineFailed: "成功的 Pipeline",
-  pipelineHeadMismatch: "MR 当前 head 的成功 Pipeline",
-  completedTestRun: "已完成 Test Run",
-  testNotRun: "全部用例执行完成",
-  testFailed: "无失败用例",
-  testBlocked: "无阻塞用例",
-  mandatoryTestSkipped: "P0/P1 用例全部 PASS",
-};
 
 const uxChecklistItems = [
   "userFlow",
@@ -99,7 +75,7 @@ export function UxReviewChecklist({
               checked={checklist[item]}
               onChange={(event) => onChange(item, event.target.checked)}
             />{" "}
-            {missingLabel[item] ?? item}
+            {guardHintLabel(item)}
           </label>
         ))}
       </Space>
@@ -109,9 +85,8 @@ export function UxReviewChecklist({
 
 export function selectEditableVersion(
   versions: DocumentVersion[] | undefined,
-  currentVersionId: number | null,
 ) {
-  return versions?.find((version) => version.id === currentVersionId) ?? versions?.[0];
+  return versions?.[0];
 }
 
 export function unresolvedUxReviewHints(hints: string[] | undefined, checklist: UxChecklist) {
@@ -201,9 +176,9 @@ export function RequirementDetail({
     onSuccess: () => void invalidate(),
   });
   if (detail.isPending || materials.isPending || documents.isPending)
-    return <Spin tip="加载 Requirement…" />;
+    return <Spin tip="正在加载需求…" />;
   if (!detail.data || !materials.data)
-    return <Alert type="error" content="Requirement 不存在或无权访问。" />;
+    return <Alert type="error" content="需求不存在或无权访问。" />;
   const prd = documents.data?.find((document) => document.type === "PRD");
   const uxSpec = documents.data?.find((document) => document.type === "UX_SPEC");
   const uxReviewHints = unresolvedUxReviewHints(
@@ -211,12 +186,11 @@ export function RequirementDetail({
     checklist,
   );
   const error = createPrd.error ?? createUxSpec.error ?? transition.error;
-  const requestId = error instanceof ApiError ? error.requestId : undefined;
   return (
     <section className={styles.page}>
       <header className={styles.header}>
         <div>
-          <Typography.Text className={styles.eyebrow}>REQUIREMENT DETAIL</Typography.Text>
+          <Typography.Text className={styles.eyebrow}>需求详情</Typography.Text>
           <Typography.Title heading={2} className={styles.title}>
             <span>{detail.data.itemKey}</span>
             {detail.data.title}
@@ -231,12 +205,12 @@ export function RequirementDetail({
         <Alert
           className={styles.pageAlert}
           type="error"
-          content={`${error.message}${requestId ? `（requestId: ${requestId}）` : ""}`}
+          content={formatRequestError(error)}
         />
       )}
       <Tabs defaultActiveTab="details" className={styles.tabs}>
-        <Tabs.TabPane key="details" title="Requirement">
-          <DetailsForm
+        <Tabs.TabPane key="details" title="需求">
+          <RequirementMaterials
             key={materials.data.version}
             workspaceId={workspaceId}
             projectId={projectId}
@@ -269,14 +243,14 @@ export function RequirementDetail({
             create={() => createUxSpec.mutate()}
           />
         </Tabs.TabPane>
-        <Tabs.TabPane key="activity" title="Activity">
+        <Tabs.TabPane key="activity" title="动态">
           {activity.data?.map((item) => (
             <p key={`${item.kind}-${item.id}`}>
               {item.kind === "COMMENT" ? item.body : `${item.action}${item.reason ? `：${item.reason}` : ""}`}
             </p>
           ))}
         </Tabs.TabPane>
-        <Tabs.TabPane key="delivery" title="Delivery Graph">
+        <Tabs.TabPane key="delivery" title="交付关系图">
           <DeliveryGraphPanel
             workspaceId={workspaceId}
             projectId={projectId}
@@ -309,7 +283,7 @@ export function RequirementDetail({
                 }
                 onClick={() => transition.mutate(action)}
               >
-                {action}
+                {workflowActionLabel(action)}
               </Button>
               {(action === "SUBMIT_UX_REVIEW"
                 ? uxReviewHints
@@ -322,7 +296,7 @@ export function RequirementDetail({
                     ? uxReviewHints
                     : detail.data.guardHints[action]
                   )!.map(
-                    (value) => missingLabel[value] ?? value,
+                    (value) => guardHintLabel(value),
                   ).join("、")}
                 </Typography.Text>
               ) : null}
@@ -394,16 +368,16 @@ function DevTaskPanel({
     },
   });
   return (
-    <Card title="Development">
+    <Card title="研发任务">
       <Space direction="vertical" style={{ width: "100%" }}>
         <Input
-          aria-label="Dev Task 标题"
+          aria-label="研发任务标题"
           value={title}
           onChange={setTitle}
           placeholder="输入研发任务标题"
         />
         <Input.TextArea
-          aria-label="Dev Task 说明"
+          aria-label="研发任务说明"
           value={description}
           onChange={setDescription}
           placeholder="实现范围与约束"
@@ -414,76 +388,9 @@ function DevTaskPanel({
           loading={create.isPending}
           onClick={() => create.mutate()}
         >
-          创建 Dev Task
+          创建研发任务
         </Button>
-        {create.isError && <Alert type="error" content={create.error.message} />}
-      </Space>
-    </Card>
-  );
-}
-
-function DetailsForm({
-  workspaceId,
-  projectId,
-  workItemId,
-  details,
-  onChanged,
-}: {
-  workspaceId: number;
-  projectId: number;
-  workItemId: number;
-  details: import("../api/work-item-api").RequirementDetails;
-  onChanged: () => Promise<unknown>;
-}) {
-  const [form, setForm] = useState({
-    goal: details.goal,
-    inScope: details.inScope,
-    outOfScope: details.outOfScope,
-    acceptanceCriteria: details.acceptanceCriteria.join("\n"),
-    businessValue: details.businessValue,
-  });
-  const save = useMutation({
-    mutationFn: () =>
-      saveRequirementDetails(workspaceId, projectId, workItemId, {
-        ...form,
-        acceptanceCriteria: form.acceptanceCriteria.split("\n").filter(Boolean),
-        version: details.version,
-      }),
-    onSuccess: () => void onChanged(),
-  });
-  return (
-    <Card>
-      <Space direction="vertical" style={{ width: "100%" }}>
-        <Input.TextArea
-          aria-label="业务目标"
-          value={form.goal}
-          onChange={(value) => setForm({ ...form, goal: value })}
-        />
-        <Input.TextArea
-          aria-label="纳入范围"
-          value={form.inScope}
-          onChange={(value) => setForm({ ...form, inScope: value })}
-        />
-        <Input.TextArea
-          aria-label="排除范围"
-          value={form.outOfScope}
-          onChange={(value) => setForm({ ...form, outOfScope: value })}
-        />
-        <Input.TextArea
-          aria-label="验收标准"
-          placeholder="每行一条"
-          value={form.acceptanceCriteria}
-          onChange={(value) => setForm({ ...form, acceptanceCriteria: value })}
-        />
-        <Input.TextArea
-          aria-label="业务价值"
-          value={form.businessValue}
-          onChange={(value) => setForm({ ...form, businessValue: value })}
-        />
-        <Button loading={save.isPending} onClick={() => save.mutate()}>
-          保存材料
-        </Button>
-        {save.isError && <Alert type="error" content={save.error.message} />}
+        {create.isError && <Alert type="error" content={formatRequestError(create.error)} />}
       </Space>
     </Card>
   );
@@ -542,6 +449,7 @@ function PrdPanel({
   onChanged: () => Promise<unknown>;
   create: () => void;
 }) {
+  const qc = useQueryClient();
   const versions = useQuery({
     queryKey: ["document-versions", document?.id],
     queryFn: () => listDocumentVersions(workspaceId, projectId, document!.id),
@@ -556,7 +464,12 @@ function PrdPanel({
         document!.version,
         content,
       ),
-    onSuccess: () => void onChanged(),
+    onSuccess: () => {
+      void Promise.all([
+        qc.invalidateQueries({ queryKey: ["document-versions", document?.id] }),
+        onChanged(),
+      ]);
+    },
   });
   const publish = useMutation({
     mutationFn: (versionId: number) =>
@@ -570,7 +483,11 @@ function PrdPanel({
     onSuccess: () => void onChanged(),
   });
   if (!document) return <Button onClick={create}>创建关联 {documentType}</Button>;
-  const current = selectEditableVersion(versions.data, document.currentVersionId);
+  if (versions.isPending) return <Spin tip={`正在加载 ${documentType}…`} />;
+  if (versions.isError) {
+    return <Alert type="error" content={formatRequestError(versions.error)} />;
+  }
+  const current = selectEditableVersion(versions.data);
   return (
     <div className={styles.documentLayout}>
       <div className={styles.editorPane}>
@@ -595,6 +512,7 @@ function PrdPanel({
         </div>
         <div className={styles.editorSurface}>
           <DocumentEditor
+            key={`${document.id}-${current?.id ?? "empty"}`}
             userId={userId}
             documentId={document.id}
             baseVersion={document.version}
@@ -605,7 +523,7 @@ function PrdPanel({
           />
         </div>
         {(save.isError || publish.isError) && (
-          <Alert type="error" content={(save.error ?? publish.error)?.message} />
+          <Alert type="error" content={formatRequestError(save.error ?? publish.error)} />
         )}
       </div>
       <aside className={styles.historyPane}>

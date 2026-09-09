@@ -4,17 +4,17 @@ import { Alert, Button, Card, Input, Select, Spin, Tag } from "@arco-design/web-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { getCurrentUser } from "@/features/auth";
-import { isApiError } from "@/lib/api";
 import ui from "@/components/workbench/workbench.module.css";
+import { getCurrentUser } from "@/features/auth";
+import { formatRequestError } from "@/lib/api";
+import { roleLabel } from "@/lib/labels";
 
 import { addWorkspaceMember, createWorkspaceMember, listWorkspaceMembers, removeWorkspaceMember } from "../api/workspace-api";
 
-const ROLE_OPTIONS = ["OWNER", "ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER"].map((value) => ({ label: value, value }));
+const ROLE_OPTIONS = ["OWNER", "ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER"].map((value) => ({ label: roleLabel(value), value }));
 
 function ErrorAlert({ error }: { error: unknown }) {
-  const requestId = isApiError(error) ? error.requestId : undefined;
-  return <Alert type="error" content={requestId ? `请求失败。Request ID: ${requestId}` : "请求失败，请稍后重试。"} />;
+  return <Alert type="error" content={formatRequestError(error)} />;
 }
 
 export function WorkspaceMembers({ workspaceSlug }: { workspaceSlug: string }) {
@@ -30,11 +30,11 @@ export function WorkspaceMembers({ workspaceSlug }: { workspaceSlug: string }) {
   const createMutation = useMutation({ mutationFn: () => createWorkspaceMember(workspace!.id, create), onSuccess: () => { setCreate({ email: "", displayName: "", password: "", role: "DEVELOPER" }); invalidate(); } });
   const remove = useMutation({ mutationFn: (userId: number) => removeWorkspaceMember(workspace!.id, userId), onSuccess: invalidate });
 
-  if (currentUser.isPending || members.isPending) return <Spin tip="正在加载 Workspace 成员…" />;
-  if (!workspace) return <Alert type="error" content="当前账户无权访问此 Workspace。" />;
+  if (currentUser.isPending || members.isPending) return <Spin tip="正在加载工作空间成员…" />;
+  if (!workspace) return <Alert type="error" content="当前账户无权访问此工作空间。" />;
   if (currentUser.isError || members.isError) return <ErrorAlert error={currentUser.error ?? members.error} />;
   return <section className={ui.page} aria-labelledby="workspace-members-title">
-    <header className={ui.pageHeader}><div><span className={ui.eyebrow}>ACCESS CONTROL</span><h1 id="workspace-members-title">成员与权限</h1><p>管理 Workspace 账号、角色和访问状态。</p></div></header>
+    <header className={ui.pageHeader}><div><span className={ui.eyebrow}>访问控制</span><h1 id="workspace-members-title">成员与权限</h1><p>管理工作空间账号、角色和访问状态。</p></div></header>
     <div className={ui.twoColumns}>
         <Card size="small" title="创建成员账号">
           <div className={ui.stack}>
@@ -48,15 +48,15 @@ export function WorkspaceMembers({ workspaceSlug }: { workspaceSlug: string }) {
         </Card>
         <Card size="small" title="添加已有账号">
           <div className={ui.stack}>
-            <Input aria-label="Workspace 成员邮箱" value={email} placeholder="已有账号邮箱" onChange={setEmail} />
+            <Input aria-label="工作空间成员邮箱" value={email} placeholder="已有账号邮箱" onChange={setEmail} />
             <Select aria-label="成员角色" value={role} onChange={setRole} options={ROLE_OPTIONS} />
             <Button type="primary" disabled={!email.trim()} loading={add.isPending} onClick={() => add.mutate()}>添加成员</Button>
           </div>
           {add.isError && <ErrorAlert error={add.error} />}
         </Card>
     </div>
-    <Card title={`Workspace 成员 · ${members.data.length}`}>
-      <div className={ui.list}>{members.data.map((member) => <div className={ui.listItem} key={member.id}><span className={ui.itemMain}><span className={ui.itemTitle}>{member.displayName}</span><span className={ui.itemMeta}>{member.email}</span></span><span className={ui.itemActions}><Tag color={member.active ? "green" : "gray"}>{member.active ? "ACTIVE" : "REMOVED"}</Tag>
+    <Card title={`工作空间成员 · ${members.data.length}`}>
+      <div className={ui.list}>{members.data.map((member) => <div className={ui.listItem} key={member.id}><span className={ui.itemMain}><span className={ui.itemTitle}>{member.displayName}</span><span className={ui.itemMeta}>{member.email}</span></span><span className={ui.itemActions}><Tag color={member.active ? "green" : "gray"}>{member.active ? "在职" : "已移除"}</Tag>
           {member.active && <Button type="text" status="danger" loading={remove.isPending} onClick={() => remove.mutate(member.userId)}>移除</Button>}</span>
         </div>)}</div>
     </Card>

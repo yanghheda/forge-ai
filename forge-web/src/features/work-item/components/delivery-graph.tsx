@@ -18,10 +18,10 @@ export function DeliveryGraphPanel({
     queryFn: () => getDeliveryGraph(workspaceId, projectId, workItemId),
   });
   if (graph.isPending) {
-    return <Spin tip="加载 Delivery Graph…" />;
+    return <Spin tip="正在加载交付关系图…" />;
   }
   if (!graph.data) {
-    return <Alert type="error" content="Delivery Graph 不存在或无权访问。" />;
+    return <Alert type="error" content="交付关系图不存在或无权访问。" />;
   }
   return <DeliveryGraphView graph={graph.data} />;
 }
@@ -30,7 +30,7 @@ export function DeliveryGraphView({ graph }: { graph: Graph }) {
   const positions = layout(graph);
   const useListOnly = graph.nodes.length > 80;
   return (
-    <Card title="Delivery Graph">
+    <Card title="交付关系图">
       {graph.truncated && (
         <Alert
           type="warning"

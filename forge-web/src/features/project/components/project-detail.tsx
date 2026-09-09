@@ -71,14 +71,14 @@ export function ProjectDetail({
 
   return (
     <section aria-labelledby="project-detail-title">
-      <div className={styles.hero}><div><div className={styles.eyebrow}>{project.data.key} · PROJECT OVERVIEW</div><Typography.Title id="project-detail-title" heading={2}>{project.data.name}</Typography.Title><Typography.Paragraph>{project.data.description || "尚未填写项目说明。"}</Typography.Paragraph></div><div className={styles.heroActions}><span className={styles.status}><i />{project.data.status === "ACTIVE" ? "项目活跃" : "已归档"}</span>
+      <div className={styles.hero}><div><div className={styles.eyebrow}>{project.data.key} · 项目概览</div><Typography.Title id="project-detail-title" heading={2}>{project.data.name}</Typography.Title><Typography.Paragraph>{project.data.description || "尚未填写项目说明。"}</Typography.Paragraph></div><div className={styles.heroActions}><span className={styles.status}><i />{project.data.status === "ACTIVE" ? "项目活跃" : "已归档"}</span>
         {canManageProjects && project.data.status === "ACTIVE" && (
-          <Button status="warning" loading={archive.isPending} onClick={() => archive.mutate()}>归档 Project</Button>
+          <Button status="warning" loading={archive.isPending} onClick={() => archive.mutate()}>归档项目</Button>
         )}
       </div></div>
       {archive.isError && <RequestError error={archive.error} />}
-      <div className={styles.metrics}><article><small>当前版本</small><strong>v{project.data.version}</strong><span>业务数据版本</span></article><article><small>交付阶段</small><strong>Product</strong><span>等待需求进入流程</span></article><article><small>更新时间</small><strong>{new Date(project.data.updatedAt).toLocaleDateString("zh-CN")}</strong><span>最近项目变更</span></article></div>
-      <div className={styles.sectionHeading} id="requirements"><div><span>DELIVERY PIPELINE</span><h2>交付工作台</h2></div><p>按阶段查看进度、风险与下一步操作</p></div>
+      <div className={styles.metrics}><article><small>当前版本</small><strong>v{project.data.version}</strong><span>业务数据版本</span></article><article><small>交付阶段</small><strong>产品</strong><span>等待需求进入流程</span></article><article><small>更新时间</small><strong>{new Date(project.data.updatedAt).toLocaleDateString("zh-CN")}</strong><span>最近项目变更</span></article></div>
+      <div className={styles.sectionHeading} id="requirements"><div><span>交付流水线</span><h2>交付工作台</h2></div><p>按阶段查看进度、风险与下一步操作</p></div>
       <div className={styles.panels}><ProductSlice
         workspaceId={workspace.id}
         projectId={project.data.id}

@@ -124,8 +124,8 @@ export function AgentRunPage({
     queryKey: ["agent-run", runId],
     queryFn: () => getAgentRun(workspaceId, projectId, runId),
   });
-  if (snapshot.isPending) return <Spin tip="加载 Agent Run…" />;
-  if (!snapshot.data) return <Alert type="error" content="Agent Run 不存在或无权访问。" />;
+  if (snapshot.isPending) return <Spin tip="正在加载 Agent 运行…" />;
+  if (!snapshot.data) return <Alert type="error" content="Agent 运行不存在或无权访问。" />;
   return <AgentRunTimeline workspaceId={workspaceId} projectId={projectId} snapshot={snapshot.data} />;
 }
 
@@ -144,8 +144,8 @@ function AgentRunTimeline({
     <section className={ui.page}>
       <header className={ui.pageHeader}>
         <div>
-          <span className={ui.eyebrow}>AGENT EXECUTION</span>
-          <h1>Agent Run</h1>
+          <span className={ui.eyebrow}>Agent 执行</span>
+          <h1>Agent 运行</h1>
           <p>查看执行步骤、实时事件与人工审批。</p>
         </div>
       </header>

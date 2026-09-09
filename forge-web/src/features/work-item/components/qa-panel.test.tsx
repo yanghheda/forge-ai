@@ -25,9 +25,9 @@ describe("QaRunView", () => {
       />,
     );
 
-    expect(screen.getByText("PASS 1/2；允许 QA PASS")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "完成 Run" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Reopen Run" }));
+    expect(screen.getByText("通过 1/2；允许 QA 通过")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "完成测试执行" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "重新打开测试执行" }));
     expect(reopen).toHaveBeenCalledOnce();
   });
 });
@@ -60,7 +60,7 @@ describe("BugList", () => {
     );
 
     expect(screen.getByText("BLOCKER")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "VERIFY" }));
+    fireEvent.click(screen.getByRole("button", { name: "验证" }));
     expect(action).toHaveBeenCalledWith(
       expect.objectContaining({ id: 9 }),
       "VERIFY",

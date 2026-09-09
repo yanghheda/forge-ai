@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Card, Form, Input, InputNumber, List, Space, Spin, Typography } from "@arco-design/web-react";
+import { Alert, Button, Card, Form, Input, InputNumber, List, Spin, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -48,13 +48,13 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
     return <Spin tip="正在加载 GitLab 设置…" />;
   }
   if (!workspace) {
-    return <Alert type="error" content="当前账户无权访问此 Workspace。" />;
+    return <Alert type="error" content="当前账户无权访问此工作空间。" />;
   }
 
   return (
     <section className={ui.page}>
       <header className={ui.pageHeader}>
-        <div><span className={ui.eyebrow}>INTEGRATIONS</span><h1>GitLab 集成</h1><p>管理连接凭据、健康状态与项目仓库绑定。</p></div>
+        <div><span className={ui.eyebrow}>集成</span><h1>GitLab 集成</h1><p>管理连接凭据、健康状态与项目仓库绑定。</p></div>
       </header>
       <div className={ui.twoColumns}>
       <Card title="新增 GitLab 连接">
@@ -62,10 +62,10 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
           <Form.Item label="连接名称" required>
             <Input value={connectionForm.name} onChange={(name) => setConnectionForm({ ...connectionForm, name })} />
           </Form.Item>
-          <Form.Item label="Base URL" required>
+          <Form.Item label="服务地址（Base URL）" required>
             <Input value={connectionForm.baseUrl} onChange={(baseUrl) => setConnectionForm({ ...connectionForm, baseUrl })} />
           </Form.Item>
-          <Form.Item label="Access Token" required extra="保存后不会再次回显。">
+          <Form.Item label="访问令牌（Access Token）" required extra="保存后不会再次回显。">
             <Input.Password value={connectionForm.token} onChange={(token) => setConnectionForm({ ...connectionForm, token })} />
           </Form.Item>
           <Button htmlType="submit" type="primary" loading={create.isPending}>保存连接</Button>
@@ -105,10 +105,10 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
 
       <Card title="绑定项目仓库">
         <Form layout="vertical" onSubmit={() => bind.mutate()}>
-          <Form.Item label="Project ID" required>
+          <Form.Item label="项目 ID" required>
             <InputNumber min={1} value={binding.projectId} onChange={(projectId) => setBinding({ ...binding, projectId: projectId ?? 0 })} />
           </Form.Item>
-          <Form.Item label="Connection ID" required>
+          <Form.Item label="连接 ID" required>
             <InputNumber min={1} value={binding.connectionId} onChange={(connectionId) => setBinding({ ...binding, connectionId: connectionId ?? 0 })} />
           </Form.Item>
           <Form.Item label="GitLab Project ID 或完整路径" required>

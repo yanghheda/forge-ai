@@ -4,8 +4,10 @@ import { Alert, Button, Card, Input, Space, Spin, Tag, Typography } from "@arco-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { listPipelines, triggerPipeline } from "../api/gitlab-api";
 import ui from "@/components/workbench/workbench.module.css";
+import { formatRequestError } from "@/lib/api";
+
+import { listPipelines, triggerPipeline } from "../api/gitlab-api";
 
 export function PipelinePanel({
   workspaceId,
@@ -33,7 +35,7 @@ export function PipelinePanel({
     <Card title="持续集成 · Pipelines">
       <Space direction="vertical" style={{ width: "100%" }}>
         <div className={ui.inlineForm}>
-          <Input aria-label="Pipeline ref" value={ref} onChange={setRef} />
+          <Input aria-label="Pipeline 分支或引用" value={ref} onChange={setRef} />
           <Button
             type="primary"
             disabled={!ref.trim()}
@@ -43,9 +45,9 @@ export function PipelinePanel({
             触发 Pipeline
           </Button>
         </div>
-        {trigger.isError && <Alert type="error" content={trigger.error.message} />}
+        {trigger.isError && <Alert type="error" content={formatRequestError(trigger.error)} />}
         {pipelines.isPending && <Spin tip="正在同步 Pipeline 状态…" />}
-        {pipelines.isError && <Alert type="error" content={pipelines.error.message} />}
+        {pipelines.isError && <Alert type="error" content={formatRequestError(pipelines.error)} />}
         {pipelines.data?.map((pipeline) => (
           <div className={ui.listItem} key={pipeline.id}>
             <div className={ui.itemMain}>

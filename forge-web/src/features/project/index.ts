@@ -1,4 +1,5 @@
 export { ProjectDetail } from "./components/project-detail";
+export { ProjectAccessGuard } from "./components/project-access-guard";
 export { WorkspaceProjects } from "./components/workspace-projects";
 export {
   projectRouteSchema,

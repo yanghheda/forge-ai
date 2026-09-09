@@ -34,7 +34,7 @@ export function AppShell({ children }: AppShellProps) {
     <aside className={styles.sidebar}>
       <Link className={styles.brand} href={workspaceBase} aria-label="ForgeAI 首页">
         <span className={styles.brandMark}>F</span>
-        {!navigationCollapsed && <span><strong>ForgeAI</strong><small>Delivery OS</small></span>}
+        {!navigationCollapsed && <span><strong>ForgeAI</strong><small>交付操作系统</small></span>}
       </Link>
       <nav className={styles.nav} aria-label="主导航">
         <p className={styles.navLabel}>{navigationCollapsed ? "" : project ? "项目空间" : "工作空间"}</p>
@@ -54,7 +54,7 @@ export function AppShell({ children }: AppShellProps) {
     <div className={styles.workspace}>
       <header className={styles.topbar}>
         <button className={styles.mobileMenu} onClick={toggleNavigation} aria-label={navigationCollapsed ? "展开导航" : "收起导航"}>{navigationCollapsed ? <IconMenuUnfold /> : <IconMenuFold />}</button>
-        <div className={styles.breadcrumb}><span>{workspace ?? "Workspace"}</span>{project && <><b>/</b><strong>{project}</strong></>}</div>
+        <div className={styles.breadcrumb}><span>{workspace ?? "工作空间"}</span>{project && <><b>/</b><strong>{project}</strong></>}</div>
         <div className={styles.systemState}><i /> 系统运行正常</div>
       </header>
       <main className={styles.content}>{children}</main>

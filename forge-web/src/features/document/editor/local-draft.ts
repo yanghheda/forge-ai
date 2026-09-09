@@ -22,3 +22,7 @@ export function loadDraft(userId: number, documentId: number, baseVersion: numbe
     return null;
   }
 }
+
+export function clearDraft(userId: number, documentId: number, baseVersion: number): void {
+  localStorage.removeItem(draftKey(userId, documentId, baseVersion));
+}
