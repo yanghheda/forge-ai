@@ -7,12 +7,16 @@ import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.workspace.domain.MemberEmailConflictException;
 import ai.forge.server.workspace.domain.Workspace;
 import java.util.Locale;
+import java.util.Set;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
 @Profile("!test-unit")
 public class WorkspaceCommandService {
+
+    /* 允许通过公开注册入口自行取得的业务角色，不包含任何管理角色。 */
+    private static final Set<String> SELF_REGISTRATION_ROLES = Set.of("PRODUCT", "UX", "DEVELOPER", "QA");
 
     /* 检查创建者是否保有初始化阶段已有的 Owner 管理范围。 */
     private final WorkspaceStore workspaceStore;
@@ -58,6 +62,27 @@ public class WorkspaceCommandService {
         long roleId = requireSystemRoleId(roleCode);
         String passwordHash = passwordHasher.hash(password);
         return workspaceStore.createMemberAccount(workspaceId, email.trim(), normalizedEmail, displayName.trim(), passwordHash, roleId);
+    }
+
+    public long selfRegister(String email, String displayName, String password, String roleCode) {
+        String normalizedRole = roleCode.trim().toUpperCase(Locale.ROOT);
+        if (!SELF_REGISTRATION_ROLES.contains(normalizedRole)) {
+            throw new IllegalArgumentException("Unsupported self-registration role");
+        }
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        if (workspaceStore.userExistsByNormalizedEmail(normalizedEmail)) {
+            throw new MemberEmailConflictException();
+        }
+        PasswordPolicy.validate(password);
+        long workspaceId = workspaceStore.findDefaultWorkspaceId().orElseThrow(ResourceNotFoundException::new);
+        long roleId = requireSystemRoleId(normalizedRole);
+        return workspaceStore.createSelfRegisteredAccount(
+                workspaceId,
+                email.trim(),
+                normalizedEmail,
+                displayName.trim(),
+                passwordHasher.hash(password),
+                roleId);
     }
 
     public void removeMember(long userId, long workspaceId, long memberUserId) {

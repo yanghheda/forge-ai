@@ -2,6 +2,7 @@ package ai.forge.server.workspace.application;
 
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.workspace.domain.Workspace;
+import ai.forge.server.workspace.domain.OrganizationScope;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -45,5 +46,9 @@ public class WorkspaceAccessService {
 
     public boolean isOwner(long userId, long workspaceId) {
         return workspaceStore.isActiveOwner(workspaceId, userId);
+    }
+
+    public OrganizationScope requireDefaultScope(long userId) {
+        return workspaceStore.findDefaultScopeForUser(userId).orElseThrow(ResourceNotFoundException::new);
     }
 }

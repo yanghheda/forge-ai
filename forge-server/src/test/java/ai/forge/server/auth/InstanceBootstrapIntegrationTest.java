@@ -55,14 +55,17 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
         ResponseEntity<String> response = initialize(password);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(response.getHeaders().getLocation().getPath()).startsWith("/api/v1/workspaces/");
+        assertThat(response.getHeaders().getLocation().getPath()).isEqualTo("/api/v1/organization");
         assertThat(response.getBody()).contains("\"organizationSlug\":\"forge\"")
-                .contains("\"workspaceSlug\":\"engineering\"")
+                .doesNotContain("workspaceId")
+                .doesNotContain("projectId")
                 .doesNotContain(password)
                 .doesNotContain("passwordHash");
         assertThat(count("users")).isOne();
         assertThat(count("organizations")).isOne();
         assertThat(count("workspaces")).isOne();
+        assertThat(count("projects")).isOne();
+        assertThat(count("project_item_sequences")).isOne();
         assertThat(count("workspace_members")).isOne();
         assertThat(count("member_roles")).isOne();
         assertThat(count("audit_logs")).isOne();
@@ -105,6 +108,7 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
         assertThat(statuses).containsExactlyInAnyOrder(HttpStatus.CREATED, HttpStatus.CONFLICT);
         assertThat(count("users")).isOne();
         assertThat(count("workspaces")).isOne();
+        assertThat(count("projects")).isOne();
         assertThat(count("audit_logs")).isOne();
     }
 

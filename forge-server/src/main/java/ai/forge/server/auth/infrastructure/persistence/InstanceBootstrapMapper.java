@@ -36,7 +36,10 @@ public interface InstanceBootstrapMapper extends BaseMapper<InstanceSettingsEnti
             INSERT INTO organizations (name, slug, owner_user_id, created_at, updated_at)
             VALUES (#{name}, #{slug}, #{ownerUserId}, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))
             """)
-    int insertOrganization(@Param("name") String name, @Param("slug") String slug, @Param("ownerUserId") long ownerUserId);
+    int insertOrganization(
+            @Param("name") String name,
+            @Param("slug") String slug,
+            @Param("ownerUserId") long ownerUserId);
 
     @Insert("""
             INSERT INTO workspaces
@@ -48,6 +51,21 @@ public interface InstanceBootstrapMapper extends BaseMapper<InstanceSettingsEnti
             @Param("organizationId") long organizationId,
             @Param("name") String name,
             @Param("slug") String slug);
+
+    @Insert("""
+            INSERT INTO projects
+                (workspace_id, `key`, name, description, status, created_by, created_at, updated_at, version)
+            VALUES
+                (#{workspaceId}, 'REQ', #{name}, '单组织产品模型的内部默认需求范围', 'ACTIVE', #{createdBy},
+                 UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)
+            """)
+    int insertDefaultProject(
+            @Param("workspaceId") long workspaceId,
+            @Param("name") String name,
+            @Param("createdBy") long createdBy);
+
+    @Insert("INSERT INTO project_item_sequences (project_id, next_value, version) VALUES (#{projectId}, 1, 0)")
+    int insertProjectSequence(@Param("projectId") long projectId);
 
     @Insert("""
             INSERT INTO workspace_members
@@ -85,8 +103,12 @@ public interface InstanceBootstrapMapper extends BaseMapper<InstanceSettingsEnti
 
     @Update("""
             UPDATE instance_settings
-            SET initialized_at = UTC_TIMESTAMP(6), default_organization_id = #{organizationId}, version = version + 1
+            SET initialized_at = UTC_TIMESTAMP(6), default_organization_id = #{organizationId},
+                default_workspace_id = #{workspaceId}, default_project_id = #{projectId}, version = version + 1
             WHERE id = 1 AND initialized_at IS NULL
             """)
-    int markInitialized(@Param("organizationId") long organizationId);
+    int markInitialized(
+            @Param("organizationId") long organizationId,
+            @Param("workspaceId") long workspaceId,
+            @Param("projectId") long projectId);
 }

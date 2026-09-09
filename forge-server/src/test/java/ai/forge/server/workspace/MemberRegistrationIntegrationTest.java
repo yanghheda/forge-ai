@@ -35,7 +35,8 @@ class MemberRegistrationIntegrationTest extends InfrastructureIntegrationTestBas
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "audit_logs", "member_roles", "workspace_members", "workspaces", "organizations", "users")) {
+                "project_item_sequences", "project_members", "projects", "audit_logs", "member_roles",
+                "workspace_members", "workspaces", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         ResponseEntity<String> initialized = csrf().post(

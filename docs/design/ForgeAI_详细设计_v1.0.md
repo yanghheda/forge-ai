@@ -283,11 +283,11 @@ erDiagram
     OUTBOX_EVENTS ||--o{ PROCESSED_EVENTS : consumed
 ```
 
-### 4.2 身份、组织与项目
+### 4.2 身份、公司与内部兼容 scope
 
 | 表 | 关键列 | 约束与索引 |
 |---|---|---|
-| `instance_settings` | `id(singleton),initialized_at,default_organization_id,settings_json,version` | CHECK/应用约束只允许单行；初始化时锁定 |
+| `instance_settings` | `id(singleton),initialized_at,default_organization_id,default_workspace_id,default_project_id,settings_json,version` | CHECK/应用约束只允许单行；初始化时锁定；默认 scope 不向新客户端暴露 |
 | `users` | `id,email,normalized_email,display_name,password_hash,status,failed_login_count,locked_until,last_login_at,created_at,updated_at,version` | UQ `normalized_email`; IDX `status` |
 | `organizations` | `id,name,slug,owner_user_id,created_at,updated_at,version` | UQ `slug`; FK owner |
 | `workspaces` | `id,organization_id,name,slug,status,settings_json,created_at,updated_at,version` | UQ `(organization_id,slug)` |
@@ -298,7 +298,7 @@ erDiagram
 | `project_policies` | `project_id,workspace_id,ux_required,allow_ux_skip,ci_required,required_pipeline_status,medium_tool_confirmation,release_approval_ttl_minutes,settings_json,version` | PK `project_id` |
 | `model_configs` | `id,workspace_id NULL,purpose,provider,endpoint,model_name,credential_secret_id,status,settings_json,created_at,updated_at,version` | UQ `(workspace_id,purpose,status)` 由应用保证仅一个 ACTIVE；Secret 不随 DTO 返回 |
 
-首个 Admin 初始化由数据库唯一事实 `instance_settings.initialized_at` 控制，而不是“查询 users 是否为空”。初始化端点在同一事务创建用户、Organization、Workspace、Owner 角色并设置 initialized；唯一锁保证并发只成功一次。
+首个 Owner 初始化由数据库唯一事实 `instance_settings.initialized_at` 控制，而不是“查询 users 是否为空”。初始化端点在同一事务创建用户、公司、Owner 角色和内部默认 Workspace/Project/编号序列并设置 initialized；唯一锁保证并发只成功一次。Workspace/Project 仅为兼容既有授权和交付链路的存储 scope，产品入口不展示也不接受客户端选择。
 
 ### 4.3 RBAC
 
@@ -309,7 +309,7 @@ erDiagram
 | `role_permissions` | `role_id,permission_id` | PK `(role_id,permission_id)` |
 | `member_roles` | `id,workspace_member_id,role_id,project_id NULL,created_at` | UQ `(workspace_member_id,role_id,project_id)` |
 
-授权算法：先验证资源 `workspace_id`；再验证 Workspace Membership；项目资源还需 Owner/Admin 或有效 `project_members`；最后合并 Workspace 级与当前 Project 级角色权限。拒绝默认优先，MVP 不支持显式 Deny。
+授权算法：先从 Session 用户与 `instance_settings` 解析公司内部默认 scope，再验证成员状态并合并角色权限；任何新公司级 API 都不得接收客户端 scope。既有内部模块继续显式校验 `workspace_id/project_id`。拒绝默认优先，MVP 不支持显式 Deny。
 
 ### 4.4 Work Item 与活动
 
@@ -321,6 +321,7 @@ erDiagram
 | `work_item_events` | `id,workspace_id,project_id,work_item_id,event_type,from_status,to_status,actor_type,actor_id,reason,metadata_json,created_at` | IDX `(work_item_id,id)`；追加写 |
 | `comments` | `id,workspace_id,project_id,work_item_id,author_user_id,body,created_at,updated_at,deleted_at,version` | IDX `(work_item_id,created_at)` |
 | `review_records` | `id,workspace_id,project_id,work_item_id,review_type,status,reviewer_user_id,comment,checklist_json,artifact_version_json,created_at` | IDX `(work_item_id,review_type,status)`；提交 UX Review 时 checklist 固化 |
+| `requirement_participants` | `id,workspace_id,project_id,requirement_id,role_code,user_id,assigned_by,created_at,updated_at` | UQ `(requirement_id,role_code)`；角色限 Product/UX/Developer/QA，成员须持有对应角色 |
 
 编号分配：在创建 Work Item 的事务内锁定 `project_item_sequences`，取 `next_value`，立即递增并形成 `${project.key}-${number}`。编号缺口允许存在，禁止为追求连续而复用。
 
@@ -971,7 +972,8 @@ Hooks 职责：
 
 | 页面 | 首屏数据 | 关键操作 | 空/错状态 |
 |---|---|---|---|
-| Project Overview | 阶段统计、近期活动、阻塞项 | 新建 Requirement、打开 Agent | 无数据引导黄金流程；部分卡片失败可独立重试 |
+| Requirement Overview | 全部/进行中/已完成统计、可筛选需求列表 | 新建 Requirement、搜索与筛选 | 无数据引导直接创建首条需求；部分卡片失败可独立重试 |
+| My Requirements | 当前用户参与的需求列表 | 搜索、筛选、进入详情 | Owner 展示全部需求；无分配时提示联系需求负责人 |
 | Work Item Detail | 详情、availableActions、文档、关系、活动 | 编辑、Transition、关联、启动 Agent | version 冲突显示差异并要求刷新 |
 | UX Workspace | UX Task 队列、评审状态 | 生成/编辑 Spec、提交/退回 | 明示缺少准入材料 |
 | Document Editor | metadata + current version | 保存新版本、发布、附件 | 自动草稿只存在本地；离开提醒 |
@@ -982,7 +984,7 @@ Hooks 职责：
 
 ### 13.3 Query 与 mutation 规则
 
-Query Key 工厂统一：`workspaceKeys.detail(id)`、`projectKeys.detail(id)`、`workItemKeys.detail(id)`、`documentKeys.version(id,version)`、`agentRunKeys.detail(id)`。Mutation 成功按返回的 `affectedResources` 精确失效，避免清空全局 Cache。
+Query Key 工厂统一：`requirementKeys.list(filters)`、`requirementKeys.mine(filters)`、`requirementKeys.detail(id)`、`documentKeys.version(id,version)`、`agentRunKeys.detail(id)`。内部兼容 scope 不进入浏览器 Query Key。Mutation 成功按返回的 `affectedResources` 精确失效，避免清空全局 Cache。
 
 表单使用生成 DTO 类型 + Zod UI 校验；服务端错误按 field/global 映射。所有状态按钮来自 `availableActions`，点击后显示 Guard 摘要与 version，提交期间禁用重复操作但仍依靠幂等保证正确性。
 
@@ -1005,14 +1007,14 @@ Tiptap 内容以 ProseMirror JSON 保存。浏览器 LocalStorage 草稿键包�
 - 双提交或服务端 CSRF Token 均可，推荐 Spring Security CSRF 组件即使认证采用自定义 Filter；所有非 GET/HEAD/OPTIONS 请求校验 token 与 Origin。
 - 登录按 IP + normalized email 限流，错误文案不区分用户不存在或密码错误。
 
-### 14.2 多租户防线
+### 14.2 公司与资源范围防线
 
-1. Controller 从路径/Session 建 scope。
-2. Query Service 强制 scope 参数。
-3. Repository 方法包含 workspace 条件。
-4. 聚合加载后断言 workspace/project 一致。
+1. Controller 从 Session 解析当前公司和实例默认内部 scope，不接受客户端选择 Workspace/Project。
+2. Query Service 强制携带公司、Requirement 与内部兼容 scope。
+3. Repository 方法包含默认 workspace/project 条件，直至兼容列完成独立迁移。
+4. 聚合加载后断言公司、Requirement 与内部 scope 一致。
 5. Qdrant 在查询层使用强制过滤。
-6. 测试对每个资源 API 做跨 Workspace A/B 对照。
+6. 测试对每个资源 API 做未登录、非参与成员和伪造资源 ID 对照。
 
 ### 14.3 上传与内容
 

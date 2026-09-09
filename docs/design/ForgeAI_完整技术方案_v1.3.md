@@ -467,13 +467,13 @@ stateDiagram-v2
 
 `OWNER`、`ADMIN`、`PRODUCT`、`UX`、`DEVELOPER`、`QA`、`RELEASE_APPROVER`。
 
-用户可多角色；角色可作用于 Workspace 或特定 Project。MVP 不做通用 ABAC，但每次授权仍校验 Workspace/Project 资源归属。
+用户可多角色，角色作用于当前公司；Requirement 再关联 Product、UX、Developer、QA 参与人。首个 Owner 拥有全部流程权限。MVP 不做通用 ABAC；内部兼容 scope 由 Server 从实例默认事实解析，不接受客户端指定。
 
 ### 8.2 核心权限矩阵
 
 | 权限 | Owner/Admin | Product | UX | Developer | QA | Release Approver |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
-| `workspace.manage` | ✓ |  |  |  |  |  |
+| `company.manage` | ✓ |  |  |  |  |  |
 | `member.manage` | ✓ |  |  |  |  |  |
 | `requirement.create/edit` | ✓ | ✓ | 读 | 读 | 读 | 读 |
 | `ux.create/edit` | ✓ | 读/评审 | ✓ | 读 | 读 | 读 |
@@ -495,7 +495,7 @@ stateDiagram-v2
 Effective Tool Permission
   = User Permissions
   ∩ Skill Tool Allowlist
-  ∩ Project Policy
+  ∩ Company/Requirement Policy
   ∩ Resource Scope
   ∩ Risk/Approval Policy
 ```
@@ -525,7 +525,7 @@ Effective Tool Permission
 
 ### 9.3 服务间认证
 
-Backend 创建 Agent Run 后签发短时 `run-scoped credential`，只含 `run_id`、主体 ID、Workspace/Project 范围、过期时间和随机 nonce。Agent 调用内部 Tool API 时携带该凭据。Backend 必须从数据库读取 Run 与原始用户当前权限，不信任 Agent 自报权限。
+Backend 创建 Agent Run 后签发短时 `run-scoped credential`，只含 `run_id`、主体 ID、Requirement 范围、内部兼容 scope、过期时间和随机 nonce。Agent 调用内部 Tool API 时携带该凭据。Backend 必须从数据库读取 Run 与原始用户当前权限，不信任 Agent 自报权限；内部 scope 不向 Web 暴露。
 
 ---
 
@@ -559,18 +559,19 @@ Swagger 注释仅写在 Controller，不在 Entity、Request DTO 或 Response DT
 ### 10.2 主要资源 API
 
 ```text
-# Auth / Workspace
+# Auth / Company
 POST   /api/v1/auth/login
+POST   /api/v1/auth/register
 POST   /api/v1/auth/logout
 GET    /api/v1/me
-GET    /api/v1/workspaces
-POST   /api/v1/workspaces
-POST   /api/v1/workspaces/{id}/members
+GET    /api/v1/organization
 
-# Project / Work Item
-GET    /api/v1/projects
-POST   /api/v1/projects
-GET    /api/v1/projects/{id}/delivery-graph
+# Requirement / Work Item
+GET    /api/v1/requirements/overview
+GET    /api/v1/requirements
+POST   /api/v1/requirements
+GET    /api/v1/requirements/{id}
+PUT    /api/v1/requirements/{id}/participants
 GET    /api/v1/work-items
 POST   /api/v1/work-items
 GET    /api/v1/work-items/{id}
@@ -923,20 +924,18 @@ GitLab 有 API 的能力全部使用 API。Playwright Browser Tool 只在后续�
 
 ```text
 /login
-/workspaces
-/w/{workspace}/projects
-/w/{workspace}/p/{project}/overview
-/w/{workspace}/p/{project}/work-items
-/w/{workspace}/p/{project}/work-items/{key}
-/w/{workspace}/p/{project}/documents
-/w/{workspace}/p/{project}/ux
-/w/{workspace}/p/{project}/development
-/w/{workspace}/p/{project}/qa
-/w/{workspace}/p/{project}/releases
-/w/{workspace}/p/{project}/agent-runs/{runId}
-/w/{workspace}/settings/members
-/w/{workspace}/settings/integrations
-/w/{workspace}/settings/permissions
+/overview
+/my-requirements
+/requirements/{id}
+/requirements/{id}/documents
+/requirements/{id}/ux
+/requirements/{id}/development
+/requirements/{id}/qa
+/requirements/{id}/release
+/requirements/{id}/agent-runs/{runId}
+/settings/members
+/settings/integrations
+/settings/permissions
 ```
 
 ### 16.2 Work Item 详情布局
@@ -1000,7 +999,7 @@ features/work-items/
 
 | 威胁 | 控制 |
 |---|---|
-| 跨 Workspace 越权 | 每次查询带 Workspace/Project 条件；服务端资源归属校验；权限矩阵测试 |
+| 跨公司或需求越权 | 每次查询带实例默认 scope 与 Requirement 条件；服务端资源归属校验；权限矩阵测试 |
 | Session 劫持/固定 | HTTPS、HttpOnly/Secure/SameSite、登录后轮换、撤销、超时 |
 | CSRF | 修改请求使用 CSRF Token；校验 Origin/Referer |
 | 提示注入 | 文档视为数据；系统指令隔离；Tool 白名单；参数和权限在代码层校验 |
@@ -1082,7 +1081,7 @@ features/work-items/
 
 - Tool Schema、Permission、Risk 与 Endpoint 映射契约测试。
 - Context Builder 范围与脱敏测试。
-- RAG Workspace/Project 权限过滤测试。
+- RAG 公司/Requirement 权限过滤测试。
 - Checkpoint、审批恢复、取消和失败重试测试。
 - 固定模型响应或 Fake LLM 的确定性图测试。
 
@@ -1233,10 +1232,10 @@ ForgeAI 仓库至少包含：
 ### Phase 1：身份与团队（2 周）
 
 - Cookie Session、登录/退出、BCrypt、CSRF。
-- Organization/Workspace/Project/成员与默认 RBAC。
+- 单公司初始化、Owner、成员自助注册与默认 RBAC；Workspace/Project 只作为服务端兼容 scope。
 - 审计基础设施。
 
-**出口：** 单人和多人 Workspace 可用，权限隔离测试通过。
+**出口：** 初始化后可直接创建 Requirement，成员可自助注册并按角色协作，权限隔离测试通过。
 
 ### Phase 2：交付核心（2–3 周）
 

@@ -36,7 +36,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("24");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("27");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -61,7 +61,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                 .isZero();
         assertThat(jdbcTemplate.queryForList(
                         "SELECT code FROM permissions WHERE code LIKE 'release.%' ORDER BY code", String.class))
-                .containsExactly("release.manage", "release.precheck", "release.read");
+                .containsExactly("release.deploy", "release.manage", "release.precheck", "release.read");
     }
 
     @Test
@@ -84,6 +84,8 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                 "id", "固定为 1 的单例主键",
                 "initialized_at", "首次管理员初始化完成时间；为空表示实例尚未初始化",
                 "default_organization_id", "初始化后创建的默认组织标识；为空表示实例尚未完成初始化",
+                "default_workspace_id", "单组织产品模型内部使用的默认工作区标识，不向新客户端暴露",
+                "default_project_id", "单组织产品模型内部使用的默认项目标识，不向新客户端暴露",
                 "settings_json", "不属于独立领域表的实例级扩展设置",
                 "version", "实例设置并发更新使用的乐观锁版本"));
     }
@@ -134,7 +136,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                 Integer.class))
-                .isEqualTo(39);
+                .isEqualTo(40);
     }
 
     @Test

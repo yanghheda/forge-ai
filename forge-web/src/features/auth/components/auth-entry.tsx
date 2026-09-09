@@ -1,20 +1,19 @@
 "use client";
 
-import { Alert, Button, Card, Input, Spin, Typography } from "@arco-design/web-react";
+import { Alert, Button, Card, Input, Select, Spin, Typography } from "@arco-design/web-react";
 import { IconCheckCircle, IconLock, IconRobot } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { getCurrentUser, getSetupStatus, initializeInstance, login, type InitializeInput } from "../api/auth-api";
-import { initializeSchema, loginSchema } from "../schemas/auth-form.schema";
+import { getSetupStatus, initializeInstance, login, register, type InitializeInput, type RegisterInput } from "../api/auth-api";
+import { initializeSchema, loginSchema, registerSchema } from "../schemas/auth-form.schema";
 import { AuthErrorAlert } from "./auth-error-alert";
 import styles from "./auth-forms.module.css";
 
 const emptyInitialization: InitializeInput = {
   adminEmail: "", adminDisplayName: "", password: "", organizationName: "", organizationSlug: "",
-  workspaceName: "", workspaceSlug: "",
 };
 
 export function AuthEntry() {
@@ -22,8 +21,11 @@ export function AuthEntry() {
   const queryClient = useQueryClient();
   const status = useQuery({ queryKey: ["setup-status"], queryFn: () => getSetupStatus() });
   const [initializedLocally, setInitializedLocally] = useState(false);
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [loginValues, setLoginValues] = useState({ email: "", password: "" });
   const [initializeValues, setInitializeValues] = useState(emptyInitialization);
+  const [registerValues, setRegisterValues] = useState<RegisterInput>({ email: "", displayName: "", password: "", role: "PRODUCT" });
+  const [registered, setRegistered] = useState(false);
   const [validationError, setValidationError] = useState<string>();
 
   const initializeMutation = useMutation({
@@ -36,10 +38,11 @@ export function AuthEntry() {
   });
   const loginMutation = useMutation({
     mutationFn: (input: { email: string; password: string }) => login(input),
-    onSuccess: async () => {
-      const user = await queryClient.fetchQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
-      router.replace(user.workspaces[0] ? `/w/${user.workspaces[0].slug}` : "/");
-    },
+    onSuccess: () => router.replace("/overview"),
+  });
+  const registerMutation = useMutation({
+    mutationFn: (input: RegisterInput) => register(input),
+    onSuccess: () => { setRegistered(true); setMode("login"); setValidationError(undefined); },
   });
 
   if (status.isPending) return <div className={styles.loading}><Spin tip="正在检查实例状态…" /></div>;
@@ -62,15 +65,22 @@ export function AuthEntry() {
     initializeMutation.mutate(parsed.data);
   }
 
+  function submitRegistration(event: FormEvent) {
+    event.preventDefault();
+    const parsed = registerSchema.safeParse(registerValues);
+    if (!parsed.success) return setValidationError(parsed.error.issues[0]?.message);
+    setValidationError(undefined);
+    registerMutation.mutate(parsed.data);
+  }
+
   if (!initialized) {
     const fields: Array<[keyof InitializeInput, string, string]> = [
       ["adminEmail", "管理员邮箱", "name@example.com"], ["adminDisplayName", "管理员名称", "Forge 所有者"],
-      ["password", "密码", "至少 12 个字符，包含字母和数字"], ["organizationName", "组织名称", "Forge"],
-      ["organizationSlug", "组织短名", "forge"], ["workspaceName", "工作空间名称", "工程团队"],
-      ["workspaceSlug", "工作空间短名", "engineering"],
+      ["password", "密码", "至少 12 个字符，包含字母和数字"], ["organizationName", "公司名称", "Forge"],
+      ["organizationSlug", "公司短名", "forge"],
     ];
-    return <AuthLayout title="初始化智能交付空间" description="从组织、工作空间到第一个所有者，一次完成可信交付环境的建立。"><Card className={styles.card}>
-      <div className={styles.formHeading}><span>01</span><div><Typography.Title heading={4}>初始化 ForgeAI</Typography.Title><Typography.Paragraph>创建组织与首个工作空间</Typography.Paragraph></div></div>
+    return <AuthLayout title="初始化公司交付平台" description="创建公司与首个 Owner，随后即可直接管理需求。"><Card className={styles.card}>
+      <div className={styles.formHeading}><span>01</span><div><Typography.Title heading={4}>初始化 ForgeAI</Typography.Title><Typography.Paragraph>一个实例服务一家公司</Typography.Paragraph></div></div>
       <form onSubmit={submitInitialization} className={styles.form}>
         {fields.map(([name, label, placeholder]) => <label key={name}>{label}{name === "password" ? <Input.Password
           value={initializeValues[name]} placeholder={placeholder} autoComplete="new-password"
@@ -84,15 +94,31 @@ export function AuthEntry() {
     </Card></AuthLayout>;
   }
 
+  if (mode === "register") return <AuthLayout title="加入公司交付协作" description="注册岗位账号，等待在具体需求中承担对应职责。"><Card className={styles.card}>
+    <div className={styles.formHeading}><span>02</span><div><Typography.Title heading={4}>注册团队账号</Typography.Title><Typography.Paragraph>选择你的主要岗位角色</Typography.Paragraph></div></div>
+    <form onSubmit={submitRegistration} className={styles.form}>
+      <label>姓名<Input value={registerValues.displayName} onChange={(displayName) => setRegisterValues((value) => ({ ...value, displayName }))} /></label>
+      <label>邮箱<Input value={registerValues.email} autoComplete="email" onChange={(email) => setRegisterValues((value) => ({ ...value, email }))} /></label>
+      <label>密码<Input.Password value={registerValues.password} autoComplete="new-password" onChange={(password) => setRegisterValues((value) => ({ ...value, password }))} /></label>
+      <label>岗位角色<Select aria-label="岗位角色" value={registerValues.role} onChange={(role) => setRegisterValues((value) => ({ ...value, role }))} options={[{ label: "产品", value: "PRODUCT" }, { label: "UX", value: "UX" }, { label: "开发", value: "DEVELOPER" }, { label: "测试", value: "QA" }]} /></label>
+      {validationError && <Alert type="warning" content={validationError} />}
+      <AuthErrorAlert error={registerMutation.error} />
+      <Button htmlType="submit" type="primary" long size="large" loading={registerMutation.isPending}>完成注册</Button>
+      <Button type="text" long onClick={() => setMode("login")}>已有账号，返回登录</Button>
+    </form>
+  </Card></AuthLayout>;
+
   return <AuthLayout title="欢迎回来" description="回到清晰、连续、可追溯的软件交付流程。"><Card className={styles.card}>
     <div className={styles.formHeading}><span><IconLock /></span><div><Typography.Title heading={4}>登录 ForgeAI</Typography.Title><Typography.Paragraph>使用你的工作账户进入</Typography.Paragraph></div></div>
     {initializedLocally && <Alert type="success" content="初始化完成，请使用所有者账户登录。" />}
+    {registered && <Alert type="success" content="注册完成，请使用新账号登录。" />}
     <form onSubmit={submitLogin} className={styles.form}>
       <label>邮箱<Input value={loginValues.email} autoComplete="email" onChange={(email) => setLoginValues((value) => ({ ...value, email }))} /></label>
       <label>密码<Input.Password value={loginValues.password} autoComplete="current-password" onChange={(password) => setLoginValues((value) => ({ ...value, password }))} /></label>
       {validationError && <Alert type="warning" content={validationError} />}
       <AuthErrorAlert error={loginMutation.error} login />
       <Button htmlType="submit" type="primary" long size="large" loading={loginMutation.isPending}>登录</Button>
+      <Button type="text" long onClick={() => { setMode("register"); setValidationError(undefined); }}>注册账号</Button>
     </form>
   </Card></AuthLayout>;
 }

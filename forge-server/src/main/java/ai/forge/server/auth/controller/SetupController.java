@@ -61,16 +61,14 @@ public class SetupController {
                 body.password(),
                 body.organizationName(),
                 body.organizationSlug(),
-                body.workspaceName(),
-                body.workspaceSlug(),
+                body.workspaceName() == null ? body.organizationName() : body.workspaceName(),
+                body.workspaceSlug() == null ? body.organizationSlug() : body.workspaceSlug(),
                 requestId));
         InitializeResponse response = new InitializeResponse(
                 result.userId(),
                 result.organizationId(),
-                result.workspaceId(),
-                result.organizationSlug(),
-                result.workspaceSlug());
-        return ResponseEntity.created(URI.create("/api/v1/workspaces/" + result.workspaceId())).body(response);
+                result.organizationSlug());
+        return ResponseEntity.created(URI.create("/api/v1/organization")).body(response);
     }
 
     public record InitializeRequest(
@@ -84,22 +82,18 @@ public class SetupController {
             @NotBlank @Size(max = 120) String organizationName,
             /* 默认组织的小写字母、数字和短横线路由短名。 */
             @NotBlank @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String organizationSlug,
-            /* 默认工作区的界面展示名称。 */
-            @NotBlank @Size(max = 120) String workspaceName,
-            /* 默认工作区的小写字母、数字和短横线路由短名。 */
-            @NotBlank @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String workspaceSlug) {}
+            /* 旧客户端兼容字段；新产品入口不再展示工作区。 */
+            @Size(max = 120) String workspaceName,
+            /* 旧客户端兼容字段；新产品入口不再展示工作区短名。 */
+            @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String workspaceSlug) {}
 
     public record InitializeResponse(
             /* 初始化创建的首个 Owner 用户标识。 */
             long userId,
             /* 初始化创建的默认组织标识。 */
             long organizationId,
-            /* 初始化创建的默认工作区标识。 */
-            long workspaceId,
             /* 默认组织的稳定路由短名。 */
-            String organizationSlug,
-            /* 默认工作区的稳定路由短名。 */
-            String workspaceSlug) {}
+            String organizationSlug) {}
 
     public record SetupStatusResponse(
             /* 为 true 时公开初始化入口已永久关闭，Web 应展示登录表单。 */

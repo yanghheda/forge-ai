@@ -1,0 +1,26 @@
+.page { display: grid; gap: 24px; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.header h2 { margin: 5px 0 4px; color: #101828; font-size: clamp(28px, 3vw, 38px); }
+.header p { margin: 0; color: #667085; }
+.eyebrow { color: #635bff; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.metric { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 12px; padding: 22px; border: 1px solid #eaecf0; border-radius: 15px; background: #fff; box-shadow: 0 8px 24px rgba(16, 24, 40, .04); }
+.metric > div { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 12px; font-size: 20px; }
+.metric span { color: #667085; font-weight: 600; }
+.metric strong { color: #101828; font-size: 30px; }
+.blue > div { color: #4f46e5; background: #eeedff; }
+.amber > div { color: #d97706; background: #fff5df; }
+.green > div { color: #079455; background: #e8f8f1; }
+.createCard, .listCard { border-radius: 15px; }
+.createForm { display: grid; grid-template-columns: 1.2fr 2fr 150px auto; align-items: start; gap: 12px; }
+.filters { display: grid; grid-template-columns: minmax(260px, 1fr) 220px; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid #f0f1f3; }
+.list { display: grid; }
+.row { display: flex; align-items: center; justify-content: space-between; min-height: 76px; gap: 18px; padding: 14px 4px; border-bottom: 1px solid #f2f4f7; color: inherit; text-decoration: none; }
+.row:hover strong { color: #4f46e5; }
+.row strong, .row span { display: block; }
+.row strong { color: #1d2939; font-size: 15px; }
+.row span { margin-top: 6px; color: #98a2b3; font-size: 12px; }
+.loading, .empty { display: grid; min-height: 180px; place-items: center; color: #98a2b3; }
+.total { padding-top: 16px; color: #98a2b3; font-size: 12px; text-align: right; }
+@media (max-width: 900px) { .metrics { grid-template-columns: 1fr; } .createForm { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .header { flex-direction: column; } .filters { grid-template-columns: 1fr; } }

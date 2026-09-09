@@ -14,8 +14,13 @@ export interface InitializeInput {
   password: string;
   organizationName: string;
   organizationSlug: string;
-  workspaceName: string;
-  workspaceSlug: string;
+}
+
+export interface RegisterInput {
+  email: string;
+  displayName: string;
+  password: string;
+  role: "PRODUCT" | "UX" | "DEVELOPER" | "QA";
 }
 
 export interface LoginInput {
@@ -55,6 +60,10 @@ export function initializeInstance(input: InitializeInput, client: RequestClient
 
 export function login(input: LoginInput, client: RequestClient = apiClient): Promise<void> {
   return client.request("/v1/auth/login", jsonRequest("POST", input));
+}
+
+export function register(input: RegisterInput, client: RequestClient = apiClient): Promise<{ userId: number }> {
+  return client.request("/v1/auth/register", jsonRequest("POST", input));
 }
 
 export function getCurrentUser(client: RequestClient = apiClient): Promise<CurrentUser> {

@@ -37,16 +37,24 @@ public class MybatisPlusInstanceBootstrapStore implements InstanceBootstrapStore
         long organizationId = bootstrapMapper.lastInsertId();
         bootstrapMapper.insertWorkspace(organizationId, command.workspaceName().trim(), command.workspaceSlug());
         long workspaceId = bootstrapMapper.lastInsertId();
+        bootstrapMapper.insertDefaultProject(workspaceId, command.organizationName().trim(), userId);
+        long projectId = bootstrapMapper.lastInsertId();
+        bootstrapMapper.insertProjectSequence(projectId);
         bootstrapMapper.insertWorkspaceMember(workspaceId, userId);
         long workspaceMemberId = bootstrapMapper.lastInsertId();
         long ownerRoleId = bootstrapMapper.findOwnerRoleId();
         bootstrapMapper.insertMemberRole(workspaceMemberId, ownerRoleId);
         bootstrapMapper.insertBootstrapAudit(
                 workspaceId, userId, command.requestId(), command.organizationSlug(), command.workspaceSlug());
-        if (bootstrapMapper.markInitialized(organizationId) != 1) {
+        if (bootstrapMapper.markInitialized(organizationId, workspaceId, projectId) != 1) {
             throw new InstanceAlreadyInitializedException();
         }
         return new BootstrapResult(
-                userId, organizationId, workspaceId, command.organizationSlug(), command.workspaceSlug());
+                userId,
+                organizationId,
+                workspaceId,
+                projectId,
+                command.organizationSlug(),
+                command.workspaceSlug());
     }
 }

@@ -67,7 +67,7 @@ class WorkspaceProjectScopeIntegrationTest extends InfrastructureIntegrationTest
 
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(created.getBody()).contains("\"key\":\"FORGE\"").contains("\"status\":\"ACTIVE\"");
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM projects", Integer.class)).isOne();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM projects", Integer.class)).isEqualTo(2);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM project_members", Integer.class)).isOne();
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM project_item_sequences WHERE project_id = (SELECT id FROM projects WHERE `key` = 'FORGE')",

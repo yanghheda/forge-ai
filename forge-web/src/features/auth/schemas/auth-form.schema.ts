@@ -13,6 +13,11 @@ export const initializeSchema = z.object({
   password: z.string().min(12, "密码至少 12 个字符").refine((value) => /[A-Za-z]/.test(value) && /\d/.test(value), "密码必须包含字母和数字"),
   organizationName: z.string().trim().min(1, "请输入组织名称").max(120),
   organizationSlug: slug,
-  workspaceName: z.string().trim().min(1, "请输入工作空间名称").max(120),
-  workspaceSlug: slug,
+});
+
+export const registerSchema = z.object({
+  email: z.email("请输入有效邮箱").max(320),
+  displayName: z.string().trim().min(1, "请输入姓名").max(120),
+  password: z.string().min(12, "密码至少 12 个字符").refine((value) => /[A-Za-z]/.test(value) && /\d/.test(value), "密码必须包含字母和数字"),
+  role: z.enum(["PRODUCT", "UX", "DEVELOPER", "QA"]),
 });

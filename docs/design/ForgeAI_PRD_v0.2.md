@@ -39,7 +39,7 @@ ForgeAI 不替代 Jira、Confluence、Figma、GitLab 或开发者 IDE，而是�
 
 ### 2.1 一句话定位
 
-> 让个人与小团队在一个私有、自托管的研发工作台中，使用 AI Agent 将 Product、UX、Development、QA 和 Release 之间的机械操作自动化。
+> 让公司团队在一个私有、自托管的研发工作台中，使用 AI Agent 将 Product、UX、Development、QA 和 Release 之间的机械操作自动化。
 
 ### 2.2 核心价值
 
@@ -53,7 +53,7 @@ ForgeAI 不替代 Jira、Confluence、Figma、GitLab 或开发者 IDE，而是�
 
 ### 2.3 产品原则
 
-1. 团队模式是主模型；个人模式是只有一个成员的 Workspace。
+1. 一个部署实例只服务一家公司；公司成员直接围绕 Requirement 协作，不创建或切换 Workspace/Project。
 2. UX 是正式角色与交付阶段，不是开发任务的附属标签。
 3. Agent 负责理解、规划、检索、编排和解释；业务规则、权限、事务与持久化属于 Java。
 4. API First；外部系统有 API 时不使用浏览器自动化。
@@ -68,22 +68,20 @@ ForgeAI 不替代 Jira、Confluence、Figma、GitLab 或开发者 IDE，而是�
 
 | 用户类型 | 典型规模 | 主要诉求 | ForgeAI 定位 |
 |---|---:|---|---|
-| 个人开发者 | 1 人 | 管理个人 AI 辅助研发流程，沉淀需求、UX、技术、测试和发布信息 | 单成员 Workspace |
 | 小团队 | 2–10 人 | Product、UX、Developer、QA 之间的任务流转和上下文共享 | 核心目标用户 |
-| 小公司/研发组 | 5–30 人 | 私有部署、内部数据隔离、统一流程和 Agent 自动化 | 主要扩展场景 |
+| 公司/研发组 | 5–30 人 | 内网部署、统一需求流程和 Agent 自动化 | 核心目标用户 |
 
 ### 3.2 组织模型
 
-统一采用：
+一个 ForgeAI 部署实例只服务一家公司，产品模型统一采用：
 
 ```text
-Organization
-  └── Workspace
-      ├── Members
-      └── Projects
+Company
+  ├── Members
+  └── Requirements
 ```
 
-MVP 可以弱化 Organization 的管理能力，但数据模型保留该层级，不为个人版和团队版设计两套产品。
+用户不创建、不选择 Workspace 或 Project。所有文档、任务、研发、测试和发布资产都从 Requirement 聚合进入。首个 Owner 可兼任全部流程角色，其他成员按岗位角色协作。
 
 ### 3.3 部署模式
 
@@ -275,23 +273,22 @@ DRAFT
 
 | ID | 需求 | 优先级 | 验收摘要 |
 |---|---|:---:|---|
-| AUTH-001 | 支持首个管理员初始化；后续成员由管理员邀请/创建 | P0 | 首次启动可完成 Admin 初始化并进入 Workspace |
+| AUTH-001 | 支持公司与首个 Owner 初始化；后续成员自行注册业务角色 | P0 | 首次启动完成公司初始化，登录后直接进入需求概览 |
 | AUTH-002 | 支持登录、退出和会话管理 | P0 | 使用 Cookie + Spring Session Redis；退出后会话失效 |
 | AUTH-003 | 密码安全保存 | P0 | 使用 BCrypt；日志不得记录密码或 Hash |
 | CFG-001 | 支持实例级大模型配置 | P0 | 可配置 Provider、Endpoint、Model、API Key |
-| CFG-002 | 支持 GitLab 连接配置 | P0 | Workspace 可配置 GitLab.com/私有 GitLab并测试连接 |
+| CFG-002 | 支持 GitLab 连接配置 | P0 | 公司可配置 GitLab.com/私有 GitLab 并测试连接 |
 | CFG-003 | Secret 安全存储 | P0 | Token/Key 加密，前端与 Agent 不获取明文 |
 
-### 9.2 Workspace、Project 与成员
+### 9.2 公司与成员
 
 | ID | 需求 | 优先级 | 验收摘要 |
 |---|---|:---:|---|
-| ORG-001 | 创建/编辑 Workspace | P0 | Workspace 可命名并保存设置 |
-| ORG-002 | 成员管理与角色分配 | P0 | 可分配 Product/UX/Developer/QA/Approver 等角色 |
-| ORG-003 | Workspace 数据隔离 | P0 | 用户不能访问无权限 Workspace 的任何资源或 RAG 内容 |
-| PROJ-001 | 创建/编辑/归档 Project | P0 | Project 有名称、Key、描述、仓库和状态 |
-| PROJ-002 | Project 成员与角色范围 | P0 | 支持项目级成员范围 |
-| PROJ-003 | Project Overview | P0 | 展示需求、UX、开发、质量、CI 和发布概览 |
+| ORG-001 | 单公司实例 | P0 | 初始化一次公司信息后不再创建或切换 Workspace/Project |
+| ORG-002 | 成员自助注册与角色 | P0 | 成员可注册 Product/UX/Developer/QA；不能自助取得 Owner/Admin |
+| ORG-003 | 公司数据隔离 | P0 | 实例数据只属于部署公司，未注册用户不能访问业务资源或 RAG 内容 |
+| ORG-004 | 当前需求概览 | P0 | 展示全部、进行中、已完成数量和可搜索筛选的需求列表 |
+| ORG-005 | 我的需求 | P0 | 按当前用户在需求承担的角色快速筛选；Owner 可查看全部 |
 
 ### 9.3 Requirement 与 Work Item
 
@@ -304,6 +301,7 @@ DRAFT
 | WI-005 | Work Item Activity | P0 | 展示状态、评论、审批和 Agent 执行摘要 |
 | WI-006 | Delivery Graph | P0 | 从 Requirement 查看端到端交付关系 |
 | WI-007 | Agent 拆分角色任务 | P0 | 可分别生成 UX、Dev、QA Task，审批后创建 |
+| WI-008 | 需求角色参与人 | P0 | 每条需求可分别关联 Product、UX、Developer、QA 成员 |
 
 ### 9.4 文档
 
@@ -311,11 +309,11 @@ DRAFT
 |---|---|:---:|---|
 | DOC-001 | 富文本编辑器 | P0 | 支持标题、段落、列表、代码块和表格 |
 | DOC-002 | 完整文档类型 | P0 | 支持 PRD、UX、技术、API、测试和发布文档 |
-| DOC-003 | 文档关联 | P0 | 文档可关联 Project 和 Work Item |
+| DOC-003 | 文档关联 | P0 | 文档可关联 Requirement 和其他 Work Item |
 | DOC-004 | 文档版本 | P1 | 保留不可变历史版本并可查看 |
 | DOC-005 | AI 文档生成 | P0 | Agent 可基于权限范围内上下文生成/补全草稿 |
 | DOC-006 | 附件与外链 | P0 | UX 原型可作为附件或 URL 关联 |
-| DOC-007 | 文档索引 | P0 | 发布版本可进入 Qdrant；检索受 Workspace/Project 权限过滤 |
+| DOC-007 | 文档索引 | P0 | 发布版本可进入 Qdrant；检索受公司与 Requirement 权限过滤 |
 
 ### 9.5 UX 工作区
 
@@ -523,7 +521,7 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 | 安全 | 最小权限 | RBAC + Tool Authorization + Approval |
 | 可维护性 | 单人维护友好 | 模块化单体，不做业务微服务 |
 | 可扩展性 | Runtime 可替换 | Agent Gateway + Tool Contract 隔离 |
-| 隐私 | 最小上下文 | 按 Workspace/Project/Work Item 过滤 |
+| 隐私 | 最小上下文 | 按公司/Requirement/Work Item 过滤 |
 
 ---
 
@@ -547,8 +545,8 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 | 页面 | 核心内容 | 优先级 |
 |---|---|:---:|
 | 登录/初始化 | Admin 初始化、登录 | P0 |
-| Workspace 首页 | 项目、待办、近期活动 | P0 |
-| Project Overview | Product/UX/Dev/QA/Release 概览 | P0 |
+| 当前需求概览 | 全部、进行中、已完成统计；搜索与筛选需求 | P0 |
+| 我的需求 | 当前用户参与的需求任务 | P0 |
 | Requirement Detail | PRD、状态、关联交付资产、Agent | P0 |
 | UX Workspace | UX Task、用户流程、UX Spec、原型与 Review | P0 |
 | Task Board | 按类型/角色/状态的任务看板 | P0 |
@@ -558,7 +556,7 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 | Release | Candidate、Precheck、Approval、Deployment | P1 |
 | Agent Command Center | 指令、计划、Tool、审批和结果 | P0 |
 | Agent Trace | Run、Step、Tool Call | P1 |
-| Settings | 模型、GitLab、成员、角色、项目策略 | P0 |
+| Settings | 模型、GitLab、成员、角色、公司策略 | P0 |
 
 ---
 
@@ -567,7 +565,7 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 MVP 以一条真实交付闭环能否运行定义完成：
 
 1. ForgeAI 可在安装 Docker Desktop 的本机通过浏览器访问，并可按文档部署到腾讯云 CVM。
-2. Admin 可初始化实例、配置模型、连接 GitLab、创建 Workspace/Project。
+2. Owner 可初始化公司实例、配置模型、连接 GitLab，并直接创建 Requirement。
 3. Product 可创建 Requirement 和 PRD。
 4. UX 可从 PRD 创建 UX Task，完成 UX Spec、原型关联和评审。
 5. Developer 可读取 PRD + UX，管理 Dev Task、Branch、MR 和 CI；编码仍在本地完成。

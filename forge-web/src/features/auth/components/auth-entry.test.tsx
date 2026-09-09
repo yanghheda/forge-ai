@@ -10,7 +10,7 @@ import { AuthEntry } from "./auth-entry";
 
 const replace = vi.fn();
 const authApi = vi.hoisted(() => ({
-  getSetupStatus: vi.fn(), initializeInstance: vi.fn(), login: vi.fn(), getCurrentUser: vi.fn(),
+  getSetupStatus: vi.fn(), initializeInstance: vi.fn(), login: vi.fn(), register: vi.fn(), getCurrentUser: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
@@ -30,10 +30,12 @@ describe("AuthEntry", () => {
 
     expect(await screen.findByText("初始化 ForgeAI")).toBeInTheDocument();
     expect(screen.getByLabelText("管理员邮箱")).toBeInTheDocument();
+    expect(screen.getByLabelText("公司名称")).toBeInTheDocument();
+    expect(screen.queryByLabelText("工作空间名称")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "完成初始化" })).toBeEnabled();
   });
 
-  it("登录成功后依据服务端 me 返回的 Workspace 跳转", async () => {
+  it("登录成功后直接进入需求概览", async () => {
     authApi.getSetupStatus.mockResolvedValue({ initialized: true });
     authApi.login.mockResolvedValue(undefined);
     authApi.getCurrentUser.mockResolvedValue({
@@ -47,7 +49,18 @@ describe("AuthEntry", () => {
     await user.type(screen.getByLabelText("密码"), "correct-horse-42");
     await user.click(screen.getByRole("button", { name: "登录" }));
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/w/engineering"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/overview"));
+  });
+
+  it("初始化后提供团队成员自助注册入口", async () => {
+    authApi.getSetupStatus.mockResolvedValue({ initialized: true });
+    authApi.register.mockResolvedValue({ userId: 2 });
+    render(<AuthEntry />, { wrapper });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "注册账号" }));
+    expect(screen.getByLabelText("岗位角色")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "所有者" })).not.toBeInTheDocument();
   });
 
   it("账号不存在或密码错误时展示中文提示且不显示请求编号", async () => {

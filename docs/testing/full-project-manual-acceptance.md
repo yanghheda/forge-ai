@@ -1,6 +1,8 @@
-# ForgeAI 全项目人工验收测试用例集（截至会话 33）
+# ForgeAI 全项目人工验收测试用例集（单组织模型版）
 
-本手册用于会话 33 完成后的全项目人工验收。覆盖会话 01–33 已交付能力；会话 34 的腾讯云上线、备份恢复、升级和最终部署不在本轮范围内。
+本手册用于 ADR-015 单组织产品模型改版后的全项目人工验收。覆盖会话 01–33 已交付能力及单公司入口改版；会话 34 的腾讯云上线、备份恢复、升级和最终部署不在本轮范围内。
+
+产品界面与新公开 API 中只出现“公司、成员、需求”，不得要求用户创建、选择或切换 Workspace/Project。数据库中的默认 Workspace/Project 仅是兼容既有授权与交付链路的内部 scope；涉及它们的检查只通过服务端响应、自动化安全回归或必要的数据库证据完成，不把内部标识暴露给用户。
 
 验收不是只看页面“能打开”。每条用例都应记录实际结果和证据；任一 P0 用例失败时停止后续发布判断，修复后从该用例所属模块开始回归，并最终重跑第十二节的总回归。
 
@@ -45,29 +47,32 @@ make apps-ready
 
 实际/证据：
 
-### 2.2 数据策略
+### 2.2 从零数据策略
 
-主回归使用可重复装载的黄金 Demo：
+本轮主回归从空持久化环境开始，不先执行 `make demo-seed`。`AUTH-01` 是整套用例的第一个业务用例，完成后沿用其创建的公司、Owner、成员和需求事实继续执行。建议测试数据如下：
+
+| 数据 | 建议值 |
+| --- | --- |
+| 公司 | `ForgeAI UAT`（Slug `forge-uat`） |
+| Owner | `owner@uat.forgeai.local` |
+| Product | `product@uat.forgeai.local` |
+| UX | `ux@uat.forgeai.local` |
+| Developer | `developer@uat.forgeai.local` |
+| QA | `qa@uat.forgeai.local` |
+| 测试密码 | `ForgeAI-UAT-2026!` |
+| 主需求 | “UAT 手机登录” |
+| 负向需求 | “UAT 支付回调” |
+
+环境清理必须在开始执行前完成一次：
 
 ```bash
-make demo-seed
+docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml down
+docker volume rm forge-ai_mysql-data forge-ai_qdrant-data
+make apps-up
+make apps-ready
 ```
 
-固定数据：
-
-| 数据 | 值 |
-| --- | --- |
-| Workspace | `demo`（ID `32004`） |
-| Project | `DEMO`（ID `32007`） |
-| Requirement | `DEMO-1`（ID `32011`） |
-| Agent Run | `DEMA0000000000000000000001` |
-| Owner | `owner@demo.forgeai.local` |
-| Admin/Approver | `approver@demo.forgeai.local` |
-| 两个账号密码 | `ForgeAI-Demo-2026!` |
-
-涉及新增、状态迁移、Bug、Release 的用例统一新建 Project，建议 Key 为 `UAT<日期后四位>`，例如 `UAT0908`，避免改变 `DEMO-1` 的固定终态事实。用例中称其为“UAT Project”。
-
-初始化首个实例的用例需要空数据库，放在独立环境执行，不应清空当前主回归环境。若暂时没有独立环境，将 `AUTH-01` 标为 `BLOCKED-ENV`，不能因此删除该用例。
+`docker volume rm` 会永久删除本项目 Compose 的 MySQL 与 Qdrant 数据库卷；Redis 本身不持久化。Agent checkpoint 卷默认保留，避免把数据库重置扩大成运行历史文件清理；若验收明确要求连 Agent checkpoint 一并归零，应另行确认后删除 `forge-ai_agent-checkpoints`。执行后首页必须重新出现首次初始化入口。黄金 Demo 只用于第十二节既有自动化总回归；如果执行 `make demo-seed` 改变了人工主回归环境，完成自动化后应重新清空数据库卷再复测受影响的人工用例。
 
 ## 三、基础设施、初始化与认证
 
@@ -83,17 +88,17 @@ make demo-seed
 
 前置：独立空数据库环境，尚无初始化用户。
 
-步骤：打开首页；确认进入初始化表单；输入合法管理员邮箱、显示名和强密码；提交；刷新页面。
+步骤：打开首页；确认进入初始化表单；先在未初始化状态尝试调用公开注册接口并确认被拒绝；再输入合法 Owner 邮箱、显示名、强密码、公司名称与 Slug；提交并刷新页面。
 
-预期：初始化仅成功一次；首个组织、Workspace 和 Owner 建立；刷新后不再出现初始化入口；重复初始化被服务端拒绝且不产生第二个 Owner。
+预期：初始化前不能注册普通成员；表单只要求 Owner 邮箱、姓名、密码、公司名称和公司 Slug，不出现 Workspace/Project 字段；初始化仅成功一次；公司、Owner 和内部默认 scope 原子建立；响应及页面不包含 `workspaceId`、`projectId`；刷新后进入登录入口；重复初始化被服务端拒绝且不产生第二个 Owner。
 
 实际/证据：
 
 ### AUTH-02 [P0] 正确登录与 Session 建立 [ ]
 
-步骤：清除站点 Cookie；打开 `/login`；使用 Demo Owner 登录；观察跳转和浏览器 Cookie。
+步骤：清除站点 Cookie；打开 `/login`；使用 `AUTH-01` 创建的 Owner 登录；观察跳转和浏览器 Cookie。
 
-预期：跳转到 `/w/demo`；可看到 Demo Workspace；存在 `FORGE_SESSION`，为 HttpOnly、Path `/`、SameSite=Lax；页面或响应中不出现密码、密码哈希或 Session 明文。
+预期：跳转到 `/overview`；页面显示“当前需求概览”，不出现 Workspace/Project 选择器；存在 `FORGE_SESSION`，为 HttpOnly、Path `/`、SameSite=Lax；页面或响应中不出现密码、密码哈希或 Session 明文。
 
 实际/证据：
 
@@ -107,7 +112,7 @@ make demo-seed
 
 ### AUTH-04 [P0] 未登录访问受保护页面 [ ]
 
-步骤：无痕窗口直接访问 `/w/demo/p/DEMO/overview`、`/w/demo/settings/members` 和 `DEMO-1` 详情地址。
+步骤：无痕窗口直接访问 `/overview`、`/my-requirements`、`/settings/members` 和任意 `/requirements/<id>`。
 
 预期：均不能看到业务数据，跳转登录或返回统一未认证错误。
 
@@ -129,61 +134,69 @@ make demo-seed
 
 实际/证据：
 
-## 四、Workspace、Project 与 RBAC
+## 四、公司、成员、角色与需求范围
 
-### RBAC-01 [P1] Workspace 列表和无权资源隐藏 [ ]
+### ORG-01 [P0] 单公司产品入口 [ ]
 
-步骤：分别登录 Demo Owner 和一个仅加入测试 Workspace 的低权限账户；观察首页 Workspace 列表。
+步骤：Owner 登录后遍历主导航、首页、成员设置和集成设置；检查浏览器地址栏、可见文案、表单字段和 Network 请求。
 
-预期：每个账号只看到自己是有效成员的 Workspace；不能通过手改 URL 看到其他 Workspace 名称或数据。
-
-实际/证据：
-
-### RBAC-02 [P1] 创建 UAT Project [ ]
-
-步骤：Owner 在 `/w/demo` 点击“新建项目”；输入唯一 Key、名称和说明；提交；再次尝试相同 Key。
-
-预期：首次成功并进入/可打开项目；Key 自动转大写；重复 Key 明确失败且只存在一个项目；项目初始状态为 ACTIVE。
+预期：主导航只有当前需求概览、我的需求、成员与角色、集成设置；产品 URL 不含 `/w/<workspace>/p/<project>`；任何新公开请求都不提交 `workspaceId` 或 `projectId`；公司设置统一作用于当前公司。
 
 实际/证据：
 
-### RBAC-03 [P1] 创建角色账户与加入 Workspace [ ]
+### ORG-02 [P0] 业务角色自助注册 [ ]
 
-步骤：Owner 打开 `/w/demo/settings/members`；依次创建 PRODUCT、UX、DEVELOPER、QA、RELEASE_APPROVER 测试账号；使用“添加已有账号”验证已有账户加入路径。
+步骤：退出 Owner；从登录页进入注册，分别创建 PRODUCT、UX、DEVELOPER、QA 四个账号；逐一登录；Owner 再打开 `/settings/members`。
 
-预期：各账户只创建/加入一次；角色显示正确；密码不回显；刷新后成员事实保持。
-
-实际/证据：
-
-### RBAC-04 [P0] Project 成员范围 [ ]
-
-步骤：打开 UAT Project 成员管理；加入一个 Workspace 成员；使用未加入该 Project 的普通成员登录并手改 UAT Project URL；再加入该成员并重试。
-
-预期：加入前拒绝访问且不泄露项目数据；加入后可按其角色访问；成员列表与有效状态正确。
+预期：四个账号均可注册并立即登录；注册不要求邀请、Workspace 或 Project；成员列表显示姓名、邮箱和正确角色；密码不回显；每个成员自动进入当前公司的内部默认 scope。
 
 实际/证据：
 
-### RBAC-05 [P0] 移除成员即时失权 [ ]
+### ORG-03 [P0] 注册角色与邮箱边界 [ ]
 
-步骤：普通成员保持一个已登录窗口；Owner 在另一窗口移除其 Project/Workspace 成员资格；普通成员刷新并尝试查询及修改。
+步骤：重复注册同一邮箱；通过 API/客户端尝试注册 `OWNER`、`ADMIN`、`RELEASE_APPROVER`、空角色和未知角色；另测试弱密码与非法邮箱。
 
-预期：刷新后的读取和修改均被拒绝；不能依赖旧页面按钮或缓存继续操作；Owner 自身不会被误移除导致实例失管。
-
-实际/证据：
-
-### RBAC-06 [P0] 跨租户 REST、Tool 与 RAG 隔离 [ ]
-
-步骤：执行 `make hardening-test`；核对 `WorkspaceProjectScopeIntegrationTest`、`InternalToolIntegrationTest`、`DocumentRagIntegrationTest` 通过。
-
-预期：即使知道另一个 Workspace/Project/资源 ID，REST 读取、Tool 调用和向量检索均拒绝或返回不可见；不能只在前端隐藏。
+预期：重复邮箱返回冲突且不产生重复成员；仅 PRODUCT、UX、DEVELOPER、QA 被接受；任何管理/审批角色均不能自助取得；字段错误不产生部分用户、成员或角色事实。
 
 实际/证据：
 
-### RBAC-07 [P1] Project 更新、Policy 与归档 [ ]
+### ORG-04 [P1] 需求概览、搜索与状态筛选 [ ]
 
-步骤：Owner 更新 UAT Project 信息和 Policy；普通成员尝试相同操作；最后在不再用于后续用例的临时 Project 上验证归档。
+步骤：Owner 打开 `/overview`；记录空状态与统计；创建主需求和负向需求；按标题、需求编号、描述搜索，并分别选择状态筛选。
 
-预期：Owner 的更新持久化；无权限账户无按钮且直接请求仍被拒绝；归档后状态为 ARCHIVED，不再接受不允许的新业务写入。
+预期：空库统计均为 0；创建后“全部/进行中/已完成”与列表事实一致；搜索和状态筛选可组合、可清除；列表行只显示摘要，不泄露内部 scope。
+
+实际/证据：
+
+### ORG-05 [P0] 创建需求权限与原子编号 [ ]
+
+步骤：Owner 连续创建两个需求；PRODUCT 再创建一个；UX、DEVELOPER、QA 分别尝试从页面和直接请求创建；再提交空标题、非法优先级等请求。
+
+预期：Owner 与 PRODUCT 可创建；其他业务角色被服务端拒绝；编号为内部默认序列生成的 `REQ-N` 且唯一、不复用；非法输入不产生需求；响应不包含 Workspace/Project 标识。
+
+实际/证据：
+
+### ORG-06 [P0] 需求参与人角色校验 [ ]
+
+步骤：Owner 打开主需求详情；分别关联 PRODUCT、UX、DEVELOPER、QA 成员并保存刷新；尝试把 UX 成员关联为 DEVELOPER、同一角色提交两人、关联不存在/失效用户以及超过四个角色。
+
+预期：每个业务角色最多一名有效且持有对应角色的公司成员；合法关联持久化；非法组合整体失败且不留下部分更新；页面不要求设置 Project 成员。
+
+实际/证据：
+
+### ORG-07 [P0] “我的需求”与 Owner 代行 [ ]
+
+步骤：只给主需求关联 Product 和 Developer；分别用四个业务账号访问 `/my-requirements`；再用 Owner 访问，并组合搜索/状态筛选。
+
+预期：“我的需求”只返回当前成员被关联的需求；未关联的 UX/QA 在该页显示空状态；切回“当前需求概览”仍按其公司级读取权限展示公司需求；Owner 的“我的需求”等同公司全部需求，并可不额外关联角色而执行全流程。
+
+实际/证据：
+
+### ORG-08 [P0] 默认 scope 防伪造与兼容回归 [ ]
+
+步骤：对 `/api/v1/organization`、`/api/v1/requirements` 追加伪造 `workspaceId/projectId` 查询参数或请求字段；尝试读取不存在的需求 ID；执行 `make hardening-test`，核对 `OrganizationRequirementExperienceIntegrationTest`、`WorkspaceProjectScopeIntegrationTest`、`InternalToolIntegrationTest`、`DocumentRagIntegrationTest`。
+
+预期：新 API 只从 Session 与数据库默认事实解析 scope，客户端参数不能改变范围；不存在或无权资源不泄露标题等事实；兼容层的 REST、Tool 与 RAG scope 防线继续通过，不因产品层隐藏 Workspace/Project 而弱化。
 
 实际/证据：
 
@@ -191,9 +204,9 @@ make demo-seed
 
 ### PROD-01 [P1] 创建 Requirement 与原子编号 [ ]
 
-步骤：在 UAT Project 连续创建两个 Requirement，标题分别为“UAT 手机登录”和“UAT 支付回调”；刷新列表。
+步骤：若第四节尚未创建数据，则在 `/overview` 连续创建“UAT 手机登录”和“UAT 支付回调”；刷新列表。
 
-预期：编号连续且不重复，格式为 `<PROJECT_KEY>-N`；标题、优先级、状态正确；列表只展示摘要，不包含 description 正文。
+预期：编号连续且不重复，格式为 `REQ-N`；标题、优先级、状态正确；列表只展示摘要；新页面和响应不暴露内部默认 Workspace/Project。
 
 实际/证据：
 
@@ -239,7 +252,7 @@ make demo-seed
 
 ### UX-01 [P1] 创建并处理 UX Task [ ]
 
-步骤：进入 `/w/demo/p/<UAT_KEY>/ux`；打开对应 UX Task；执行“开始处理”；创建 UX Spec，保存并发布。
+步骤：从主需求详情进入对应 UX Task；执行“开始处理”；创建 UX Spec，保存并发布。
 
 预期：UX Task 从 TODO 进入 IN_PROGRESS；UX Spec 与 Requirement 建立关系；版本不可变且发布状态可见。
 
@@ -279,9 +292,9 @@ make demo-seed
 
 ### WI-02 [P0] Delivery Graph 授权与完整性 [ ]
 
-步骤：打开 `DEMO-1` 的 Delivery Graph；核对 Requirement、UX_TASK、DEV_TASK、BUG、PRD、UX_SPEC、TECH_DESIGN、MR、PIPELINE、TEST_CASE、TEST_RUN、RELEASE、DEPLOYMENT；再用无权账户访问同一 URL。
+步骤：打开主需求的 Delivery Graph；核对 Requirement、UX_TASK、DEV_TASK、BUG、PRD、UX_SPEC、TECH_DESIGN、MR、PIPELINE、TEST_CASE、TEST_RUN、RELEASE、DEPLOYMENT；再用未登录窗口访问同一地址。
 
-预期：Owner 可见完整跨阶段图；节点无明显重复/断边；无权账户看不到任何节点或标题。
+预期：Owner 可见完整跨阶段图；节点无明显重复/断边；未登录请求看不到任何节点或标题；页面入口不要求选择 Workspace/Project。
 
 实际/证据：
 
@@ -297,7 +310,7 @@ make demo-seed
 
 ### GIT-01 [P0] GitLab URL/SSRF 安全边界 [ ]
 
-步骤：在 `/w/demo/settings/gitlab` 尝试保存 localhost、私网 IP、云元数据 IP、非法 scheme 和不允许的重定向目标；再执行 `make hardening-test` 核对 `GitLabUrlPolicyTest`。
+步骤：从 `/settings/integrations` 进入 GitLab 配置，尝试保存 localhost、私网 IP、云元数据 IP、非法 scheme 和不允许的重定向目标；再执行 `make hardening-test` 核对 `GitLabUrlPolicyTest`。
 
 预期：危险地址在服务端被拒绝；不发出内网请求；错误不包含 Token 或远端响应正文。
 
@@ -307,7 +320,7 @@ make demo-seed
 
 步骤：使用可控 GitLab/stub 创建连接；测试连接；轮换 Token；设置 webhook secret；读取并绑定仓库。
 
-预期：成功状态明确；Token 和 webhook secret 保存后不回显；旧 Token 不再生效；仓库绑定到正确 Workspace/Project。
+预期：成功状态明确；Token 和 webhook secret 保存后不回显；旧 Token 不再生效；仓库绑定到当前公司，内部默认 scope 不出现在产品表单或响应中。
 
 实际/证据：
 
@@ -405,7 +418,7 @@ make demo-seed
 
 ### REL-01 [P1] 创建 Release Candidate 与 Note [ ]
 
-步骤：在项目 Overview 选择满足条件的 Requirement，输入唯一版本号创建 Release；编辑并保存 Release Note。
+步骤：从主需求的 Release 入口选择满足条件的 Requirement，输入唯一版本号创建 Release；编辑并保存 Release Note。
 
 预期：Release 与所选 Item 快照关联；空版本/空选择不能提交；Note 持久化；重复版本不产生两个 Release。
 
@@ -429,9 +442,9 @@ make demo-seed
 
 ### REL-04 [P0] HIGH 审批权限、冻结与拒绝 [ ]
 
-步骤：申请模拟部署；用 DEVELOPER 尝试批准；用 RELEASE_APPROVER 拒绝一条；重新申请一条并在审批期间改变关键资源版本后尝试批准。
+步骤：申请模拟部署；用 DEVELOPER 尝试批准；用 Owner 拒绝一条；重新申请一条并在审批期间改变关键资源版本后尝试批准。
 
-预期：Developer 被拒绝；拒绝后不部署；参数/资源版本变化后旧审批 fail-closed；审批内容能显示冻结参数和风险级别。
+预期：Developer 被拒绝；Owner 可按既有 Owner 权限审批；拒绝后不部署；参数/资源版本变化后旧审批 fail-closed；审批内容能显示冻结参数和风险级别。
 
 实际/证据：
 
@@ -447,15 +460,15 @@ make demo-seed
 
 ### AGENT-01 [P1] 创建 Run、Trace 与终态 [ ]
 
-步骤：从支持的业务入口创建 Agent Run；打开 Run 详情；观察步骤、Tool Call、资源链接和终态。再打开固定 Demo Run URL。
+步骤：从主需求支持的业务入口创建 Agent Run；打开本轮 Run 详情；观察步骤、Tool Call、资源链接和终态；刷新并再次打开同一 Run。
 
-预期：Run 从 QUEUED/RUNNING 到终态；Trace 顺序稳定，包含 Run/Step/Tool 层级；固定 Run 显示“读取交付事实”“生成 Release Note”和 SUCCEEDED。
+预期：Run 从 QUEUED/RUNNING 到终态；Trace 顺序稳定，包含 Run/Step/Tool 层级；刷新后仍能看到相同 Run、资源关系和真实终态。
 
 实际/证据：
 
 ### AGENT-02 [P0] Tool 全链鉴权 [ ]
 
-步骤：执行 `make hardening-test` 和 `make golden-regression`；核对 Tool Registry、Schema、Run/Skill、scope、用户权限、Project Policy、risk/approval、idempotency 负向路径。
+步骤：执行 `make hardening-test` 和 `make golden-regression`；核对 Tool Registry、Schema、Run/Skill、scope、用户权限、内部兼容 Policy、risk/approval、idempotency 负向路径。
 
 预期：任一环节不满足均不执行应用服务；拒绝有稳定错误语义；不因前端隐藏或 Agent 自报权限而放行。
 
@@ -495,9 +508,9 @@ make demo-seed
 
 ### RAG-01 [P0] 发布索引、权限过滤与失败语义 [ ]
 
-步骤：发布含唯一检索词的文档；等待索引后在同 Workspace 检索；用其他 Workspace 用户检索相同词；执行 `make hardening-test`。
+步骤：发布含唯一检索词的文档；等待索引后由有权公司成员检索；使用未登录请求、伪造内部 scope 和无权资源 ID 检索相同词；执行 `make hardening-test`。
 
-预期：同 scope 可命中文档；跨 Workspace 不返回片段、标题或正文；Qdrant 过滤发生在查询层；索引失败不影响文档读取。
+预期：合法公司/Requirement scope 可命中文档；未登录、伪造或无权请求不返回片段、标题或正文；Qdrant 过滤发生在查询层；索引失败不影响文档读取。
 
 实际/证据：
 
@@ -511,7 +524,7 @@ make demo-seed
 make hardening-test 2>&1 | tee /tmp/forge-hardening-test.log
 ```
 
-预期：退出码 0；覆盖 CSRF、跨 Workspace/Project、Tool 越权、RAG 过滤、重复投递、Redis readiness、GitLab URL/超时/401/重定向、Qdrant 错误脱敏、Prometheus、Web 凭据和 SSE reducer。
+预期：退出码 0；覆盖 CSRF、单公司默认 scope 与兼容 Workspace/Project 防伪造、Tool 越权、RAG 过滤、重复投递、Redis readiness、GitLab URL/超时/401/重定向、Qdrant 错误脱敏、Prometheus、Web 凭据和 SSE reducer。
 
 实际/证据：
 
@@ -556,7 +569,7 @@ make apps-up
 FORGE_PERF_SAMPLES=100 make hardening-performance 2>&1 | tee /tmp/forge-performance.log
 ```
 
-预期：装载独立 PERF 数据，不改变黄金项目；真实登录、CSRF、Web 代理和每页 100 条请求成功；P95 ≤ 0.300s；EXPLAIN 命中 `idx_work_items_scope_type_status_page`；响应无 `description`。
+预期：装载独立 PERF 数据，不改变人工验收公司事实；真实登录、CSRF、Web 代理和每页 100 条请求成功；P95 ≤ 0.300s；EXPLAIN 命中 `idx_work_items_scope_type_status_page`；列表响应满足性能测试定义的字段预算。
 
 实际/证据（必须记录机器规格、samples、P95、索引名）：
 
@@ -570,7 +583,7 @@ FORGE_PERF_SAMPLES=100 make hardening-performance 2>&1 | tee /tmp/forge-performa
 
 ### FAIL-02 [P0] Agent 降级 [ ]
 
-步骤：停止 `forge-agent`；访问健康页、项目、Requirement、QA 等人工流程；再恢复 Agent。
+步骤：停止 `forge-agent`；访问健康页、当前需求概览、Requirement、QA 等人工流程；再恢复 Agent。
 
 预期：Server DEGRADED；Agent 功能明确失败/可重试；人工 CRUD 和交付主流程仍可用；恢复后健康。
 
@@ -602,9 +615,9 @@ FORGE_PERF_SAMPLES=100 make hardening-performance 2>&1 | tee /tmp/forge-performa
 
 ### FAIL-06 [P0] 演练后完整恢复 [ ]
 
-步骤：故障演练结束后执行 `make apps-ready`；重新登录，打开 `DEMO-1` Delivery Graph 和固定 Agent Run。
+步骤：故障演练结束后执行 `make apps-ready`；重新登录，打开主需求 Delivery Graph 和本轮创建的 Agent Run。
 
-预期：六个服务全部健康；登录和关键读取恢复；黄金数据无丢失或错误状态推进。
+预期：六个服务全部健康；登录和关键读取恢复；本轮人工验收数据无丢失或错误状态推进。
 
 实际/证据：
 
@@ -630,7 +643,7 @@ make apps-ready
 
 ### REG-02 [P0] 九类黄金负向回归 [ ]
 
-预期：缺 PRD、缺 UX、失败 Pipeline、BLOCKER Bug、跨租户、Developer 批准 Release、Prompt Injection、重复 Webhook/Tool、SSE 重连九类门禁全部通过。
+预期：缺 PRD、缺 UX、失败 Pipeline、BLOCKER Bug、伪造/越权 scope、Developer 批准 Release、Prompt Injection、重复 Webhook/Tool、SSE 重连九类门禁全部通过。
 
 实际/证据：
 
@@ -653,7 +666,7 @@ make apps-ready
 | 模块 | PASS | FAIL | BLOCKED | NOT RUN | 缺陷编号 |
 | --- | ---: | ---: | ---: | ---: | --- |
 | 环境/认证 |  |  |  |  |  |
-| Workspace/Project/RBAC |  |  |  |  |  |
+| 公司/成员/角色/需求范围 |  |  |  |  |  |
 | Product/Document/UX |  |  |  |  |  |
 | Development/GitLab |  |  |  |  |  |
 | QA/Bug |  |  |  |  |  |
@@ -679,7 +692,7 @@ make apps-ready
 复现概率：必现 / x/y
 Request ID / Run ID / Tool Call ID：
 截图 / Trace / 日志：
-是否涉及跨租户、Secret、事务、幂等或事实损坏：是 / 否
+是否涉及 scope 越权、Secret、事务、幂等或事实损坏：是 / 否
 临时规避方式：
 修复 commit：
 回归范围与结果：
