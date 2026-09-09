@@ -91,7 +91,7 @@ export function AuthEntry() {
       <label>邮箱<Input value={loginValues.email} autoComplete="email" onChange={(email) => setLoginValues((value) => ({ ...value, email }))} /></label>
       <label>密码<Input.Password value={loginValues.password} autoComplete="current-password" onChange={(password) => setLoginValues((value) => ({ ...value, password }))} /></label>
       {validationError && <Alert type="warning" content={validationError} />}
-      <AuthErrorAlert error={loginMutation.error} />
+      <AuthErrorAlert error={loginMutation.error} login />
       <Button htmlType="submit" type="primary" long size="large" loading={loginMutation.isPending}>登录</Button>
     </form>
   </Card></AuthLayout>;
