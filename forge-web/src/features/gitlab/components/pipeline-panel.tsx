@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Card, Input, Space, Spin, Tag, Typography } from "@arco-design/web-react";
+import { Alert, Button, Card, Input, Message, Space, Spin, Tag, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -25,10 +25,13 @@ export function PipelinePanel({
   });
   const trigger = useMutation({
     mutationFn: () => triggerPipeline({ workspaceId, projectId, ref }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    onSuccess: () => {
+      Message.success("Pipeline 已触发。");
+      return queryClient.invalidateQueries({
         queryKey: ["pipelines", workspaceId, projectId],
-      }),
+      });
+    },
+    onError: (error) => Message.error(formatRequestError(error)),
   });
 
   return (
@@ -45,7 +48,6 @@ export function PipelinePanel({
             触发 Pipeline
           </Button>
         </div>
-        {trigger.isError && <Alert type="error" content={formatRequestError(trigger.error)} />}
         {pipelines.isPending && <Spin tip="正在同步 Pipeline 状态…" />}
         {pipelines.isError && <Alert type="error" content={formatRequestError(pipelines.error)} />}
         {pipelines.data?.map((pipeline) => (

@@ -35,5 +35,6 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: /当前需求概览/ })).toHaveAttribute("href", "/overview");
     expect(screen.getByRole("link", { name: /我的需求/ })).toHaveAttribute("href", "/my-requirements");
     expect(screen.queryByText("全部项目")).not.toBeInTheDocument();
+    expect(screen.getByRole("presentation").getAttribute("src")).toMatch(/\/api\/v1\/branding\/company-logo$/);
   });
 });

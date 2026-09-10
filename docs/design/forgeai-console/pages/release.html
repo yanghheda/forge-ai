@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEMO-1 发布管理 · ForgeAI</title>
+    <style id="theme-vars">
+@layer theme, base, components, utilities;
+
+/*
+  ForgeAI Console 品牌令牌
+  视觉基线：Arco Design（@arco-design/web-react）B 端中后台语言
+  - 主色 arcoblue-6 #165DFF，中性色采用 Arco gray 文本/填充/边框阶梯
+  - 控件小圆角 2px，弹层 4px，大容器 8/12px
+  - 基准字号 14px，4px 间距网格
+  仅定义令牌与排版基线；组件样式见 partials/project-shell.html 内 critical CSS
+*/
+:root {
+  /* ===== 语义别名（Tailwind 语义令牌映射，禁止改名） ===== */
+  --forge-background: #f7f8fa;
+  --forge-foreground: #1d2129;
+  --forge-card: #ffffff;
+  --forge-card-foreground: #1d2129;
+  --forge-popover: #ffffff;
+  --forge-popover-foreground: #1d2129;
+  --forge-primary: #165dff;
+  --forge-primary-foreground: #ffffff;
+  --forge-muted: #f7f8fa;
+  --forge-muted-foreground: #86909c;
+  --forge-destructive: #f53f3f;
+  --forge-destructive-foreground: #ffffff;
+  --forge-border: #e5e6eb;
+  --forge-input: #e5e6eb;
+  --forge-ring: #165dff;
+
+  --forge-sidebar: #1d2129;
+  --forge-sidebar-foreground: rgba(255, 255, 255, 0.72);
+  --forge-sidebar-primary: #165dff;
+  --forge-sidebar-primary-foreground: #ffffff;
+  --forge-sidebar-accent: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-accent-foreground: #ffffff;
+
+  --forge-chart-1: #165dff;
+  --forge-chart-2: #00b42a;
+  --forge-chart-3: #ff7d00;
+  --forge-chart-4: #f53f3f;
+  --forge-chart-5: #722ed1;
+
+  --forge-radius-sm: 2px;
+  --forge-radius-md: 8px;
+  --forge-radius-lg: 12px;
+
+  /* ===== Arco 文本阶梯 ===== */
+  --forge-text-1: #1d2129;
+  --forge-text-2: #4e5969;
+  --forge-text-3: #86909c;
+  --forge-text-4: #c9cdd4;
+
+  /* ===== Arco 填充阶梯 ===== */
+  --forge-fill-1: #f7f8fa;
+  --forge-fill-2: #f2f3f5;
+  --forge-fill-3: #e5e6eb;
+  --forge-fill-4: #c9cdd4;
+
+  /* ===== Arco 边框阶梯 ===== */
+  --forge-border-1: #f2f3f5;
+  --forge-border-2: #e5e6eb;
+  --forge-border-3: #c9cdd4;
+
+  /* ===== 主色 arcoblue 阶梯 ===== */
+  --forge-primary-1: #e8f3ff;
+  --forge-primary-2: #bedaff;
+  --forge-primary-3: #94bfff;
+  --forge-primary-4: #6aa1ff;
+  --forge-primary-5: #4080ff;
+  --forge-primary-6: #165dff;
+  --forge-primary-7: #0e42d2;
+  --forge-primary-8: #072ca6;
+
+  /* ===== 功能色（Arco green/orange/red/purple） ===== */
+  --forge-success: #00b42a;
+  --forge-success-5: #23c343;
+  --forge-success-7: #009a29;
+  --forge-success-bg: #e8ffea;
+  --forge-success-border: #aff0b5;
+  --forge-warning: #ff7d00;
+  --forge-warning-5: #ff9a2e;
+  --forge-warning-7: #d25f00;
+  --forge-warning-bg: #fff7e8;
+  --forge-warning-border: #ffcf8b;
+  --forge-error: #f53f3f;
+  --forge-error-5: #ff7d7d;
+  --forge-error-7: #cb2634;
+  --forge-error-bg: #ffece8;
+  --forge-error-border: #fdcdc5;
+  --forge-purple: #722ed1;
+  --forge-purple-5: #8f4dff;
+  --forge-purple-bg: #f5e8ff;
+  --forge-cyan: #0fc6c2;
+  --forge-cyan-5: #37d4cf;
+  --forge-cyan-bg: #e8fffb;
+  --forge-gold: #f7ba1e;
+  --forge-gold-bg: #fff7e8;
+
+  /* ===== 焦点环 / 控件投影 ===== */
+  --forge-primary-focus-ring: rgba(22, 93, 255, 0.12);
+  --forge-error-focus: rgba(245, 63, 63, 0.12);
+  --forge-switch-shadow: 0 1px 2px rgba(29, 33, 41, 0.05);
+
+  /* ===== 阴影（Arco elevation；静态面 alpha≤0.05，浮层使用语义命名深阴影） ===== */
+  --forge-shadow-1: 0 1px 3px rgba(29, 33, 41, 0.04);
+  --forge-popover-shadow: 0 4px 10px rgba(29, 33, 41, 0.1);
+  --forge-modal-shadow: 0 10px 30px rgba(29, 33, 41, 0.15);
+  --forge-focus-ring: 0 0 0 2px rgba(22, 93, 255, 0.12);
+
+  /* ===== 深色侧边栏表面（令牌化，禁止在页面中写裸 rgba） ===== */
+  --forge-sidebar-text: rgba(255, 255, 255, 0.72);
+  --forge-sidebar-text-dim: rgba(255, 255, 255, 0.42);
+  --forge-sidebar-text-faint: rgba(255, 255, 255, 0.35);
+  --forge-sidebar-border: rgba(255, 255, 255, 0.06);
+  --forge-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-chip: rgba(255, 255, 255, 0.05);
+  --forge-sidebar-chip-border: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-active-bg: rgba(22, 93, 255, 0.22);
+  --forge-sidebar-active-bar: #4080ff;
+  --forge-sidebar-icon: rgba(255, 255, 255, 0.45);
+
+  /* ===== 浮层遮罩 / 深色代码面 / 滚动条 ===== */
+  --forge-mask: rgba(29, 33, 41, 0.45);
+  --forge-surface-dark: #232324;
+  --forge-text-inverse: #f2f3f5;
+  --forge-scrollbar: rgba(201, 205, 212, 0.2);
+  --forge-scrollbar-hover: rgba(201, 205, 212, 0.4);
+
+  /* ===== 认证品牌区 ===== */
+  --forge-auth-hero-from: #0e42d2;
+  --forge-auth-hero-to: #4080ff;
+  --forge-hero-chip-bg: rgba(255, 255, 255, 0.16);
+  --forge-hero-chip-border: rgba(255, 255, 255, 0.28);
+  --forge-hero-glow: rgba(255, 255, 255, 0.16);
+  --forge-hero-glow-soft: rgba(255, 255, 255, 0.12);
+  --forge-hero-text: rgba(255, 255, 255, 0.82);
+  --forge-hero-text-dim: rgba(255, 255, 255, 0.72);
+  --forge-hero-text-faint: rgba(255, 255, 255, 0.6);
+
+  /* ===== 排版 ===== */
+  --forge-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
+  --forge-font-mono: "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
+  --forge-text-xs: 12px;
+  --forge-text-sm: 13px;
+  --forge-text-base: 14px;
+  --forge-text-md: 16px;
+  --forge-text-lg: 20px;
+  --forge-text-xl: 24px;
+  --forge-text-2xl: 28px;
+
+  --forge-leading-tight: 1.4;
+  --forge-leading-normal: 1.5715;
+
+  /* ===== 布局尺寸 ===== */
+  --forge-sidebar-width: 232px;
+  --forge-sidebar-collapsed: 48px;
+  --forge-header-height: 56px;
+  --forge-content-padding: 20px;
+}
+
+/* 深色令牌（预留：未来暗色主题 / 深色面板） */
+.dark {
+  --forge-background: #17171a;
+  --forge-foreground: #f7f8fa;
+  --forge-card: #232324;
+  --forge-card-foreground: #f7f8fa;
+  --forge-popover: #2a2a2c;
+  --forge-popover-foreground: #f7f8fa;
+  --forge-muted: #232324;
+  --forge-muted-foreground: #86909c;
+  --forge-border: #3d3d3f;
+  --forge-input: #4e4e50;
+  --forge-text-1: #f7f8fa;
+  --forge-text-2: #c9cdd4;
+  --forge-text-3: #86909c;
+  --forge-fill-1: #232324;
+  --forge-fill-2: #2a2a2c;
+  --forge-fill-3: #3d3d3f;
+  --forge-border-1: #2a2a2c;
+  --forge-border-2: #3d3d3f;
+}
+
+html,
+body {
+  font-family: var(--forge-font-sans);
+  font-size: var(--forge-text-base);
+  line-height: var(--forge-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--forge-font-mono);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--forge-background);
+    --color-foreground: var(--forge-foreground);
+    --color-card: var(--forge-card);
+    --color-card-foreground: var(--forge-card-foreground);
+    --color-popover: var(--forge-popover);
+    --color-popover-foreground: var(--forge-popover-foreground);
+    --color-primary: var(--forge-primary);
+    --color-primary-foreground: var(--forge-primary-foreground);
+    --color-muted: var(--forge-muted);
+    --color-muted-foreground: var(--forge-muted-foreground);
+    --color-destructive: var(--forge-destructive);
+    --color-destructive-foreground: var(--forge-destructive-foreground);
+    --color-border: var(--forge-border);
+    --color-input: var(--forge-input);
+    --color-ring: var(--forge-ring);
+    --color-chart-1: var(--forge-chart-1);
+    --color-chart-2: var(--forge-chart-2);
+    --color-chart-3: var(--forge-chart-3);
+    --color-chart-4: var(--forge-chart-4);
+    --color-chart-5: var(--forge-chart-5);
+    --color-sidebar: var(--forge-sidebar);
+    --color-sidebar-foreground: var(--forge-sidebar-foreground);
+    --color-sidebar-primary: var(--forge-sidebar-primary);
+    --color-sidebar-primary-foreground: var(--forge-sidebar-primary-foreground);
+    --color-sidebar-accent: var(--forge-sidebar-accent);
+    --color-sidebar-accent-foreground: var(--forge-sidebar-accent-foreground);
+    --radius-sm: var(--forge-radius-sm);
+    --radius-md: var(--forge-radius-md);
+    --radius-lg: var(--forge-radius-lg);
+  }
+  @layer base {
+    body { background: var(--forge-background); color: var(--forge-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--forge-background); }
+      .text-background { color: var(--forge-background); }
+      .border-background { border-color: var(--forge-background); }
+      .ring-background { --tw-ring-color: var(--forge-background); }
+      .bg-foreground { background-color: var(--forge-foreground); }
+      .text-foreground { color: var(--forge-foreground); }
+      .border-foreground { border-color: var(--forge-foreground); }
+      .ring-foreground { --tw-ring-color: var(--forge-foreground); }
+      .bg-card { background-color: var(--forge-card); }
+      .text-card { color: var(--forge-card); }
+      .border-card { border-color: var(--forge-card); }
+      .ring-card { --tw-ring-color: var(--forge-card); }
+      .bg-card-foreground { background-color: var(--forge-card-foreground); }
+      .text-card-foreground { color: var(--forge-card-foreground); }
+      .border-card-foreground { border-color: var(--forge-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--forge-card-foreground); }
+      .bg-popover { background-color: var(--forge-popover); }
+      .text-popover { color: var(--forge-popover); }
+      .border-popover { border-color: var(--forge-popover); }
+      .ring-popover { --tw-ring-color: var(--forge-popover); }
+      .bg-popover-foreground { background-color: var(--forge-popover-foreground); }
+      .text-popover-foreground { color: var(--forge-popover-foreground); }
+      .border-popover-foreground { border-color: var(--forge-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--forge-popover-foreground); }
+      .bg-primary { background-color: var(--forge-primary); }
+      .text-primary { color: var(--forge-primary); }
+      .border-primary { border-color: var(--forge-primary); }
+      .ring-primary { --tw-ring-color: var(--forge-primary); }
+      .bg-primary-foreground { background-color: var(--forge-primary-foreground); }
+      .text-primary-foreground { color: var(--forge-primary-foreground); }
+      .border-primary-foreground { border-color: var(--forge-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--forge-primary-foreground); }
+      .bg-muted { background-color: var(--forge-muted); }
+      .text-muted { color: var(--forge-muted); }
+      .border-muted { border-color: var(--forge-muted); }
+      .ring-muted { --tw-ring-color: var(--forge-muted); }
+      .bg-muted-foreground { background-color: var(--forge-muted-foreground); }
+      .text-muted-foreground { color: var(--forge-muted-foreground); }
+      .border-muted-foreground { border-color: var(--forge-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--forge-muted-foreground); }
+      .bg-destructive { background-color: var(--forge-destructive); }
+      .text-destructive { color: var(--forge-destructive); }
+      .border-destructive { border-color: var(--forge-destructive); }
+      .ring-destructive { --tw-ring-color: var(--forge-destructive); }
+      .bg-destructive-foreground { background-color: var(--forge-destructive-foreground); }
+      .text-destructive-foreground { color: var(--forge-destructive-foreground); }
+      .border-destructive-foreground { border-color: var(--forge-destructive-foreground); }
+      .ring-destructive-foreground { --tw-ring-color: var(--forge-destructive-foreground); }
+      .bg-border { background-color: var(--forge-border); }
+      .text-border { color: var(--forge-border); }
+      .border-border { border-color: var(--forge-border); }
+      .ring-border { --tw-ring-color: var(--forge-border); }
+      .bg-input { background-color: var(--forge-input); }
+      .text-input { color: var(--forge-input); }
+      .border-input { border-color: var(--forge-input); }
+      .ring-input { --tw-ring-color: var(--forge-input); }
+      .bg-ring { background-color: var(--forge-ring); }
+      .text-ring { color: var(--forge-ring); }
+      .border-ring { border-color: var(--forge-ring); }
+      .ring-ring { --tw-ring-color: var(--forge-ring); }
+      .bg-chart-1 { background-color: var(--forge-chart-1); }
+      .text-chart-1 { color: var(--forge-chart-1); }
+      .border-chart-1 { border-color: var(--forge-chart-1); }
+      .ring-chart-1 { --tw-ring-color: var(--forge-chart-1); }
+      .bg-chart-2 { background-color: var(--forge-chart-2); }
+      .text-chart-2 { color: var(--forge-chart-2); }
+      .border-chart-2 { border-color: var(--forge-chart-2); }
+      .ring-chart-2 { --tw-ring-color: var(--forge-chart-2); }
+      .bg-chart-3 { background-color: var(--forge-chart-3); }
+      .text-chart-3 { color: var(--forge-chart-3); }
+      .border-chart-3 { border-color: var(--forge-chart-3); }
+      .ring-chart-3 { --tw-ring-color: var(--forge-chart-3); }
+      .bg-chart-4 { background-color: var(--forge-chart-4); }
+      .text-chart-4 { color: var(--forge-chart-4); }
+      .border-chart-4 { border-color: var(--forge-chart-4); }
+      .ring-chart-4 { --tw-ring-color: var(--forge-chart-4); }
+      .bg-chart-5 { background-color: var(--forge-chart-5); }
+      .text-chart-5 { color: var(--forge-chart-5); }
+      .border-chart-5 { border-color: var(--forge-chart-5); }
+      .ring-chart-5 { --tw-ring-color: var(--forge-chart-5); }
+      .bg-sidebar { background-color: var(--forge-sidebar); }
+      .text-sidebar { color: var(--forge-sidebar); }
+      .border-sidebar { border-color: var(--forge-sidebar); }
+      .ring-sidebar { --tw-ring-color: var(--forge-sidebar); }
+      .bg-sidebar-foreground { background-color: var(--forge-sidebar-foreground); }
+      .text-sidebar-foreground { color: var(--forge-sidebar-foreground); }
+      .border-sidebar-foreground { border-color: var(--forge-sidebar-foreground); }
+      .ring-sidebar-foreground { --tw-ring-color: var(--forge-sidebar-foreground); }
+      .bg-sidebar-primary { background-color: var(--forge-sidebar-primary); }
+      .text-sidebar-primary { color: var(--forge-sidebar-primary); }
+      .border-sidebar-primary { border-color: var(--forge-sidebar-primary); }
+      .ring-sidebar-primary { --tw-ring-color: var(--forge-sidebar-primary); }
+      .bg-sidebar-primary-foreground { background-color: var(--forge-sidebar-primary-foreground); }
+      .text-sidebar-primary-foreground { color: var(--forge-sidebar-primary-foreground); }
+      .border-sidebar-primary-foreground { border-color: var(--forge-sidebar-primary-foreground); }
+      .ring-sidebar-primary-foreground { --tw-ring-color: var(--forge-sidebar-primary-foreground); }
+      .bg-sidebar-accent { background-color: var(--forge-sidebar-accent); }
+      .text-sidebar-accent { color: var(--forge-sidebar-accent); }
+      .border-sidebar-accent { border-color: var(--forge-sidebar-accent); }
+      .ring-sidebar-accent { --tw-ring-color: var(--forge-sidebar-accent); }
+      .bg-sidebar-accent-foreground { background-color: var(--forge-sidebar-accent-foreground); }
+      .text-sidebar-accent-foreground { color: var(--forge-sidebar-accent-foreground); }
+      .border-sidebar-accent-foreground { border-color: var(--forge-sidebar-accent-foreground); }
+      .ring-sidebar-accent-foreground { --tw-ring-color: var(--forge-sidebar-accent-foreground); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main>
+
+<style id="critical-components">
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; color: var(--forge-text-1); background: var(--forge-background); }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--forge-scrollbar); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--forge-scrollbar-hover); }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* ============ 应用骨架 ============ */
+  .app-shell { display: flex; height: 100vh; overflow: hidden; }
+  .app-sidebar {
+    width: var(--forge-sidebar-width); flex: 0 0 var(--forge-sidebar-width);
+    background: var(--forge-sidebar); color: var(--forge-sidebar-text);
+    display: flex; flex-direction: column; height: 100vh;
+  }
+  .app-brand {
+    height: var(--forge-header-height); display: flex; align-items: center; gap: 10px;
+    padding: 0 16px; border-bottom: 1px solid var(--forge-sidebar-border); flex: none;
+  }
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 6px; flex: none;
+    background: linear-gradient(135deg, var(--forge-primary-5), var(--forge-primary-7));
+    display: grid; place-items: center; color: var(--forge-primary-foreground); font-weight: 700; font-size: 15px;
+  }
+  .brand-name { color: var(--forge-text-inverse); font-size: 15px; font-weight: 600; letter-spacing: .2px; line-height: 1.2; }
+  .brand-sub { font-size: 11px; color: var(--forge-sidebar-text-dim); margin-top: 1px; }
+
+  .app-switcher {
+    margin: 10px 12px 4px; padding: 8px 10px; border-radius: var(--forge-radius-sm);
+    background: var(--forge-sidebar-chip); border: 1px solid var(--forge-sidebar-chip-border);
+    display: flex; align-items: center; gap: 8px; cursor: pointer; flex: none;
+    transition: background-color .15s ease;
+  }
+  .app-switcher:hover { background: var(--forge-sidebar-hover); }
+  .switcher-avatar {
+    width: 26px; height: 26px; border-radius: 4px; flex: none;
+    background: var(--forge-sidebar-active-bg); color: var(--forge-primary-2); font-size: 11px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .switcher-meta { min-width: 0; flex: 1; }
+  .switcher-org { font-size: 12px; color: var(--forge-text-inverse); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .switcher-proj { font-size: 11px; color: var(--forge-sidebar-text-dim); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .app-menu { flex: 1; overflow-y: auto; padding: 8px 8px 16px; }
+  .menu-group-title {
+    padding: 14px 12px 6px; font-size: 12px; color: var(--forge-sidebar-text-faint); letter-spacing: .4px;
+  }
+  .menu-item {
+    position: relative; display: flex; align-items: center; gap: 10px;
+    height: 36px; padding: 0 12px; margin: 2px 0; border-radius: var(--forge-radius-sm);
+    font-size: 14px; color: var(--forge-sidebar-text); cursor: pointer; white-space: nowrap;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .menu-item .icon { width: 16px; height: 16px; flex: none; opacity: .9; }
+  .menu-item:hover { background: var(--forge-sidebar-hover); color: var(--forge-text-inverse); }
+  .menu-item[data-active="true"] { background: var(--forge-sidebar-active-bg); color: var(--forge-text-inverse); font-weight: 500; }
+  .menu-item[data-active="true"]::before {
+    content: ""; position: absolute; left: -8px; top: 7px; bottom: 7px; width: 3px;
+    border-radius: 0 2px 2px 0; background: var(--forge-sidebar-active-bar);
+  }
+  .menu-item .menu-badge { margin-left: auto; }
+
+  .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh; }
+  .app-header {
+    height: var(--forge-header-height); flex: none; background: var(--forge-card);
+    border-bottom: 1px solid var(--forge-border-2);
+    display: flex; align-items: center; gap: 12px; padding: 0 20px;
+  }
+  .header-spacer { flex: 1; }
+  .header-search {
+    width: 220px; height: 32px; display: flex; align-items: center; gap: 8px;
+    padding: 0 10px; border: 1px solid var(--forge-border-2); border-radius: var(--forge-radius-sm);
+    background: var(--forge-fill-1); color: var(--forge-text-3); font-size: 13px; cursor: text;
+    transition: border-color .15s ease, background-color .15s ease;
+  }
+  .header-search:hover { border-color: var(--forge-primary-5); background: var(--forge-card); }
+  .header-search kbd {
+    margin-left: auto; font-family: var(--forge-font-sans); font-size: 11px; color: var(--forge-text-3);
+    border: 1px solid var(--forge-border-2); border-bottom-width: 2px; border-radius: 2px; padding: 0 5px; background: var(--forge-card);
+  }
+  .header-icon-btn {
+    position: relative; width: 32px; height: 32px; border-radius: var(--forge-radius-sm);
+    display: grid; place-items: center; color: var(--forge-text-2); cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .header-icon-btn:hover { background: var(--forge-fill-2); color: var(--forge-text-1); }
+  .header-user { display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; border-radius: var(--forge-radius-sm); cursor: pointer; }
+  .header-user:hover { background: var(--forge-fill-2); }
+  .header-user .uname { font-size: 13px; color: var(--forge-text-1); }
+
+  .app-content { flex: 1; overflow: auto; }
+  .page-container { padding: var(--forge-content-padding); max-width: 1440px; margin: 0 auto; }
+  .app-footer {
+    flex: none; border-top: 1px solid var(--forge-border-1); background: var(--forge-card);
+    padding: 10px 20px; display: flex; align-items: center; gap: 16px;
+    font-size: 12px; color: var(--forge-text-3);
+  }
+  .app-footer .footer-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--forge-success); }
+  .app-footer .footer-right { margin-left: auto; display: flex; gap: 16px; align-items: center; }
+  .app-footer .footer-link { cursor: pointer; }
+  .app-footer .footer-link:hover { color: var(--forge-primary-6); }
+
+  /* ============ 图标 ============ */
+  .icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.125em; }
+
+  /* ============ 文字辅助 ============ */
+  .t1 { color: var(--forge-text-1); } .t2 { color: var(--forge-text-2); }
+  .t3 { color: var(--forge-text-3); } .t4 { color: var(--forge-text-4); }
+  .fs-xs { font-size: var(--forge-text-xs); } .fs-sm { font-size: var(--forge-text-sm); }
+  .fs-md { font-size: var(--forge-text-md); } .fs-lg { font-size: var(--forge-text-lg); }
+  .fw-500 { font-weight: 500; } .fw-600 { font-weight: 600; }
+  .mono { font-family: var(--forge-font-mono); }
+  .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ============ 按钮 Arco Button ============ */
+  .arco-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 32px; padding: 0 15px; font-size: 14px; line-height: 1;
+    border: 1px solid transparent; border-radius: var(--forge-radius-sm);
+    background: var(--forge-card); color: var(--forge-text-1); cursor: pointer; white-space: nowrap;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+  }
+  .arco-btn .icon { width: 14px; height: 14px; }
+  .arco-btn-sm { height: 28px; padding: 0 11px; font-size: 13px; }
+  .arco-btn-lg { height: 36px; padding: 0 19px; font-size: 14px; }
+  .arco-btn-primary { background: var(--forge-primary-6); color: var(--forge-primary-foreground); border-color: var(--forge-primary-6); }
+  .arco-btn-primary:hover { background: var(--forge-primary-5); border-color: var(--forge-primary-5); }
+  .arco-btn-primary:active { background: var(--forge-primary-7); border-color: var(--forge-primary-7); }
+  .arco-btn-secondary { background: var(--forge-fill-2); border-color: transparent; color: var(--forge-text-1); }
+  .arco-btn-secondary:hover { background: var(--forge-fill-3); }
+  .arco-btn-outline { background: var(--forge-card); border-color: var(--forge-border-2); color: var(--forge-text-2); }
+  .arco-btn-outline:hover { color: var(--forge-primary-6); border-color: var(--forge-primary-6); background: var(--forge-primary-1); }
+  .arco-btn-dashed { background: var(--forge-card); border: 1px dashed var(--forge-border-3); color: var(--forge-text-2); }
+  .arco-btn-dashed:hover { color: var(--forge-primary-6); border-color: var(--forge-primary-6); background: var(--forge-primary-1); }
+  .arco-btn-text { background: transparent; border-color: transparent; color: var(--forge-text-2); padding-left: 8px; padding-right: 8px; }
+  .arco-btn-text:hover { background: var(--forge-fill-2); color: var(--forge-text-1); }
+  .arco-btn-danger-primary { background: var(--forge-error); border-color: var(--forge-error); color: var(--forge-primary-foreground); }
+  .arco-btn-danger-primary:hover { background: var(--forge-error-5); border-color: var(--forge-error-5); }
+  .arco-btn-danger-outline { background: var(--forge-card); border-color: var(--forge-border-2); color: var(--forge-error); }
+  .arco-btn-danger-outline:hover { border-color: var(--forge-error); background: var(--forge-error-bg); }
+  .arco-btn[disabled], .arco-btn.is-disabled { background: var(--forge-fill-2); color: var(--forge-text-4); border-color: transparent; cursor: not-allowed; }
+  .arco-btn-group { display: inline-flex; }
+  .arco-btn-group .arco-btn { border-radius: 0; }
+  .arco-btn-group .arco-btn:first-child { border-radius: var(--forge-radius-sm) 0 0 var(--forge-radius-sm); }
+  .arco-btn-group .arco-btn:last-child { border-radius: 0 var(--forge-radius-sm) var(--forge-radius-sm) 0; }
+  .arco-btn-group .arco-btn + .arco-btn { margin-left: -1px; }
+
+  /* ============ 表单 Arco Input / Select ============ */
+  .arco-input, .arco-select, .arco-textarea {
+    width: 100%; height: 32px; padding: 0 12px; font-size: 14px; color: var(--forge-text-1);
+    background: var(--forge-card); border: 1px solid var(--forge-border-2); border-radius: var(--forge-radius-sm);
+    outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .arco-textarea { height: auto; padding: 8px 12px; line-height: 1.5715; resize: vertical; }
+  .arco-input::placeholder, .arco-textarea::placeholder { color: var(--forge-text-4); }
+  .arco-input:hover, .arco-select:hover, .arco-textarea:hover { border-color: var(--forge-primary-5); }
+  .arco-input:focus, .arco-textarea:focus { border-color: var(--forge-primary-6); box-shadow: var(--forge-focus-ring); }
+  .arco-input.arco-input-error, .arco-textarea.arco-input-error { border-color: var(--forge-error); }
+  .arco-input.arco-input-error:focus { box-shadow: 0 0 0 2px var(--forge-error-focus); }
+  .arco-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; color: var(--forge-text-1); }
+  .arco-select .select-placeholder { color: var(--forge-text-4); }
+  .arco-select .icon { width: 14px; height: 14px; color: var(--forge-text-3); }
+  .arco-select-view-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 28px 3px 8px; height: auto; min-height: 32px; align-items: center; position: relative; }
+  .arco-select-view-tags .icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+  .arco-input-prefix { position: relative; }
+  .arco-input-prefix .arco-input { padding-left: 32px; }
+  .arco-input-prefix .prefix-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--forge-text-3); }
+  .arco-input-suffix { position: relative; }
+  .arco-input-suffix .arco-input { padding-right: 32px; }
+  .arco-input-suffix .suffix-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--forge-text-3); cursor: pointer; }
+  .arco-form-item { margin-bottom: 20px; }
+  .arco-form-label { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; font-size: 14px; color: var(--forge-text-2); }
+  .arco-form-label .req { color: var(--forge-error); }
+  .arco-form-help { margin-top: 4px; font-size: 12px; color: var(--forge-text-3); }
+  .arco-form-help.error { color: var(--forge-error); }
+
+  .arco-radio, .arco-checkbox { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--forge-text-1); cursor: pointer; }
+  .radio-dot { width: 16px; height: 16px; border: 2px solid var(--forge-border-3); border-radius: 50%; position: relative; flex: none; background: var(--forge-card); }
+  .arco-radio.is-checked .radio-dot { border-color: var(--forge-primary-6); }
+  .arco-radio.is-checked .radio-dot::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--forge-primary-6); }
+  .check-box { width: 16px; height: 16px; border: 1.5px solid var(--forge-border-3); border-radius: 3px; position: relative; flex: none; background: var(--forge-card); }
+  .arco-checkbox.is-checked .check-box { background: var(--forge-primary-6); border-color: var(--forge-primary-6); }
+  .arco-checkbox.is-checked .check-box::after {
+    content: ""; position: absolute; left: 4px; top: 1px; width: 5px; height: 9px;
+    border: solid var(--forge-primary-foreground); border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .arco-switch { width: 36px; height: 20px; border-radius: 10px; background: var(--forge-fill-4); position: relative; cursor: pointer; transition: background-color .15s ease; flex: none; }
+  .arco-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--forge-card); transition: left .15s ease; box-shadow: var(--forge-switch-shadow); }
+  .arco-switch.is-checked { background: var(--forge-primary-6); }
+  .arco-switch.is-checked::after { left: 18px; }
+
+  /* ============ 标签 Arco Tag ============ */
+  .arco-tag {
+    display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px;
+    font-size: 12px; line-height: 1; border-radius: var(--forge-radius-sm);
+    background: var(--forge-fill-2); color: var(--forge-text-2); white-space: nowrap;
+  }
+  .arco-tag .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .arco-tag-blue { background: var(--forge-primary-1); color: var(--forge-primary-6); }
+  .arco-tag-green { background: var(--forge-success-bg); color: var(--forge-success); }
+  .arco-tag-orange { background: var(--forge-warning-bg); color: var(--forge-warning); }
+  .arco-tag-red { background: var(--forge-error-bg); color: var(--forge-error); }
+  .arco-tag-purple { background: var(--forge-purple-bg); color: var(--forge-purple); }
+  .arco-tag-outline { background: var(--forge-card); border: 1px solid var(--forge-border-2); }
+  .arco-tag .icon { width: 12px; height: 12px; }
+  .arco-tag-clickable { cursor: pointer; }
+  .arco-tag-checkable { cursor: pointer; border: 1px solid transparent; }
+  .arco-tag-checkable.is-checked { background: var(--forge-primary-1); color: var(--forge-primary-6); }
+
+  /* ============ 卡片 Arco Card ============ */
+  .arco-card { background: var(--forge-card); border: 1px solid var(--forge-border-1); border-radius: 4px; }
+  .arco-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--forge-border-1); min-height: 49px; }
+  .arco-card-title { font-size: 16px; font-weight: 600; color: var(--forge-text-1); display: flex; align-items: center; gap: 8px; }
+  .arco-card-title .icon { width: 16px; height: 16px; color: var(--forge-primary-6); }
+  .arco-card-extra { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .arco-card-body { padding: 20px; }
+  .arco-card-body.tight { padding: 12px 20px; }
+  .arco-card-body.flush { padding: 0; }
+  .arco-card-hover { cursor: pointer; transition: box-shadow .18s ease, border-color .18s ease; }
+  .arco-card-hover:hover { box-shadow: var(--forge-shadow-1); border-color: var(--forge-border-2); }
+  .arco-grid { display: grid; gap: 16px; }
+
+  /* ============ 表格 Arco Table ============ */
+  .arco-table { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--forge-card); }
+  .arco-table thead th {
+    background: var(--forge-fill-1); color: var(--forge-text-2); font-weight: 500;
+    text-align: left; padding: 10px 16px; font-size: 13px; white-space: nowrap;
+    border-bottom: 1px solid var(--forge-border-2);
+  }
+  .arco-table tbody td { padding: 12px 16px; border-bottom: 1px solid var(--forge-border-1); color: var(--forge-text-1); vertical-align: middle; }
+  .arco-table tbody tr { transition: background-color .12s ease; }
+  .arco-table tbody tr:hover { background: var(--forge-fill-1); }
+  .arco-table tbody tr:last-child td { border-bottom: none; }
+  .arco-table .col-check { width: 36px; }
+  .arco-table .col-num { text-align: right; }
+  .arco-table .strong-cell { font-weight: 500; color: var(--forge-text-1); }
+  .arco-table .link-cell { color: var(--forge-primary-6); cursor: pointer; }
+  .arco-table .link-cell:hover { color: var(--forge-primary-5); }
+  .table-toolbar { display: flex; align-items: center; gap: 8px; padding: 14px 16px; flex-wrap: wrap; }
+  .table-toolbar .toolbar-title { font-size: 14px; font-weight: 600; margin-right: auto; }
+  .table-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; }
+
+  .arco-pagination { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--forge-text-2); }
+  .page-btn { min-width: 28px; height: 28px; padding: 0 6px; display: grid; place-items: center; border: 1px solid var(--forge-border-2); border-radius: var(--forge-radius-sm); background: var(--forge-card); cursor: pointer; color: var(--forge-text-2); }
+  .page-btn:hover { color: var(--forge-primary-6); border-color: var(--forge-primary-6); }
+  .page-btn.is-active { background: var(--forge-primary-6); border-color: var(--forge-primary-6); color: var(--forge-primary-foreground); }
+
+  /* ============ Tabs ============ */
+  .arco-tabs-nav { display: flex; align-items: center; gap: 24px; border-bottom: 1px solid var(--forge-border-2); position: relative; }
+  .arco-tab {
+    position: relative; padding: 10px 2px; font-size: 14px; color: var(--forge-text-2); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    transition: color .15s ease;
+  }
+  .arco-tab:hover { color: var(--forge-primary-6); }
+  .arco-tab.is-active { color: var(--forge-primary-6); font-weight: 500; }
+  .arco-tab.is-active::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+    background: var(--forge-primary-6); border-radius: 2px;
+  }
+  .arco-tab .tab-count { font-size: 12px; background: var(--forge-fill-2); color: var(--forge-text-3); border-radius: 9px; padding: 0 6px; line-height: 16px; }
+  .arco-tab.is-active .tab-count { background: var(--forge-primary-1); color: var(--forge-primary-6); }
+  .arco-tabs-capsule .arco-tabs-nav { border-bottom: none; gap: 4px; background: var(--forge-fill-2); padding: 4px; border-radius: 4px; display: inline-flex; }
+  .arco-tabs-capsule .arco-tab { padding: 5px 14px; border-radius: var(--forge-radius-sm); }
+  .arco-tabs-capsule .arco-tab.is-active { background: var(--forge-card); color: var(--forge-text-1); box-shadow: var(--forge-shadow-1); }
+  .arco-tabs-capsule .arco-tab.is-active::after { display: none; }
+
+  /* ============ 面包屑 ============ */
+  .arco-breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--forge-text-3); min-width: 0; }
+  .arco-breadcrumb .bc-item { white-space: nowrap; }
+  .arco-breadcrumb .bc-link { cursor: pointer; }
+  .arco-breadcrumb .bc-link:hover { color: var(--forge-primary-6); }
+  .arco-breadcrumb .bc-current { color: var(--forge-text-1); }
+  .arco-breadcrumb .icon { width: 12px; height: 12px; }
+
+  /* ============ 徽标/头像 ============ */
+  .arco-badge-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--forge-error); border: 1.5px solid var(--forge-card); }
+  .arco-badge-count {
+    position: absolute; top: -4px; right: -8px; min-width: 16px; height: 16px; padding: 0 4px;
+    background: var(--forge-error); color: var(--forge-primary-foreground); font-size: 11px; line-height: 16px; text-align: center;
+    border-radius: 8px; border: 1.5px solid var(--forge-card);
+  }
+  .arco-avatar {
+    width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center;
+    font-size: 12px; font-weight: 600; flex: none; color: var(--forge-primary-foreground);
+    background: linear-gradient(135deg, var(--forge-primary-5), var(--forge-primary-6));
+  }
+  .arco-avatar.lg { width: 36px; height: 36px; font-size: 14px; }
+  .arco-avatar.sm { width: 24px; height: 24px; font-size: 11px; }
+  .arco-avatar.av-green { background: linear-gradient(135deg, var(--forge-success), var(--forge-success-7)); }
+  .arco-avatar.av-orange { background: linear-gradient(135deg, var(--forge-warning-5), var(--forge-warning)); }
+  .arco-avatar.av-purple { background: linear-gradient(135deg, var(--forge-purple-5), var(--forge-purple)); }
+  .arco-avatar.av-cyan { background: linear-gradient(135deg, var(--forge-cyan-5), var(--forge-cyan)); }
+  .arco-avatar.av-gray { background: linear-gradient(135deg, var(--forge-text-3), var(--forge-text-2)); }
+  .avatar-stack { display: inline-flex; }
+  .avatar-stack .arco-avatar { border: 2px solid var(--forge-card); margin-left: -8px; }
+  .avatar-stack .arco-avatar:first-child { margin-left: 0; }
+
+  /* ============ Alert ============ */
+  .arco-alert { display: flex; gap: 10px; padding: 9px 14px; border-radius: var(--forge-radius-sm); font-size: 13px; line-height: 1.5; border: 1px solid transparent; }
+  .arco-alert .icon { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+  .arco-alert-info { background: var(--forge-primary-1); border-color: var(--forge-primary-2); color: var(--forge-primary-7); }
+  .arco-alert-info .icon { color: var(--forge-primary-6); }
+  .arco-alert-success { background: var(--forge-success-bg); border-color: var(--forge-success-border); color: var(--forge-success-7); }
+  .arco-alert-success .icon { color: var(--forge-success); }
+  .arco-alert-warning { background: var(--forge-warning-bg); border-color: var(--forge-warning-border); color: var(--forge-warning-7); }
+  .arco-alert-warning .icon { color: var(--forge-warning); }
+  .arco-alert-error { background: var(--forge-error-bg); border-color: var(--forge-error-border); color: var(--forge-error-7); }
+  .arco-alert-error .icon { color: var(--forge-error); }
+  .arco-alert-title { font-weight: 600; margin-bottom: 2px; }
+
+  /* ============ 进度/步骤条 ============ */
+  .arco-progress { height: 6px; border-radius: 3px; background: var(--forge-fill-2); overflow: hidden; }
+  .arco-progress-bar { height: 100%; border-radius: 3px; background: var(--forge-primary-6); transition: width .3s ease; }
+  .arco-progress-bar.is-success { background: var(--forge-success); }
+  .arco-progress-bar.is-warning { background: var(--forge-warning); }
+  .arco-progress-bar.is-danger { background: var(--forge-error); }
+  .arco-progress-sm { height: 4px; }
+  .arco-progress-lg { height: 8px; border-radius: 4px; }
+
+  .arco-steps { display: flex; align-items: flex-start; }
+  .arco-step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; gap: 8px; }
+  .arco-step .step-tail { position: absolute; top: 11px; left: calc(-50% + 22px); right: calc(50% + 22px); height: 2px; background: var(--forge-border-2); z-index: 0; }
+  .arco-step.is-finish .step-tail { background: var(--forge-primary-6); }
+  .step-dot {
+    position: relative; z-index: 1; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--forge-card); border: 2px solid var(--forge-border-3); color: var(--forge-text-3);
+    display: grid; place-items: center; font-size: 12px; font-weight: 600;
+  }
+  .arco-step.is-finish .step-dot { background: var(--forge-primary-6); border-color: var(--forge-primary-6); color: var(--forge-primary-foreground); }
+  .arco-step.is-process .step-dot { background: var(--forge-card); border-color: var(--forge-primary-6); color: var(--forge-primary-6); box-shadow: 0 0 0 3px var(--forge-primary-focus-ring); }
+  .step-title { font-size: 13px; color: var(--forge-text-3); font-weight: 500; }
+  .arco-step.is-finish .step-title, .arco-step.is-process .step-title { color: var(--forge-text-1); }
+  .step-desc { font-size: 12px; color: var(--forge-text-3); }
+
+  /* ============ 描述列表/分割线 ============ */
+  .arco-descriptions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0; }
+  .arco-descriptions.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .arco-desc-item { display: flex; padding: 10px 0; border-bottom: 1px solid var(--forge-border-1); font-size: 13px; min-width: 0; }
+  .arco-desc-label { width: 110px; flex: none; color: var(--forge-text-3); }
+  .arco-desc-value { color: var(--forge-text-1); min-width: 0; }
+  .arco-divider { border: none; border-top: 1px solid var(--forge-border-1); margin: 16px 0; }
+  .arco-divider-v { display: inline-block; width: 1px; height: 14px; background: var(--forge-border-2); vertical-align: -2px; margin: 0 8px; }
+
+  /* ============ 弹层（静态示意） ============ */
+  .arco-modal-mask { position: fixed; inset: 0; background: var(--forge-mask); display: grid; place-items: center; z-index: 90; }
+  .arco-modal { width: 520px; max-width: calc(100vw - 48px); background: var(--forge-card); border-radius: 4px; box-shadow: var(--forge-modal-shadow); overflow: hidden; }
+  .arco-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; font-size: 16px; font-weight: 600; }
+  .arco-modal-body { padding: 0 20px 20px; font-size: 14px; color: var(--forge-text-2); max-height: 60vh; overflow: auto; }
+  .arco-modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--forge-border-1); background: var(--forge-fill-1); }
+  .modal-close { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--forge-radius-sm); color: var(--forge-text-3); cursor: pointer; }
+  .modal-close:hover { background: var(--forge-fill-2); color: var(--forge-text-1); }
+  .arco-dropdown-menu { background: var(--forge-card); border-radius: 4px; box-shadow: var(--forge-popover-shadow); border: 1px solid var(--forge-border-1); padding: 4px; min-width: 160px; }
+  .arco-dropdown-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 13px; border-radius: var(--forge-radius-sm); color: var(--forge-text-1); cursor: pointer; }
+  .arco-dropdown-item:hover { background: var(--forge-fill-2); }
+  .arco-dropdown-item.danger { color: var(--forge-error); }
+  .arco-dropdown-item .icon { width: 14px; height: 14px; color: var(--forge-text-3); }
+  .arco-dropdown-item.danger .icon { color: var(--forge-error); }
+
+  /* ============ 空状态 ============ */
+  .arco-empty { padding: 40px 20px; text-align: center; color: var(--forge-text-3); }
+  .arco-empty .empty-icon { width: 48px; height: 48px; margin: 0 auto 12px; color: var(--forge-text-4); }
+  .arco-empty .empty-title { font-size: 14px; color: var(--forge-text-2); margin-bottom: 4px; }
+  .arco-empty .empty-desc { font-size: 12px; }
+
+  /* ============ 时间线 ============ */
+  .arco-timeline { list-style: none; margin: 0; padding: 0; }
+  .arco-timeline li { position: relative; padding: 0 0 20px 22px; }
+  .arco-timeline li::before { content: ""; position: absolute; left: 5px; top: 6px; bottom: -2px; width: 2px; background: var(--forge-border-2); }
+  .arco-timeline li:last-child::before { display: none; }
+  .arco-timeline .tl-dot { position: absolute; left: 0; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--forge-card); border: 2px solid var(--forge-border-3); }
+  .arco-timeline li.is-finish .tl-dot { background: var(--forge-primary-6); border-color: var(--forge-primary-6); }
+  .arco-timeline li.is-success .tl-dot { background: var(--forge-success); border-color: var(--forge-success); }
+  .arco-timeline li.is-danger .tl-dot { background: var(--forge-error); border-color: var(--forge-error); }
+  .arco-timeline li.is-warning .tl-dot { background: var(--forge-warning); border-color: var(--forge-warning); }
+  .tl-title { font-size: 13px; font-weight: 500; color: var(--forge-text-1); }
+  .tl-time { font-size: 12px; color: var(--forge-text-3); margin-left: 8px; font-weight: 400; }
+  .tl-desc { font-size: 12px; color: var(--forge-text-2); margin-top: 4px; }
+
+  /* ============ 统计数字 ============ */
+  .stat-title { font-size: 13px; color: var(--forge-text-3); display: flex; align-items: center; gap: 6px; }
+  .stat-value { font-size: 28px; line-height: 1.3; font-weight: 600; color: var(--forge-text-1); font-variant-numeric: tabular-nums; }
+  .stat-value .unit { font-size: 14px; font-weight: 400; color: var(--forge-text-3); margin-left: 4px; }
+  .stat-trend { font-size: 12px; display: inline-flex; align-items: center; gap: 2px; }
+  .stat-trend.up { color: var(--forge-success); }
+  .stat-trend.down { color: var(--forge-error); }
+
+  /* ============ 看板 ============ */
+  .kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; align-items: start; overflow-x: auto; padding-bottom: 4px; }
+  .kanban-col { background: var(--forge-fill-1); border-radius: 4px; padding: 10px; min-height: 200px; }
+  .kanban-col-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px 10px; font-size: 13px; font-weight: 600; color: var(--forge-text-1); }
+  .kanban-col-head .col-count { font-weight: 400; color: var(--forge-text-3); font-size: 12px; }
+  .kanban-col-head .col-add { margin-left: auto; color: var(--forge-text-3); cursor: pointer; width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--forge-radius-sm); }
+  .kanban-col-head .col-add:hover { background: var(--forge-fill-3); color: var(--forge-text-1); }
+  .kanban-card { background: var(--forge-card); border: 1px solid var(--forge-border-1); border-radius: 4px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; box-shadow: var(--forge-shadow-1); }
+  .kanban-card:hover { border-color: var(--forge-primary-3); }
+  .kanban-card .kc-id { font-size: 12px; color: var(--forge-text-3); font-family: var(--forge-font-mono); }
+  .kanban-card .kc-title { font-size: 13px; color: var(--forge-text-1); margin: 4px 0 8px; line-height: 1.5; }
+  .kanban-card .kc-foot { display: flex; align-items: center; justify-content: space-between; }
+
+  /* ============ 代码/日志 ============ */
+  .code-block {
+    background: var(--forge-surface-dark); color: var(--forge-text-inverse); border-radius: 4px; padding: 14px 16px;
+    font-family: var(--forge-font-mono); font-size: 12.5px; line-height: 1.7; overflow: auto;
+  }
+  .code-block .tok-key { color: var(--forge-primary-3); } .code-block .tok-str { color: var(--forge-success); }
+  .code-block .tok-num { color: var(--forge-warning); } .code-block .tok-com { color: var(--forge-text-3); }
+  .log-line { display: flex; gap: 10px; padding: 3px 0; font-family: var(--forge-font-mono); font-size: 12.5px; }
+  .log-line .log-time { color: var(--forge-text-3); flex: none; }
+  .log-line.log-info .log-level { color: var(--forge-primary-5); } .log-line.log-warn .log-level { color: var(--forge-warning); }
+  .log-line.log-error .log-level { color: var(--forge-error); } .log-line.log-ok .log-level { color: var(--forge-success); }
+
+  /* ============ 聊天 / Agent ============ */
+  .chat-scroll { display: flex; flex-direction: column; gap: 16px; }
+  .chat-msg { display: flex; gap: 10px; }
+  .chat-msg .arco-avatar { margin-top: 2px; }
+  .chat-bubble { background: var(--forge-fill-1); border: 1px solid var(--forge-border-1); border-radius: 2px 8px 8px 8px; padding: 10px 14px; font-size: 13.5px; line-height: 1.65; color: var(--forge-text-1); max-width: 92%; }
+  .chat-msg.is-user { flex-direction: row-reverse; }
+  .chat-msg.is-user .chat-bubble { background: var(--forge-primary-1); border-color: var(--forge-primary-2); border-radius: 8px 2px 8px 8px; }
+
+  /* ============ 页面头部（标准模式） ============ */
+  .page-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .page-head .page-title { font-size: 20px; font-weight: 600; color: var(--forge-text-1); line-height: 28px; display: flex; align-items: center; gap: 10px; }
+  .page-head .page-desc { font-size: 13px; color: var(--forge-text-3); margin-top: 4px; }
+  .page-head .head-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex: none; }
+
+  /* ============ 需求上下文子导航 ============ */
+  .req-subbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .req-subnav { display: flex; gap: 2px; background: var(--forge-card); border: 1px solid var(--forge-border-1); border-radius: 4px; padding: 3px; }
+  .req-subnav .subnav-item { padding: 5px 12px; font-size: 13px; color: var(--forge-text-2); border-radius: var(--forge-radius-sm); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: background-color .15s ease, color .15s ease; }
+  .req-subnav .subnav-item:hover { color: var(--forge-primary-6); }
+  .req-subnav .subnav-item.is-active { background: var(--forge-primary-6); color: var(--forge-primary-foreground); }
+  .req-subnav .subnav-item .icon { width: 13px; height: 13px; }
+
+  /* ============ 工具类 ============ */
+  .flex { display: flex; } .inline-flex { display: inline-flex; } .items-center { align-items: center; } .items-start { align-items: flex-start; }
+  .justify-between { justify-content: space-between; } .justify-end { justify-content: flex-end; } .justify-center { justify-content: center; }
+  .flex-1 { flex: 1; } .flex-none { flex: none; } .flex-wrap { flex-wrap: wrap; }
+  .gap-4 { gap: 4px; } .gap-8 { gap: 8px; } .gap-12 { gap: 12px; } .gap-16 { gap: 16px; } .gap-20 { gap: 20px; } .gap-24 { gap: 24px; }
+  .mt-4 { margin-top: 4px; } .mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; } .mt-16 { margin-top: 16px; } .mt-20 { margin-top: 20px; } .mt-24 { margin-top: 24px; }
+  .mb-4 { margin-bottom: 4px; } .mb-8 { margin-bottom: 8px; } .mb-12 { margin-bottom: 12px; } .mb-16 { margin-bottom: 16px; } .mb-20 { margin-bottom: 20px; } .mb-24 { margin-bottom: 24px; }
+  .w-full { width: 100%; } .text-center { text-align: center; } .text-right { text-align: right; }
+  .cursor-pointer { cursor: pointer; } .shrink-0 { flex-shrink: 0; } .min-w-0 { min-width: 0; }
+  .kbd-tag { font-family: var(--forge-font-sans); font-size: 11px; color: var(--forge-text-3); border: 1px solid var(--forge-border-2); border-bottom-width: 2px; border-radius: 2px; padding: 0 5px; background: var(--forge-card); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h6M9 9h1"></path></symbol>
+  <symbol id="i-kanban" viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="11" rx="1"></rect><rect x="10" y="4" width="5" height="7" rx="1"></rect><rect x="17" y="4" width="4" height="14" rx="1"></rect><path d="M3 20h18"></path></symbol>
+  <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="2.5"></rect><path d="M12 8V4M12 4h-2M12 4h2"></path><circle cx="9" cy="13" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="15" cy="13" r="1.2" fill="currentColor" stroke="none"></circle><path d="M2 12v4M22 12v4"></path></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 5 14L17 12h4"></path></symbol>
+  <symbol id="i-setting" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"></path></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"></circle><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><path d="M16 5.2a3.2 3.2 0 0 1 0 5.9M17.5 14.7c2.2.7 3.5 2.4 3.5 5.3"></path></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"></path></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6z"></path><path d="M9 12l2 2 4-4"></path></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 15 18 9M10 20a2.2 2.2 0 0 0 4 0"></path></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.2-3.2"></path></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"></path></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"></path></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"></path></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l13 7-13 7z"></path></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2.5"></circle><circle cx="6" cy="19" r="2.5"></circle><circle cx="18" cy="7" r="2.5"></circle><path d="M6 7.5v9M18 9.5c0 4-6 2.5-6 7"></path></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><rect x="8" y="8" width="8" height="11" rx="4"></rect><path d="M9 6a3 3 0 0 1 6 0M4 12h4M16 12h4M4 17l4-1M20 17l-4-1M12 8v11"></path></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M5 15c-1.5 1-2 5-2 5s4-.5 5-2c.6-.9.5-2-.3-2.7-.8-.8-1.9-.9-2.7-.3z"></path><path d="M9 15l-2-2c1-6 5-9 12-9 0 7-3 11-9 12z"></path><circle cx="14.5" cy="9.5" r="1.5"></circle></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"></path></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"></circle><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"></circle></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7v5l3.5 2"></path></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 4l1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6z"></path><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8zM6 15l.6 1.6L8 17.2l-1.4.6L6 19.4l-.6-1.6L4 17.2l1.4-.6z"></path></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7M17 8l4 4-4 4M21 12H9"></path></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-5.3L4 8M4 4v4h4M4 13a8 8 0 0 0 14 5.3L20 16M20 20v-4h-4"></path></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 .5l2.5-2.5a4 4 0 0 0-5.7-5.7L11.5 7.5"></path><path d="M14 10a4 4 0 0 0-6-.5l-2.5 2.5a4 4 0 0 0 5.7 5.7l1.3-1.2"></path></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l2.5 2.5M14.5 8.5L17 11"></path></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"></ellipse><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"></path></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="3"></circle></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7zM17 5h2v14h-2z"></path></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"></rect><path d="M9 4a2 2 0 0 1 6 0v1H9zM9 11h6M9 15h4"></path></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6"></path></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L3 10.5l7 2.5 2.5 7z"></path><path d="M10 13l11-10"></path></symbol>
+  <symbol id="i-thumbs-up" viewBox="0 0 24 24"><path d="M7 10v10H4a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM7 10l4-7a2.5 2.5 0 0 1 3 3l-.8 4H19a2 2 0 0 1 2 2.4l-1.3 6A2 2 0 0 1 17.8 20H7"></path></symbol>
+  <symbol id="i-thumbs-down" viewBox="0 0 24 24"><path d="M17 14V4h3a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1zM17 14l-4 7a2.5 2.5 0 0 1-3-3l.8-4H5a2 2 0 0 1-2-2.4l1.3-6A2 2 0 0 1 6.2 4H17"></path></symbol>
+  <symbol id="i-api" viewBox="0 0 24 24"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"></path></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"></path></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M4.5 20c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5"></path></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13l2-8h12l2 8M4 13h5l1 2h4l1-2h5M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"></path></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></symbol>
+  <symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 3l9.5 17h-19z"></path><path d="M12 10v4M12 17.5v.5"></path></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 7.5v.5"></path></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></symbol>
+</svg>
+
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <div class="app-brand">
+      <div class="brand-mark">F</div>
+      <div>
+        <div class="brand-name">ForgeAI</div>
+        <div class="brand-sub">智能交付控制台</div>
+      </div>
+    </div>
+
+    <nav class="app-menu">
+      <div class="menu-group-title">需求协作</div>
+      <a class="menu-item" href="overview.html" data-dom-id="nav-overview" data-nav-key="overview">
+        <svg class="icon"><use href="#i-dashboard"></use></svg>需求概览
+      </a>
+      <a class="menu-item" href="my-requirements.html" data-dom-id="nav-my-requirements" data-nav-key="my-requirements">
+        <svg class="icon"><use href="#i-inbox"></use></svg>我的需求
+      </a>
+      <a class="menu-item" href="task-board.html" data-dom-id="nav-task-board" data-nav-key="task-board">
+        <svg class="icon"><use href="#i-kanban"></use></svg>任务看板
+      </a>
+
+      <div class="menu-group-title">智能体</div>
+      <a class="menu-item" href="agent-command.html" data-dom-id="nav-agent-command" data-nav-key="agent-command">
+        <svg class="icon"><use href="#i-bot"></use></svg>Agent 指令中心
+      </a>
+      <a class="menu-item" href="agent-trace.html" data-dom-id="nav-agent-trace" data-nav-key="agent-trace">
+        <svg class="icon"><use href="#i-activity"></use></svg>执行轨迹
+      </a>
+
+      <div class="menu-group-title">系统设置</div>
+      <a class="menu-item" href="settings-members.html" data-dom-id="nav-settings-members" data-nav-key="settings-members">
+        <svg class="icon"><use href="#i-users"></use></svg>成员管理
+      </a>
+      <a class="menu-item" href="settings-integrations.html" data-dom-id="nav-settings-integrations" data-nav-key="settings-integrations">
+        <svg class="icon"><use href="#i-plug"></use></svg>集成配置
+      </a>
+      <a class="menu-item" href="settings-permissions.html" data-dom-id="nav-settings-permissions" data-nav-key="settings-permissions">
+        <svg class="icon"><use href="#i-shield"></use></svg>角色权限
+      </a>
+    </nav>
+  </aside>
+
+  <div class="app-main">
+    <header class="app-header">
+      <div class="arco-breadcrumb">
+        <span class="bc-item bc-link">需求协作</span><svg class="icon"><use href="#i-chevron-right"></use></svg><span class="bc-item bc-link">DEMO-1</span><svg class="icon"><use href="#i-chevron-right"></use></svg><span class="bc-item bc-current">发布管理</span>
+      </div>
+      <div class="header-spacer"></div>
+      <div class="header-search" data-dom-id="global-search">
+        <svg class="icon" style="width:14px;height:14px"><use href="#i-search"></use></svg>
+        <span>搜索需求 / 任务 / 文档</span>
+        <kbd>⌘ K</kbd>
+      </div>
+      <button class="arco-btn arco-btn-outline arco-btn-sm" data-dom-id="global-agent-command" type="button">
+        <svg class="icon"><use href="#i-sparkles"></use></svg>Agent 指令
+      </button>
+      <div class="header-icon-btn" data-dom-id="global-notifications">
+        <svg class="icon" style="width:18px;height:18px"><use href="#i-bell"></use></svg>
+        <span class="arco-badge-dot"></span>
+      </div>
+      <div class="header-user" data-dom-id="global-user-menu">
+        <span class="arco-avatar">张</span>
+        <span class="uname">张产品</span>
+        <svg class="icon" style="width:14px;height:14px;color:var(--forge-text-3)"><use href="#i-chevron-down"></use></svg>
+      </div>
+    </header>
+
+    <div class="app-content" role="main">
+      <style id="page-styles">
+  /* 仅本页使用的样式，必须使用 var(--forge-*) 令牌 */
+  [data-page="release"] .rl-req-chip {
+    display: inline-flex; align-items: center; gap: 8px; flex: none;
+    background: var(--forge-card); border: 1px solid var(--forge-border-1); border-radius: 4px;
+    padding: 5px 12px;
+  }
+  [data-page="release"] .rl-req-chip .rl-req-id { font-size: 13px; font-weight: 600; color: var(--forge-text-1); letter-spacing: .3px; }
+
+  [data-page="release"] .rl-deploy { position: relative; display: inline-flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  [data-page="release"] .rl-tooltip {
+    position: relative; display: inline-flex; align-items: center; gap: 5px;
+    background: var(--forge-surface-dark); color: var(--forge-text-inverse);
+    font-size: 12px; line-height: 1; padding: 6px 9px; border-radius: var(--forge-radius-sm); white-space: nowrap;
+  }
+  [data-page="release"] .rl-tooltip::after {
+    content: ""; position: absolute; bottom: -4px; right: 22px;
+    border: 4px solid transparent; border-top-color: var(--forge-surface-dark); border-bottom-width: 0;
+  }
+  [data-page="release"] .rl-tooltip .icon { width: 12px; height: 12px; color: var(--forge-warning-5); }
+
+  [data-page="release"] .rl-steps-card { margin-bottom: 16px; }
+  [data-page="release"] .rl-steps-body { padding: 26px 28px 20px; }
+  [data-page="release"] .step-dot .icon { width: 12px; height: 12px; }
+  [data-page="release"] .arco-step.is-blocked .step-dot {
+    border-color: var(--forge-warning); color: var(--forge-warning);
+    box-shadow: 0 0 0 3px var(--forge-warning-bg);
+  }
+  [data-page="release"] .arco-step.is-blocked .step-title { color: var(--forge-warning-7); }
+  [data-page="release"] .arco-step.is-blocked .step-desc { color: var(--forge-warning-7); }
+
+  [data-page="release"] .rl-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  [data-page="release"] .rl-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+  [data-page="release"] .rl-desc-label { width: 84px; flex: none; color: var(--forge-text-3); }
+  [data-page="release"] .rl-desc-value { min-width: 0; overflow-wrap: anywhere; }
+  [data-page="release"] .rl-env-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+  [data-page="release"] .rl-table { font-size: 13px; }
+  [data-page="release"] .rl-table thead th { padding: 9px 14px; font-size: 12px; }
+  [data-page="release"] .rl-table tbody td { padding: 10px 14px; vertical-align: top; }
+  [data-page="release"] .rl-table .col-status { width: 96px; white-space: nowrap; }
+  [data-page="release"] .rl-table .col-rule { color: var(--forge-text-2); }
+  [data-page="release"] .rl-table .col-desc { color: var(--forge-text-3); font-size: 12.5px; }
+  [data-page="release"] .rl-check-name { font-weight: 500; color: var(--forge-text-1); white-space: nowrap; }
+  [data-page="release"] .rl-check-name .mono { font-weight: 400; color: var(--forge-text-3); font-size: 12px; margin-left: 6px; }
+  [data-page="release"] .rl-tag-pending { color: var(--forge-text-3); }
+  [data-page="release"] .rl-tag-pending .icon { color: var(--forge-text-3); }
+  [data-page="release"] .rl-alert-block { margin: 12px 14px 14px; }
+
+  [data-page="release"] .rl-note-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--forge-text-3); margin-bottom: 14px; }
+  [data-page="release"] .rl-note-meta .icon { width: 13px; height: 13px; color: var(--forge-purple); }
+  [data-page="release"] .rl-note-title { font-size: 15px; font-weight: 600; color: var(--forge-text-1); margin: 0 0 4px; }
+  [data-page="release"] .rl-note-sub { font-size: 12px; color: var(--forge-text-3); font-family: var(--forge-font-mono); margin-bottom: 14px; }
+  [data-page="release"] .rn-h { font-size: 13.5px; font-weight: 600; color: var(--forge-text-1); margin: 16px 0 8px; display: flex; gap: 8px; }
+  [data-page="release"] .rn-h:first-of-type { margin-top: 4px; }
+  [data-page="release"] .rn-h .rn-no { color: var(--forge-primary-6); flex: none; }
+  [data-page="release"] .rn-p { margin: 0; font-size: 13.5px; line-height: 1.8; color: var(--forge-text-2); }
+  [data-page="release"] .rn-list { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.8; color: var(--forge-text-2); }
+  [data-page="release"] .rn-list li { margin-bottom: 4px; }
+  [data-page="release"] .rn-list li:last-child { margin-bottom: 0; }
+  [data-page="release"] .rn-list b { color: var(--forge-text-1); font-weight: 600; }
+  [data-page="release"] .rn-list .mono { font-size: 12.5px; color: var(--forge-text-2); }
+
+  [data-page="release"] .rl-approver { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--forge-border-1); }
+  [data-page="release"] .rl-approver:last-of-type { border-bottom: none; }
+  [data-page="release"] .rl-approver .rl-ap-meta { min-width: 0; flex: 1; }
+  [data-page="release"] .rl-approver .rl-ap-name { font-size: 13.5px; font-weight: 500; color: var(--forge-text-1); }
+  [data-page="release"] .rl-approver .rl-ap-role { font-size: 12px; color: var(--forge-text-3); margin-top: 1px; }
+  [data-page="release"] .rl-ap-go { font-size: 12.5px; color: var(--forge-primary-6); cursor: pointer; white-space: nowrap; }
+  [data-page="release"] .rl-ap-go:hover { color: var(--forge-primary-5); }
+  [data-page="release"] .rl-ap-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+  [data-page="release"] .rl-ap-foot .rl-ap-hint { font-size: 12px; color: var(--forge-text-3); }
+
+  [data-page="release"] .rl-risk-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--forge-border-1); }
+  [data-page="release"] .rl-risk-row:last-of-type { border-bottom: none; }
+  [data-page="release"] .rl-risk-name { font-size: 13.5px; color: var(--forge-text-1); font-weight: 500; }
+  [data-page="release"] .rl-risk-desc { font-size: 12px; color: var(--forge-text-3); margin-top: 2px; line-height: 1.6; }
+  [data-page="release"] .rl-risk-tag { flex: none; }
+  [data-page="release"] .rl-risk-total { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--forge-border-2); }
+  [data-page="release"] .rl-risk-total .t { font-size: 13px; color: var(--forge-text-2); }
+
+  [data-page="release"] .rl-agent-head { display: flex; align-items: center; gap: 10px; }
+  [data-page="release"] .rl-agent-name { font-size: 14px; font-weight: 600; color: var(--forge-text-1); }
+  [data-page="release"] .rl-agent-line { display: flex; gap: 8px; font-size: 13px; line-height: 1.7; margin-bottom: 8px; }
+  [data-page="release"] .rl-agent-line .k { color: var(--forge-text-3); flex: none; }
+  [data-page="release"] .rl-agent-line .v { color: var(--forge-text-1); min-width: 0; }
+  [data-page="release"] .rl-agent-trace { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 13px; color: var(--forge-primary-6); cursor: pointer; }
+  [data-page="release"] .rl-agent-trace:hover { color: var(--forge-primary-5); }
+  [data-page="release"] .rl-agent-trace .icon { width: 13px; height: 13px; }
+
+  [data-page="release"] .rl-deploy-note { margin-bottom: 14px; }
+  [data-page="release"] .tl-title .mono { font-weight: 600; }
+        </style>
+        <div class="page-container" data-page="release">
+          <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+            <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3.5 7.5"></path><path d="M3 4v4h4"></path><path d="M12 8v4.5l3 2"></path></symbol>
+            <symbol id="i-dash" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></symbol>
+            <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.5"></rect><rect x="3" y="13" width="18" height="7" rx="1.5"></rect><path d="M7 7.5h.01M7 16.5h.01"></path></symbol>
+          </svg>
+
+          <!-- 需求上下文子导航 -->
+          <div class="req-subbar">
+            <div class="rl-req-chip">
+              <span class="mono rl-req-id">DEMO-1</span>
+              <span class="arco-tag arco-tag-orange"><span class="dot"></span>待发布</span>
+            </div>
+            <nav class="req-subnav">
+              <a class="subnav-item" href="requirement-detail.html"><svg class="icon"><use href="#i-file"></use></svg>详情</a>
+              <a class="subnav-item" href="document-editor.html"><svg class="icon"><use href="#i-edit"></use></svg>PRD 文档</a>
+              <a class="subnav-item" href="ux-workspace.html"><svg class="icon"><use href="#i-clipboard"></use></svg>UX 设计</a>
+              <a class="subnav-item" href="development.html"><svg class="icon"><use href="#i-branch"></use></svg>开发</a>
+              <a class="subnav-item" href="qa.html"><svg class="icon"><use href="#i-bug"></use></svg>QA 测试</a>
+              <a class="subnav-item is-active" href="release.html"><svg class="icon"><use href="#i-rocket"></use></svg>发布</a>
+              
+            </nav>
+          </div>
+
+          <!-- 页面头部 -->
+          <div class="page-head">
+            <div class="min-w-0 flex-1">
+              <div class="page-title">发布管理</div>
+              <div class="page-desc">ReleaseAgent · 确定性预检查 / HIGH 审批 / 模拟部署</div>
+            </div>
+            <div class="head-actions">
+              <button class="arco-btn arco-btn-outline" type="button">
+                <svg class="icon"><use href="#i-history"></use></svg>发布历史
+              </button>
+              <div class="rl-deploy">
+                <span class="rl-tooltip"><svg class="icon"><use href="#i-lock"></use></svg>前置检查未通过，部署入口锁定</span>
+                <button class="arco-btn arco-btn-primary" type="button" disabled>
+                  <svg class="icon"><use href="#i-rocket"></use></svg>开始部署
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 发布步骤 -->
+          <div class="arco-card rl-steps-card">
+            <div class="arco-card-body rl-steps-body">
+              <div class="arco-steps">
+                <div class="arco-step is-finish">
+                  
+                  <span class="step-dot"><svg class="icon"><use href="#i-check"></use></svg></span>
+                  <span class="step-title">发布准备</span>
+                  <span class="step-desc">Release 单已创建 · Note 草稿已生成</span>
+                </div>
+                <div class="arco-step is-process is-blocked">
+                  <span class="step-tail"></span>
+                  <span class="step-dot"><svg class="icon"><use href="#i-warning"></use></svg></span>
+                  <span class="step-title">预检查</span>
+                  <span class="step-desc">2 项未通过，部署入口锁定</span>
+                </div>
+                <div class="arco-step is-wait">
+                  <span class="step-tail"></span>
+                  <span class="step-dot">3</span>
+                  <span class="step-title">HIGH 审批</span>
+                  <span class="step-desc">等待预检查通过后发起双签</span>
+                </div>
+                <div class="arco-step is-wait">
+                  <span class="step-tail"></span>
+                  <span class="step-dot">4</span>
+                  <span class="step-title">模拟部署</span>
+                  <span class="step-desc">docker-compose · staging</span>
+                </div>
+                <div class="arco-step is-wait">
+                  <span class="step-dot">5</span>
+                  <span class="step-title">完成</span>
+                  <span class="step-desc">RELEASED 后关闭需求</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rl-grid">
+            <!-- 左列 -->
+            <div class="rl-col">
+              <!-- 发布单 -->
+              <div class="arco-card">
+                <div class="arco-card-head">
+                  <div class="arco-card-title">
+                    <svg class="icon"><use href="#i-file"></use></svg>发布单
+                    <span class="mono fs-sm t2">DEMO-1-R1</span>
+                    <span class="arco-tag arco-tag-outline">草稿</span>
+                  </div>
+                  <div class="arco-card-extra">
+                    <span class="arco-tag arco-tag-red"><svg class="icon"><use href="#i-flag"></use></svg>风险等级 HIGH</span>
+                  </div>
+                </div>
+                <div class="arco-card-body">
+                  <div class="arco-descriptions cols-3">
+                    <div class="arco-desc-item">
+                      <span class="arco-desc-label rl-desc-label">发布单编号</span>
+                      <span class="arco-desc-value rl-desc-value"><span class="mono">Release DEMO-1-R1</span>（草稿）</span>
+                    </div>
+                    <div class="arco-desc-item">
+                      <span class="arco-desc-label rl-desc-label">目标环境</span>
+                      <span class="arco-desc-value rl-desc-value">
+                        <span class="rl-env-line"><span class="mono">staging</span><span class="arco-tag arco-tag-orange">SIMULATED</span><span class="t3 fs-xs">docker-compose 模拟部署</span></span>
+                      </span>
+                    </div>
+                    <div class="arco-desc-item">
+                      <span class="arco-desc-label rl-desc-label">计划窗口</span>
+                      <span class="arco-desc-value rl-desc-value"><span class="mono">2026-09-20 22:00</span></span>
+                    </div>
+                    <div class="arco-desc-item">
+                      <span class="arco-desc-label rl-desc-label">发布负责人</span>
+                      <span class="arco-desc-value rl-desc-value">陈发布 <span class="t3 fs-xs mono">RELEASE_MANAGER</span></span>
+                    </div>
+                    <div class="arco-desc-item">
+                      <span class="arco-desc-label rl-desc-label">制品镜像</span>
+                      <span class="arco-desc-value rl-desc-value"><span class="mono fs-sm">forgeai/demo:0.2.0-rc1</span></span>
+                    </div>
+                    <div class="arco-desc-item">
+                      <span class="arco-desc-label rl-desc-label">回滚目标</span>
+                      <span class="arco-desc-value rl-desc-value"><span class="mono fs-sm">forgeai/demo:0.1.3</span><span class="t3 fs-xs"> · 镜像级回滚</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Precheck 检查表 -->
+              <div class="arco-card">
+                <div class="arco-card-head">
+                  <div class="arco-card-title">
+                    <svg class="icon"><use href="#i-shield"></use></svg>确定性预检查 Precheck
+                  </div>
+                  <div class="arco-card-extra">
+                    <span class="mono fs-xs t3">快照 pc_20260910-02</span>
+                    <span class="arco-tag arco-tag-orange">未通过 · 2/5</span>
+                  </div>
+                </div>
+                <div class="arco-card-body flush">
+                  <table class="arco-table rl-table">
+                    <thead>
+                      <tr>
+                        <th>检查项</th>
+                        <th>判定规则（Server 规则引擎）</th>
+                        <th class="col-status">状态</th>
+                        <th>说明</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><span class="rl-check-name">QA 门禁通过<span class="mono">QA_PASSED</span></span></td>
+                        <td class="col-rule">最新有效 Test Run 完成；P0/P1 用例全部 PASS 且无阻断缺陷</td>
+                        <td><span class="arco-tag arco-tag-red"><svg class="icon"><use href="#i-close"></use></svg>未通过</span></td>
+                        <td class="col-desc">通过率 85% &lt; 90%；P1 缺陷 <span class="mono">BUG-007</span> 未关闭</td>
+                      </tr>
+                      <tr>
+                        <td><span class="rl-check-name">Release Note 已生成<span class="mono">ARTIFACTS_PRESENT</span></span></td>
+                        <td class="col-rule">Release Note 文档已生成并关联到 Release 聚合</td>
+                        <td><span class="arco-tag arco-tag-green"><svg class="icon"><use href="#i-check"></use></svg>通过</span></td>
+                        <td class="col-desc">v0.2.0-rc1 草稿 · ReleaseAgent 09-09 生成</td>
+                      </tr>
+                      <tr>
+                        <td><span class="rl-check-name">回滚方案已确认<span class="mono">ROLLBACK_CONFIRMED</span></span></td>
+                        <td class="col-rule">回滚镜像、步骤与责任人经发布负责人确认</td>
+                        <td><span class="arco-tag arco-tag-outline rl-tag-pending"><svg class="icon"><use href="#i-dash"></use></svg>待确认</span></td>
+                        <td class="col-desc">等待陈发布确认回滚方案（目标 0.1.3）</td>
+                      </tr>
+                      <tr>
+                        <td><span class="rl-check-name">变更审批齐全<span class="mono">APPROVAL_POLICY</span></span></td>
+                        <td class="col-rule">HIGH 风险需 RELEASE_MANAGER + PRODUCT_OWNER 双签且在 TTL 内</td>
+                        <td><span class="arco-tag arco-tag-red"><svg class="icon"><use href="#i-close"></use></svg>未通过</span></td>
+                        <td class="col-desc">双签 0/2，审批尚未发起</td>
+                      </tr>
+                      <tr>
+                        <td><span class="rl-check-name">制品已推送<span class="mono">ARTIFACT_PUSHED</span></span></td>
+                        <td class="col-rule">目标镜像在制品仓库存在，digest 已固化进快照</td>
+                        <td><span class="arco-tag arco-tag-green"><svg class="icon"><use href="#i-check"></use></svg>通过</span></td>
+                        <td class="col-desc"><span class="mono">forgeai/demo:0.2.0-rc1</span> 已推送</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div class="arco-alert arco-alert-error rl-alert-block">
+                    <svg class="icon"><use href="#i-warning"></use></svg>
+                    <div>
+                      <div class="arco-alert-title">预检查未通过，部署入口保持锁定</div>
+                      <div>Precheck 为不可变快照，规则由 forge-server 确定性执行；Agent 仅可解释失败原因与生成 Release Note，不能判定通过，也不可绕过检查发起部署。</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Release Note -->
+              <div class="arco-card">
+                <div class="arco-card-head">
+                  <div class="arco-card-title">
+                    <svg class="icon"><use href="#i-sparkles"></use></svg>Release Note
+                    <span class="arco-tag arco-tag-purple">AI 生成草稿</span>
+                  </div>
+                  <div class="arco-card-extra">
+                    <button class="arco-btn arco-btn-outline arco-btn-sm" type="button"><svg class="icon"><use href="#i-refresh"></use></svg>重新生成</button>
+                    <button class="arco-btn arco-btn-outline arco-btn-sm" type="button"><svg class="icon"><use href="#i-edit"></use></svg>编辑</button>
+                  </div>
+                </div>
+                <div class="arco-card-body">
+                  <div class="rl-note-meta">
+                    <svg class="icon"><use href="#i-bot"></use></svg>
+                    <span>ReleaseAgent 生成于 2026-09-09 18:42 · 基于 PRD v3 与 12 条提交记录</span>
+                  </div>
+                  <h3 class="rl-note-title">DEMO-1 发布说明 · v0.2.0-rc1</h3>
+                  <div class="rl-note-sub mono">forgeai/demo:0.2.0-rc1 · staging · SIMULATED</div>
+
+                  <div class="rn-h"><span class="rn-no">一、</span>概述</div>
+                  <p class="rn-p">本次发布面向黄金 Demo 项目交付智能体协同链路的首个 Release Candidate，覆盖需求状态机、PRD 协同、Agent 审批闭环与执行轨迹查询能力。发布以 SIMULATED 模式在 staging 环境执行，用于完整验证预检查、HIGH 双签与模拟部署链路，不代表生产环境发布。</p>
+
+                  <div class="rn-h"><span class="rn-no">二、</span>新增功能</div>
+                  <ol class="rn-list">
+                    <li><b>需求状态机：</b>新增 <span class="mono">READY_FOR_RELEASE</span> 阶段与 <span class="mono">QA_PASS / MARK_RELEASED</span> 动作，阶段推进统一由 Server Guard 裁决。</li>
+                    <li><b>PRD 协同：</b>ProductAgent 可基于需求生成 PRD 草稿并发起产品评审，评审通过后自动进入 UX 阶段。</li>
+                    <li><b>Agent 审批闭环：</b>HIGH 风险 Tool 调用冻结参数与资源版本，支持批准 / 驳回 / 修改意见，并从 checkpoint 恢复执行。</li>
+                    <li><b>Trace 查询：</b>执行轨迹按 Run 聚合 Step、Tool Call、审批与 SSE 事件，支持 Last-Event-ID 断线重放与审计追溯。</li>
+                  </ol>
+
+                  <div class="rn-h"><span class="rn-no">三、</span>问题修复</div>
+                  <ol class="rn-list">
+                    <li>修复 SSE 断线重连后偶发的 Tool 卡片重复渲染问题，Reducer 按 sequence 幂等归并。</li>
+                    <li>修复 Test Run reopen 后旧 Precheck 未失效的问题，重新统计将使关联预检查快照作废。</li>
+                  </ol>
+
+                  <div class="rn-h"><span class="rn-no">四、</span>已知问题</div>
+                  <ol class="rn-list">
+                    <li><span class="mono">BUG-007</span>（P1）：UX 评审 checklist 超长时滚动锚点偏移，计划在 0.2.1 修复，当前阻断本次发布。</li>
+                  </ol>
+
+                  <div class="rn-h"><span class="rn-no">五、</span>风险与回滚</div>
+                  <p class="rn-p">本次发布包含接口契约变更，但无破坏性数据变更，Flyway 仅新增表结构。部署失败或验证异常时，将镜像回滚至 <span class="mono">forgeai/demo:0.1.3</span>，预计回滚耗时小于 5 分钟，数据无需回滚。</p>
+                </div>
+              </div>
+
+              <!-- 模拟部署记录 -->
+              <div class="arco-card">
+                <div class="arco-card-head">
+                  <div class="arco-card-title">
+                    <svg class="icon"><use href="#i-server"></use></svg>模拟部署记录
+                  </div>
+                  <div class="arco-card-extra">
+                    <span class="arco-tag arco-tag-orange">SIMULATED</span>
+                  </div>
+                </div>
+                <div class="arco-card-body">
+                  <div class="arco-alert arco-alert-info rl-deploy-note">
+                    <svg class="icon"><use href="#i-info"></use></svg>
+                    <div>本次发布尚未执行模拟部署。预检查通过并完成 HIGH 双签后，将以 docker-compose 在 staging 环境执行，部署过程全程审计。</div>
+                  </div>
+                  <ul class="arco-timeline">
+                    <li class="is-success">
+                      <span class="tl-dot"></span>
+                      <div class="tl-title"><span class="mono">v0.1.3</span> · staging 模拟部署成功<span class="tl-time">2026-09-01 22:14</span></div>
+                      <div class="tl-desc">耗时 3 分 12 秒；健康检查通过，镜像回滚演练成功</div>
+                    </li>
+                    <li class="is-success">
+                      <span class="tl-dot"></span>
+                      <div class="tl-title"><span class="mono">v0.1.2</span> · staging 模拟部署成功<span class="tl-time">2026-08-25 21:40</span></div>
+                      <div class="tl-desc">耗时 3 分 28 秒；健康检查通过</div>
+                    </li>
+                    <li>
+                      <span class="tl-dot"></span>
+                      <div class="tl-title"><span class="mono">v0.2.0-rc1</span> · 待执行<span class="tl-time">计划 2026-09-20 22:00</span></div>
+                      <div class="tl-desc">预检查通过并完成 HIGH 双签后，执行 docker-compose 模拟部署</div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右列 -->
+            <div class="rl-col">
+              <!-- HIGH 审批 -->
+              <div class="arco-card">
+                <div class="arco-card-head">
+                  <div class="arco-card-title">
+                    <svg class="icon"><use href="#i-shield"></use></svg>HIGH 风险审批
+                  </div>
+                  <div class="arco-card-extra">
+                    <span class="arco-tag arco-tag-red">HIGH 双签</span>
+                  </div>
+                </div>
+                <div class="arco-card-body">
+                  <div class="arco-alert arco-alert-warning mb-16">
+                    <svg class="icon"><use href="#i-warning"></use></svg>
+                    <div>HIGH 风险变更需 RELEASE_MANAGER 与 PRODUCT_OWNER 双签生效，任一驳回即终止本次发布；审批带 TTL，过期或资源版本变化后自动失效。</div>
+                  </div>
+                  <div class="rl-approver">
+                    <span class="arco-avatar">张</span>
+                    <div class="rl-ap-meta">
+                      <div class="rl-ap-name">张产品</div>
+                      <div class="rl-ap-role mono">PRODUCT_OWNER · 产品负责人</div>
+                    </div>
+                    <span class="arco-tag arco-tag-outline rl-tag-pending"><svg class="icon"><use href="#i-clock"></use></svg>待签</span>
+                    <a class="rl-ap-go" href="agent-command.html">去审批</a>
+                  </div>
+                  <div class="rl-approver">
+                    <span class="arco-avatar av-orange">陈</span>
+                    <div class="rl-ap-meta">
+                      <div class="rl-ap-name">陈发布</div>
+                      <div class="rl-ap-role mono">RELEASE_MANAGER · 发布负责人</div>
+                    </div>
+                    <span class="arco-tag arco-tag-outline rl-tag-pending"><svg class="icon"><use href="#i-clock"></use></svg>待签</span>
+                    <a class="rl-ap-go" href="agent-command.html">去审批</a>
+                  </div>
+                  <div class="rl-ap-foot">
+                    <button class="arco-btn arco-btn-primary" type="button" disabled>批准</button>
+                    <button class="arco-btn arco-btn-danger-outline" type="button" disabled>驳回</button>
+                    <span class="rl-ap-hint">预检查通过后开放审批操作</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 风险评估 -->
+              <div class="arco-card">
+                <div class="arco-card-head">
+                  <div class="arco-card-title">
+                    <svg class="icon"><use href="#i-flag"></use></svg>风险评估
+                  </div>
+                </div>
+                <div class="arco-card-body">
+                  <div class="rl-risk-row">
+                    <div class="min-w-0 flex-1">
+                      <div class="rl-risk-name">接口契约变更</div>
+                      <div class="rl-risk-desc">状态机新增 READY_FOR_RELEASE 阶段，旧客户端不受影响</div>
+                    </div>
+                    <span class="arco-tag arco-tag-orange rl-risk-tag">是</span>
+                  </div>
+                  <div class="rl-risk-row">
+                    <div class="min-w-0 flex-1">
+                      <div class="rl-risk-name">需要数据迁移</div>
+                      <div class="rl-risk-desc">Flyway 仅新增表结构，无破坏性数据变更</div>
+                    </div>
+                    <span class="arco-tag arco-tag-green rl-risk-tag">否</span>
+                  </div>
+                  <div class="rl-risk-row">
+                    <div class="min-w-0 flex-1">
+                      <div class="rl-risk-name">回滚耗时</div>
+                      <div class="rl-risk-desc">镜像级回滚至 0.1.3，无需回滚数据</div>
+                    </div>
+                    <span class="arco-tag arco-tag-blue rl-risk-tag">&lt; 5 分钟</span>
+                  </div>
+                  <div class="rl-risk-total">
+                    <span class="t">总体风险（策略矩阵自动评定）</span>
+                    <span class="arco-tag arco-tag-red">HIGH</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ReleaseAgent -->
+              <div class="arco-card">
+                <div class="arco-card-head">
+                  <div class="rl-agent-head">
+                    <span class="arco-avatar av-purple">RA</span>
+                    <span class="rl-agent-name">ReleaseAgent</span>
+                  </div>
+                  <div class="arco-card-extra">
+                    <span class="arco-tag arco-tag-orange"><span class="dot"></span>等待 QA 门禁</span>
+                  </div>
+                </div>
+                <div class="arco-card-body">
+                  <div class="rl-agent-line"><span class="k">最近动作</span><span class="v">已生成 Release Note 草稿（2026-09-09 18:42）</span></div>
+                  <div class="rl-agent-line"><span class="k">当前等待</span><span class="v">QA 门禁通过（通过率 85%，P1 缺陷 1 个）</span></div>
+                  <div class="rl-agent-line"><span class="k">权限边界</span><span class="v">仅注册 Precheck 只读与 Note 生成 Tool；不能判定检查通过，不能执行部署</span></div>
+                  <a class="rl-agent-trace" href="agent-trace.html"><svg class="icon"><use href="#i-activity"></use></svg>查看执行轨迹</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+  </div>
+</div>
+
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

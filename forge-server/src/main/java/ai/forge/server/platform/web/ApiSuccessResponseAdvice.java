@@ -33,6 +33,7 @@ public class ApiSuccessResponseAdvice implements ResponseBodyAdvice<Object> {
                 || body instanceof ApiError
                 || body instanceof ApiSuccess<?>
                 || body instanceof SseEmitter
+                || !MediaType.APPLICATION_JSON.includes(selectedContentType)
                 || MediaType.TEXT_EVENT_STREAM.includes(selectedContentType)) {
             return body;
         }

@@ -1,0 +1,201 @@
+@layer theme, base, components, utilities;
+
+/*
+  ForgeAI Console 品牌令牌
+  视觉基线：Arco Design（@arco-design/web-react）B 端中后台语言
+  - 主色 arcoblue-6 #165DFF，中性色采用 Arco gray 文本/填充/边框阶梯
+  - 控件小圆角 2px，弹层 4px，大容器 8/12px
+  - 基准字号 14px，4px 间距网格
+  仅定义令牌与排版基线；组件样式见 partials/project-shell.html 内 critical CSS
+*/
+:root {
+  /* ===== 语义别名（Tailwind 语义令牌映射，禁止改名） ===== */
+  --forge-background: #f7f8fa;
+  --forge-foreground: #1d2129;
+  --forge-card: #ffffff;
+  --forge-card-foreground: #1d2129;
+  --forge-popover: #ffffff;
+  --forge-popover-foreground: #1d2129;
+  --forge-primary: #165dff;
+  --forge-primary-foreground: #ffffff;
+  --forge-muted: #f7f8fa;
+  --forge-muted-foreground: #86909c;
+  --forge-destructive: #f53f3f;
+  --forge-destructive-foreground: #ffffff;
+  --forge-border: #e5e6eb;
+  --forge-input: #e5e6eb;
+  --forge-ring: #165dff;
+
+  --forge-sidebar: #1d2129;
+  --forge-sidebar-foreground: rgba(255, 255, 255, 0.72);
+  --forge-sidebar-primary: #165dff;
+  --forge-sidebar-primary-foreground: #ffffff;
+  --forge-sidebar-accent: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-accent-foreground: #ffffff;
+
+  --forge-chart-1: #165dff;
+  --forge-chart-2: #00b42a;
+  --forge-chart-3: #ff7d00;
+  --forge-chart-4: #f53f3f;
+  --forge-chart-5: #722ed1;
+
+  --forge-radius-sm: 2px;
+  --forge-radius-md: 8px;
+  --forge-radius-lg: 12px;
+
+  /* ===== Arco 文本阶梯 ===== */
+  --forge-text-1: #1d2129;
+  --forge-text-2: #4e5969;
+  --forge-text-3: #86909c;
+  --forge-text-4: #c9cdd4;
+
+  /* ===== Arco 填充阶梯 ===== */
+  --forge-fill-1: #f7f8fa;
+  --forge-fill-2: #f2f3f5;
+  --forge-fill-3: #e5e6eb;
+  --forge-fill-4: #c9cdd4;
+
+  /* ===== Arco 边框阶梯 ===== */
+  --forge-border-1: #f2f3f5;
+  --forge-border-2: #e5e6eb;
+  --forge-border-3: #c9cdd4;
+
+  /* ===== 主色 arcoblue 阶梯 ===== */
+  --forge-primary-1: #e8f3ff;
+  --forge-primary-2: #bedaff;
+  --forge-primary-3: #94bfff;
+  --forge-primary-4: #6aa1ff;
+  --forge-primary-5: #4080ff;
+  --forge-primary-6: #165dff;
+  --forge-primary-7: #0e42d2;
+  --forge-primary-8: #072ca6;
+
+  /* ===== 功能色（Arco green/orange/red/purple） ===== */
+  --forge-success: #00b42a;
+  --forge-success-5: #23c343;
+  --forge-success-7: #009a29;
+  --forge-success-bg: #e8ffea;
+  --forge-success-border: #aff0b5;
+  --forge-warning: #ff7d00;
+  --forge-warning-5: #ff9a2e;
+  --forge-warning-7: #d25f00;
+  --forge-warning-bg: #fff7e8;
+  --forge-warning-border: #ffcf8b;
+  --forge-error: #f53f3f;
+  --forge-error-5: #ff7d7d;
+  --forge-error-7: #cb2634;
+  --forge-error-bg: #ffece8;
+  --forge-error-border: #fdcdc5;
+  --forge-purple: #722ed1;
+  --forge-purple-5: #8f4dff;
+  --forge-purple-bg: #f5e8ff;
+  --forge-cyan: #0fc6c2;
+  --forge-cyan-5: #37d4cf;
+  --forge-cyan-bg: #e8fffb;
+  --forge-gold: #f7ba1e;
+  --forge-gold-bg: #fff7e8;
+
+  /* ===== 焦点环 / 控件投影 ===== */
+  --forge-primary-focus-ring: rgba(22, 93, 255, 0.12);
+  --forge-error-focus: rgba(245, 63, 63, 0.12);
+  --forge-switch-shadow: 0 1px 2px rgba(29, 33, 41, 0.05);
+
+  /* ===== 阴影（Arco elevation；静态面 alpha≤0.05，浮层使用语义命名深阴影） ===== */
+  --forge-shadow-1: 0 1px 3px rgba(29, 33, 41, 0.04);
+  --forge-popover-shadow: 0 4px 10px rgba(29, 33, 41, 0.1);
+  --forge-modal-shadow: 0 10px 30px rgba(29, 33, 41, 0.15);
+  --forge-focus-ring: 0 0 0 2px rgba(22, 93, 255, 0.12);
+
+  /* ===== 深色侧边栏表面（令牌化，禁止在页面中写裸 rgba） ===== */
+  --forge-sidebar-text: rgba(255, 255, 255, 0.72);
+  --forge-sidebar-text-dim: rgba(255, 255, 255, 0.42);
+  --forge-sidebar-text-faint: rgba(255, 255, 255, 0.35);
+  --forge-sidebar-border: rgba(255, 255, 255, 0.06);
+  --forge-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-chip: rgba(255, 255, 255, 0.05);
+  --forge-sidebar-chip-border: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-active-bg: rgba(22, 93, 255, 0.22);
+  --forge-sidebar-active-bar: #4080ff;
+  --forge-sidebar-icon: rgba(255, 255, 255, 0.45);
+
+  /* ===== 浮层遮罩 / 深色代码面 / 滚动条 ===== */
+  --forge-mask: rgba(29, 33, 41, 0.45);
+  --forge-surface-dark: #232324;
+  --forge-text-inverse: #f2f3f5;
+  --forge-scrollbar: rgba(201, 205, 212, 0.2);
+  --forge-scrollbar-hover: rgba(201, 205, 212, 0.4);
+
+  /* ===== 认证品牌区 ===== */
+  --forge-auth-hero-from: #0e42d2;
+  --forge-auth-hero-to: #4080ff;
+  --forge-hero-chip-bg: rgba(255, 255, 255, 0.16);
+  --forge-hero-chip-border: rgba(255, 255, 255, 0.28);
+  --forge-hero-glow: rgba(255, 255, 255, 0.16);
+  --forge-hero-glow-soft: rgba(255, 255, 255, 0.12);
+  --forge-hero-text: rgba(255, 255, 255, 0.82);
+  --forge-hero-text-dim: rgba(255, 255, 255, 0.72);
+  --forge-hero-text-faint: rgba(255, 255, 255, 0.6);
+
+  /* ===== 排版 ===== */
+  --forge-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
+  --forge-font-mono: "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
+  --forge-text-xs: 12px;
+  --forge-text-sm: 13px;
+  --forge-text-base: 14px;
+  --forge-text-md: 16px;
+  --forge-text-lg: 20px;
+  --forge-text-xl: 24px;
+  --forge-text-2xl: 28px;
+
+  --forge-leading-tight: 1.4;
+  --forge-leading-normal: 1.5715;
+
+  /* ===== 布局尺寸 ===== */
+  --forge-sidebar-width: 232px;
+  --forge-sidebar-collapsed: 48px;
+  --forge-header-height: 56px;
+  --forge-content-padding: 20px;
+}
+
+/* 深色令牌（预留：未来暗色主题 / 深色面板） */
+.dark {
+  --forge-background: #17171a;
+  --forge-foreground: #f7f8fa;
+  --forge-card: #232324;
+  --forge-card-foreground: #f7f8fa;
+  --forge-popover: #2a2a2c;
+  --forge-popover-foreground: #f7f8fa;
+  --forge-muted: #232324;
+  --forge-muted-foreground: #86909c;
+  --forge-border: #3d3d3f;
+  --forge-input: #4e4e50;
+  --forge-text-1: #f7f8fa;
+  --forge-text-2: #c9cdd4;
+  --forge-text-3: #86909c;
+  --forge-fill-1: #232324;
+  --forge-fill-2: #2a2a2c;
+  --forge-fill-3: #3d3d3f;
+  --forge-border-1: #2a2a2c;
+  --forge-border-2: #3d3d3f;
+}
+
+html,
+body {
+  font-family: var(--forge-font-sans);
+  font-size: var(--forge-text-base);
+  line-height: var(--forge-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--forge-font-mono);
+}

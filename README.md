@@ -31,7 +31,7 @@ Backend 可单独验证和启动：
 
 启动后可访问 `/actuator/health`、`/api/v1/system/status`、`/v3/api-docs`；开发 profile 额外开放 `/swagger-ui/index.html`。
 
-完整本机拓扑先复制并修改 `deploy/.env.example`，再执行 `make apps-up`。只有 Web 暴露在 `127.0.0.1:3000`；浏览器经 Web 的 `/api` 代理访问 Server，Server 使用短时服务 JWT 探测 Agent 内部就绪端点。
+完整本机测试拓扑先复制并修改 `deploy/.env.example`，再执行 `make test-apps-up`。测试环境将三项数据服务绑定到本机回环地址；正式发布使用 `make apps-up`，只暴露 Web。浏览器经 Web 的 `/api` 代理访问 Server，Server 使用短时服务 JWT 探测 Agent 内部就绪端点。
 
 ## 文档
 

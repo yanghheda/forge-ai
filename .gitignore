@@ -17,6 +17,7 @@ forge-server/src/main/resources/application-local.yml
 .gradle/
 build/
 target/
+forge-server/data/
 
 # Node.js / Next.js
 node_modules/

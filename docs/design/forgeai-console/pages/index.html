@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>原型导航 · ForgeAI 智能交付控制台</title>
+    <style id="theme-vars">
+@layer theme, base, components, utilities;
+
+/*
+  ForgeAI Console 品牌令牌
+  视觉基线：Arco Design（@arco-design/web-react）B 端中后台语言
+  - 主色 arcoblue-6 #165DFF，中性色采用 Arco gray 文本/填充/边框阶梯
+  - 控件小圆角 2px，弹层 4px，大容器 8/12px
+  - 基准字号 14px，4px 间距网格
+  仅定义令牌与排版基线；组件样式见 partials/project-shell.html 内 critical CSS
+*/
+:root {
+  /* ===== 语义别名（Tailwind 语义令牌映射，禁止改名） ===== */
+  --forge-background: #f7f8fa;
+  --forge-foreground: #1d2129;
+  --forge-card: #ffffff;
+  --forge-card-foreground: #1d2129;
+  --forge-popover: #ffffff;
+  --forge-popover-foreground: #1d2129;
+  --forge-primary: #165dff;
+  --forge-primary-foreground: #ffffff;
+  --forge-muted: #f7f8fa;
+  --forge-muted-foreground: #86909c;
+  --forge-destructive: #f53f3f;
+  --forge-destructive-foreground: #ffffff;
+  --forge-border: #e5e6eb;
+  --forge-input: #e5e6eb;
+  --forge-ring: #165dff;
+
+  --forge-sidebar: #1d2129;
+  --forge-sidebar-foreground: rgba(255, 255, 255, 0.72);
+  --forge-sidebar-primary: #165dff;
+  --forge-sidebar-primary-foreground: #ffffff;
+  --forge-sidebar-accent: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-accent-foreground: #ffffff;
+
+  --forge-chart-1: #165dff;
+  --forge-chart-2: #00b42a;
+  --forge-chart-3: #ff7d00;
+  --forge-chart-4: #f53f3f;
+  --forge-chart-5: #722ed1;
+
+  --forge-radius-sm: 2px;
+  --forge-radius-md: 8px;
+  --forge-radius-lg: 12px;
+
+  /* ===== Arco 文本阶梯 ===== */
+  --forge-text-1: #1d2129;
+  --forge-text-2: #4e5969;
+  --forge-text-3: #86909c;
+  --forge-text-4: #c9cdd4;
+
+  /* ===== Arco 填充阶梯 ===== */
+  --forge-fill-1: #f7f8fa;
+  --forge-fill-2: #f2f3f5;
+  --forge-fill-3: #e5e6eb;
+  --forge-fill-4: #c9cdd4;
+
+  /* ===== Arco 边框阶梯 ===== */
+  --forge-border-1: #f2f3f5;
+  --forge-border-2: #e5e6eb;
+  --forge-border-3: #c9cdd4;
+
+  /* ===== 主色 arcoblue 阶梯 ===== */
+  --forge-primary-1: #e8f3ff;
+  --forge-primary-2: #bedaff;
+  --forge-primary-3: #94bfff;
+  --forge-primary-4: #6aa1ff;
+  --forge-primary-5: #4080ff;
+  --forge-primary-6: #165dff;
+  --forge-primary-7: #0e42d2;
+  --forge-primary-8: #072ca6;
+
+  /* ===== 功能色（Arco green/orange/red/purple） ===== */
+  --forge-success: #00b42a;
+  --forge-success-5: #23c343;
+  --forge-success-7: #009a29;
+  --forge-success-bg: #e8ffea;
+  --forge-success-border: #aff0b5;
+  --forge-warning: #ff7d00;
+  --forge-warning-5: #ff9a2e;
+  --forge-warning-7: #d25f00;
+  --forge-warning-bg: #fff7e8;
+  --forge-warning-border: #ffcf8b;
+  --forge-error: #f53f3f;
+  --forge-error-5: #ff7d7d;
+  --forge-error-7: #cb2634;
+  --forge-error-bg: #ffece8;
+  --forge-error-border: #fdcdc5;
+  --forge-purple: #722ed1;
+  --forge-purple-5: #8f4dff;
+  --forge-purple-bg: #f5e8ff;
+  --forge-cyan: #0fc6c2;
+  --forge-cyan-5: #37d4cf;
+  --forge-cyan-bg: #e8fffb;
+  --forge-gold: #f7ba1e;
+  --forge-gold-bg: #fff7e8;
+
+  /* ===== 焦点环 / 控件投影 ===== */
+  --forge-primary-focus-ring: rgba(22, 93, 255, 0.12);
+  --forge-error-focus: rgba(245, 63, 63, 0.12);
+  --forge-switch-shadow: 0 1px 2px rgba(29, 33, 41, 0.05);
+
+  /* ===== 阴影（Arco elevation；静态面 alpha≤0.05，浮层使用语义命名深阴影） ===== */
+  --forge-shadow-1: 0 1px 3px rgba(29, 33, 41, 0.04);
+  --forge-popover-shadow: 0 4px 10px rgba(29, 33, 41, 0.1);
+  --forge-modal-shadow: 0 10px 30px rgba(29, 33, 41, 0.15);
+  --forge-focus-ring: 0 0 0 2px rgba(22, 93, 255, 0.12);
+
+  /* ===== 深色侧边栏表面（令牌化，禁止在页面中写裸 rgba） ===== */
+  --forge-sidebar-text: rgba(255, 255, 255, 0.72);
+  --forge-sidebar-text-dim: rgba(255, 255, 255, 0.42);
+  --forge-sidebar-text-faint: rgba(255, 255, 255, 0.35);
+  --forge-sidebar-border: rgba(255, 255, 255, 0.06);
+  --forge-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-chip: rgba(255, 255, 255, 0.05);
+  --forge-sidebar-chip-border: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-active-bg: rgba(22, 93, 255, 0.22);
+  --forge-sidebar-active-bar: #4080ff;
+  --forge-sidebar-icon: rgba(255, 255, 255, 0.45);
+
+  /* ===== 浮层遮罩 / 深色代码面 / 滚动条 ===== */
+  --forge-mask: rgba(29, 33, 41, 0.45);
+  --forge-surface-dark: #232324;
+  --forge-text-inverse: #f2f3f5;
+  --forge-scrollbar: rgba(201, 205, 212, 0.2);
+  --forge-scrollbar-hover: rgba(201, 205, 212, 0.4);
+
+  /* ===== 认证品牌区 ===== */
+  --forge-auth-hero-from: #0e42d2;
+  --forge-auth-hero-to: #4080ff;
+  --forge-hero-chip-bg: rgba(255, 255, 255, 0.16);
+  --forge-hero-chip-border: rgba(255, 255, 255, 0.28);
+  --forge-hero-glow: rgba(255, 255, 255, 0.16);
+  --forge-hero-glow-soft: rgba(255, 255, 255, 0.12);
+  --forge-hero-text: rgba(255, 255, 255, 0.82);
+  --forge-hero-text-dim: rgba(255, 255, 255, 0.72);
+  --forge-hero-text-faint: rgba(255, 255, 255, 0.6);
+
+  /* ===== 排版 ===== */
+  --forge-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
+  --forge-font-mono: "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
+  --forge-text-xs: 12px;
+  --forge-text-sm: 13px;
+  --forge-text-base: 14px;
+  --forge-text-md: 16px;
+  --forge-text-lg: 20px;
+  --forge-text-xl: 24px;
+  --forge-text-2xl: 28px;
+
+  --forge-leading-tight: 1.4;
+  --forge-leading-normal: 1.5715;
+
+  /* ===== 布局尺寸 ===== */
+  --forge-sidebar-width: 232px;
+  --forge-sidebar-collapsed: 48px;
+  --forge-header-height: 56px;
+  --forge-content-padding: 20px;
+}
+
+/* 深色令牌（预留：未来暗色主题 / 深色面板） */
+.dark {
+  --forge-background: #17171a;
+  --forge-foreground: #f7f8fa;
+  --forge-card: #232324;
+  --forge-card-foreground: #f7f8fa;
+  --forge-popover: #2a2a2c;
+  --forge-popover-foreground: #f7f8fa;
+  --forge-muted: #232324;
+  --forge-muted-foreground: #86909c;
+  --forge-border: #3d3d3f;
+  --forge-input: #4e4e50;
+  --forge-text-1: #f7f8fa;
+  --forge-text-2: #c9cdd4;
+  --forge-text-3: #86909c;
+  --forge-fill-1: #232324;
+  --forge-fill-2: #2a2a2c;
+  --forge-fill-3: #3d3d3f;
+  --forge-border-1: #2a2a2c;
+  --forge-border-2: #3d3d3f;
+}
+
+html,
+body {
+  font-family: var(--forge-font-sans);
+  font-size: var(--forge-text-base);
+  line-height: var(--forge-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--forge-font-mono);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--forge-background);
+    --color-foreground: var(--forge-foreground);
+    --color-card: var(--forge-card);
+    --color-card-foreground: var(--forge-card-foreground);
+    --color-popover: var(--forge-popover);
+    --color-popover-foreground: var(--forge-popover-foreground);
+    --color-primary: var(--forge-primary);
+    --color-primary-foreground: var(--forge-primary-foreground);
+    --color-muted: var(--forge-muted);
+    --color-muted-foreground: var(--forge-muted-foreground);
+    --color-destructive: var(--forge-destructive);
+    --color-destructive-foreground: var(--forge-destructive-foreground);
+    --color-border: var(--forge-border);
+    --color-input: var(--forge-input);
+    --color-ring: var(--forge-ring);
+    --color-chart-1: var(--forge-chart-1);
+    --color-chart-2: var(--forge-chart-2);
+    --color-chart-3: var(--forge-chart-3);
+    --color-chart-4: var(--forge-chart-4);
+    --color-chart-5: var(--forge-chart-5);
+    --color-sidebar: var(--forge-sidebar);
+    --color-sidebar-foreground: var(--forge-sidebar-foreground);
+    --color-sidebar-primary: var(--forge-sidebar-primary);
+    --color-sidebar-primary-foreground: var(--forge-sidebar-primary-foreground);
+    --color-sidebar-accent: var(--forge-sidebar-accent);
+    --color-sidebar-accent-foreground: var(--forge-sidebar-accent-foreground);
+    --radius-sm: var(--forge-radius-sm);
+    --radius-md: var(--forge-radius-md);
+    --radius-lg: var(--forge-radius-lg);
+  }
+  @layer base {
+    body { background: var(--forge-background); color: var(--forge-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--forge-background); }
+      .text-background { color: var(--forge-background); }
+      .border-background { border-color: var(--forge-background); }
+      .ring-background { --tw-ring-color: var(--forge-background); }
+      .bg-foreground { background-color: var(--forge-foreground); }
+      .text-foreground { color: var(--forge-foreground); }
+      .border-foreground { border-color: var(--forge-foreground); }
+      .ring-foreground { --tw-ring-color: var(--forge-foreground); }
+      .bg-card { background-color: var(--forge-card); }
+      .text-card { color: var(--forge-card); }
+      .border-card { border-color: var(--forge-card); }
+      .ring-card { --tw-ring-color: var(--forge-card); }
+      .bg-card-foreground { background-color: var(--forge-card-foreground); }
+      .text-card-foreground { color: var(--forge-card-foreground); }
+      .border-card-foreground { border-color: var(--forge-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--forge-card-foreground); }
+      .bg-popover { background-color: var(--forge-popover); }
+      .text-popover { color: var(--forge-popover); }
+      .border-popover { border-color: var(--forge-popover); }
+      .ring-popover { --tw-ring-color: var(--forge-popover); }
+      .bg-popover-foreground { background-color: var(--forge-popover-foreground); }
+      .text-popover-foreground { color: var(--forge-popover-foreground); }
+      .border-popover-foreground { border-color: var(--forge-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--forge-popover-foreground); }
+      .bg-primary { background-color: var(--forge-primary); }
+      .text-primary { color: var(--forge-primary); }
+      .border-primary { border-color: var(--forge-primary); }
+      .ring-primary { --tw-ring-color: var(--forge-primary); }
+      .bg-primary-foreground { background-color: var(--forge-primary-foreground); }
+      .text-primary-foreground { color: var(--forge-primary-foreground); }
+      .border-primary-foreground { border-color: var(--forge-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--forge-primary-foreground); }
+      .bg-muted { background-color: var(--forge-muted); }
+      .text-muted { color: var(--forge-muted); }
+      .border-muted { border-color: var(--forge-muted); }
+      .ring-muted { --tw-ring-color: var(--forge-muted); }
+      .bg-muted-foreground { background-color: var(--forge-muted-foreground); }
+      .text-muted-foreground { color: var(--forge-muted-foreground); }
+      .border-muted-foreground { border-color: var(--forge-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--forge-muted-foreground); }
+      .bg-destructive { background-color: var(--forge-destructive); }
+      .text-destructive { color: var(--forge-destructive); }
+      .border-destructive { border-color: var(--forge-destructive); }
+      .ring-destructive { --tw-ring-color: var(--forge-destructive); }
+      .bg-destructive-foreground { background-color: var(--forge-destructive-foreground); }
+      .text-destructive-foreground { color: var(--forge-destructive-foreground); }
+      .border-destructive-foreground { border-color: var(--forge-destructive-foreground); }
+      .ring-destructive-foreground { --tw-ring-color: var(--forge-destructive-foreground); }
+      .bg-border { background-color: var(--forge-border); }
+      .text-border { color: var(--forge-border); }
+      .border-border { border-color: var(--forge-border); }
+      .ring-border { --tw-ring-color: var(--forge-border); }
+      .bg-input { background-color: var(--forge-input); }
+      .text-input { color: var(--forge-input); }
+      .border-input { border-color: var(--forge-input); }
+      .ring-input { --tw-ring-color: var(--forge-input); }
+      .bg-ring { background-color: var(--forge-ring); }
+      .text-ring { color: var(--forge-ring); }
+      .border-ring { border-color: var(--forge-ring); }
+      .ring-ring { --tw-ring-color: var(--forge-ring); }
+      .bg-chart-1 { background-color: var(--forge-chart-1); }
+      .text-chart-1 { color: var(--forge-chart-1); }
+      .border-chart-1 { border-color: var(--forge-chart-1); }
+      .ring-chart-1 { --tw-ring-color: var(--forge-chart-1); }
+      .bg-chart-2 { background-color: var(--forge-chart-2); }
+      .text-chart-2 { color: var(--forge-chart-2); }
+      .border-chart-2 { border-color: var(--forge-chart-2); }
+      .ring-chart-2 { --tw-ring-color: var(--forge-chart-2); }
+      .bg-chart-3 { background-color: var(--forge-chart-3); }
+      .text-chart-3 { color: var(--forge-chart-3); }
+      .border-chart-3 { border-color: var(--forge-chart-3); }
+      .ring-chart-3 { --tw-ring-color: var(--forge-chart-3); }
+      .bg-chart-4 { background-color: var(--forge-chart-4); }
+      .text-chart-4 { color: var(--forge-chart-4); }
+      .border-chart-4 { border-color: var(--forge-chart-4); }
+      .ring-chart-4 { --tw-ring-color: var(--forge-chart-4); }
+      .bg-chart-5 { background-color: var(--forge-chart-5); }
+      .text-chart-5 { color: var(--forge-chart-5); }
+      .border-chart-5 { border-color: var(--forge-chart-5); }
+      .ring-chart-5 { --tw-ring-color: var(--forge-chart-5); }
+      .bg-sidebar { background-color: var(--forge-sidebar); }
+      .text-sidebar { color: var(--forge-sidebar); }
+      .border-sidebar { border-color: var(--forge-sidebar); }
+      .ring-sidebar { --tw-ring-color: var(--forge-sidebar); }
+      .bg-sidebar-foreground { background-color: var(--forge-sidebar-foreground); }
+      .text-sidebar-foreground { color: var(--forge-sidebar-foreground); }
+      .border-sidebar-foreground { border-color: var(--forge-sidebar-foreground); }
+      .ring-sidebar-foreground { --tw-ring-color: var(--forge-sidebar-foreground); }
+      .bg-sidebar-primary { background-color: var(--forge-sidebar-primary); }
+      .text-sidebar-primary { color: var(--forge-sidebar-primary); }
+      .border-sidebar-primary { border-color: var(--forge-sidebar-primary); }
+      .ring-sidebar-primary { --tw-ring-color: var(--forge-sidebar-primary); }
+      .bg-sidebar-primary-foreground { background-color: var(--forge-sidebar-primary-foreground); }
+      .text-sidebar-primary-foreground { color: var(--forge-sidebar-primary-foreground); }
+      .border-sidebar-primary-foreground { border-color: var(--forge-sidebar-primary-foreground); }
+      .ring-sidebar-primary-foreground { --tw-ring-color: var(--forge-sidebar-primary-foreground); }
+      .bg-sidebar-accent { background-color: var(--forge-sidebar-accent); }
+      .text-sidebar-accent { color: var(--forge-sidebar-accent); }
+      .border-sidebar-accent { border-color: var(--forge-sidebar-accent); }
+      .ring-sidebar-accent { --tw-ring-color: var(--forge-sidebar-accent); }
+      .bg-sidebar-accent-foreground { background-color: var(--forge-sidebar-accent-foreground); }
+      .text-sidebar-accent-foreground { color: var(--forge-sidebar-accent-foreground); }
+      .border-sidebar-accent-foreground { border-color: var(--forge-sidebar-accent-foreground); }
+      .ring-sidebar-accent-foreground { --tw-ring-color: var(--forge-sidebar-accent-foreground); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main>
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+        <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+      </svg>
+      <style>
+        .idx-page { min-height: 100vh; background: var(--forge-fill-1); }
+        .idx-hero {
+          background: var(--forge-sidebar);
+          color: var(--forge-text-inverse); padding: 40px 48px 56px;
+        }
+        .idx-brandrow { display: flex; align-items: center; gap: 12px; }
+        .idx-logo {
+          width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center;
+          background: var(--forge-primary-6); color: var(--forge-text-inverse);
+        }
+        .idx-logo .icon { width: 20px; height: 20px; }
+        .idx-brandname { font-size: 18px; font-weight: 600; letter-spacing: .2px; }
+        .idx-title { margin-top: 28px; font-size: 28px; font-weight: 600; }
+        .idx-sub { margin-top: 10px; font-size: 14px; color: var(--forge-sidebar-text); line-height: 1.8; max-width: 720px; }
+        .idx-meta { margin-top: 16px; display: flex; gap: 8px; }
+        .idx-chip {
+          font-size: 12px; line-height: 20px; padding: 2px 10px; border-radius: 11px;
+          background: var(--forge-sidebar-hover); color: var(--forge-sidebar-accent-foreground);
+        }
+        .idx-body { padding: 28px 48px 56px; max-width: 1280px; margin: 0 auto; }
+        .idx-group { margin-top: 8px; }
+        .idx-group + .idx-group { margin-top: 28px; }
+        .idx-group-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+        .idx-group-title { font-size: 15px; font-weight: 600; color: var(--forge-text-1); }
+        .idx-group-count { font-size: 12px; color: var(--forge-text-4); }
+        .idx-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+        .idx-card {
+          position: relative; display: block; background: var(--forge-card); border: 1px solid var(--forge-border-2);
+          border-radius: 4px; padding: 18px 20px 16px; text-decoration: none; color: inherit;
+          transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+        }
+        .idx-card:hover {
+          border-color: var(--forge-primary-5);
+          box-shadow: var(--forge-popover-shadow);
+          transform: translateY(-2px);
+        }
+        .idx-card-head { display: flex; align-items: center; justify-content: space-between; }
+        .idx-card-title { font-size: 15px; font-weight: 600; color: var(--forge-text-1); display: flex; align-items: center; gap: 8px; }
+        .idx-card:hover .idx-card-title { color: var(--forge-primary-6); }
+        .idx-prio { font-size: 11px; line-height: 18px; padding: 0 7px; border-radius: 2px; font-weight: 500; }
+        .idx-prio-p0 { background: var(--forge-danger-1); color: var(--forge-danger-6); }
+        .idx-prio-p1 { background: var(--forge-primary-1); color: var(--forge-primary-6); }
+        .idx-card-desc { margin-top: 8px; font-size: 13px; line-height: 1.7; color: var(--forge-text-3); min-height: 44px; }
+        .idx-card-foot { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; }
+        .idx-file { font-size: 12px; color: var(--forge-text-4); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .idx-go { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; color: var(--forge-text-4); }
+        .idx-card:hover .idx-go { color: var(--forge-primary-6); }
+        .idx-go .icon { width: 14px; height: 14px; }
+        .idx-footer { padding: 20px 48px 32px; text-align: center; font-size: 12px; color: var(--forge-text-4); }
+        @media (max-width: 1100px) { .idx-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+      </style>
+      <div class="idx-page">
+        <header class="idx-hero">
+          <div class="idx-brandrow">
+            <span class="idx-logo"><svg class="icon" aria-hidden="true"><use href="#i-zap"/></svg></span>
+            <span class="idx-brandname">ForgeAI</span>
+          </div>
+          <h1 class="idx-title">智能交付控制台 · 高保真原型</h1>
+          <p class="idx-sub">覆盖需求录入、产品评审、UX 设计、开发、QA 测试到发布的全链路 AI 协同流程。基于 Arco Design 体系，面向 forge-web（Next.js + TypeScript）还原使用。</p>
+          <div class="idx-meta">
+            <span class="idx-chip">16 个页面</span>
+            <span class="idx-chip">Arco Design Web React</span>
+            <span class="idx-chip">arcoblue #165DFF</span>
+            <span class="idx-chip">v0.2 MVP</span>
+          </div>
+        </header>
+
+        <div class="idx-body">
+          <section class="idx-group">
+            <div class="idx-group-head"><span class="idx-group-title">账号与初始化</span><span class="idx-group-count">2 个页面</span></div>
+            <div class="idx-grid">
+              <a class="idx-card" href="login.html" data-dom-id="idx-login">
+                <div class="idx-card-head"><span class="idx-card-title">登录</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">管理员账号登录入口，品牌左侧栏与居中登录卡片。</p>
+                <div class="idx-card-foot"><span class="idx-file">login.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="init-wizard.html" data-dom-id="idx-init-wizard">
+                <div class="idx-card-head"><span class="idx-card-title">实例初始化</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">首启单页表单：创建初始 Owner 账号与公司信息，一次完成初始化。</p>
+                <div class="idx-card-foot"><span class="idx-file">init-wizard.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+            </div>
+          </section>
+
+          <section class="idx-group">
+            <div class="idx-group-head"><span class="idx-group-title">需求协作</span><span class="idx-group-count">6 个页面</span></div>
+            <div class="idx-grid">
+              <a class="idx-card" href="overview.html" data-dom-id="idx-overview">
+                <div class="idx-card-head"><span class="idx-card-title">需求概览</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">全局工作台：阶段分布、需求列表、Agent 动态与待办聚合。</p>
+                <div class="idx-card-foot"><span class="idx-file">overview.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="my-requirements.html" data-dom-id="idx-my-requirements">
+                <div class="idx-card-head"><span class="idx-card-title">我的需求</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">按角色筛选的需求列表，支持状态、关键字与视图过滤。</p>
+                <div class="idx-card-foot"><span class="idx-file">my-requirements.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="requirement-detail.html" data-dom-id="idx-requirement-detail">
+                <div class="idx-card-head"><span class="idx-card-title">需求详情</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">需求状态机、阶段流转时间线、关联交付物与评审记录。</p>
+                <div class="idx-card-foot"><span class="idx-file">requirement-detail.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="document-editor.html" data-dom-id="idx-document-editor">
+                <div class="idx-card-head"><span class="idx-card-title">PRD 文档编辑</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">AI 辅助 PRD 编辑器：大纲、评论、版本与评审提交流程。</p>
+                <div class="idx-card-foot"><span class="idx-file">document-editor.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="ux-workspace.html" data-dom-id="idx-ux-workspace">
+                <div class="idx-card-head"><span class="idx-card-title">UX 工作区</span><span class="idx-prio idx-prio-p1">P1</span></div>
+                <p class="idx-card-desc">线框图绘制、UX 评审稿与 AI 生成界面的协同画布。</p>
+                <div class="idx-card-foot"><span class="idx-file">ux-workspace.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="task-board.html" data-dom-id="idx-task-board">
+                <div class="idx-card-head"><span class="idx-card-title">任务看板</span><span class="idx-prio idx-prio-p1">P1</span></div>
+                <p class="idx-card-desc">Dev/QA 任务看板，展示泳道、负责人与阻塞状态。</p>
+                <div class="idx-card-foot"><span class="idx-file">task-board.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+            </div>
+          </section>
+
+          <section class="idx-group">
+            <div class="idx-group-head"><span class="idx-group-title">交付执行</span><span class="idx-group-count">3 个页面</span></div>
+            <div class="idx-grid">
+              <a class="idx-card" href="development.html" data-dom-id="idx-development">
+                <div class="idx-card-head"><span class="idx-card-title">开发上下文</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">分支、MR、构建与 Dev Task 执行上下文聚合视图。</p>
+                <div class="idx-card-foot"><span class="idx-file">development.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="qa.html" data-dom-id="idx-qa">
+                <div class="idx-card-head"><span class="idx-card-title">QA 测试</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">用例执行、缺陷流转与回归测试结果管理。</p>
+                <div class="idx-card-foot"><span class="idx-file">qa.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="release.html" data-dom-id="idx-release">
+                <div class="idx-card-head"><span class="idx-card-title">发布管理</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">发布就绪检查、审批流与发布单状态跟踪。</p>
+                <div class="idx-card-foot"><span class="idx-file">release.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+            </div>
+          </section>
+
+          <section class="idx-group">
+            <div class="idx-group-head"><span class="idx-group-title">Agent 观测</span><span class="idx-group-count">2 个页面</span></div>
+            <div class="idx-grid">
+              <a class="idx-card" href="agent-command.html" data-dom-id="idx-agent-command">
+                <div class="idx-card-head"><span class="idx-card-title">Agent 指令中心</span><span class="idx-prio idx-prio-p1">P1</span></div>
+                <p class="idx-card-desc">人工指令下发、审批卡点与 Agent 任务队列管理。</p>
+                <div class="idx-card-foot"><span class="idx-file">agent-command.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="agent-trace.html" data-dom-id="idx-agent-trace">
+                <div class="idx-card-head"><span class="idx-card-title">Agent 执行轨迹</span><span class="idx-prio idx-prio-p1">P1</span></div>
+                <p class="idx-card-desc">Tool 调用链、耗时与输入输出的可追溯轨迹详情。</p>
+                <div class="idx-card-foot"><span class="idx-file">agent-trace.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+            </div>
+          </section>
+
+          <section class="idx-group">
+            <div class="idx-group-head"><span class="idx-group-title">系统设置</span><span class="idx-group-count">3 个页面</span></div>
+            <div class="idx-grid">
+              <a class="idx-card" href="settings-members.html" data-dom-id="idx-settings-members">
+                <div class="idx-card-head"><span class="idx-card-title">成员管理</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">工作区成员邀请、角色分配与启用状态管理。</p>
+                <div class="idx-card-foot"><span class="idx-file">settings-members.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="settings-integrations.html" data-dom-id="idx-settings-integrations">
+                <div class="idx-card-head"><span class="idx-card-title">集成配置</span><span class="idx-prio idx-prio-p0">P0</span></div>
+                <p class="idx-card-desc">GitLab、LLM 服务等外部集成的凭据与连通性配置。</p>
+                <div class="idx-card-foot"><span class="idx-file">settings-integrations.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+              <a class="idx-card" href="settings-permissions.html" data-dom-id="idx-settings-permissions">
+                <div class="idx-card-head"><span class="idx-card-title">角色权限</span><span class="idx-prio idx-prio-p1">P1</span></div>
+                <p class="idx-card-desc">RBAC 角色矩阵与各资源动作的权限配置。</p>
+                <div class="idx-card-foot"><span class="idx-file">settings-permissions.html</span><span class="idx-go">打开 <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></div>
+              </a>
+            </div>
+          </section>
+        </div>
+
+        <footer class="idx-footer">ForgeAI 智能交付控制台 · 原型仅用于设计还原，数据均为静态示意</footer>
+      </div>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

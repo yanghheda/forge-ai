@@ -14,6 +14,7 @@ export interface InitializeInput {
   password: string;
   organizationName: string;
   organizationSlug: string;
+  logo: File | null;
 }
 
 export interface RegisterInput {
@@ -54,8 +55,22 @@ export function getSetupStatus(client: RequestClient = apiClient): Promise<Setup
   return client.request("/v1/setup/status");
 }
 
-export function initializeInstance(input: InitializeInput, client: RequestClient = apiClient): Promise<unknown> {
-  return client.request("/v1/setup/initialize", jsonRequest("POST", input));
+export async function initializeInstance(input: InitializeInput, client: RequestClient = apiClient): Promise<unknown> {
+  if (!input.logo) throw new Error("请选择公司 Logo");
+  const { logo, ...fields } = input;
+  const logoBase64 = await fileToBase64(logo);
+  return client.request("/v1/setup/initialize", jsonRequest("POST", {
+    ...fields, logoFileName: logo.name, logoMediaType: logo.type, logoBase64,
+  }));
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("无法读取公司 Logo"));
+    reader.onload = () => resolve(String(reader.result).split(",", 2)[1] ?? "");
+    reader.readAsDataURL(file);
+  });
 }
 
 export function login(input: LoginInput, client: RequestClient = apiClient): Promise<void> {

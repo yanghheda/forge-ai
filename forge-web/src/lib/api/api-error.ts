@@ -117,11 +117,6 @@ export function getUserErrorMessage(error: unknown): string {
     ?? "请求失败，请稍后重试。";
 }
 
-export function formatRequestError(
-  error: unknown,
-  { includeRequestId = true }: { includeRequestId?: boolean } = {},
-): string {
-  const message = getUserErrorMessage(error);
-  const requestId = includeRequestId && isApiError(error) ? error.requestId : undefined;
-  return requestId ? `${message}（请求编号：${requestId}）` : message;
+export function formatRequestError(error: unknown): string {
+  return getUserErrorMessage(error);
 }

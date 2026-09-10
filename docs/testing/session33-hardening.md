@@ -21,7 +21,7 @@ make hardening-test
 单独扫描运行日志时：
 
 ```bash
-docker compose --env-file deploy/.env -f deploy/compose.yml logs --no-color forge-server forge-agent > /tmp/forge-session33.log
+docker compose --env-file deploy/.env -f deploy/compose.yml -f deploy/compose-test.yml logs --no-color forge-server forge-agent > /tmp/forge-session33.log
 ./scripts/check-secret-leaks.sh /tmp/forge-session33.log
 ```
 
@@ -32,7 +32,7 @@ docker compose --env-file deploy/.env -f deploy/compose.yml logs --no-color forg
 先启动已构建的三应用：
 
 ```bash
-make apps-up
+make test-apps-up
 make hardening-performance
 ```
 
@@ -58,7 +58,7 @@ EXPLAIN：idx_work_items_scope_type_status_page
 警告：以下命令会停止本机 Compose 中的 MySQL、Redis、Qdrant 和 Agent，再逐项恢复。不要在共享环境执行。
 
 ```bash
-make apps-up
+make test-apps-up
 make hardening-faults
 ```
 
@@ -73,7 +73,7 @@ make hardening-faults
 脚本注册了退出恢复钩子；即使断言失败也会尝试重新启动全部服务。完成后仍应人工确认：
 
 ```bash
-make apps-ready
+make test-apps-ready
 ```
 
 ## 四、指标面板与告警基线

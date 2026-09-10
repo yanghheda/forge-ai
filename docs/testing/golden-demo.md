@@ -5,7 +5,7 @@
 ## 运行方式
 
 ```bash
-make apps-up
+make test-apps-up
 make demo-e2e
 ```
 

@@ -2,7 +2,19 @@
 
 自托管部署资产目录。部署配置必须通过环境变量或 Secret 文件注入凭据，不得提交真实 Secret。
 
-## 本机基础设施
+## 环境分层
+
+- 宿主机开发：`compose.yml + compose.host-dev.yml`，使用 `make host-infra-*`。
+- 测试与 Demo：`compose.yml + compose-test.yml`，使用 `make test-apps-*`。
+- 正式发布：仅使用 `compose.yml`，使用 `make apps-*`。
+
+`compose-test.yml` 使用独立的 `forge-ai-test` Compose project、容器、网络和命名卷，
+不会复用正式环境数据。测试 Web 默认使用 `127.0.0.1:13000`；数据端口只绑定 `127.0.0.1`：MySQL `3306`、Redis
+`6379`、Qdrant HTTP `6333` 和 gRPC `6334`。如端口冲突，可在 `deploy/.env`
+设置 `FORGE_TEST_WEB_PORT`、`FORGE_TEST_MYSQL_HOST_PORT`、`FORGE_TEST_REDIS_HOST_PORT`、
+`FORGE_TEST_QDRANT_HTTP_HOST_PORT`、`FORGE_TEST_QDRANT_GRPC_HOST_PORT`。
+
+## 正式环境
 
 Compose 默认只启动 MySQL、Redis 和 Qdrant；`applications` profile 额外启动三应用。首次启动前复制示例配置，并更换本机数据库密码和 Agent JWT 签名密钥：
 
@@ -12,14 +24,24 @@ make infra-up
 make infra-ready
 ```
 
-启动三应用：
+使用正式配置启动三应用：
 
 ```bash
 make apps-up
 make apps-ready
 ```
 
-只有 `forge-web` 映射到宿主机 `127.0.0.1:3000`。Server、Agent 与三项数据设施只加入 `forge-internal` Compose 网络，不映射宿主机端口。MySQL 与 Qdrant 使用命名卷；Redis 明确作为可丢失的短期状态运行。`make infra-down` 和 `make apps-down` 都会保留数据卷。
+只有 `forge-web` 映射到宿主机 `127.0.0.1:3000`。Server、Agent 与三项数据设施只加入 `forge-internal` Compose 网络，不映射宿主机端口。Server 默认使用 `prod` profile 和真实 GitLab provider。MySQL 与 Qdrant 使用命名卷；Redis 明确作为可丢失的短期状态运行。`make infra-down` 和 `make apps-down` 都会保留数据卷。
+
+## 测试环境
+
+```bash
+make test-apps-up
+make test-apps-ready
+```
+
+测试结束后使用 `make test-apps-down`，默认保留测试数据卷。测试环境 Server 使用
+`test` profile 和确定性 demo GitLab provider。
 
 `make smoke` 使用示例配置在 `127.0.0.1:13000` 临时启动完整拓扑，验证 Web → Server → Agent 调用及无效 Agent 凭据拒绝，完成后自动停止且不删除数据卷。
 

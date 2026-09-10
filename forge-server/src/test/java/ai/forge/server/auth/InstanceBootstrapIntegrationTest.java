@@ -165,8 +165,20 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
                         "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"), null,
+                        "workspaceSlug", "engineering",
+                        "logoFileName", "company.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", validLogoBase64()), null,
                 String.class);
+    }
+
+    private String validLogoBase64() {
+        byte[] content = new byte[30];
+        System.arraycopy("RIFF".getBytes(), 0, content, 0, 4);
+        System.arraycopy("WEBPVP8X".getBytes(), 0, content, 8, 8);
+        content[24] = 27;
+        content[27] = 27;
+        return java.util.Base64.getEncoder().encodeToString(content);
     }
 
     private int count(String table) {

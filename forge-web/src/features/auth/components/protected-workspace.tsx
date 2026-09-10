@@ -1,12 +1,12 @@
 "use client";
 
-import { Alert, Button, Card, Spin, Typography } from "@arco-design/web-react";
+import { Alert, Button, Card, Message, Spin, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, type ReactNode } from "react";
 
-import { isApiError } from "@/lib/api";
+import { formatRequestError, isApiError } from "@/lib/api";
 import { roleLabel } from "@/lib/labels";
 import { getCurrentUser, logout } from "../api/auth-api";
 import { AuthErrorAlert } from "./auth-error-alert";
@@ -15,7 +15,7 @@ export function ProtectedWorkspace({ workspace, children }: { workspace: string;
   const router = useRouter();
   const queryClient = useQueryClient();
   const currentUser = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser(), retry: false });
-  const logoutMutation = useMutation({ mutationFn: () => logout(), onSuccess: () => { queryClient.clear(); router.replace("/login"); } });
+  const logoutMutation = useMutation({ mutationFn: () => logout(), onSuccess: () => { queryClient.clear(); router.replace("/login"); }, onError: (error) => Message.error(formatRequestError(error)) });
 
   useEffect(() => {
     if (currentUser.isError && isApiError(currentUser.error) && currentUser.error.status === 401) router.replace("/login");
@@ -32,7 +32,6 @@ export function ProtectedWorkspace({ workspace, children }: { workspace: string;
       <Link href={`/w/${workspace}/settings/members`}>成员设置</Link>
       <Link href={`/w/${workspace}/settings/gitlab`}>GitLab 设置</Link>
       <Button type="text" loading={logoutMutation.isPending} onClick={() => logoutMutation.mutate()}>退出</Button>
-      <AuthErrorAlert error={logoutMutation.error} />
     </Card>
     {children}
   </section>;

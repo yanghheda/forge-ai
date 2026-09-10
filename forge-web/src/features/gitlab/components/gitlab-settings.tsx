@@ -1,11 +1,12 @@
 "use client";
 
-import { Alert, Button, Card, Form, Input, InputNumber, List, Spin, Typography } from "@arco-design/web-react";
+import { Alert, Button, Card, Form, Input, InputNumber, List, Message, Spin, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { getCurrentUser } from "@/features/auth";
 import ui from "@/components/workbench/workbench.module.css";
+import { formatRequestError } from "@/lib/api";
 import { bindRepository, createConnection, listConnections, rotateToken, testConnection } from "../api/gitlab-api";
 
 export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
@@ -24,24 +25,31 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
   const create = useMutation({
     mutationFn: () => createConnection({ workspaceId: workspace!.id, ...connectionForm }),
     onSuccess: () => {
+      Message.success("GitLab 连接已保存。");
       setConnectionForm((value) => ({ ...value, token: "" }));
       invalidate();
     },
+    onError: (error) => Message.error(formatRequestError(error)),
   });
   const rotate = useMutation({
     mutationFn: (connection: { id: number; version: number }) =>
       rotateToken(workspace!.id, connection.id, connection.version, rotationToken),
     onSuccess: () => {
+      Message.success("访问令牌已轮换。");
       setRotationToken("");
       invalidate();
     },
+    onError: (error) => Message.error(formatRequestError(error)),
   });
   const test = useMutation({
     mutationFn: (connectionId: number) => testConnection(workspace!.id, connectionId),
-    onSuccess: invalidate,
+    onSuccess: () => { Message.success("GitLab 连接测试完成。"); return invalidate(); },
+    onError: (error) => Message.error(formatRequestError(error)),
   });
   const bind = useMutation({
     mutationFn: () => bindRepository({ workspaceId: workspace!.id, ...binding }),
+    onSuccess: () => Message.success("项目仓库已绑定。"),
+    onError: (error) => Message.error(formatRequestError(error)),
   });
 
   if (currentUser.isPending || connections.isPending) {

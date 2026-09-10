@@ -4,10 +4,11 @@ set -euo pipefail
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="${FORGE_DEMO_ENV_FILE:-${repository_root}/deploy/.env}"
 compose_file="${repository_root}/deploy/compose.yml"
+test_compose_file="${repository_root}/deploy/compose-test.yml"
 api_base_url="${FORGE_FAULT_API_BASE_URL:-http://localhost:3000/api}"
 
 compose() {
-  docker compose --profile applications --env-file "${env_file}" -f "${compose_file}" "$@"
+  docker compose --profile applications --env-file "${env_file}" -f "${compose_file}" -f "${test_compose_file}" "$@"
 }
 
 recover() {

@@ -11,8 +11,24 @@
 .blue > div { color: #4f46e5; background: #eeedff; }
 .amber > div { color: #d97706; background: #fff5df; }
 .green > div { color: #079455; background: #e8f8f1; }
-.createCard, .listCard { border-radius: 15px; }
-.createForm { display: grid; grid-template-columns: 1.2fr 2fr 150px auto; align-items: start; gap: 12px; }
+.listCard { border-radius: 15px; }
+.createDrawer :global(.arco-drawer-header) { padding: 24px 28px 18px; border-bottom-color: #eaecf0; }
+.createDrawer :global(.arco-drawer-body) { padding: 28px; background: #fcfcfd; }
+.createDrawer :global(.arco-drawer-footer) { padding: 16px 28px; border-top-color: #eaecf0; background: #fff; }
+.drawerTitle { display: grid; gap: 6px; padding-right: 28px; }
+.drawerTitle > span { color: #101828; font-size: 20px; font-weight: 750; }
+.drawerTitle small { color: #667085; font-size: 12px; font-weight: 400; line-height: 1.6; }
+.drawerForm { display: grid; gap: 24px; }
+.field { display: grid; gap: 9px; }
+.field > span { color: #344054; font-size: 13px; font-weight: 700; }
+.field > span i { margin-left: 5px; color: #f04438; font-size: 11px; font-style: normal; font-weight: 500; }
+.field > small { color: #98a2b3; font-size: 11px; line-height: 1.5; }
+.field :global(.arco-input-wrapper), .field :global(.arco-textarea-wrapper), .field :global(.arco-select-view) { border-color: #d0d5dd; border-radius: 9px; background: #fff; }
+.field :global(.arco-textarea) { line-height: 1.65; }
+.formHint { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid #d9d6ff; border-radius: 10px; background: #f7f6ff; }
+.formHint strong { color: #4338ca; font-size: 12px; }
+.formHint span { color: #667085; font-size: 12px; line-height: 1.55; }
+.drawerFooter { display: flex; justify-content: flex-end; gap: 10px; }
 .filters { display: grid; grid-template-columns: minmax(260px, 1fr) 220px; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid #f0f1f3; }
 .list { display: grid; }
 .row { display: flex; align-items: center; justify-content: space-between; min-height: 76px; gap: 18px; padding: 14px 4px; border-bottom: 1px solid #f2f4f7; color: inherit; text-decoration: none; }
@@ -22,5 +38,5 @@
 .row span { margin-top: 6px; color: #98a2b3; font-size: 12px; }
 .loading, .empty { display: grid; min-height: 180px; place-items: center; color: #98a2b3; }
 .total { padding-top: 16px; color: #98a2b3; font-size: 12px; text-align: right; }
-@media (max-width: 900px) { .metrics { grid-template-columns: 1fr; } .createForm { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .metrics { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .header { flex-direction: column; } .filters { grid-template-columns: 1fr; } }

@@ -4,6 +4,7 @@ set -euo pipefail
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="${FORGE_DEMO_ENV_FILE:-${repository_root}/deploy/.env}"
 compose_file="${repository_root}/deploy/compose.yml"
+test_compose_file="${repository_root}/deploy/compose-test.yml"
 fixture_file="${repository_root}/deploy/demo/golden-demo.sql"
 
 if [[ ! -f "${env_file}" ]]; then
@@ -11,7 +12,7 @@ if [[ ! -f "${env_file}" ]]; then
   exit 1
 fi
 
-docker compose --env-file "${env_file}" -f "${compose_file}" exec -T mysql \
+docker compose --env-file "${env_file}" -f "${compose_file}" -f "${test_compose_file}" exec -T mysql \
   sh -c 'exec mysql --default-character-set=utf8mb4 -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' \
   < "${fixture_file}"
 

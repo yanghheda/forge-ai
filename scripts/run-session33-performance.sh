@@ -4,6 +4,7 @@ set -euo pipefail
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="${FORGE_DEMO_ENV_FILE:-${repository_root}/deploy/.env}"
 compose_file="${repository_root}/deploy/compose.yml"
+test_compose_file="${repository_root}/deploy/compose-test.yml"
 api_base_url="${FORGE_PERF_API_BASE_URL:-http://localhost:3000/api}"
 request_origin="${FORGE_PERF_ORIGIN:-${api_base_url%/api}}"
 samples="${FORGE_PERF_SAMPLES:-100}"
@@ -20,12 +21,12 @@ if [[ ! -f "${env_file}" ]]; then
 fi
 
 "${repository_root}/scripts/load-golden-demo.sh" >/dev/null
-docker compose --env-file "${env_file}" -f "${compose_file}" exec -T mysql \
+docker compose --env-file "${env_file}" -f "${compose_file}" -f "${test_compose_file}" exec -T mysql \
   sh -c 'exec mysql --default-character-set=utf8mb4 -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' \
   < "${fixture_file}"
 
 explain_sql="EXPLAIN SELECT id,item_key,type,title,status,priority,assignee_user_id,due_at,version,created_at,updated_at FROM work_items WHERE workspace_id=32004 AND project_id=33007 AND type='DEV_TASK' AND status='TODO' AND deleted_at IS NULL ORDER BY item_number DESC LIMIT 100 OFFSET 0"
-plan="$(docker compose --env-file "${env_file}" -f "${compose_file}" exec -T mysql \
+plan="$(docker compose --env-file "${env_file}" -f "${compose_file}" -f "${test_compose_file}" exec -T mysql \
   sh -c 'exec mysql --batch --skip-column-names -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "$1"' \
   shell "${explain_sql}")"
 if [[ "${plan}" != *"idx_work_items_scope_type_status_page"* ]]; then

@@ -13,7 +13,7 @@ import { AuthErrorAlert } from "./auth-error-alert";
 import styles from "./auth-forms.module.css";
 
 const emptyInitialization: InitializeInput = {
-  adminEmail: "", adminDisplayName: "", password: "", organizationName: "", organizationSlug: "",
+  adminEmail: "", adminDisplayName: "", password: "", organizationName: "", organizationSlug: "", logo: null,
 };
 
 export function AuthEntry() {
@@ -27,7 +27,6 @@ export function AuthEntry() {
   const [registerValues, setRegisterValues] = useState<RegisterInput>({ email: "", displayName: "", password: "", role: "PRODUCT" });
   const [registered, setRegistered] = useState(false);
   const [validationError, setValidationError] = useState<string>();
-
   const initializeMutation = useMutation({
     mutationFn: (input: InitializeInput) => initializeInstance(input),
     onSuccess: () => {
@@ -52,29 +51,33 @@ export function AuthEntry() {
   function submitLogin(event: FormEvent) {
     event.preventDefault();
     const parsed = loginSchema.safeParse(loginValues);
-    if (!parsed.success) return setValidationError(parsed.error.issues[0]?.message);
+    if (!parsed.success) return setValidationError(parsed.error.issues[0]?.message ?? "请检查输入内容。");
     setValidationError(undefined);
     loginMutation.mutate(parsed.data);
   }
 
-  function submitInitialization(event: FormEvent) {
+  async function submitInitialization(event: FormEvent) {
     event.preventDefault();
     const parsed = initializeSchema.safeParse(initializeValues);
-    if (!parsed.success) return setValidationError(parsed.error.issues[0]?.message);
+    if (!parsed.success) return setValidationError(parsed.error.issues[0]?.message ?? "请检查输入内容。");
+    if (!initializeValues.logo) return setValidationError("请选择 WebP 格式的公司 Logo。");
+    if (initializeValues.logo.type !== "image/webp" || !initializeValues.logo.name.toLowerCase().endsWith(".webp")) return setValidationError("公司 Logo 仅支持 WebP 格式。");
+    if (initializeValues.logo.size > 2 * 1024 * 1024) return setValidationError("公司 Logo 不能超过 2 MiB。");
+    if (!await hasRequiredLogoDimensions(initializeValues.logo)) return setValidationError("公司 Logo 尺寸必须严格为 28 × 28 像素。");
     setValidationError(undefined);
-    initializeMutation.mutate(parsed.data);
+    initializeMutation.mutate({ ...parsed.data, logo: initializeValues.logo });
   }
 
   function submitRegistration(event: FormEvent) {
     event.preventDefault();
     const parsed = registerSchema.safeParse(registerValues);
-    if (!parsed.success) return setValidationError(parsed.error.issues[0]?.message);
+    if (!parsed.success) return setValidationError(parsed.error.issues[0]?.message ?? "请检查输入内容。");
     setValidationError(undefined);
     registerMutation.mutate(parsed.data);
   }
 
   if (!initialized) {
-    const fields: Array<[keyof InitializeInput, string, string]> = [
+    const fields: Array<[Exclude<keyof InitializeInput, "logo">, string, string]> = [
       ["adminEmail", "管理员邮箱", "name@example.com"], ["adminDisplayName", "管理员名称", "Forge 所有者"],
       ["password", "密码", "至少 12 个字符，包含字母和数字"], ["organizationName", "公司名称", "Forge"],
       ["organizationSlug", "公司短名", "forge"],
@@ -87,6 +90,8 @@ export function AuthEntry() {
           onChange={(value) => setInitializeValues((current) => ({ ...current, [name]: value }))} /> : <Input
           value={initializeValues[name]} placeholder={placeholder}
           onChange={(value) => setInitializeValues((current) => ({ ...current, [name]: value }))} />}</label>)}
+        <label>公司 Logo（必传，仅 WebP，28 × 28 像素）<input aria-label="公司 Logo" type="file" accept="image/webp,.webp" required
+          onChange={(event) => setInitializeValues((current) => ({ ...current, logo: event.target.files?.[0] ?? null }))} /></label>
         {validationError && <Alert type="warning" content={validationError} />}
         <AuthErrorAlert error={initializeMutation.error} />
         <Button htmlType="submit" type="primary" long size="large" loading={initializeMutation.isPending}>完成初始化</Button>
@@ -121,6 +126,16 @@ export function AuthEntry() {
       <Button type="text" long onClick={() => { setMode("register"); setValidationError(undefined); }}>注册账号</Button>
     </form>
   </Card></AuthLayout>;
+}
+
+function hasRequiredLogoDimensions(file: File): Promise<boolean> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    const source = URL.createObjectURL(file);
+    image.onload = () => { URL.revokeObjectURL(source); resolve(image.naturalWidth === 28 && image.naturalHeight === 28); };
+    image.onerror = () => { URL.revokeObjectURL(source); resolve(false); };
+    image.src = source;
+  });
 }
 
 function AuthLayout({ children, title, description }: { children: React.ReactNode; title: string; description: string }) {

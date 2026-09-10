@@ -8,17 +8,17 @@
 
 ## 一、执行信息
 
-| 字段 | 填写值 |
-| --- | --- |
-| 执行人 |  |
-| 开始时间 |  |
-| 结束时间 |  |
-| Git commit |  |
-| 浏览器及版本 |  |
-| Docker Desktop 版本 |  |
-| 操作系统/CPU/内存 |  |
-| `deploy/.env` 是否为本机专用 | 是 / 否 |
-| 最终结论 | PASS / CONDITIONAL PASS / FAIL |
+| 字段                         | 填写值                         |
+| ---------------------------- | ------------------------------ |
+| 执行人                       |                                |
+| 开始时间                     |                                |
+| 结束时间                     |                                |
+| Git commit                   |                                |
+| 浏览器及版本                 |                                |
+| Docker Desktop 版本          |                                |
+| 操作系统/CPU/内存            |                                |
+| `deploy/.env` 是否为本机专用 | 是 / 否                        |
+| 最终结论                     | PASS / CONDITIONAL PASS / FAIL |
 
 优先级定义：P0 表示安全、权限、事实一致性或主交付链阻断；P1 表示核心功能异常；P2 表示体验、提示或非主路径问题。
 
@@ -30,7 +30,7 @@
 
 - Docker Desktop 正常运行，`docker compose version` 可执行。
 - 仓库根目录存在未提交的 `deploy/.env`，其值由 `deploy/.env.example` 复制并仅用于本机。
-- 本机 `127.0.0.1:3000` 未被其他程序占用。
+- 本机测试端口 `127.0.0.1:13000`、MySQL `3306`、Redis `6379`、Qdrant `6333/6334` 未被其他程序占用；如已通过 `deploy/.env` 覆盖，则检查对应端口。
 - Node、npm、Java 和浏览器依赖已按 README 准备。
 - 故障演练期间没有其他人共享该 Compose 环境。
 
@@ -39,11 +39,11 @@
 ```bash
 git rev-parse HEAD
 docker compose version
-make apps-up
-make apps-ready
+make test-apps-up
+make test-apps-ready
 ```
 
-通过标准：`mysql`、`redis`、`qdrant`、`forge-agent`、`forge-server`、`forge-web` 均为 running/healthy；浏览器访问 `http://127.0.0.1:3000` 有响应。
+通过标准：`mysql`、`redis`、`qdrant`、`forge-agent`、`forge-server`、`forge-web` 均为 running/healthy；浏览器访问 `http://127.0.0.1:13000` 有响应。
 
 实际/证据：
 
@@ -51,40 +51,40 @@ make apps-ready
 
 本轮主回归从空持久化环境开始，不先执行 `make demo-seed`。`AUTH-01` 是整套用例的第一个业务用例，完成后沿用其创建的公司、Owner、成员和需求事实继续执行。建议测试数据如下：
 
-| 数据 | 建议值 |
-| --- | --- |
-| 公司 | `ForgeAI UAT`（Slug `forge-uat`） |
-| Owner | `owner@uat.forgeai.local` |
-| Product | `product@uat.forgeai.local` |
-| UX | `ux@uat.forgeai.local` |
-| Developer | `developer@uat.forgeai.local` |
-| QA | `qa@uat.forgeai.local` |
-| 测试密码 | `ForgeAI-UAT-2026!` |
-| 主需求 | “UAT 手机登录” |
-| 负向需求 | “UAT 支付回调” |
+| 数据      | 建议值                            |
+| --------- | --------------------------------- |
+| 公司      | `ForgeAI UAT`（Slug `forge-uat`） |
+| Owner     | `owner@uat.forgeai.local`         |
+| Product   | `product@uat.forgeai.local`       |
+| UX        | `ux@uat.forgeai.local`            |
+| Developer | `developer@uat.forgeai.local`     |
+| QA        | `qa@uat.forgeai.local`            |
+| 测试密码  | `yang19980205`                    |
+| 主需求    | “UAT 手机登录”                    |
+| 负向需求  | “UAT 支付回调”                    |
 
 环境清理必须在开始执行前完成一次：
 
 ```bash
-docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml down
-docker volume rm forge-ai_mysql-data forge-ai_qdrant-data
-make apps-up
-make apps-ready
+docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml -f deploy/compose-test.yml down
+docker volume rm forge-ai-test_mysql-data forge-ai-test_qdrant-data
+make test-apps-up
+make test-apps-ready
 ```
 
-`docker volume rm` 会永久删除本项目 Compose 的 MySQL 与 Qdrant 数据库卷；Redis 本身不持久化。Agent checkpoint 卷默认保留，避免把数据库重置扩大成运行历史文件清理；若验收明确要求连 Agent checkpoint 一并归零，应另行确认后删除 `forge-ai_agent-checkpoints`。执行后首页必须重新出现首次初始化入口。黄金 Demo 只用于第十二节既有自动化总回归；如果执行 `make demo-seed` 改变了人工主回归环境，完成自动化后应重新清空数据库卷再复测受影响的人工用例。
+`docker volume rm` 会永久删除测试环境 Compose project 的 MySQL 与 Qdrant 数据卷；Redis 本身不持久化。Agent checkpoint 卷默认保留，避免把数据库重置扩大成运行历史文件清理；若验收明确要求连 Agent checkpoint 一并归零，应另行确认后删除 `forge-ai-test_agent-checkpoints`。执行后首页必须重新出现首次初始化入口。黄金 Demo 只用于第十二节既有自动化总回归；如果执行 `make demo-seed` 改变了人工主回归环境，完成自动化后应重新清空数据库卷再复测受影响的人工用例。
 
 ## 三、基础设施、初始化与认证
 
-### ENV-01 [P0] 完整拓扑启动与最小暴露面 [ ]
+### ENV-01 [P0] 完整拓扑启动与最小暴露面 [✅]
 
-步骤：执行 `make apps-ready`；再执行 `docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml ps`；检查端口映射。
+步骤：执行 `make test-apps-ready`；再执行 `docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml -f deploy/compose-test.yml ps`；检查端口映射。
 
-预期：六个服务健康；宿主机仅 `forge-web` 映射至 `127.0.0.1:3000`；MySQL、Redis、Qdrant、Server、Agent 不暴露宿主机数据/服务端口。
+预期：六个服务健康；`forge-web` 映射至 `127.0.0.1:13000`；MySQL、Redis、Qdrant 分别映射至 `127.0.0.1:3306`、`127.0.0.1:6379`、`127.0.0.1:6333/6334`；Server 与 Agent 不暴露宿主机端口；所有映射均不监听局域网地址。
 
 实际/证据：
 
-### AUTH-01 [P0] 空实例初始化 [ ]
+### AUTH-01 [P0] 空实例初始化 [✅]
 
 前置：独立空数据库环境，尚无初始化用户。
 
@@ -94,7 +94,7 @@ make apps-ready
 
 实际/证据：
 
-### AUTH-02 [P0] 正确登录与 Session 建立 [ ]
+### AUTH-02 [P0] 正确登录与 Session 建立 [✅]
 
 步骤：清除站点 Cookie；打开 `/login`；使用 `AUTH-01` 创建的 Owner 登录；观察跳转和浏览器 Cookie。
 
@@ -102,7 +102,7 @@ make apps-ready
 
 实际/证据：
 
-### AUTH-03 [P0] 错误登录不泄露账户状态 [ ]
+### AUTH-03 [P0] 错误登录不泄露账户状态 [✅]
 
 步骤：分别使用不存在邮箱和正确邮箱+错误密码登录。
 
@@ -110,7 +110,7 @@ make apps-ready
 
 实际/证据：
 
-### AUTH-04 [P0] 未登录访问受保护页面 [ ]
+### AUTH-04 [P0] 未登录访问受保护页面 [✅]
 
 步骤：无痕窗口直接访问 `/overview`、`/my-requirements`、`/settings/members` 和任意 `/requirements/<id>`。
 
@@ -118,7 +118,7 @@ make apps-ready
 
 实际/证据：
 
-### AUTH-05 [P0] 退出与旧 Session 失效 [ ]
+### AUTH-05 [P0] 退出与旧 Session 失效 [✅]
 
 步骤：登录后点击“退出”；浏览器后退并刷新受保护页面；再直接访问受保护 URL。
 
@@ -126,7 +126,7 @@ make apps-ready
 
 实际/证据：
 
-### AUTH-06 [P0] CSRF 与 Origin 拒绝 [ ]
+### AUTH-06 [P0] CSRF 与 Origin 拒绝 [✅]
 
 步骤：执行 `make hardening-test`，保存完整输出；重点确认 `CsrfIntegrationTest` 被执行且通过。
 
@@ -136,7 +136,7 @@ make apps-ready
 
 ## 四、公司、成员、角色与需求范围
 
-### ORG-01 [P0] 单公司产品入口 [ ]
+### ORG-01 [P0] 单公司产品入口 [✅]
 
 步骤：Owner 登录后遍历主导航、首页、成员设置和集成设置；检查浏览器地址栏、可见文案、表单字段和 Network 请求。
 
@@ -144,7 +144,7 @@ make apps-ready
 
 实际/证据：
 
-### ORG-02 [P0] 业务角色自助注册 [ ]
+### ORG-02 [P0] 业务角色自助注册 [✅]
 
 步骤：退出 Owner；从登录页进入注册，分别创建 PRODUCT、UX、DEVELOPER、QA 四个账号；逐一登录；Owner 再打开 `/settings/members`。
 
@@ -152,7 +152,7 @@ make apps-ready
 
 实际/证据：
 
-### ORG-03 [P0] 注册角色与邮箱边界 [ ]
+### ORG-03 [P0] 注册角色与邮箱边界 [✅]
 
 步骤：重复注册同一邮箱；通过 API/客户端尝试注册 `OWNER`、`ADMIN`、`RELEASE_APPROVER`、空角色和未知角色；另测试弱密码与非法邮箱。
 
@@ -533,7 +533,7 @@ make hardening-test 2>&1 | tee /tmp/forge-hardening-test.log
 步骤：
 
 ```bash
-docker compose --env-file deploy/.env -f deploy/compose.yml logs --no-color forge-server forge-agent > /tmp/forge-full-uat.log
+docker compose --env-file deploy/.env -f deploy/compose.yml -f deploy/compose-test.yml logs --no-color forge-server forge-agent > /tmp/forge-full-uat.log
 ./scripts/check-secret-leaks.sh /tmp/forge-full-uat.log
 ./scripts/check-secret-leaks.sh
 ```
@@ -565,7 +565,7 @@ docker compose --env-file deploy/.env -f deploy/compose.yml logs --no-color forg
 步骤：在低负载本机执行：
 
 ```bash
-make apps-up
+make test-apps-up
 FORGE_PERF_SAMPLES=100 make hardening-performance 2>&1 | tee /tmp/forge-performance.log
 ```
 
@@ -615,7 +615,7 @@ FORGE_PERF_SAMPLES=100 make hardening-performance 2>&1 | tee /tmp/forge-performa
 
 ### FAIL-06 [P0] 演练后完整恢复 [ ]
 
-步骤：故障演练结束后执行 `make apps-ready`；重新登录，打开主需求 Delivery Graph 和本轮创建的 Agent Run。
+步骤：故障演练结束后执行 `make test-apps-ready`；重新登录，打开主需求 Delivery Graph 和本轮创建的 Agent Run。
 
 预期：六个服务全部健康；登录和关键读取恢复；本轮人工验收数据无丢失或错误状态推进。
 
@@ -632,7 +632,7 @@ make hardening-test
 make hardening-performance
 make ci
 git diff --check
-make apps-ready
+make test-apps-ready
 ```
 
 ### REG-01 [P0] 黄金正向 E2E [ ]
@@ -663,18 +663,18 @@ make apps-ready
 
 ## 十三、执行汇总
 
-| 模块 | PASS | FAIL | BLOCKED | NOT RUN | 缺陷编号 |
-| --- | ---: | ---: | ---: | ---: | --- |
-| 环境/认证 |  |  |  |  |  |
-| 公司/成员/角色/需求范围 |  |  |  |  |  |
-| Product/Document/UX |  |  |  |  |  |
-| Development/GitLab |  |  |  |  |  |
-| QA/Bug |  |  |  |  |  |
-| Release/Approval |  |  |  |  |  |
-| Agent/Tool/SSE/RAG |  |  |  |  |  |
-| 安全/可观测性 |  |  |  |  |  |
-| 性能/故障 |  |  |  |  |  |
-| 总回归 |  |  |  |  |  |
+| 模块                    | PASS | FAIL | BLOCKED | NOT RUN | 缺陷编号 |
+| ----------------------- | ---: | ---: | ------: | ------: | -------- |
+| 环境/认证               |      |      |         |         |          |
+| 公司/成员/角色/需求范围 |      |      |         |         |          |
+| Product/Document/UX     |      |      |         |         |          |
+| Development/GitLab      |      |      |         |         |          |
+| QA/Bug                  |      |      |         |         |          |
+| Release/Approval        |      |      |         |         |          |
+| Agent/Tool/SSE/RAG      |      |      |         |         |          |
+| 安全/可观测性           |      |      |         |         |          |
+| 性能/故障               |      |      |         |         |          |
+| 总回归                  |      |      |         |         |          |
 
 ## 十四、缺陷记录模板
 

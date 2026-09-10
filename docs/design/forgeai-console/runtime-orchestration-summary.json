@@ -1,0 +1,228 @@
+{
+  "skillProvenance": {
+    "name": "solo-design",
+    "version": "2026.08.06.19.15.08",
+    "version_source": "skill-release-manifest.json"
+  },
+  "designSource": {
+    "operatingMode": "free-explore",
+    "brandPrefix": "forge",
+    "cssFilePath": "colors_and_type.css",
+    "visualBaseline": "Arco Design Web React B 端中后台：arcoblue #165DFF 主色、2/4px 控件圆角、14px 基准字号、4px 间距网格、克制阴影",
+    "businessSource": "docs/design/ForgeAI_PRD_v0.2.md、docs/design/ForgeAI_完整技术方案_v1.3.md、docs/design/ForgeAI_详细设计_v1.0.md"
+  },
+  "project": {
+    "projectName": "ForgeAI 智能交付控制台",
+    "projectSlug": "forgeai-console",
+    "resolvedLane": "complex_html_page",
+    "operatingMode": "free-explore",
+    "deviceType": "desktop",
+    "designWidth": 1440,
+    "selectedIntentWorkflowRead": true,
+    "contextReadScope": "仅读取 complex 工作流强制的 9 份共享运行时上下文 + ForgeAI PRD/技术方案/详细设计相关章节；未通读无关会话材料",
+    "contextRequirementsLoaded": [
+      { "path": "shared-runtime/lane-runtime-contracts.md", "bodyRead": true, "readStatus": "loaded" },
+      { "path": "shared-runtime/lane-dispatch-index.md", "bodyRead": true, "readStatus": "loaded" },
+      { "path": "shared-runtime/html-rendering-primitives/shared-page-rendering-kernel.md", "bodyRead": true, "readStatus": "loaded" },
+      { "path": "shared-runtime/html-rendering-primitives/page-rendering-quality-gate.md", "bodyRead": true, "readStatus": "loaded" },
+      { "path": "shared-runtime/design-artifact-formats/design-project-file-format.md", "bodyRead": true, "readStatus": "loaded" },
+      { "path": "shared-runtime/design-artifact-formats/design-artifact-validation.md", "bodyRead": true, "readStatus": "loaded" },
+      { "path": "shared-runtime/design-artifact-formats/delivery-evidence-contract.md", "bodyRead": true, "readStatus": "loaded" },
+      { "path": "shared-runtime/visual-experience/visual-experience-guidelines.md", "bodyRead": true, "readStatus": "loaded" },
+      { "path": "shared-runtime/visual-experience/visual-checkpoint-protocol.md", "bodyRead": true, "readStatus": "loaded" }
+    ],
+    "cssPreflightEvidence": {
+      "status": "passed",
+      "prefixMode": "standard",
+      "brandPrefix": "forge",
+      "requiredAliases": ["background", "foreground", "card", "card-foreground", "popover", "popover-foreground", "primary", "primary-foreground", "secondary", "secondary-foreground", "muted", "muted-foreground", "accent", "accent-foreground", "destructive", "destructive-foreground", "border", "input", "ring", "sidebar", "sidebar-foreground", "sidebar-primary", "sidebar-primary-foreground", "sidebar-accent", "sidebar-accent-foreground", "chart-1", "chart-2", "chart-3", "chart-4", "chart-5"],
+      "radiusTokens": ["--forge-radius-sm:2px", "--forge-radius-md:8px", "--forge-radius-lg:12px"],
+      "checkedAt": "2026-09-10T09:00:00+08:00"
+    },
+    "sharedProjectShellContract": {
+      "strategy": "SharedFragmentOnly",
+      "appShellFragment": "partials/project-shell.html",
+      "authShellFragment": "partials/auth-shell.html",
+      "chrome": "深色固定侧边栏 232px（#1D2129，分组菜单 + DEMO-1 交付链路上下文组）+ 白色 56px 顶栏（面包屑 / 全局搜索 / Agent 指令入口 / 通知 / 用户）",
+      "slots": ["breadcrumb", "pageContent"],
+      "leafRule": "叶子页面复制整个 fragment 到 body，设置唯一 is-active 菜单项并替换插槽；禁止改动全局 data-dom-id",
+      "globalNavDomIds": ["nav-overview", "nav-my-requirements", "nav-task-board", "nav-requirement-detail", "nav-document-editor", "nav-ux-workspace", "nav-development", "nav-qa", "nav-release", "nav-agent-command", "nav-agent-trace", "nav-settings-members", "nav-settings-integrations", "nav-settings-permissions", "global-agent-command", "global-search", "global-notifications", "global-user-menu", "switcher-project"],
+      "typography": "14px 基准；页面标题 20px/600；卡片标题 16px/600；正文 14；辅助 12-13；等宽 SF Mono 用于编号/代码/日志"
+    },
+    "validationRunDiscipline": {
+      "maxFullValidationRuns": 2,
+      "softWarningsTriggerRepair": false,
+      "blockingRepairMode": "targeted-once"
+    },
+    "lowValueCallWatchdog": {
+      "applies": true,
+      "noProgressNextAction": "enter_readiness_or_blocked_summary"
+    },
+    "generationTree": {
+      "shared": ["gen-project-shell", "gen-auth-shell"],
+      "totalPages": 16
+    }
+  },
+  "pages": [
+    {
+      "nodeId": "page-login",
+      "htmlSrc": "pages/login.html",
+      "title": "登录",
+      "group": 1,
+      "visualNorthStar": "Arco Pro 登录页：左侧品牌渐变叙事区，右侧克制的白色登录卡片；突出私有化部署、账号密码登录与错误态。",
+      "inheritedFragments": ["partials/auth-shell.html"],
+      "businessSource": "详细设计 §10 认证会话；PRD §4 登录/会话/首次初始化；账号锁定与限速提示",
+      "allowedWritePaths": ["pages/login.html", "assets/"]
+    },
+    {
+      "nodeId": "page-init-wizard",
+      "htmlSrc": "pages/init-wizard.html",
+      "title": "实例初始化",
+      "group": 1,
+      "visualNorthStar": "三步 Arco Steps 向导：管理员账号 → 组织信息 → 确认完成；密码强度条与完成态清单。",
+      "inheritedFragments": ["partials/auth-shell.html"],
+      "businessSource": "PRD §4.1 首次初始化（仅一次、不可逆）；详细设计 InstanceBootstrapService、密码策略",
+      "allowedWritePaths": ["pages/init-wizard.html", "assets/"]
+    },
+    {
+      "nodeId": "page-overview",
+      "htmlSrc": "pages/overview.html",
+      "title": "需求概览",
+      "group": 2,
+      "visualNorthStar": "组织级需求工作台：4 个统计卡 + 状态分布/阶段漏斗图表 + 需求列表（状态标签、负责人头像、更新时间），信息密度高但层次清晰。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "PRD §5.1 需求概览；详细设计 OrganizationRequirementService/分页视图；需求固定状态机全集",
+      "allowedWritePaths": ["pages/overview.html", "assets/"]
+    },
+    {
+      "nodeId": "page-my-requirements",
+      "htmlSrc": "pages/my-requirements.html",
+      "title": "我的需求",
+      "group": 2,
+      "visualNorthStar": "我的收件箱：Tabs（我负责的/我参与的/待我处理）+ 筛选栏 + 高密度表格，待处理项用橙色弱提示。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "PRD §5.1；详细设计 RequirementParticipantView、成员 scope 查询",
+      "allowedWritePaths": ["pages/my-requirements.html", "assets/"]
+    },
+    {
+      "nodeId": "page-requirement-detail",
+      "htmlSrc": "pages/requirement-detail.html",
+      "title": "需求详情",
+      "group": 2,
+      "visualNorthStar": "需求聚合主页：头部 DEMO-1 编号+标题+状态标签+主操作（按状态机与权限），交付阶段 Steps，子 Tab（概览/文档/任务/动态/成员），右侧交付物与风险卡。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §5 RequirementDetailsService、固定状态机 Guard、DeliveryGraph、参与者；PRD §5.2",
+      "allowedWritePaths": ["pages/requirement-detail.html", "assets/"]
+    },
+    {
+      "nodeId": "page-document-editor",
+      "htmlSrc": "pages/document-editor.html",
+      "title": "PRD 文档编辑",
+      "group": 2,
+      "visualNorthStar": "Tiptap 风格编辑器：顶部文档标题+版本标签+保存状态，斜杠命令工具条，左侧大纲，右侧 AI 助手/版本历史抽屉入口；底部不可变版本提示。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §6 文档不可变版本 DocumentVersion；PRD PRD v0.1→v1.0 发布门禁；AI 生成必须保留",
+      "allowedWritePaths": ["pages/document-editor.html", "assets/"]
+    },
+    {
+      "nodeId": "page-ux-workspace",
+      "htmlSrc": "pages/ux-workspace.html",
+      "title": "UX 工作区",
+      "group": 2,
+      "visualNorthStar": "UX 任务工作区：检查清单分组（信息架构/流程/线框/标注）、UX 文档版本卡、评审结论区（通过/打回）、跳过 UX 开关与影响提示。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §7 UX Task/评审/UxSkipPolicyGuard/UxChecklistGuard；PRD §5.3",
+      "allowedWritePaths": ["pages/ux-workspace.html", "assets/"]
+    },
+    {
+      "nodeId": "page-task-board",
+      "htmlSrc": "pages/task-board.html",
+      "title": "任务看板",
+      "group": 2,
+      "visualNorthStar": "跨需求看板：列=工作项状态（待开始/进行中/待评审/已完成），卡片显示类型标签、编号、标题、负责人、阻塞标记；顶部按项目/类型/负责人筛选。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 WorkItem 聚合与原子编号（DEMO-1 风格）、WorkItemPage；PRD §8 任务看板",
+      "allowedWritePaths": ["pages/task-board.html", "assets/"]
+    },
+    {
+      "nodeId": "page-development",
+      "htmlSrc": "pages/development.html",
+      "title": "开发上下文",
+      "group": 3,
+      "visualNorthStar": "开发阶段页：GitLab 分支/MR/Pipeline 状态卡（门禁条件清单）、Dev 任务列表、构建日志面板、Guard 不满足时的禁用主按钮与原因。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §8 GitLab/Branch/MR/Pipeline、DevelopmentQaGuard、Webhook；PRD §6 开发阶段",
+      "allowedWritePaths": ["pages/development.html", "assets/"]
+    },
+    {
+      "nodeId": "page-qa",
+      "htmlSrc": "pages/qa.html",
+      "title": "QA 测试",
+      "group": 3,
+      "visualNorthStar": "QA 工作台：Test Run 汇总（通过/失败/阻塞数字与进度条）、用例表（优先级、结果）、Bug 表（严重度标签、状态机操作）、QA Agent 执行卡与回流开发提示。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §9 TestCase/TestRun/Bug 状态机/QaPassGuard/QA Agent；PRD §7",
+      "allowedWritePaths": ["pages/qa.html", "assets/"]
+    },
+    {
+      "nodeId": "page-release",
+      "htmlSrc": "pages/release.html",
+      "title": "发布管理",
+      "group": 3,
+      "visualNorthStar": "发布页：Precheck 确定性检查清单（通过/失败项）、Release Note 预览（AI 生成+人工编辑）、HIGH 审批链（审批人/状态/时间线）、模拟部署结果卡。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §11 Release/PrecheckRule/HIGH 审批/SimulatedDeployment；PRD §9 发布",
+      "allowedWritePaths": ["pages/release.html", "assets/"]
+    },
+    {
+      "nodeId": "page-agent-command",
+      "htmlSrc": "pages/agent-command.html",
+      "title": "Agent 指令中心",
+      "group": 4,
+      "visualNorthStar": "对话式指挥台：左栏会话历史（按需求分组），中间聊天流（用户指令、Agent 计划、工具调用卡片含风险等级与审批按钮），右栏上下文与技能选择；MEDIUM/HIGH 审批卡是视觉焦点。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §12 AgentRun/SSE/Approval/Tool 风险分级 MEDIUM/HIGH；PRD §10 Agent 协作原则",
+      "allowedWritePaths": ["pages/agent-command.html", "assets/"]
+    },
+    {
+      "nodeId": "page-agent-trace",
+      "htmlSrc": "pages/agent-trace.html",
+      "title": "Agent 执行轨迹",
+      "group": 4,
+      "visualNorthStar": "可观测性页：Run 状态头（RUNNING/等待审批）、LangGraph 节点步骤时间线（含耗时/Token）、工具调用入参出参 JSON、SSE 事件流日志面板。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §12.4 Trace/AgentEvent 持久事件/Checkpoint；技术方案 Agent Gateway 与 Tool Registry",
+      "allowedWritePaths": ["pages/agent-trace.html", "assets/"]
+    },
+    {
+      "nodeId": "page-settings-members",
+      "htmlSrc": "pages/settings-members.html",
+      "title": "成员管理",
+      "group": 5,
+      "visualNorthStar": "设置-成员：项目成员表（姓名/邮箱/角色标签/状态）、邀请成员按钮、角色分配下拉、移除确认；左侧设置子导航。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §4 Workspace/Project/Member、RBAC；PRD §11 权限矩阵",
+      "allowedWritePaths": ["pages/settings-members.html", "assets/"]
+    },
+    {
+      "nodeId": "page-settings-integrations",
+      "htmlSrc": "pages/settings-integrations.html",
+      "title": "集成配置",
+      "group": 5,
+      "visualNorthStar": "设置-集成：GitLab 连接卡（Base URL/测试连接/OAuth 状态/Webhook 注册状态）、密钥遮罩输入、模型服务与向量库状态卡；危险操作区弱化分隔。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §8.1 GitLabConnection/SecretService/Webhook；技术方案基础设施 MySQL/Redis/Qdrant",
+      "allowedWritePaths": ["pages/settings-integrations.html", "assets/"]
+    },
+    {
+      "nodeId": "page-settings-permissions",
+      "htmlSrc": "pages/settings-permissions.html",
+      "title": "角色权限",
+      "group": 5,
+      "visualNorthStar": "设置-权限：角色 Tabs（管理员/产品/UX/开发/QA）+ 授权点矩阵表（模块×动作勾选态，只读说明），底部权限说明 Alert。",
+      "inheritedFragments": ["partials/project-shell.html"],
+      "businessSource": "详细设计 §4.4 PermissionEvaluator/授权点；PRD §11 RBAC 权限矩阵",
+      "allowedWritePaths": ["pages/settings-permissions.html", "assets/"]
+    }
+  ]
+}

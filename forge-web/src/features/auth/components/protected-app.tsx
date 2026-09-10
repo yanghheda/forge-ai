@@ -1,11 +1,11 @@
 "use client";
 
-import { Button, Card, Spin, Typography } from "@arco-design/web-react";
+import { Button, Card, Message, Spin, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
-import { isApiError } from "@/lib/api";
+import { formatRequestError, isApiError } from "@/lib/api";
 import { getCurrentUser, logout } from "../api/auth-api";
 import { AuthErrorAlert } from "./auth-error-alert";
 
@@ -13,7 +13,7 @@ export function ProtectedApp({ children }: { children: ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const currentUser = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser(), retry: false });
-  const logoutMutation = useMutation({ mutationFn: () => logout(), onSuccess: () => { queryClient.clear(); router.replace("/login"); } });
+  const logoutMutation = useMutation({ mutationFn: () => logout(), onSuccess: () => { queryClient.clear(); router.replace("/login"); }, onError: (error) => Message.error(formatRequestError(error)) });
 
   useEffect(() => {
     if (currentUser.isError && isApiError(currentUser.error) && currentUser.error.status === 401) router.replace("/login");
@@ -27,7 +27,6 @@ export function ProtectedApp({ children }: { children: ReactNode }) {
       <Typography.Text type="secondary">{currentUser.data.displayName}</Typography.Text>
       <Button type="text" size="small" loading={logoutMutation.isPending} onClick={() => logoutMutation.mutate()}>退出</Button>
     </div>
-    <AuthErrorAlert error={logoutMutation.error} />
     {children}
   </>;
 }

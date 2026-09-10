@@ -31,6 +31,8 @@ server:
         path: /
 
 forge:
+  branding:
+    storage-directory: ${FORGE_BRANDING_STORAGE_DIRECTORY:data/branding}
   security:
     secret-master-key: ${FORGE_SECRET_MASTER_KEY}
     secret-key-version: ${FORGE_SECRET_KEY_VERSION:1}

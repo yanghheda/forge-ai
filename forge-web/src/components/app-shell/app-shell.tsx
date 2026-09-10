@@ -2,6 +2,7 @@
 
 import { IconApps, IconDashboard, IconMenuFold, IconMenuUnfold, IconSettings, IconUser } from "@arco-design/web-react/icon";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -25,7 +26,7 @@ export function AppShell({ children }: AppShellProps) {
   return <div className={`${styles.shell} ${navigationCollapsed ? styles.collapsed : ""}`}>
     <aside className={styles.sidebar}>
       <Link className={styles.brand} href="/overview" aria-label="ForgeAI 首页">
-        <span className={styles.brandMark}>F</span>
+        <span className={styles.brandMark}><Image src="/api/v1/branding/company-logo" alt="" width={36} height={36} unoptimized onError={(event) => { event.currentTarget.hidden = true; event.currentTarget.parentElement?.classList.add(styles.brandFallback); }} /><b>F</b></span>
         {!navigationCollapsed && <span><strong>ForgeAI</strong><small>交付操作系统</small></span>}
       </Link>
       <nav className={styles.nav} aria-label="主导航">

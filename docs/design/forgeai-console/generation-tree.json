@@ -1,0 +1,54 @@
+{
+  "project": "forgeai-console",
+  "lane": "complex_html_page",
+  "updatedAt": "2026-09-10T09:00:00+08:00",
+  "nodes": [
+    {
+      "id": "gen-project-shell",
+      "type": "shared",
+      "title": "应用外壳（深色侧边导航 + 顶栏 + Arco 组件基元 CSS + 图标库）",
+      "output": "partials/project-shell.html",
+      "status": "generated",
+      "children": [
+        "gen-page-overview",
+        "gen-page-my-requirements",
+        "gen-page-requirement-detail",
+        "gen-page-document-editor",
+        "gen-page-ux-workspace",
+        "gen-page-task-board",
+        "gen-page-development",
+        "gen-page-qa",
+        "gen-page-release",
+        "gen-page-agent-command",
+        "gen-page-agent-trace",
+        "gen-page-settings-members",
+        "gen-page-settings-integrations",
+        "gen-page-settings-permissions"
+      ]
+    },
+    {
+      "id": "gen-auth-shell",
+      "type": "shared",
+      "title": "认证外壳（品牌左侧栏 + 居中卡片）",
+      "output": "partials/auth-shell.html",
+      "status": "generated",
+      "children": ["gen-page-login", "gen-page-init-wizard"]
+    },
+    { "id": "gen-page-login", "type": "page", "nodeId": "page-login", "output": "pages/login.html", "status": "pending", "dependsOn": ["gen-auth-shell"] },
+    { "id": "gen-page-init-wizard", "type": "page", "nodeId": "page-init-wizard", "output": "pages/init-wizard.html", "status": "pending", "dependsOn": ["gen-auth-shell"] },
+    { "id": "gen-page-overview", "type": "page", "nodeId": "page-overview", "output": "pages/overview.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-my-requirements", "type": "page", "nodeId": "page-my-requirements", "output": "pages/my-requirements.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-requirement-detail", "type": "page", "nodeId": "page-requirement-detail", "output": "pages/requirement-detail.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-document-editor", "type": "page", "nodeId": "page-document-editor", "output": "pages/document-editor.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-ux-workspace", "type": "page", "nodeId": "page-ux-workspace", "output": "pages/ux-workspace.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-task-board", "type": "page", "nodeId": "page-task-board", "output": "pages/task-board.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-development", "type": "page", "nodeId": "page-development", "output": "pages/development.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-qa", "type": "page", "nodeId": "page-qa", "output": "pages/qa.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-release", "type": "page", "nodeId": "page-release", "output": "pages/release.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-agent-command", "type": "page", "nodeId": "page-agent-command", "output": "pages/agent-command.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-agent-trace", "type": "page", "nodeId": "page-agent-trace", "output": "pages/agent-trace.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-settings-members", "type": "page", "nodeId": "page-settings-members", "output": "pages/settings-members.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-settings-integrations", "type": "page", "nodeId": "page-settings-integrations", "output": "pages/settings-integrations.html", "status": "pending", "dependsOn": ["gen-project-shell"] },
+    { "id": "gen-page-settings-permissions", "type": "page", "nodeId": "page-settings-permissions", "output": "pages/settings-permissions.html", "status": "pending", "dependsOn": ["gen-project-shell"] }
+  ]
+}

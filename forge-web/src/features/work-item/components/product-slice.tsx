@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Input,
+  Message,
   Select,
   Tag,
   Typography,
@@ -47,11 +48,13 @@ export function ProductSlice({
         priority,
       }),
     onSuccess: () => {
+      Message.success("需求创建成功。");
       setTitle("");
       void queryClient.invalidateQueries({
         queryKey: ["work-items", projectId],
       });
     },
+    onError: (error) => Message.error(formatRequestError(error)),
   });
   return (
     <Card title="产品需求" size="small" className={ui.panel}>
@@ -87,9 +90,6 @@ export function ProductSlice({
         </div>
       </div>
       <div className={ui.content}>
-        {create.isError && (
-          <Alert type="error" content={formatRequestError(create.error)} />
-        )}
         {requirements.isError && (
           <Alert type="error" content={formatRequestError(requirements.error)} />
         )}

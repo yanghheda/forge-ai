@@ -31,6 +31,8 @@ describe("AuthEntry", () => {
     expect(await screen.findByText("初始化 ForgeAI")).toBeInTheDocument();
     expect(screen.getByLabelText("管理员邮箱")).toBeInTheDocument();
     expect(screen.getByLabelText("公司名称")).toBeInTheDocument();
+    expect(screen.getByLabelText("公司 Logo")).toHaveAttribute("accept", "image/webp,.webp");
+    expect(screen.getByLabelText("公司 Logo")).toBeRequired();
     expect(screen.queryByLabelText("工作空间名称")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "完成初始化" })).toBeEnabled();
   });
@@ -63,6 +65,32 @@ describe("AuthEntry", () => {
     expect(screen.queryByRole("option", { name: "所有者" })).not.toBeInTheDocument();
   });
 
+  it("注册成功展示提示并返回登录", async () => {
+    authApi.getSetupStatus.mockResolvedValue({ initialized: true });
+    authApi.register.mockResolvedValue({ userId: 2 });
+    render(<AuthEntry />, { wrapper });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "注册账号" }));
+    await user.type(screen.getByLabelText("姓名"), "Developer");
+    await user.type(screen.getByLabelText("邮箱"), "developer@example.com");
+    await user.type(screen.getByLabelText("密码"), "correct-horse-42");
+    await user.click(screen.getByRole("button", { name: "完成注册" }));
+
+    expect(await screen.findByText("注册完成，请使用新账号登录。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "登录" })).toBeInTheDocument();
+  });
+
+  it("表单校验失败展示提示", async () => {
+    authApi.getSetupStatus.mockResolvedValue({ initialized: true });
+    render(<AuthEntry />, { wrapper });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "登录" }));
+
+    expect(await screen.findByText("请输入有效邮箱")).toBeInTheDocument();
+  });
+
   it("账号不存在或密码错误时展示中文提示且不显示请求编号", async () => {
     authApi.getSetupStatus.mockResolvedValue({ initialized: true });
     authApi.login.mockRejectedValue(new ApiError({
@@ -81,5 +109,25 @@ describe("AuthEntry", () => {
     expect(await screen.findByText("账号不存在或密码错误，请重新输入。")).toBeInTheDocument();
     expect(screen.queryByText(/请求编号/)).not.toBeInTheDocument();
     expect(screen.queryByText(/request-123/)).not.toBeInTheDocument();
+  });
+
+  it("注册失败时在注册表单内展示错误提示", async () => {
+    authApi.getSetupStatus.mockResolvedValue({ initialized: true });
+    authApi.register.mockRejectedValue(new ApiError({
+      code: "CONFLICT",
+      message: "Email already exists",
+      status: 409,
+    }));
+    render(<AuthEntry />, { wrapper });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "注册账号" }));
+    await user.type(screen.getByLabelText("姓名"), "Developer");
+    await user.type(screen.getByLabelText("邮箱"), "developer@example.com");
+    await user.type(screen.getByLabelText("密码"), "correct-horse-42");
+    await user.click(screen.getByRole("button", { name: "完成注册" }));
+
+    expect(await screen.findByText("数据状态发生冲突，请刷新后重试。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "完成注册" })).toBeInTheDocument();
   });
 });

@@ -32,10 +32,10 @@ describe("API 错误中文提示", () => {
     expect(getUserErrorMessage(error)).not.toContain("Unknown backend failure");
   });
 
-  it("使用中文标签附加请求编号", () => {
+  it("面向用户的错误提示不展示请求编号", () => {
     const error = new ApiError({ code: "VERSION_CONFLICT", message: "Conflict", requestId: "req_123", status: 409 });
 
-    expect(formatRequestError(error)).toBe("数据已被其他操作更新，请刷新后重试。（请求编号：req_123）");
-    expect(formatRequestError(error, { includeRequestId: false })).toBe("数据已被其他操作更新，请刷新后重试。");
+    expect(formatRequestError(error)).toBe("数据已被其他操作更新，请刷新后重试。");
+    expect(formatRequestError(error)).not.toContain("req_123");
   });
 });

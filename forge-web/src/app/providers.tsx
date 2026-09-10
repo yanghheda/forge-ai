@@ -1,5 +1,6 @@
 "use client";
 
+import "@arco-design/web-react/es/_util/react-19-adapter";
 import { ConfigProvider } from "@arco-design/web-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";

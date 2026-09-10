@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down apps-up apps-ready apps-down demo-seed demo-e2e golden-regression hardening-test hardening-performance hardening-faults smoke ci
+.PHONY: help format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down test-apps-up test-apps-ready test-apps-down apps-up apps-ready apps-down demo-seed demo-e2e golden-regression hardening-test hardening-performance hardening-faults smoke ci
 
 help: ## 显示公开开发命令
 	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-16s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -50,13 +50,22 @@ host-infra-ready: ## 查看宿主机开发基础设施健康状态与端口
 host-infra-down: ## 停止宿主机开发基础设施并保留数据卷
 	@docker compose --env-file deploy/.env -f deploy/compose.yml -f deploy/compose.host-dev.yml down
 
-apps-up: ## 构建并启动三应用与基础设施
+test-apps-up: ## 构建并启动独立测试环境，向本机映射三项数据服务
+	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml -f deploy/compose-test.yml up -d --build --wait
+
+test-apps-ready: ## 查看测试环境应用、基础设施与端口
+	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml -f deploy/compose-test.yml ps
+
+test-apps-down: ## 停止测试环境并保留测试数据卷
+	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml -f deploy/compose-test.yml down
+
+apps-up: ## 使用正式配置构建并启动三应用与基础设施
 	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml up -d --build --wait
 
-apps-ready: ## 查看三应用与基础设施健康状态
+apps-ready: ## 查看正式环境三应用与基础设施健康状态
 	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml ps
 
-apps-down: ## 停止三应用与基础设施并保留数据卷
+apps-down: ## 停止正式环境三应用与基础设施并保留数据卷
 	@docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml down
 
 demo-seed: ## 可重复装载黄金 Demo 业务事实

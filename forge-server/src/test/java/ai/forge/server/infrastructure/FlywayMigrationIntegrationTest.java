@@ -36,7 +36,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("27");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("28");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -62,6 +62,19 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForList(
                         "SELECT code FROM permissions WHERE code LIKE 'release.%' ORDER BY code", String.class))
                 .containsExactly("release.deploy", "release.manage", "release.precheck", "release.read");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT p.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.code = 'RELEASE_APPROVER' AND p.code IN ('approval.decide','release.read') "
+                                + "ORDER BY p.code",
+                        String.class))
+                .containsExactly("approval.decide", "release.read");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE p.code = 'approval.decide' ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "OWNER", "RELEASE_APPROVER");
     }
 
     @Test

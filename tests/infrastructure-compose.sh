@@ -2,10 +2,12 @@
 set -eu
 
 compose_file='deploy/compose.yml'
+test_compose_file='deploy/compose-test.yml'
 host_dev_compose_file='deploy/compose.host-dev.yml.example'
 environment_file='deploy/.env.example'
 
 docker compose --profile applications --env-file "$environment_file" -f "$compose_file" config --quiet
+docker compose --profile applications --env-file "$environment_file" -f "$compose_file" -f "$test_compose_file" config --quiet
 docker compose --env-file "$environment_file" -f "$compose_file" -f "$host_dev_compose_file" config --quiet
 
 for variable in FORGE_MYSQL_URL FORGE_MYSQL_USERNAME \
@@ -43,11 +45,11 @@ services = config["services"]
 for name in ("forge-web", "forge-server", "forge-agent", "mysql", "redis", "qdrant"):
     service = services[name]
     assert service.get("healthcheck"), f"{name} 必须声明 healthcheck"
-assert services["forge-server"].get("environment", {}).get("SPRING_PROFILES_ACTIVE") == "test", (
-    "Compose Smoke 中 forge-server 必须显式使用 test profile"
+assert services["forge-server"].get("environment", {}).get("SPRING_PROFILES_ACTIVE") == "prod", (
+    "正式 Compose 中 forge-server 必须默认使用 prod profile"
 )
-assert services["forge-server"].get("environment", {}).get("FORGE_GITLAB_PROVIDER") == "demo", (
-    "Compose Smoke 中 forge-server 必须使用确定性 GitLab provider"
+assert services["forge-server"].get("environment", {}).get("FORGE_GITLAB_PROVIDER") == "real", (
+    "正式 Compose 中 forge-server 必须默认使用真实 GitLab provider"
 )
 server_build = services["forge-server"].get("build", {})
 assert server_build.get("context", "").endswith("/forge-ai"), (
@@ -77,6 +79,30 @@ for forbidden in ("FORGE_MYSQL_URL", "FORGE_MYSQL_PASSWORD", "GITLAB_TOKEN", "DE
 '
 
 echo '基础设施 Compose 契约检查通过'
+
+test_configuration=$(docker compose --profile applications --env-file "$environment_file" -f "$compose_file" -f "$test_compose_file" config --format json)
+TEST_CONFIGURATION="$test_configuration" python3 -c '
+import json
+import os
+
+config = json.loads(os.environ["TEST_CONFIGURATION"])
+services = config["services"]
+assert config.get("name") == "forge-ai-test", "测试环境必须使用独立 Compose project"
+assert services["forge-server"]["environment"]["SPRING_PROFILES_ACTIVE"] == "test"
+assert services["forge-server"]["environment"]["FORGE_GITLAB_PROVIDER"] == "demo"
+assert config["networks"]["forge-internal"].get("internal") is not True
+web_ports = services["forge-web"].get("ports", [])
+assert len(web_ports) == 1 and web_ports[0].get("published") == "13000", (
+    "测试 Web 必须默认使用独立的 13000 端口"
+)
+expected_ports = {"mysql": {3306}, "redis": {6379}, "qdrant": {6333, 6334}}
+for name, targets in expected_ports.items():
+    ports = services[name].get("ports", [])
+    assert {port.get("target") for port in ports} == targets, f"{name} 测试端口映射不完整"
+    assert all(port.get("host_ip") == "127.0.0.1" for port in ports), f"{name} 只能绑定回环地址"
+'
+
+echo '测试环境 Compose 契约检查通过'
 
 host_dev_configuration=$(docker compose --env-file "$environment_file" -f "$compose_file" -f "$host_dev_compose_file" config --format json)
 HOST_DEV_CONFIGURATION="$host_dev_configuration" python3 -c '

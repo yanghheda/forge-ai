@@ -1,12 +1,13 @@
 "use client";
 
-import { Alert, Button, Spin, Typography } from "@arco-design/web-react";
+import { Alert, Button, Message, Spin, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getCurrentUser } from "@/features/auth";
 import { PipelinePanel } from "@/features/gitlab";
 import { ReleasePanel } from "@/features/release";
 import { ProductSlice } from "@/features/work-item";
+import { formatRequestError } from "@/lib/api";
 
 import { archiveProject, getProject, listProjects } from "../api/project-api";
 import { ProjectMembers } from "./project-members";
@@ -50,10 +51,13 @@ export function ProjectDetail({
         projectId: project.data!.id,
         expectedVersion: project.data!.version,
       }),
-    onSuccess: () =>
+    onSuccess: () => {
+      Message.success("项目已归档。");
       void queryClient.invalidateQueries({
         queryKey: ["projects", workspace?.id],
-      }),
+      });
+    },
+    onError: (error) => Message.error(formatRequestError(error)),
   });
 
   if (currentUser.isPending || projects.isPending || project.isPending)
@@ -76,7 +80,6 @@ export function ProjectDetail({
           <Button status="warning" loading={archive.isPending} onClick={() => archive.mutate()}>归档项目</Button>
         )}
       </div></div>
-      {archive.isError && <RequestError error={archive.error} />}
       <div className={styles.metrics}><article><small>当前版本</small><strong>v{project.data.version}</strong><span>业务数据版本</span></article><article><small>交付阶段</small><strong>产品</strong><span>等待需求进入流程</span></article><article><small>更新时间</small><strong>{new Date(project.data.updatedAt).toLocaleDateString("zh-CN")}</strong><span>最近项目变更</span></article></div>
       <div className={styles.sectionHeading} id="requirements"><div><span>交付流水线</span><h2>交付工作台</h2></div><p>按阶段查看进度、风险与下一步操作</p></div>
       <div className={styles.panels}><ProductSlice

@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Card, Input, Select, Spin, Tag } from "@arco-design/web-react";
+import { Alert, Button, Card, Input, Message, Select, Spin, Tag } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -26,9 +26,9 @@ export function WorkspaceMembers({ workspaceSlug }: { workspaceSlug: string }) {
   const workspace = currentUser.data?.workspaces.find((item) => item.slug === workspaceSlug);
   const members = useQuery({ queryKey: ["workspace-members", workspace?.id], queryFn: () => listWorkspaceMembers(workspace!.id), enabled: workspace !== undefined });
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["workspace-members", workspace?.id] });
-  const add = useMutation({ mutationFn: () => addWorkspaceMember(workspace!.id, email, role), onSuccess: () => { setEmail(""); invalidate(); } });
-  const createMutation = useMutation({ mutationFn: () => createWorkspaceMember(workspace!.id, create), onSuccess: () => { setCreate({ email: "", displayName: "", password: "", role: "DEVELOPER" }); invalidate(); } });
-  const remove = useMutation({ mutationFn: (userId: number) => removeWorkspaceMember(workspace!.id, userId), onSuccess: invalidate });
+  const add = useMutation({ mutationFn: () => addWorkspaceMember(workspace!.id, email, role), onSuccess: () => { Message.success("成员已添加到工作空间。"); setEmail(""); invalidate(); }, onError: (error) => Message.error(formatRequestError(error)) });
+  const createMutation = useMutation({ mutationFn: () => createWorkspaceMember(workspace!.id, create), onSuccess: () => { Message.success("成员账号已创建。"); setCreate({ email: "", displayName: "", password: "", role: "DEVELOPER" }); invalidate(); }, onError: (error) => Message.error(formatRequestError(error)) });
+  const remove = useMutation({ mutationFn: (userId: number) => removeWorkspaceMember(workspace!.id, userId), onSuccess: () => { Message.success("成员已移除。"); invalidate(); }, onError: (error) => Message.error(formatRequestError(error)) });
 
   if (currentUser.isPending || members.isPending) return <Spin tip="正在加载工作空间成员…" />;
   if (!workspace) return <Alert type="error" content="当前账户无权访问此工作空间。" />;
@@ -44,7 +44,6 @@ export function WorkspaceMembers({ workspaceSlug }: { workspaceSlug: string }) {
             <Input.Password aria-label="新成员初始密码" value={create.password} placeholder="初始密码" onChange={(value) => setCreate((current) => ({ ...current, password: value }))} />
             <Button type="primary" disabled={!create.email.trim() || !create.displayName.trim() || !create.password} loading={createMutation.isPending} onClick={() => createMutation.mutate()}>创建账号</Button>
           </div>
-          {createMutation.isError && <ErrorAlert error={createMutation.error} />}
         </Card>
         <Card size="small" title="添加已有账号">
           <div className={ui.stack}>
@@ -52,7 +51,6 @@ export function WorkspaceMembers({ workspaceSlug }: { workspaceSlug: string }) {
             <Select aria-label="成员角色" value={role} onChange={setRole} options={ROLE_OPTIONS} />
             <Button type="primary" disabled={!email.trim()} loading={add.isPending} onClick={() => add.mutate()}>添加成员</Button>
           </div>
-          {add.isError && <ErrorAlert error={add.error} />}
         </Card>
     </div>
     <Card title={`工作空间成员 · ${members.data.length}`}>
