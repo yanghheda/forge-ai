@@ -1,1 +1,170 @@
-:root{--forge-background:#f7f8fa;--forge-foreground:#1d2129;--forge-card:#fff;--forge-card-foreground:#1d2129;--forge-primary:#165dff;--forge-primary-foreground:#fff;--forge-muted:#f7f8fa;--forge-muted-foreground:#86909c;--forge-destructive:#f53f3f;--forge-border:#e5e6eb;--forge-input:#e5e6eb;--forge-ring:#165dff;--forge-sidebar:#1d2129;--forge-sidebar-text:rgba(255,255,255,.72);--forge-sidebar-text-dim:rgba(255,255,255,.42);--forge-sidebar-text-faint:rgba(255,255,255,.35);--forge-sidebar-border:rgba(255,255,255,.06);--forge-sidebar-hover:rgba(255,255,255,.08);--forge-sidebar-active-bg:rgba(22,93,255,.22);--forge-sidebar-active-bar:#4080ff;--forge-text-1:#1d2129;--forge-text-2:#4e5969;--forge-text-3:#86909c;--forge-text-4:#c9cdd4;--forge-fill-1:#f7f8fa;--forge-fill-2:#f2f3f5;--forge-fill-3:#e5e6eb;--forge-border-1:#f2f3f5;--forge-border-2:#e5e6eb;--forge-border-3:#c9cdd4;--forge-primary-1:#e8f3ff;--forge-primary-2:#bedaff;--forge-primary-4:#6aa1ff;--forge-primary-5:#4080ff;--forge-primary-6:#165dff;--forge-primary-7:#0e42d2;--forge-success:#00b42a;--forge-success-bg:#e8ffea;--forge-warning:#ff7d00;--forge-warning-bg:#fff7e8;--forge-error:#f53f3f;--forge-error-bg:#ffece8;--forge-purple:#722ed1;--forge-purple-bg:#f5e8ff;--forge-cyan:#0fc6c2;--forge-cyan-bg:#e8fffb;--forge-gold:#f7ba1e;--forge-shadow-1:0 1px 3px rgba(29,33,41,.04);--forge-popover-shadow:0 4px 10px rgba(29,33,41,.1);--forge-modal-shadow:0 10px 30px rgba(29,33,41,.15);--forge-focus-ring:0 0 0 2px rgba(22,93,255,.12);--forge-auth-hero-from:#0e42d2;--forge-auth-hero-to:#4080ff;--forge-font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;--forge-font-mono:"SF Mono","JetBrains Mono",Menlo,monospace}*{box-sizing:border-box}html,body{min-height:100%;margin:0}body{color:var(--forge-text-1);background:var(--forge-background);font:14px/1.5715 var(--forge-font-sans);-webkit-font-smoothing:antialiased}a{color:inherit}button,input,textarea{font:inherit}button{cursor:pointer}code,pre,.mono{font-family:var(--forge-font-mono)}::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{border-radius:8px;background:rgba(201,205,212,.35)}::selection{color:#fff;background:var(--forge-primary-6)}.arco-card{border-color:var(--forge-border-2);border-radius:4px;box-shadow:var(--forge-shadow-1)}.arco-card-header{min-height:48px;padding:0 16px;border-bottom-color:var(--forge-border-1)}.arco-card-header-title{color:var(--forge-text-1);font-size:14px;font-weight:600}.arco-card-body{padding:16px}.arco-btn{min-height:32px;border-radius:2px;font-weight:400}.arco-btn-primary:not(.arco-btn-status-danger):not(.arco-btn-status-warning){border-color:var(--forge-primary-6);background:var(--forge-primary-6)}.arco-input-wrapper,.arco-textarea-wrapper,.arco-select-view,.arco-input-number{border-radius:2px;background:#fff}.arco-input-wrapper,.arco-select-view,.arco-input-number{min-height:32px}.arco-form-label-item>label{color:var(--forge-text-2);font-size:13px}.arco-alert{border-radius:2px}.arco-tag{border-radius:2px;font-weight:400}.arco-tabs-header-title{font-size:14px}.arco-tabs-header-title-active{color:var(--forge-primary-6);font-weight:500}.arco-drawer{border-radius:4px 0 0 4px}.arco-modal-mask,.arco-drawer-mask{background:rgba(29,33,41,.45)}@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition-duration:.01ms!important}}
+:root {
+  --forge-background: #f7f8fa;
+  --forge-foreground: #1d2129;
+  --forge-card: #fff;
+  --forge-card-foreground: #1d2129;
+  --forge-primary: #165dff;
+  --forge-primary-foreground: #fff;
+  --forge-muted: #f7f8fa;
+  --forge-muted-foreground: #86909c;
+  --forge-destructive: #f53f3f;
+  --forge-border: #e5e6eb;
+  --forge-input: #e5e6eb;
+  --forge-ring: #165dff;
+  --forge-sidebar: #1d2129;
+  --forge-sidebar-text: rgba(255, 255, 255, 0.72);
+  --forge-sidebar-text-dim: rgba(255, 255, 255, 0.42);
+  --forge-sidebar-text-faint: rgba(255, 255, 255, 0.35);
+  --forge-sidebar-border: rgba(255, 255, 255, 0.06);
+  --forge-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --forge-sidebar-active-bg: rgba(22, 93, 255, 0.22);
+  --forge-sidebar-active-bar: #4080ff;
+  --forge-text-1: #1d2129;
+  --forge-text-2: #4e5969;
+  --forge-text-3: #86909c;
+  --forge-text-4: #c9cdd4;
+  --forge-fill-1: #f7f8fa;
+  --forge-fill-2: #f2f3f5;
+  --forge-fill-3: #e5e6eb;
+  --forge-border-1: #f2f3f5;
+  --forge-border-2: #e5e6eb;
+  --forge-border-3: #c9cdd4;
+  --forge-primary-1: #e8f3ff;
+  --forge-primary-2: #bedaff;
+  --forge-primary-4: #6aa1ff;
+  --forge-primary-5: #4080ff;
+  --forge-primary-6: #165dff;
+  --forge-primary-7: #0e42d2;
+  --forge-success: #00b42a;
+  --forge-success-bg: #e8ffea;
+  --forge-warning: #ff7d00;
+  --forge-warning-bg: #fff7e8;
+  --forge-error: #f53f3f;
+  --forge-error-bg: #ffece8;
+  --forge-purple: #722ed1;
+  --forge-purple-bg: #f5e8ff;
+  --forge-cyan: #0fc6c2;
+  --forge-cyan-bg: #e8fffb;
+  --forge-gold: #f7ba1e;
+  --forge-shadow-1: 0 1px 3px rgba(29, 33, 41, 0.04);
+  --forge-popover-shadow: 0 4px 10px rgba(29, 33, 41, 0.1);
+  --forge-modal-shadow: 0 10px 30px rgba(29, 33, 41, 0.15);
+  --forge-focus-ring: 0 0 0 2px rgba(22, 93, 255, 0.12);
+  --forge-auth-hero-from: #0e42d2;
+  --forge-auth-hero-to: #4080ff;
+  --forge-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --forge-font-mono: "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+body {
+  color: var(--forge-text-1);
+  background: var(--forge-background);
+  font: 14px/1.5715 var(--forge-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+a {
+  color: inherit;
+}
+button,
+input,
+textarea {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+code,
+pre,
+.mono {
+  font-family: var(--forge-font-mono);
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  background: rgba(201, 205, 212, 0.35);
+}
+::selection {
+  color: #fff;
+  background: var(--forge-primary-6);
+}
+.arco-card {
+  border-color: var(--forge-border-2);
+  border-radius: 4px;
+  box-shadow: var(--forge-shadow-1);
+}
+.arco-card-header {
+  min-height: 48px;
+  padding: 0 16px;
+  border-bottom-color: var(--forge-border-1);
+}
+.arco-card-header-title {
+  color: var(--forge-text-1);
+  font-size: 14px;
+  font-weight: 600;
+}
+.arco-card-body {
+  padding: 16px;
+}
+.arco-btn {
+  min-height: 32px;
+  border-radius: 2px;
+  font-weight: 400;
+}
+.arco-btn-primary:not(.arco-btn-status-danger):not(.arco-btn-status-warning) {
+  border-color: var(--forge-primary-6);
+  background: var(--forge-primary-6);
+}
+.arco-input-wrapper,
+.arco-textarea-wrapper,
+.arco-select-view,
+.arco-input-number {
+  border-radius: 2px;
+  background: #fff;
+}
+.arco-input-wrapper,
+.arco-select-view,
+.arco-input-number {
+  min-height: 32px;
+}
+.arco-form-label-item > label {
+  color: var(--forge-text-2);
+  font-size: 13px;
+}
+.arco-alert {
+  border-radius: 2px;
+}
+.arco-tag {
+  border-radius: 2px;
+  font-weight: 400;
+}
+.arco-tabs-header-title {
+  font-size: 14px;
+}
+.arco-tabs-header-title-active {
+  color: var(--forge-primary-6);
+  font-weight: 500;
+}
+.arco-drawer {
+  border-radius: 4px 0 0 4px;
+}
+.arco-modal-mask,
+.arco-drawer-mask {
+  background: rgba(29, 33, 41, 0.45);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *:before,
+  *:after {
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -36,49 +36,8 @@ export const createDocument = (
   },
   client: RequestClient = apiClient,
 ) => client.request<Document>("/v1/documents", json("POST", input));
-export const listWorkItemDocuments = (
-  organizationId: number,
-  workItemId: number,
-  client: RequestClient = apiClient,
-) =>
-  client.request<Document[]>(
-    `/v1/documents?organizationId=${organizationId}&workItemId=${workItemId}`,
-  );
-export const getDocument = (
-  organizationId: number,
-  id: number,
-  client: RequestClient = apiClient,
-) =>
-  client.request<Document>(
-    `/v1/documents/${id}?organizationId=${organizationId}`,
-  );
-export const saveDocumentVersion = (
-  organizationId: number,
-  id: number,
-  expectedVersion: number,
-  content: ProseMirrorDocument,
-  client: RequestClient = apiClient,
-) =>
-  client.request<Document>(
-    `/v1/documents/${id}/versions?organizationId=${organizationId}`,
-    json("POST", { expectedVersion, content }),
-  );
-export const publishDocumentVersion = (
-  organizationId: number,
-  id: number,
-  versionId: number,
-  expectedVersion: number,
-  client: RequestClient = apiClient,
-) =>
-  client.request<Document>(
-    `/v1/documents/${id}/publish?organizationId=${organizationId}`,
-    json("POST", { versionId, expectedVersion }),
-  );
-export const listDocumentVersions = (
-  organizationId: number,
-  id: number,
-  client: RequestClient = apiClient,
-) =>
-  client.request<DocumentVersion[]>(
-    `/v1/documents/${id}/versions?organizationId=${organizationId}`,
-  );
+export const listWorkItemDocuments = (organizationId: number, workItemId: number, client: RequestClient = apiClient) => client.request<Document[]>(`/v1/documents?organizationId=${organizationId}&workItemId=${workItemId}`);
+export const getDocument = (organizationId: number, id: number, client: RequestClient = apiClient) => client.request<Document>(`/v1/documents/${id}?organizationId=${organizationId}`);
+export const saveDocumentVersion = (organizationId: number, id: number, expectedVersion: number, content: ProseMirrorDocument, client: RequestClient = apiClient) => client.request<Document>(`/v1/documents/${id}/versions?organizationId=${organizationId}`, json("POST", { expectedVersion, content }));
+export const publishDocumentVersion = (organizationId: number, id: number, versionId: number, expectedVersion: number, client: RequestClient = apiClient) => client.request<Document>(`/v1/documents/${id}/publish?organizationId=${organizationId}`, json("POST", { versionId, expectedVersion }));
+export const listDocumentVersions = (organizationId: number, id: number, client: RequestClient = apiClient) => client.request<DocumentVersion[]>(`/v1/documents/${id}/versions?organizationId=${organizationId}`);

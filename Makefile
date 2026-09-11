@@ -1,12 +1,16 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down test-apps-up test-apps-ready test-apps-down apps-up apps-ready apps-down hardening-test hardening-performance hardening-faults smoke ci
+.PHONY: help format format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down test-apps-up test-apps-ready test-apps-down apps-up apps-ready apps-down hardening-test hardening-performance hardening-faults smoke ci
 
 help: ## 显示公开开发命令
 	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-16s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
+format: ## 使用 Prettier 格式化 forge-web 源码与配置
+	@cd forge-web && npm run format
+
 format-check: ## 检查通用文本格式
 	@./scripts/check-format.sh
+	@cd forge-web && npm run format:check
 
 lint: ## 检查仓库结构与治理规则
 	@./scripts/check-repository.sh

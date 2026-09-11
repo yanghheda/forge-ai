@@ -34,15 +34,7 @@ describe("DocumentEditor", () => {
 
   it("默认以只读方式展示内容，点击编辑后才显示格式工具栏和保存入口", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    render(
-      <DocumentEditor
-        userId={1}
-        documentId={2}
-        baseVersion={3}
-        serverContent={{ type: "doc" }}
-        onSave={onSave}
-      />,
-    );
+    render(<DocumentEditor userId={1} documentId={2} baseVersion={3} serverContent={{ type: "doc" }} onSave={onSave} />);
 
     expect(screen.getByTestId("editor-content")).toBeInTheDocument();
     expect(screen.queryByLabelText("文档格式工具栏")).not.toBeInTheDocument();

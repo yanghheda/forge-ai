@@ -10,35 +10,28 @@ describe("ReleaseCard", () => {
     render(
       <QueryClientProvider client={client}>
         <ReleaseCard
-        release={{
-          id: 1,
-          organizationId: 2,
-          versionName: "v1.0.0",
-          environment: "production",
-          status: "PRECHECKED",
-          releaseNote: "notes",
-          itemIds: [4],
-          version: 1,
-          latestPrecheck: {
-            id: 5,
-            status: "FAIL",
-            current: false,
-            checkedAt: "2026-09-06T00:00:00Z",
-            checkedByType: "USER",
-            checkedById: 6,
-            resourceVersions: { release: 1 },
-            checks: [
-              "WORK_ITEMS_READY",
-              "PIPELINE_GREEN",
-              "QA_PASSED",
-              "NO_BLOCKING_BUGS",
-              "ARTIFACTS_PRESENT",
-              "APPROVAL_POLICY",
-            ].map((rule) => ({ rule: rule as never, passed: false, details: ["missing"] })),
-          },
-        }}
-        onSaveNote={vi.fn()}
-        onPrecheck={vi.fn()}
+          release={{
+            id: 1,
+            organizationId: 2,
+            versionName: "v1.0.0",
+            environment: "production",
+            status: "PRECHECKED",
+            releaseNote: "notes",
+            itemIds: [4],
+            version: 1,
+            latestPrecheck: {
+              id: 5,
+              status: "FAIL",
+              current: false,
+              checkedAt: "2026-09-06T00:00:00Z",
+              checkedByType: "USER",
+              checkedById: 6,
+              resourceVersions: { release: 1 },
+              checks: ["WORK_ITEMS_READY", "PIPELINE_GREEN", "QA_PASSED", "NO_BLOCKING_BUGS", "ARTIFACTS_PRESENT", "APPROVAL_POLICY"].map((rule) => ({ rule: rule as never, passed: false, details: ["missing"] })),
+            },
+          }}
+          onSaveNote={vi.fn()}
+          onPrecheck={vi.fn()}
         />
       </QueryClientProvider>,
     );

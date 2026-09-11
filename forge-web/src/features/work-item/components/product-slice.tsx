@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Alert,
-  Button,
-  Card,
-  Input,
-  Message,
-  Select,
-  Tag,
-  Typography,
-} from "@arco-design/web-react";
+import { Alert, Button, Card, Input, Message, Select, Tag, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
@@ -20,15 +11,7 @@ import { priorityLabel } from "@/lib/labels";
 
 import { createRequirement, listRequirements } from "../api/work-item-api";
 
-export function ProductSlice({
-  organizationId,
-  organizationSlug,
-  organizationKey,
-}: {
-  organizationId: number;
-  organizationSlug: string;
-  organizationKey: string;
-}) {
+export function ProductSlice({ organizationId, organizationSlug, organizationKey }: { organizationId: number; organizationSlug: string; organizationKey: string }) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
@@ -61,12 +44,7 @@ export function ProductSlice({
           <p>创建需求并推进 Product、UX、研发与 QA 交付流程。</p>
         </div>
         <div className={ui.inlineForm}>
-          <Input
-            aria-label="需求标题"
-            value={title}
-            onChange={setTitle}
-            placeholder="新建需求"
-          />
+          <Input aria-label="需求标题" value={title} onChange={setTitle} placeholder="新建需求" />
           <Select
             aria-label="优先级"
             value={priority}
@@ -76,39 +54,30 @@ export function ProductSlice({
               value,
             }))}
           />
-          <Button
-            type="primary"
-            disabled={!title.trim()}
-            loading={create.isPending}
-            onClick={() => create.mutate()}
-          >
+          <Button type="primary" disabled={!title.trim()} loading={create.isPending} onClick={() => create.mutate()}>
             创建
           </Button>
         </div>
       </div>
       <div className={ui.content}>
-        {requirements.isError && (
-          <Alert type="error" content={formatRequestError(requirements.error)} />
-        )}
+        {requirements.isError && <Alert type="error" content={formatRequestError(requirements.error)} />}
         {requirements.data?.items.length === 0 && (
-          <div className={ui.empty}><Typography.Text type="secondary">
-            暂无需求，可从上方开始人工交付闭环。
-          </Typography.Text></div>
+          <div className={ui.empty}>
+            <Typography.Text type="secondary">暂无需求，可从上方开始人工交付闭环。</Typography.Text>
+          </div>
         )}
         <div className={ui.list}>
-        {requirements.data?.items.map((item) => (
-          <Link
-            className={ui.listItem}
-            key={item.id}
-            href={`/w/${organizationSlug}/p/${organizationKey}/requirements/${item.id}`}
-          >
-            <span className={ui.itemMain}>
-              <span className={ui.itemTitle}>{item.title}</span>
-              <span className={ui.itemMeta}>{item.itemKey} · 优先级 {priorityLabel(item.priority)}</span>
-            </span>
-            <Tag color={item.status === "READY_FOR_DEV" ? "green" : "arcoblue"}>{item.status}</Tag>
-          </Link>
-        ))}
+          {requirements.data?.items.map((item) => (
+            <Link className={ui.listItem} key={item.id} href={`/w/${organizationSlug}/p/${organizationKey}/requirements/${item.id}`}>
+              <span className={ui.itemMain}>
+                <span className={ui.itemTitle}>{item.title}</span>
+                <span className={ui.itemMeta}>
+                  {item.itemKey} · 优先级 {priorityLabel(item.priority)}
+                </span>
+              </span>
+              <Tag color={item.status === "READY_FOR_DEV" ? "green" : "arcoblue"}>{item.status}</Tag>
+            </Link>
+          ))}
         </div>
       </div>
     </Card>

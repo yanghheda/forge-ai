@@ -7,6 +7,5 @@ interface ShellState {
 
 export const useShellStore = create<ShellState>((set) => ({
   navigationCollapsed: false,
-  toggleNavigation: () =>
-    set((state) => ({ navigationCollapsed: !state.navigationCollapsed })),
+  toggleNavigation: () => set((state) => ({ navigationCollapsed: !state.navigationCollapsed })),
 }));

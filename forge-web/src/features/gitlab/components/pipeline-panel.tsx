@@ -9,11 +9,7 @@ import { formatRequestError } from "@/lib/api";
 
 import { listPipelines, triggerPipeline } from "../api/gitlab-api";
 
-export function PipelinePanel({
-  organizationId,
-}: {
-  organizationId: number;
-}) {
+export function PipelinePanel({ organizationId }: { organizationId: number }) {
   const queryClient = useQueryClient();
   const [ref, setRef] = useState("main");
   const pipelines = useQuery({
@@ -37,12 +33,7 @@ export function PipelinePanel({
       <Space direction="vertical" style={{ width: "100%" }}>
         <div className={ui.inlineForm}>
           <Input aria-label="Pipeline 分支或引用" value={ref} onChange={setRef} />
-          <Button
-            type="primary"
-            disabled={!ref.trim()}
-            loading={trigger.isPending}
-            onClick={() => trigger.mutate()}
-          >
+          <Button type="primary" disabled={!ref.trim()} loading={trigger.isPending} onClick={() => trigger.mutate()}>
             触发 Pipeline
           </Button>
         </div>
@@ -60,9 +51,7 @@ export function PipelinePanel({
             </div>
           </div>
         ))}
-        {pipelines.data?.length === 0 && (
-          <Typography.Text type="secondary">尚无 Pipeline 快照。</Typography.Text>
-        )}
+        {pipelines.data?.length === 0 && <Typography.Text type="secondary">尚无 Pipeline 快照。</Typography.Text>}
       </Space>
     </Card>
   );

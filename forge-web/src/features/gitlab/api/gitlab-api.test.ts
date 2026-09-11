@@ -13,13 +13,7 @@ describe("gitlab api", () => {
     await testConnection(3, client);
     await bindRepository({ connectionId: 3, remoteProjectId: "42" }, client);
 
-    expect(request.mock.calls.map(([path]) => path)).toEqual([
-      "/v1/gitlab/connections",
-      "/v1/gitlab/connections",
-      "/v1/gitlab/connections/3/token",
-      "/v1/gitlab/connections/3/test",
-      "/v1/gitlab/repositories/bind",
-    ]);
+    expect(request.mock.calls.map(([path]) => path)).toEqual(["/v1/gitlab/connections", "/v1/gitlab/connections", "/v1/gitlab/connections/3/token", "/v1/gitlab/connections/3/test", "/v1/gitlab/repositories/bind"]);
     expect(JSON.stringify(await request.mock.results[0].value)).not.toContain("secret");
   });
 });

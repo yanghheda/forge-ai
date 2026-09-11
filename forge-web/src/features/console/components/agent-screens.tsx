@@ -14,18 +14,226 @@ export function AgentCommandScreen() {
   const [selectedId, setSelectedId] = useState<number>();
   const [draft, setDraft] = useState("");
   const [latestRunId, setLatestRunId] = useState<string>();
-  const conversations = useQuery({ queryKey: ["agent-conversations"], queryFn: () => listAgentConversations() });
+  const conversations = useQuery({
+    queryKey: ["agent-conversations"],
+    queryFn: () => listAgentConversations(),
+  });
   const activeId = selectedId ?? conversations.data?.[0]?.id;
-  const messages = useQuery({ queryKey: ["agent-conversations", activeId, "messages"], queryFn: () => listAgentMessages(activeId!), enabled: Boolean(activeId), refetchInterval: latestRunId ? 2500 : false });
-  const create = useMutation({ mutationFn: () => createAgentConversation("新会话"), onSuccess: (value) => { setSelectedId(value.id); void queryClient.invalidateQueries({ queryKey: ["agent-conversations"] }); }, onError: (error) => Message.error(formatRequestError(error)) });
-  const send = useMutation({ mutationFn: () => sendAgentMessage(activeId!, draft), onSuccess: (run) => { setLatestRunId(run.id); setDraft(""); void queryClient.invalidateQueries({ queryKey: ["agent-conversations", activeId, "messages"] }); }, onError: (error) => Message.error(formatRequestError(error)) });
+  const messages = useQuery({
+    queryKey: ["agent-conversations", activeId, "messages"],
+    queryFn: () => listAgentMessages(activeId!),
+    enabled: Boolean(activeId),
+    refetchInterval: latestRunId ? 2500 : false,
+  });
+  const create = useMutation({
+    mutationFn: () => createAgentConversation("新会话"),
+    onSuccess: (value) => {
+      setSelectedId(value.id);
+      void queryClient.invalidateQueries({ queryKey: ["agent-conversations"] });
+    },
+    onError: (error) => Message.error(formatRequestError(error)),
+  });
+  const send = useMutation({
+    mutationFn: () => sendAgentMessage(activeId!, draft),
+    onSuccess: (run) => {
+      setLatestRunId(run.id);
+      setDraft("");
+      void queryClient.invalidateQueries({
+        queryKey: ["agent-conversations", activeId, "messages"],
+      });
+    },
+    onError: (error) => Message.error(formatRequestError(error)),
+  });
   const active = conversations.data?.find((item) => item.id === activeId);
-  return <section className={styles.agentPage}><header className={styles.pageHead}><div><h1>Agent 指令中心</h1><p>向智能体下达指令，跟踪 Run 与工具调用</p></div><Button type="primary" loading={create.isPending} onClick={() => create.mutate()}>新建会话</Button></header>{conversations.isError && <Alert type="error" content={formatRequestError(conversations.error)} />}<div className={styles.commandGrid}><aside className={styles.sessionList}><header>会话 <span>{conversations.data?.length ?? 0}</span></header>{conversations.isPending && <Spin />}{conversations.data?.map((item)=><button className={item.id===activeId?styles.selected:""} key={item.id} onClick={() => setSelectedId(item.id)}><IconRobot/><span><b>{item.title}</b><small>{new Date(item.updatedAt).toLocaleString("zh-CN")}</small></span></button>)}</aside><main className={styles.chatMain}><header><span className={styles.avatar}>AI</span><div><b>{active?.title ?? "请选择或新建会话"}</b><small>ForgeAI Agent · 连续对话</small></div></header><div className={styles.messages}>{messages.isPending && activeId && <Spin />}{!activeId && <Empty description="新建会话后即可开始对话" />}{messages.data?.map((item, index) => item.sender === "USER" ? <div className={styles.userMsg} key={`${item.createdAt}-${index}`}>{item.body}</div> : <AgentMessage title="Agent 回复" key={`${item.createdAt}-${index}`}><p>{item.body}</p></AgentMessage>)}</div><footer><Input.TextArea value={draft} onChange={setDraft} autoSize={{minRows:2,maxRows:4}} placeholder="输入指令，使用 @ 引用需求或文档…"/><Button type="primary" icon={<IconSend/>} loading={send.isPending} disabled={!activeId || !draft.trim()} onClick={() => send.mutate()}>发送</Button></footer></main><aside className={styles.runPanel}><header>Run 详情</header><dl><dt>状态</dt><dd><span className={styles.blueTag}>● {latestRunId ? "已提交" : "等待指令"}</span></dd><dt>Run ID</dt><dd><code>{latestRunId ?? "—"}</code></dd><dt>智能体</dt><dd>ProductAgent</dd></dl><h3>执行计划</h3>{["读取公司交付上下文","分析用户指令","执行受控工具","写入可见轨迹","等待后续指令"].map((x,i)=><p className={styles.plan} key={x}><span className={i<2?styles.doneDot:styles.waitDot}>{i<2?<IconCheck/>:i+1}</span>{x}</p>)}<Button long disabled={!latestRunId} href={latestRunId ? `/agent/trace/${latestRunId}` : undefined}><IconHistory/>查看完整轨迹</Button></aside></div></section>;
+  return (
+    <section className={styles.agentPage}>
+      <header className={styles.pageHead}>
+        <div>
+          <h1>Agent 指令中心</h1>
+          <p>向智能体下达指令，跟踪 Run 与工具调用</p>
+        </div>
+        <Button type="primary" loading={create.isPending} onClick={() => create.mutate()}>
+          新建会话
+        </Button>
+      </header>
+      {conversations.isError && <Alert type="error" content={formatRequestError(conversations.error)} />}
+      <div className={styles.commandGrid}>
+        <aside className={styles.sessionList}>
+          <header>
+            会话 <span>{conversations.data?.length ?? 0}</span>
+          </header>
+          {conversations.isPending && <Spin />}
+          {conversations.data?.map((item) => (
+            <button className={item.id === activeId ? styles.selected : ""} key={item.id} onClick={() => setSelectedId(item.id)}>
+              <IconRobot />
+              <span>
+                <b>{item.title}</b>
+                <small>{new Date(item.updatedAt).toLocaleString("zh-CN")}</small>
+              </span>
+            </button>
+          ))}
+        </aside>
+        <main className={styles.chatMain}>
+          <header>
+            <span className={styles.avatar}>AI</span>
+            <div>
+              <b>{active?.title ?? "请选择或新建会话"}</b>
+              <small>ForgeAI Agent · 连续对话</small>
+            </div>
+          </header>
+          <div className={styles.messages}>
+            {messages.isPending && activeId && <Spin />}
+            {!activeId && <Empty description="新建会话后即可开始对话" />}
+            {messages.data?.map((item, index) =>
+              item.sender === "USER" ? (
+                <div className={styles.userMsg} key={`${item.createdAt}-${index}`}>
+                  {item.body}
+                </div>
+              ) : (
+                <AgentMessage title="Agent 回复" key={`${item.createdAt}-${index}`}>
+                  <p>{item.body}</p>
+                </AgentMessage>
+              ),
+            )}
+          </div>
+          <footer>
+            <Input.TextArea value={draft} onChange={setDraft} autoSize={{ minRows: 2, maxRows: 4 }} placeholder="输入指令，使用 @ 引用需求或文档…" />
+            <Button type="primary" icon={<IconSend />} loading={send.isPending} disabled={!activeId || !draft.trim()} onClick={() => send.mutate()}>
+              发送
+            </Button>
+          </footer>
+        </main>
+        <aside className={styles.runPanel}>
+          <header>Run 详情</header>
+          <dl>
+            <dt>状态</dt>
+            <dd>
+              <span className={styles.blueTag}>● {latestRunId ? "已提交" : "等待指令"}</span>
+            </dd>
+            <dt>Run ID</dt>
+            <dd>
+              <code>{latestRunId ?? "—"}</code>
+            </dd>
+            <dt>智能体</dt>
+            <dd>ProductAgent</dd>
+          </dl>
+          <h3>执行计划</h3>
+          {["读取公司交付上下文", "分析用户指令", "执行受控工具", "写入可见轨迹", "等待后续指令"].map((x, i) => (
+            <p className={styles.plan} key={x}>
+              <span className={i < 2 ? styles.doneDot : styles.waitDot}>{i < 2 ? <IconCheck /> : i + 1}</span>
+              {x}
+            </p>
+          ))}
+          <Button long disabled={!latestRunId} href={latestRunId ? `/agent/trace/${latestRunId}` : undefined}>
+            <IconHistory />
+            查看完整轨迹
+          </Button>
+        </aside>
+      </div>
+    </section>
+  );
 }
 
-function AgentMessage({title,children}:{title:string;children:React.ReactNode}) { return <div className={styles.agentMsg}><span className={styles.avatar}><IconRobot/></span><div><b>{title}</b>{children}<small>OrchestratorAgent · 12:04</small></div></div>; }
+function AgentMessage({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className={styles.agentMsg}>
+      <span className={styles.avatar}>
+        <IconRobot />
+      </span>
+      <div>
+        <b>{title}</b>
+        {children}
+        <small>OrchestratorAgent · 12:04</small>
+      </div>
+    </div>
+  );
+}
 
 export function AgentTraceScreen({ runId }: { runId: string }) {
-  const events=[["12:01:02","Run 已创建","OrchestratorAgent 接收用户指令"],["12:01:04","读取需求上下文","requirement.get · 成功"],["12:01:06","检查阶段 Guard","workflow.available_actions · 成功"],["12:01:11","创建开发任务","dev_task.create_batch · 4 项"],["12:01:18","启动 DevAgent","agent.run.start · 成功"],["12:03:43","创建功能分支","git.branch.create · 成功"],["12:04:12","等待人工审批","git.merge_request.merge · HIGH"]];
-  return <section className={styles.page}><header className={styles.pageHead}><div><h1>执行轨迹</h1><p>Run <code>{runId}</code> · Agent 执行记录</p></div><Button href={traceExportUrl(runId)} target="_blank"><IconThunderbolt/>导出 Trace</Button></header><div className={styles.stats}><div className={styles.stat}><span>执行状态</span><strong>等待审批</strong></div><div className={styles.stat}><span>总耗时</span><strong>03:12</strong></div><div className={styles.stat}><span>Tool 调用</span><strong>18</strong></div><div className={styles.stat}><span>Token 消耗</span><strong>12.8k</strong></div></div><div className={styles.traceGrid}><article className={styles.card}><header><strong>Trace 时间线</strong><span className={styles.orangeTag}>实时</span></header><div className={styles.timeline}>{events.map(([time,title,desc],i)=><div key={time}><span className={i===events.length-1?styles.warningDot:styles.doneDot}>{i===events.length-1?<IconClockCircle/>:<IconCheck/>}</span><time>{time}</time><section><b>{title}</b><p>{desc}</p></section></div>)}</div></article><article className={styles.card}><header><strong>调用详情</strong></header><div className={styles.detail}><span className={styles.orangeTag}>HIGH 风险</span><h2>git.merge_request.merge</h2><p>合并主分支会改变共享代码状态，需要人工确认。</p><h3>输入摘要</h3><pre>{`{ "repository": "forge-ai", "mergeRequest": 128, "target": "main" }`}</pre><h3>审批状态</h3><div className={styles.approval}><IconClockCircle/><span><b>等待授权成员审批</b><small>审批倒计时以服务端事实为准</small></span></div><Button type="primary" long>批准执行</Button></div></article></div></section>;
+  const events = [
+    ["12:01:02", "Run 已创建", "OrchestratorAgent 接收用户指令"],
+    ["12:01:04", "读取需求上下文", "requirement.get · 成功"],
+    ["12:01:06", "检查阶段 Guard", "workflow.available_actions · 成功"],
+    ["12:01:11", "创建开发任务", "dev_task.create_batch · 4 项"],
+    ["12:01:18", "启动 DevAgent", "agent.run.start · 成功"],
+    ["12:03:43", "创建功能分支", "git.branch.create · 成功"],
+    ["12:04:12", "等待人工审批", "git.merge_request.merge · HIGH"],
+  ];
+  return (
+    <section className={styles.page}>
+      <header className={styles.pageHead}>
+        <div>
+          <h1>执行轨迹</h1>
+          <p>
+            Run <code>{runId}</code> · Agent 执行记录
+          </p>
+        </div>
+        <Button href={traceExportUrl(runId)} target="_blank">
+          <IconThunderbolt />
+          导出 Trace
+        </Button>
+      </header>
+      <div className={styles.stats}>
+        <div className={styles.stat}>
+          <span>执行状态</span>
+          <strong>等待审批</strong>
+        </div>
+        <div className={styles.stat}>
+          <span>总耗时</span>
+          <strong>03:12</strong>
+        </div>
+        <div className={styles.stat}>
+          <span>Tool 调用</span>
+          <strong>18</strong>
+        </div>
+        <div className={styles.stat}>
+          <span>Token 消耗</span>
+          <strong>12.8k</strong>
+        </div>
+      </div>
+      <div className={styles.traceGrid}>
+        <article className={styles.card}>
+          <header>
+            <strong>Trace 时间线</strong>
+            <span className={styles.orangeTag}>实时</span>
+          </header>
+          <div className={styles.timeline}>
+            {events.map(([time, title, desc], i) => (
+              <div key={time}>
+                <span className={i === events.length - 1 ? styles.warningDot : styles.doneDot}>{i === events.length - 1 ? <IconClockCircle /> : <IconCheck />}</span>
+                <time>{time}</time>
+                <section>
+                  <b>{title}</b>
+                  <p>{desc}</p>
+                </section>
+              </div>
+            ))}
+          </div>
+        </article>
+        <article className={styles.card}>
+          <header>
+            <strong>调用详情</strong>
+          </header>
+          <div className={styles.detail}>
+            <span className={styles.orangeTag}>HIGH 风险</span>
+            <h2>git.merge_request.merge</h2>
+            <p>合并主分支会改变共享代码状态，需要人工确认。</p>
+            <h3>输入摘要</h3>
+            <pre>{`{ "repository": "forge-ai", "mergeRequest": 128, "target": "main" }`}</pre>
+            <h3>审批状态</h3>
+            <div className={styles.approval}>
+              <IconClockCircle />
+              <span>
+                <b>等待授权成员审批</b>
+                <small>审批倒计时以服务端事实为准</small>
+              </span>
+            </div>
+            <Button type="primary" long>
+              批准执行
+            </Button>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
 }

@@ -46,10 +46,7 @@ function jsonRequest(method: string, body: unknown): RequestInit {
   };
 }
 
-export function createConnection(
-  input: CreateConnectionInput,
-  client: RequestClient = apiClient,
-): Promise<GitLabConnection> {
+export function createConnection(input: CreateConnectionInput, client: RequestClient = apiClient): Promise<GitLabConnection> {
   return client.request("/v1/gitlab/connections", jsonRequest("POST", input));
 }
 
@@ -57,46 +54,24 @@ export function listConnections(client: RequestClient = apiClient): Promise<GitL
   return client.request("/v1/gitlab/connections");
 }
 
-export function rotateToken(
-  connectionId: number,
-  expectedVersion: number,
-  token: string,
-  client: RequestClient = apiClient,
-): Promise<GitLabConnection> {
-  return client.request(
-    `/v1/gitlab/connections/${connectionId}/token`,
-    jsonRequest("PATCH", { expectedVersion, token }),
-  );
+export function rotateToken(connectionId: number, expectedVersion: number, token: string, client: RequestClient = apiClient): Promise<GitLabConnection> {
+  return client.request(`/v1/gitlab/connections/${connectionId}/token`, jsonRequest("PATCH", { expectedVersion, token }));
 }
 
-export function testConnection(
-  connectionId: number,
-  client: RequestClient = apiClient,
-): Promise<{ externalUserId: string; username: string }> {
+export function testConnection(connectionId: number, client: RequestClient = apiClient): Promise<{ externalUserId: string; username: string }> {
   return client.request(`/v1/gitlab/connections/${connectionId}/test`, {
     method: "POST",
   });
 }
 
-export function bindRepository(
-  input: BindRepositoryInput,
-  client: RequestClient = apiClient,
-): Promise<unknown> {
+export function bindRepository(input: BindRepositoryInput, client: RequestClient = apiClient): Promise<unknown> {
   return client.request("/v1/gitlab/repositories/bind", jsonRequest("POST", input));
 }
 
-export function listPipelines(
-  client: RequestClient = apiClient,
-): Promise<PipelineRun[]> {
+export function listPipelines(client: RequestClient = apiClient): Promise<PipelineRun[]> {
   return client.request("/v1/development/pipelines");
 }
 
-export function triggerPipeline(
-  input: { ref: string },
-  client: RequestClient = apiClient,
-): Promise<PipelineRun> {
-  return client.request(
-    "/v1/development/pipelines",
-    jsonRequest("POST", input),
-  );
+export function triggerPipeline(input: { ref: string }, client: RequestClient = apiClient): Promise<PipelineRun> {
+  return client.request("/v1/development/pipelines", jsonRequest("POST", input));
 }

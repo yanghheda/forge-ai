@@ -52,10 +52,7 @@ const json = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export const listReleases = (
-  organizationId: number,
-  client: RequestClient = apiClient,
-) => client.request<ReleaseView[]>(`/v1/releases?organizationId=${organizationId}`);
+export const listReleases = (organizationId: number, client: RequestClient = apiClient) => client.request<ReleaseView[]>(`/v1/releases?organizationId=${organizationId}`);
 
 export const createRelease = (
   input: {
@@ -69,30 +66,30 @@ export const createRelease = (
 ) => client.request<ReleaseView>("/v1/releases", json("POST", input));
 
 export const updateReleaseNote = (
-  input: { organizationId: number; organizationId: number; releaseId: number; note: string; expectedVersion: number },
+  input: {
+    organizationId: number;
+    organizationId: number;
+    releaseId: number;
+    note: string;
+    expectedVersion: number;
+  },
   client: RequestClient = apiClient,
 ) => client.request<ReleaseView>(`/v1/releases/${input.releaseId}/note`, json("PUT", input));
 
-export const runPrecheck = (
-  input: { organizationId: number; organizationId: number; releaseId: number },
-  client: RequestClient = apiClient,
-) => client.request<PrecheckSnapshot>(`/v1/releases/${input.releaseId}/prechecks`, json("POST", input));
+export const runPrecheck = (input: { organizationId: number; organizationId: number; releaseId: number }, client: RequestClient = apiClient) => client.request<PrecheckSnapshot>(`/v1/releases/${input.releaseId}/prechecks`, json("POST", input));
 
 export const requestDeployment = (
-  input: { organizationId: number; organizationId: number; releaseId: number; simulateFailure: boolean; idempotencyKey: string },
+  input: {
+    organizationId: number;
+    organizationId: number;
+    releaseId: number;
+    simulateFailure: boolean;
+    idempotencyKey: string;
+  },
   client: RequestClient = apiClient,
-) => client.request<DeploymentView>(
-  `/v1/releases/${input.releaseId}/deployments`,
-  json("POST", input),
-);
+) => client.request<DeploymentView>(`/v1/releases/${input.releaseId}/deployments`, json("POST", input));
 
-export const listDeployments = (
-  organizationId: number,
-  releaseId: number,
-  client: RequestClient = apiClient,
-) => client.request<DeploymentView[]>(
-  `/v1/releases/${releaseId}/deployments?organizationId=${organizationId}`,
-);
+export const listDeployments = (organizationId: number, releaseId: number, client: RequestClient = apiClient) => client.request<DeploymentView[]>(`/v1/releases/${releaseId}/deployments?organizationId=${organizationId}`);
 
 export const decideDeployment = (
   input: {
@@ -102,7 +99,4 @@ export const decideDeployment = (
     expectedVersion: number;
   },
   client: RequestClient = apiClient,
-) => client.request<DeploymentView>(
-  `/v1/releases/deployments/${input.deploymentId}:decide`,
-  json("POST", input),
-);
+) => client.request<DeploymentView>(`/v1/releases/deployments/${input.deploymentId}:decide`, json("POST", input));

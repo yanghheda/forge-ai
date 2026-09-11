@@ -14,12 +14,12 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/work-item-api", async () => ({
-  ...await vi.importActual("../api/work-item-api"),
+  ...(await vi.importActual("../api/work-item-api")),
   ...api,
 }));
 
 vi.mock("@/features/console", async () => ({
-  ...await vi.importActual("@/features/console"),
+  ...(await vi.importActual("@/features/console")),
   getDashboardOverview: api.getDashboardOverview,
 }));
 
@@ -32,10 +32,30 @@ describe("RequirementDashboard", () => {
 
   beforeEach(() => {
     api.getRequirementOverview.mockResolvedValue({ total: 8, inProgress: 5, completed: 3 });
-    api.getDashboardOverview.mockResolvedValue({ weeklyDeliveries: 3, activeAgents: 4, personalTodos: 3, stageDistribution: { IN_DEVELOPMENT: 4 }, deliveryTrend: [] });
+    api.getDashboardOverview.mockResolvedValue({
+      weeklyDeliveries: 3,
+      activeAgents: 4,
+      personalTodos: 3,
+      stageDistribution: { IN_DEVELOPMENT: 4 },
+      deliveryTrend: [],
+    });
     api.listOrganizationRequirements.mockResolvedValue({
-      items: [{ id: 1, itemKey: "REQ-1", title: "公司级需求", description: "", status: "DRAFT", priority: "HIGH", version: 0, createdAt: "2026-09-09", updatedAt: "2026-09-09" }],
-      page: 1, pageSize: 20, total: 1,
+      items: [
+        {
+          id: 1,
+          itemKey: "REQ-1",
+          title: "公司级需求",
+          description: "",
+          status: "DRAFT",
+          priority: "HIGH",
+          version: 0,
+          createdAt: "2026-09-09",
+          updatedAt: "2026-09-09",
+        },
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 1,
     });
   });
 
@@ -59,10 +79,12 @@ describe("RequirementDashboard", () => {
     expect(screen.queryByLabelText("需求标题")).not.toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "新建需求" }));
 
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByLabelText("需求标题")).toBeInTheDocument();
     expect(screen.getByLabelText("需求描述")).toBeInTheDocument();
     expect(screen.getByLabelText("需求优先级")).toBeInTheDocument();
+    expect(screen.getByLabelText("新建需求表单")).toHaveClass("arco-form");
+    expect(document.querySelector(".arco-drawer-header-title")).toHaveTextContent("创建需求");
+    expect(screen.getByText("记录问题背景与优先级，创建后可继续完善协作人员和交付材料。").closest(".arco-drawer-content")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "创建需求" })).toBeDisabled();
   });
 });

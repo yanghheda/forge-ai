@@ -68,70 +68,44 @@ export function DocumentEditor({ userId, documentId, baseVersion, serverContent,
           检测到本地草稿，请确认内容后再保存为新版本。
         </p>
       )}
-      {editing && <div className={styles.toolbar} aria-label="文档格式工具栏">
-        <div className={styles.toolGroup}>
-          <button
-            type="button"
-            aria-label="正文"
-            aria-pressed={editor.isActive("paragraph")}
-            onClick={() => editor.chain().focus().setParagraph().run()}
-          >
-            正文
-          </button>
-          <button
-            type="button"
-            aria-label="二级标题"
-            aria-pressed={editor.isActive("heading", { level: 2 })}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          >
-            H2
-          </button>
+      {editing && (
+        <div className={styles.toolbar} aria-label="文档格式工具栏">
+          <div className={styles.toolGroup}>
+            <button type="button" aria-label="正文" aria-pressed={editor.isActive("paragraph")} onClick={() => editor.chain().focus().setParagraph().run()}>
+              正文
+            </button>
+            <button type="button" aria-label="二级标题" aria-pressed={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+              H2
+            </button>
+          </div>
+          <span className={styles.separator} />
+          <div className={styles.toolGroup}>
+            <button type="button" aria-label="粗体" aria-pressed={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
+              <strong>B</strong>
+            </button>
+            <button type="button" aria-label="无序列表" aria-pressed={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+              • 列表
+            </button>
+            <button type="button" aria-label="有序列表" aria-pressed={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+              1. 列表
+            </button>
+          </div>
         </div>
-        <span className={styles.separator} />
-        <div className={styles.toolGroup}>
-          <button
-            type="button"
-            aria-label="粗体"
-            aria-pressed={editor.isActive("bold")}
-            onClick={() => editor.chain().focus().toggleBold().run()}
-          >
-            <strong>B</strong>
-          </button>
-          <button
-            type="button"
-            aria-label="无序列表"
-            aria-pressed={editor.isActive("bulletList")}
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-          >
-            • 列表
-          </button>
-          <button
-            type="button"
-            aria-label="有序列表"
-            aria-pressed={editor.isActive("orderedList")}
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          >
-            1. 列表
-          </button>
-        </div>
-      </div>}
+      )}
       <div className={styles.paper}>
         <EditorContent editor={editor} />
       </div>
       <footer className={styles.footer}>
-        <span className={dirty ? styles.unsaved : styles.saved}>
-          {editing && dirty ? "有未保存的修改" : savedAt ? `已保存于 ${savedAt.toLocaleTimeString()}` : "阅读模式"}
-        </span>
-        {editing ? <button
-          className={styles.saveButton}
-          type="button"
-          disabled={saving}
-          onClick={() => void save()}
-        >
-          {saving ? "正在保存…" : "保存为新版本"}
-        </button> : <button className={styles.saveButton} type="button" onClick={beginEditing}>
-          编辑文档
-        </button>}
+        <span className={dirty ? styles.unsaved : styles.saved}>{editing && dirty ? "有未保存的修改" : savedAt ? `已保存于 ${savedAt.toLocaleTimeString()}` : "阅读模式"}</span>
+        {editing ? (
+          <button className={styles.saveButton} type="button" disabled={saving} onClick={() => void save()}>
+            {saving ? "正在保存…" : "保存为新版本"}
+          </button>
+        ) : (
+          <button className={styles.saveButton} type="button" onClick={beginEditing}>
+            编辑文档
+          </button>
+        )}
       </footer>
     </section>
   );

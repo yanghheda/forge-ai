@@ -6,16 +6,16 @@ GitLab Project ID、Docker Compose project 和 Python `pyproject.toml` 属于第
 
 ## 一、执行信息
 
-| 字段 | 填写值 |
-| --- | --- |
-| 执行人 | |
-| 开始/结束时间 | |
-| Git commit | |
-| 浏览器及版本 | |
-| Docker Desktop 版本 | |
-| 操作系统/CPU/内存 | |
-| `deploy/.env` 是否仅供本机 | 是 / 否 |
-| 最终结论 | PASS / CONDITIONAL PASS / FAIL |
+| 字段                       | 填写值                         |
+| -------------------------- | ------------------------------ |
+| 执行人                     |                                |
+| 开始/结束时间              |                                |
+| Git commit                 |                                |
+| 浏览器及版本               |                                |
+| Docker Desktop 版本        |                                |
+| 操作系统/CPU/内存          |                                |
+| `deploy/.env` 是否仅供本机 | 是 / 否                        |
+| 最终结论                   | PASS / CONDITIONAL PASS / FAIL |
 
 优先级：P0 表示安全、授权、事实一致性或主链阻断；P1 表示核心功能异常；P2 表示非阻断体验问题。执行后勾选标题并填写“实际/证据”，不得只写“正常”。
 
@@ -44,13 +44,13 @@ make test-apps-ready
 
 主回归从空数据库开始，通过公开页面/API 创建全部业务事实，不装载预制业务链。
 
-| 数据 | 建议值 |
-| --- | --- |
-| 公司 | `ForgeAI UAT`，Slug `forge-uat` |
-| Owner | `owner@uat.forgeai.local` |
+| 数据                          | 建议值                          |
+| ----------------------------- | ------------------------------- |
+| 公司                          | `ForgeAI UAT`，Slug `forge-uat` |
+| Owner                         | `owner@uat.forgeai.local`       |
 | Product / UX / Developer / QA | 对应前缀的 `@uat.forgeai.local` |
-| Release Approver | `approver@uat.forgeai.local` |
-| 主需求 / 负向需求 | `UAT 手机登录` / `UAT 支付回调` |
+| Release Approver              | `approver@uat.forgeai.local`    |
+| 主需求 / 负向需求             | `UAT 手机登录` / `UAT 支付回调` |
 
 ```bash
 docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml -f deploy/compose-test.yml down
@@ -63,7 +63,7 @@ make test-apps-ready
 
 ## 三、拓扑、初始化与认证
 
-### ENV-01 [P0] 完整拓扑与最小暴露面 [ ]
+### ENV-01 [P0] 完整拓扑与最小暴露面 [✅]
 
 步骤：执行 `make test-apps-ready` 并检查端口。
 
@@ -71,7 +71,7 @@ make test-apps-ready
 
 实际/证据：
 
-### AUTH-01 [P0] 空实例初始化 [ ]
+### AUTH-01 [P0] 空实例初始化 [✅]
 
 步骤：打开首页；上传合法 WebP Logo，填写 Owner、公司名称与 Slug；提交、刷新并再次初始化。
 
@@ -79,7 +79,7 @@ make test-apps-ready
 
 实际/证据：
 
-### AUTH-02 [P0] 初始化字段与 Logo 校验 [ ]
+### AUTH-02 [P0] 初始化字段与 Logo 校验 [✅]
 
 步骤：在独立空环境提交空字段、非法 Slug、弱密码、非 WebP、伪造媒体类型、损坏内容和超限 Logo。
 
@@ -87,7 +87,7 @@ make test-apps-ready
 
 实际/证据：
 
-### AUTH-03 [P0] 登录、Session 与当前用户 [ ]
+### AUTH-03 [P0] 登录、Session 与当前用户 [✅]
 
 步骤：Owner 登录，检查跳转、Cookie 和 `/api/v1/me`。
 
@@ -95,7 +95,7 @@ make test-apps-ready
 
 实际/证据：
 
-### AUTH-04 [P0] 错误登录不枚举账户 [ ]
+### AUTH-04 [P0] 错误登录不枚举账户 [✅]
 
 步骤：使用不存在邮箱、错误密码、待审核账号和已停用账号登录。
 
@@ -103,7 +103,7 @@ make test-apps-ready
 
 实际/证据：
 
-### AUTH-05 [P0] 未登录访问与退出 [ ]
+### AUTH-05 [P0] 未登录访问与退出 [✅]
 
 步骤：无痕访问全部业务页面/API；登录后退出，再后退、刷新并重放旧 Cookie。
 
@@ -111,7 +111,7 @@ make test-apps-ready
 
 实际/证据：
 
-### AUTH-06 [P0] CSRF、Origin 与请求 ID [ ]
+### AUTH-06 [P0] CSRF、Origin 与请求 ID [✅]
 
 步骤：执行 `make hardening-test`；人工发送缺失/错误 CSRF、非法 Origin、超长或带换行的 `X-Request-ID`。
 
@@ -121,7 +121,7 @@ make test-apps-ready
 
 ## 四、公司成员、角色与作用域
 
-### ORG-01 [P0] 公司级信息架构 [ ]
+### ORG-01 [P0] 公司级信息架构 [✅]
 
 步骤：遍历需求概览、我的需求、任务看板、Agent 指令、执行轨迹、成员管理、集成设置；检查 URL、表单和 Network。
 
@@ -598,18 +598,18 @@ PASS 必须同时满足：
 
 ## 十四、执行汇总
 
-| 模块 | PASS | FAIL | BLOCKED | NOT RUN | 缺陷编号 |
-| --- | ---: | ---: | ---: | ---: | --- |
-| 环境/认证 | | | | | |
-| 公司/成员/作用域 | | | | | |
-| 工作台/搜索/通知/需求 | | | | | |
-| Product/Document/UX | | | | | |
-| Development/GitLab | | | | | |
-| QA/Bug/Release | | | | | |
-| Agent/Tool/SSE/RAG | | | | | |
-| 安全/可观测性 | | | | | |
-| 性能/故障/体验 | | | | | |
-| 最终回归 | | | | | |
+| 模块                  | PASS | FAIL | BLOCKED | NOT RUN | 缺陷编号 |
+| --------------------- | ---: | ---: | ------: | ------: | -------- |
+| 环境/认证             |      |      |         |         |          |
+| 公司/成员/作用域      |      |      |         |         |          |
+| 工作台/搜索/通知/需求 |      |      |         |         |          |
+| Product/Document/UX   |      |      |         |         |          |
+| Development/GitLab    |      |      |         |         |          |
+| QA/Bug/Release        |      |      |         |         |          |
+| Agent/Tool/SSE/RAG    |      |      |         |         |          |
+| 安全/可观测性         |      |      |         |         |          |
+| 性能/故障/体验        |      |      |         |         |          |
+| 最终回归              |      |      |         |         |          |
 
 ## 十五、缺陷记录模板
 

@@ -1,107 +1,24 @@
 "use client";
 
-import {
-  Alert,
-  Button,
-  Card,
-  Input,
-  Space,
-  Spin,
-  Tag,
-  Tabs,
-  Typography,
-} from "@arco-design/web-react";
+import { Alert, Button, Card, Input, Space, Spin, Tag, Tabs, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { getCurrentUser } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
 import { guardHintLabel, workflowActionLabel } from "@/lib/labels";
-import {
-  createDocument,
-  DocumentEditor,
-  listDocumentVersions,
-  listWorkItemDocuments,
-  publishDocumentVersion,
-  saveDocumentVersion,
-  type ProseMirrorDocument,
-  type DocumentVersion,
-} from "@/features/document";
-import {
-  getRequirementDetails,
-  createDevTask,
-  getWorkItem,
-  getWorkItemActivity,
-  transitionRequirement,
-  type WorkflowAction,
-} from "../api/work-item-api";
+import { createDocument, DocumentEditor, listDocumentVersions, listWorkItemDocuments, publishDocumentVersion, saveDocumentVersion, type ProseMirrorDocument } from "@/features/document";
+import { getRequirementDetails, createDevTask, getWorkItem, getWorkItemActivity, transitionRequirement, type WorkflowAction } from "../api/work-item-api";
 import { DeliveryGraphPanel } from "./delivery-graph";
 import { DevelopmentPanel } from "./development-panel";
 import { QaPanel } from "./qa-panel";
 import { RequirementMaterials } from "./requirement-materials";
+import { UxReviewChecklist } from "./ux-review-checklist";
+import { selectEditableVersion, unresolvedUxReviewHints } from "../utils/ux-review";
 import styles from "./requirement-detail.module.css";
 
-const uxChecklistItems = [
-  "userFlow",
-  "pageList",
-  "keyInteraction",
-  "exceptionState",
-] as const;
-type UxChecklist = Record<(typeof uxChecklistItems)[number], boolean>;
-
-export function UxReviewChecklist({
-  checklist,
-  needsPublishedUxSpec,
-  onChange,
-}: {
-  checklist: UxChecklist;
-  needsPublishedUxSpec: boolean;
-  onChange: (item: keyof UxChecklist, checked: boolean) => void;
-}) {
-  return (
-    <>
-      {needsPublishedUxSpec && (
-        <Alert
-          type="warning"
-          content="请先在 UX Spec 页签创建文档、保存版本并发布，再确认以下交付检查项。"
-        />
-      )}
-      <Space direction="vertical">
-        {uxChecklistItems.map((item) => (
-          <label key={item}>
-            <input
-              type="checkbox"
-              checked={checklist[item]}
-              onChange={(event) => onChange(item, event.target.checked)}
-            />{" "}
-            {guardHintLabel(item)}
-          </label>
-        ))}
-      </Space>
-    </>
-  );
-}
-
-export function selectEditableVersion(
-  versions: DocumentVersion[] | undefined,
-) {
-  return versions?.[0];
-}
-
-export function unresolvedUxReviewHints(hints: string[] | undefined, checklist: UxChecklist) {
-  return (hints ?? []).filter(
-    (hint) => !uxChecklistItems.includes(hint as keyof UxChecklist) || !checklist[hint as keyof UxChecklist],
-  );
-}
-export function RequirementDetail({
-  organizationId,
-  workItemId,
-  userId,
-}: {
-  organizationId: number;
-  workItemId: number;
-  userId: number;
-}) {
+export { UxReviewChecklist, selectEditableVersion, unresolvedUxReviewHints };
+export function RequirementDetail({ organizationId, workItemId, userId }: { organizationId: number; workItemId: number; userId: number }) {
   const qc = useQueryClient();
   const detail = useQuery({
     queryKey: ["work-item", workItemId],
@@ -127,12 +44,7 @@ export function RequirementDetail({
     exceptionState: false,
   });
   const invalidate = () =>
-    Promise.all([
-      qc.invalidateQueries({ queryKey: ["work-item", workItemId] }),
-      qc.invalidateQueries({ queryKey: ["requirement-details", workItemId] }),
-      qc.invalidateQueries({ queryKey: ["documents", workItemId] }),
-      qc.invalidateQueries({ queryKey: ["work-item-activity", workItemId] }),
-    ]);
+    Promise.all([qc.invalidateQueries({ queryKey: ["work-item", workItemId] }), qc.invalidateQueries({ queryKey: ["requirement-details", workItemId] }), qc.invalidateQueries({ queryKey: ["documents", workItemId] }), qc.invalidateQueries({ queryKey: ["work-item-activity", workItemId] })]);
   const createPrd = useMutation({
     mutationFn: () =>
       createDocument({
@@ -169,16 +81,11 @@ export function RequirementDetail({
       ),
     onSuccess: () => void invalidate(),
   });
-  if (detail.isPending || materials.isPending || documents.isPending)
-    return <Spin tip="正在加载需求…" />;
-  if (!detail.data || !materials.data)
-    return <Alert type="error" content="需求不存在或无权访问。" />;
+  if (detail.isPending || materials.isPending || documents.isPending) return <Spin tip="正在加载需求…" />;
+  if (!detail.data || !materials.data) return <Alert type="error" content="需求不存在或无权访问。" />;
   const prd = documents.data?.find((document) => document.type === "PRD");
   const uxSpec = documents.data?.find((document) => document.type === "UX_SPEC");
-  const uxReviewHints = unresolvedUxReviewHints(
-    detail.data.guardHints.SUBMIT_UX_REVIEW,
-    checklist,
-  );
+  const uxReviewHints = unresolvedUxReviewHints(detail.data.guardHints.SUBMIT_UX_REVIEW, checklist);
   const error = createPrd.error ?? createUxSpec.error ?? transition.error;
   return (
     <section className={styles.page}>
@@ -195,157 +102,64 @@ export function RequirementDetail({
           <Typography.Text type="secondary">版本 {detail.data.version}</Typography.Text>
         </div>
       </header>
-      {error && (
-        <Alert
-          className={styles.pageAlert}
-          type="error"
-          content={formatRequestError(error)}
-        />
-      )}
+      {error && <Alert className={styles.pageAlert} type="error" content={formatRequestError(error)} />}
       <Tabs defaultActiveTab="details" className={styles.tabs}>
         <Tabs.TabPane key="details" title="需求">
-          <RequirementMaterials
-            key={materials.data.version}
-            organizationId={organizationId}
-            workItemId={workItemId}
-            details={materials.data}
-            onChanged={invalidate}
-          />
+          <RequirementMaterials key={materials.data.version} organizationId={organizationId} workItemId={workItemId} details={materials.data} onChanged={invalidate} />
         </Tabs.TabPane>
         <Tabs.TabPane key="prd" title="PRD">
-          <PrdPanel
-            documentType="PRD"
-            userId={userId}
-            organizationId={organizationId}
-            workItemId={workItemId}
-            document={prd}
-            onChanged={invalidate}
-            create={() => createPrd.mutate()}
-          />
+          <PrdPanel documentType="PRD" userId={userId} organizationId={organizationId} workItemId={workItemId} document={prd} onChanged={invalidate} create={() => createPrd.mutate()} />
         </Tabs.TabPane>
         <Tabs.TabPane key="ux" title="UX Spec">
-          <PrdPanel
-            documentType="UX Spec"
-            userId={userId}
-            organizationId={organizationId}
-            workItemId={workItemId}
-            document={uxSpec}
-            onChanged={invalidate}
-            create={() => createUxSpec.mutate()}
-          />
+          <PrdPanel documentType="UX Spec" userId={userId} organizationId={organizationId} workItemId={workItemId} document={uxSpec} onChanged={invalidate} create={() => createUxSpec.mutate()} />
         </Tabs.TabPane>
         <Tabs.TabPane key="activity" title="动态">
           {activity.data?.map((item) => (
-            <p key={`${item.kind}-${item.id}`}>
-              {item.kind === "COMMENT" ? item.body : `${item.action}${item.reason ? `：${item.reason}` : ""}`}
-            </p>
+            <p key={`${item.kind}-${item.id}`}>{item.kind === "COMMENT" ? item.body : `${item.action}${item.reason ? `：${item.reason}` : ""}`}</p>
           ))}
         </Tabs.TabPane>
         <Tabs.TabPane key="delivery" title="交付关系图">
-          <DeliveryGraphPanel
-            organizationId={organizationId}
-            workItemId={workItemId}
-          />
+          <DeliveryGraphPanel organizationId={organizationId} workItemId={workItemId} />
         </Tabs.TabPane>
       </Tabs>
       {detail.data.availableActions.length > 0 && (
-      <Card title="阶段操作" className={styles.actionCard}>
-        <Space direction="vertical" style={{ width: "100%" }}>
-          {detail.data.availableActions.includes("SUBMIT_UX_REVIEW") && (
-            <UxReviewChecklist
-              checklist={checklist}
-              needsPublishedUxSpec={
-                detail.data.guardHints.SUBMIT_UX_REVIEW?.includes("publishedUxSpec") ?? false
-              }
-              onChange={(item, checked) =>
-                setChecklist((current) => ({ ...current, [item]: checked }))
-              }
-            />
-          )}
-          {detail.data.availableActions.map((action) => (
-            <div key={action}>
-              <Button
-                type={action === "SUBMIT_UX_REVIEW" ? "primary" : "secondary"}
-                loading={transition.isPending}
-                disabled={
-                  action === "SUBMIT_UX_REVIEW" &&
-                  (uxSpec?.status !== "PUBLISHED" || uxReviewHints.length > 0)
-                }
-                onClick={() => transition.mutate(action)}
-              >
-                {workflowActionLabel(action)}
-              </Button>
-              {(action === "SUBMIT_UX_REVIEW"
-                ? uxReviewHints
-                : detail.data.guardHints[action]
-              )?.length ? (
-                <Typography.Text type="secondary">
-                  {" "}
-                  缺少：
-                  {(action === "SUBMIT_UX_REVIEW"
-                    ? uxReviewHints
-                    : detail.data.guardHints[action]
-                  )!.map(
-                    (value) => guardHintLabel(value),
-                  ).join("、")}
-                </Typography.Text>
-              ) : null}
-            </div>
-          ))}
-          {(detail.data.availableActions.includes("REJECT_PRODUCT_REVIEW")
-            || detail.data.availableActions.includes("REJECT_UX_REVIEW")
-            || detail.data.availableActions.includes("SKIP_UX")) && (
-            <Input
-              aria-label="动作原因"
-              value={reason}
-              onChange={setReason}
-              placeholder="退回或跳过原因"
-            />
-          )}
-        </Space>
-      </Card>
+        <Card title="阶段操作" className={styles.actionCard}>
+          <Space direction="vertical" style={{ width: "100%" }}>
+            {detail.data.availableActions.includes("SUBMIT_UX_REVIEW") && (
+              <UxReviewChecklist checklist={checklist} needsPublishedUxSpec={detail.data.guardHints.SUBMIT_UX_REVIEW?.includes("publishedUxSpec") ?? false} onChange={(item, checked) => setChecklist((current) => ({ ...current, [item]: checked }))} />
+            )}
+            {detail.data.availableActions.map((action) => (
+              <div key={action}>
+                <Button type={action === "SUBMIT_UX_REVIEW" ? "primary" : "secondary"} loading={transition.isPending} disabled={action === "SUBMIT_UX_REVIEW" && (uxSpec?.status !== "PUBLISHED" || uxReviewHints.length > 0)} onClick={() => transition.mutate(action)}>
+                  {workflowActionLabel(action)}
+                </Button>
+                {(action === "SUBMIT_UX_REVIEW" ? uxReviewHints : detail.data.guardHints[action])?.length ? (
+                  <Typography.Text type="secondary">
+                    {" "}
+                    缺少：
+                    {(action === "SUBMIT_UX_REVIEW" ? uxReviewHints : detail.data.guardHints[action])!.map((value) => guardHintLabel(value)).join("、")}
+                  </Typography.Text>
+                ) : null}
+              </div>
+            ))}
+            {(detail.data.availableActions.includes("REJECT_PRODUCT_REVIEW") || detail.data.availableActions.includes("REJECT_UX_REVIEW") || detail.data.availableActions.includes("SKIP_UX")) && <Input aria-label="动作原因" value={reason} onChange={setReason} placeholder="退回或跳过原因" />}
+          </Space>
+        </Card>
       )}
       <div className={styles.phasePanels}>
-      {detail.data.status === "READY_FOR_DEV" && (
-        <DevTaskPanel
-          organizationId={organizationId}
-          requirementId={workItemId}
-          onChanged={invalidate}
-        />
-      )}
-      {(detail.data.status === "READY_FOR_DEV" || detail.data.status === "IN_DEVELOPMENT") && (
-        <DevelopmentPanel
-          organizationId={organizationId}
-          requirementId={workItemId}
-          onChanged={invalidate}
-        />
-      )}
-      {(detail.data.status === "READY_FOR_QA" || detail.data.status === "IN_QA") && (
-        <QaPanel
-          organizationId={organizationId}
-          requirementId={workItemId}
-          onChanged={invalidate}
-        />
-      )}
+        {detail.data.status === "READY_FOR_DEV" && <DevTaskPanel organizationId={organizationId} requirementId={workItemId} onChanged={invalidate} />}
+        {(detail.data.status === "READY_FOR_DEV" || detail.data.status === "IN_DEVELOPMENT") && <DevelopmentPanel organizationId={organizationId} requirementId={workItemId} onChanged={invalidate} />}
+        {(detail.data.status === "READY_FOR_QA" || detail.data.status === "IN_QA") && <QaPanel organizationId={organizationId} requirementId={workItemId} onChanged={invalidate} />}
       </div>
     </section>
   );
 }
 
-function DevTaskPanel({
-  organizationId,
-  requirementId,
-  onChanged,
-}: {
-  organizationId: number;
-  requirementId: number;
-  onChanged: () => Promise<unknown>;
-}) {
+function DevTaskPanel({ organizationId, requirementId, onChanged }: { organizationId: number; requirementId: number; onChanged: () => Promise<unknown> }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const create = useMutation({
-    mutationFn: () =>
-      createDevTask({ organizationId, requirementId, title, description }),
+    mutationFn: () => createDevTask({ organizationId, requirementId, title, description }),
     onSuccess: () => {
       setTitle("");
       setDescription("");
@@ -355,24 +169,9 @@ function DevTaskPanel({
   return (
     <Card title="研发任务">
       <Space direction="vertical" style={{ width: "100%" }}>
-        <Input
-          aria-label="研发任务标题"
-          value={title}
-          onChange={setTitle}
-          placeholder="输入研发任务标题"
-        />
-        <Input.TextArea
-          aria-label="研发任务说明"
-          value={description}
-          onChange={setDescription}
-          placeholder="实现范围与约束"
-        />
-        <Button
-          type="primary"
-          disabled={!title.trim()}
-          loading={create.isPending}
-          onClick={() => create.mutate()}
-        >
+        <Input aria-label="研发任务标题" value={title} onChange={setTitle} placeholder="输入研发任务标题" />
+        <Input.TextArea aria-label="研发任务说明" value={description} onChange={setDescription} placeholder="实现范围与约束" />
+        <Button type="primary" disabled={!title.trim()} loading={create.isPending} onClick={() => create.mutate()}>
           创建研发任务
         </Button>
         {create.isError && <Alert type="error" content={formatRequestError(create.error)} />}
@@ -381,26 +180,15 @@ function DevTaskPanel({
   );
 }
 
-export function RequirementRoute({
-  workItemId,
-}: {
-  workItemId: number;
-}) {
+export function RequirementRoute({ workItemId }: { workItemId: number }) {
   const user = useQuery({
     queryKey: ["current-user"],
     queryFn: () => getCurrentUser(),
   });
   const organization = user.data?.organization;
   if (user.isPending) return <Spin />;
-  if (!user.data || !organization)
-    return <Alert type="error" content="公司不存在或当前账户无权访问。" />;
-  return (
-    <RequirementDetail
-      userId={user.data.id}
-      organizationId={organization.id}
-      workItemId={workItemId}
-    />
-  );
+  if (!user.data || !organization) return <Alert type="error" content="公司不存在或当前账户无权访问。" />;
+  return <RequirementDetail userId={user.data.id} organizationId={organization.id} workItemId={workItemId} />;
 }
 
 function PrdPanel({
@@ -426,28 +214,13 @@ function PrdPanel({
     enabled: !!document,
   });
   const save = useMutation({
-    mutationFn: (content: ProseMirrorDocument) =>
-      saveDocumentVersion(
-        organizationId,
-        document!.id,
-        document!.version,
-        content,
-      ),
+    mutationFn: (content: ProseMirrorDocument) => saveDocumentVersion(organizationId, document!.id, document!.version, content),
     onSuccess: () => {
-      void Promise.all([
-        qc.invalidateQueries({ queryKey: ["document-versions", document?.id] }),
-        onChanged(),
-      ]);
+      void Promise.all([qc.invalidateQueries({ queryKey: ["document-versions", document?.id] }), onChanged()]);
     },
   });
   const publish = useMutation({
-    mutationFn: (versionId: number) =>
-      publishDocumentVersion(
-        organizationId,
-        document!.id,
-        versionId,
-        document!.version,
-      ),
+    mutationFn: (versionId: number) => publishDocumentVersion(organizationId, document!.id, versionId, document!.version),
     onSuccess: () => void onChanged(),
   });
   if (!document) return <Button onClick={create}>创建关联 {documentType}</Button>;
@@ -465,15 +238,8 @@ function PrdPanel({
             <Typography.Text type="secondary">文档版本 {document.version}</Typography.Text>
           </div>
           <div className={styles.publishGroup}>
-            <Tag color={document.status === "PUBLISHED" ? "green" : "orange"}>
-              {document.status}
-            </Tag>
-            <Button
-              type="primary"
-              loading={publish.isPending}
-              disabled={!current}
-              onClick={() => current && publish.mutate(current.id)}
-            >
+            <Tag color={document.status === "PUBLISHED" ? "green" : "orange"}>{document.status}</Tag>
+            <Button type="primary" loading={publish.isPending} disabled={!current} onClick={() => current && publish.mutate(current.id)}>
               {current ? `发布 v${current.versionNo}` : "暂无可发布版本"}
             </Button>
           </div>
@@ -484,15 +250,11 @@ function PrdPanel({
             userId={userId}
             documentId={document.id}
             baseVersion={document.version}
-            serverContent={
-              current?.content ?? { type: "doc", content: [{ type: "paragraph" }] }
-            }
+            serverContent={current?.content ?? { type: "doc", content: [{ type: "paragraph" }] }}
             onSave={(content) => save.mutateAsync(content).then(() => undefined)}
           />
         </div>
-        {(save.isError || publish.isError) && (
-          <Alert type="error" content={formatRequestError(save.error ?? publish.error)} />
-        )}
+        {(save.isError || publish.isError) && <Alert type="error" content={formatRequestError(save.error ?? publish.error)} />}
       </div>
       <aside className={styles.historyPane}>
         <div className={styles.historyHeader}>
@@ -507,9 +269,7 @@ function PrdPanel({
               {version.id === current?.id && <span>最新</span>}
             </div>
           ))}
-          {!versions.isPending && versions.data?.length === 0 && (
-            <Typography.Text type="secondary">保存后将在这里生成版本记录。</Typography.Text>
-          )}
+          {!versions.isPending && versions.data?.length === 0 && <Typography.Text type="secondary">保存后将在这里生成版本记录。</Typography.Text>}
         </div>
       </aside>
     </div>

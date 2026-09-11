@@ -4,20 +4,8 @@ import { Alert, Button, Card, Space, Spin, Steps, Typography } from "@arco-desig
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { getCurrentUser } from "@/features/auth";
-import {
-  agentEventUrl,
-  decideApproval,
-  getAgentRun,
-  getRunApproval,
-  type AgentRunSnapshot,
-  type ApprovalSnapshot,
-} from "../api/agent-run-api";
-import {
-  initialRunTimelineState,
-  reduceRunEvent,
-  type AgentEventEnvelope,
-  type RunTimelineState,
-} from "../model/run-reducer";
+import { agentEventUrl, decideApproval, getAgentRun, getRunApproval, type AgentRunSnapshot, type ApprovalSnapshot } from "../api/agent-run-api";
+import { initialRunTimelineState, reduceRunEvent, type AgentEventEnvelope, type RunTimelineState } from "../model/run-reducer";
 import ui from "@/components/workbench/workbench.module.css";
 
 const eventTypes = [
@@ -41,17 +29,12 @@ const eventTypes = [
   "agent.cancelled",
 ];
 
-function useRunTimeline(
-  organizationId: number,
-  snapshot: AgentRunSnapshot,
-): RunTimelineState {
+function useRunTimeline(organizationId: number, snapshot: AgentRunSnapshot): RunTimelineState {
   const [state, setState] = useState<RunTimelineState>(() => ({
     ...initialRunTimelineState(snapshot.lastSequence),
     connectionState: snapshot.terminal ? "closed" : "connecting",
     steps: Object.fromEntries(snapshot.steps.map((step) => [step.stepNo, step])),
-    final: snapshot.terminal
-      ? { status: snapshot.status, errorCode: snapshot.errorCode ?? undefined }
-      : undefined,
+    final: snapshot.terminal ? { status: snapshot.status, errorCode: snapshot.errorCode ?? undefined } : undefined,
   }));
   const stateRef = useRef(state);
 
@@ -68,10 +51,7 @@ function useRunTimeline(
     let stopped = false;
 
     const connect = () => {
-      source = new EventSource(
-        agentEventUrl(organizationId, snapshot.id, stateRef.current.lastSequence),
-        { withCredentials: true },
-      );
+      source = new EventSource(agentEventUrl(organizationId, snapshot.id, stateRef.current.lastSequence), { withCredentials: true });
       source.onopen = () => setState((current) => ({ ...current, connectionState: "open" }));
       const receive = (raw: Event) => {
         const message = raw as MessageEvent<string>;
@@ -109,13 +89,7 @@ function useRunTimeline(
   return state;
 }
 
-export function AgentRunPage({
-  organizationId,
-  runId,
-}: {
-  organizationId: number;
-  runId: string;
-}) {
+export function AgentRunPage({ organizationId, runId }: { organizationId: number; runId: string }) {
   const snapshot = useQuery({
     queryKey: ["agent-run", runId],
     queryFn: () => getAgentRun(organizationId, runId),
@@ -125,13 +99,7 @@ export function AgentRunPage({
   return <AgentRunTimeline organizationId={organizationId} snapshot={snapshot.data} />;
 }
 
-function AgentRunTimeline({
-  organizationId,
-  snapshot,
-}: {
-  organizationId: number;
-  snapshot: AgentRunSnapshot;
-}) {
+function AgentRunTimeline({ organizationId, snapshot }: { organizationId: number; snapshot: AgentRunSnapshot }) {
   const timeline = useRunTimeline(organizationId, snapshot);
   const steps = Object.values(timeline.steps).sort((left, right) => left.stepNo - right.stepNo);
   return (
@@ -146,45 +114,30 @@ function AgentRunTimeline({
       <Typography.Paragraph copyable>{snapshot.id}</Typography.Paragraph>
       <Card className={ui.panel} title={`状态：${timeline.final?.status ?? snapshot.status}`}>
         <div className={ui.content}>
-        <Typography.Text type="secondary">
-          连接：{timeline.connectionState} · 连续事件序号：{timeline.lastSequence}
-        </Typography.Text>
-        {timeline.connectionState === "gap" && (
-          <Alert type="warning" content="检测到事件跳号，正在从最后连续序号恢复。" />
-        )}
-        <Steps direction="vertical" current={steps.length}>
-          {steps.map((step) => (
-            <Steps.Step
-              key={step.stepNo}
-              title={`${step.stepNo}. ${step.name}`}
-              description={`${step.status}${step.summary ? ` · ${step.summary}` : ""}`}
-            />
-          ))}
-        </Steps>
+          <Typography.Text type="secondary">
+            连接：{timeline.connectionState} · 连续事件序号：{timeline.lastSequence}
+          </Typography.Text>
+          {timeline.connectionState === "gap" && <Alert type="warning" content="检测到事件跳号，正在从最后连续序号恢复。" />}
+          <Steps direction="vertical" current={steps.length}>
+            {steps.map((step) => (
+              <Steps.Step key={step.stepNo} title={`${step.stepNo}. ${step.name}`} description={`${step.status}${step.summary ? ` · ${step.summary}` : ""}`} />
+            ))}
+          </Steps>
         </div>
       </Card>
-      {snapshot.status === "WAITING_APPROVAL" && (
-        <ApprovalCard organizationId={organizationId} runId={snapshot.id} />
-      )}
+      {snapshot.status === "WAITING_APPROVAL" && <ApprovalCard organizationId={organizationId} runId={snapshot.id} />}
     </section>
   );
 }
 
-function ApprovalCard({
-  organizationId,
-  runId,
-}: {
-  organizationId: number;
-  runId: string;
-}) {
+function ApprovalCard({ organizationId, runId }: { organizationId: number; runId: string }) {
   const queryClient = useQueryClient();
   const approval = useQuery({
     queryKey: ["agent-approval", runId],
     queryFn: () => getRunApproval(organizationId, runId),
   });
   const decide = useMutation({
-    mutationFn: ({ snapshot, decision }: { snapshot: ApprovalSnapshot; decision: "APPROVE" | "REJECT" }) =>
-      decideApproval(snapshot, organizationId, decision),
+    mutationFn: ({ snapshot, decision }: { snapshot: ApprovalSnapshot; decision: "APPROVE" | "REJECT" }) => decideApproval(snapshot, organizationId, decision),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["agent-approval", runId] });
       void queryClient.invalidateQueries({ queryKey: ["agent-run", runId] });
@@ -196,7 +149,9 @@ function ApprovalCard({
   return (
     <Card title={`审批：${snapshot.toolName} v${snapshot.toolVersion}`}>
       <Typography.Paragraph>{snapshot.reason}</Typography.Paragraph>
-      <Typography.Paragraph>风险：{snapshot.riskLevel} · 状态：{snapshot.status}</Typography.Paragraph>
+      <Typography.Paragraph>
+        风险：{snapshot.riskLevel} · 状态：{snapshot.status}
+      </Typography.Paragraph>
       <Typography.Paragraph copyable>参数摘要：{snapshot.argumentHash}</Typography.Paragraph>
       <Typography.Paragraph>过期时间：{new Date(snapshot.expiresAt).toLocaleString()}</Typography.Paragraph>
       {snapshot.resources.map((resource) => (
@@ -206,18 +161,10 @@ function ApprovalCard({
       ))}
       {snapshot.status === "PENDING" && (
         <Space>
-          <Button
-            type="primary"
-            loading={decide.isPending}
-            onClick={() => decide.mutate({ snapshot, decision: "APPROVE" })}
-          >
+          <Button type="primary" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "APPROVE" })}>
             批准并恢复
           </Button>
-          <Button
-            status="danger"
-            loading={decide.isPending}
-            onClick={() => decide.mutate({ snapshot, decision: "REJECT" })}
-          >
+          <Button status="danger" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "REJECT" })}>
             拒绝
           </Button>
         </Space>
@@ -227,11 +174,7 @@ function ApprovalCard({
   );
 }
 
-export function AgentRunRoute({
-  runId,
-}: {
-  runId: string;
-}) {
+export function AgentRunRoute({ runId }: { runId: string }) {
   const user = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
   const organization = user.data?.organization;
   if (user.isPending) return <Spin />;

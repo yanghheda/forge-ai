@@ -30,10 +30,7 @@ describe("ApiTransport", () => {
     });
 
     await expect(transport.request("/v1/system/status")).resolves.toEqual({ status: "UP" });
-    expect(fetchImplementation).toHaveBeenCalledWith(
-      "http://localhost:8080/api/v1/system/status",
-      expect.objectContaining({ credentials: "include" }),
-    );
+    expect(fetchImplementation).toHaveBeenCalledWith("http://localhost:8080/api/v1/system/status", expect.objectContaining({ credentials: "include" }));
   });
 
   it("成功信封只在 transport 解包一次", async () => {
@@ -96,25 +93,24 @@ describe("ApiTransport", () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({
-          code: 0,
-          message: "success",
-          data: { headerName: "X-CSRF-TOKEN", token: "csrf-test-token" },
-        }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify({
+            code: 0,
+            message: "success",
+            data: { headerName: "X-CSRF-TOKEN", token: "csrf-test-token" },
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        ),
       )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const transport = createApiTransport({ baseUrl: "/api", fetchImplementation });
 
     await transport.request("/v1/auth/login", { method: "POST", body: "{}" });
 
-    expect(fetchImplementation).toHaveBeenNthCalledWith(
-      1,
-      "/api/v1/auth/csrf",
-      expect.objectContaining({ credentials: "include" }),
-    );
+    expect(fetchImplementation).toHaveBeenNthCalledWith(1, "/api/v1/auth/csrf", expect.objectContaining({ credentials: "include" }));
     expect(fetchImplementation).toHaveBeenNthCalledWith(
       2,
       "/api/v1/auth/login",
@@ -129,17 +125,38 @@ describe("ApiTransport", () => {
     const jsonHeaders = { "content-type": "application/json" };
     const fetchImplementation = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, message: "success", data: { headerName: "X-CSRF-TOKEN", token: "old" } }), { status: 200, headers: jsonHeaders }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ code: "CSRF_REJECTED" }), { status: 403, headers: jsonHeaders }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, message: "success", data: { headerName: "X-CSRF-TOKEN", token: "new" } }), { status: 200, headers: jsonHeaders }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            code: 0,
+            message: "success",
+            data: { headerName: "X-CSRF-TOKEN", token: "old" },
+          }),
+          { status: 200, headers: jsonHeaders },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: "CSRF_REJECTED" }), {
+          status: 403,
+          headers: jsonHeaders,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            code: 0,
+            message: "success",
+            data: { headerName: "X-CSRF-TOKEN", token: "new" },
+          }),
+          { status: 200, headers: jsonHeaders },
+        ),
+      )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const transport = createApiTransport({ baseUrl: "/api", fetchImplementation });
 
     await expect(transport.request("/v1/auth/logout", { method: "POST" })).resolves.toBeUndefined();
     expect(fetchImplementation).toHaveBeenCalledTimes(4);
-    expect(fetchImplementation.mock.calls[3]?.[1]?.headers).toEqual(
-      expect.objectContaining({ "X-CSRF-TOKEN": "new" }),
-    );
+    expect(fetchImplementation.mock.calls[3]?.[1]?.headers).toEqual(expect.objectContaining({ "X-CSRF-TOKEN": "new" }));
   });
 
   it("安全读取和普通 403 均不触发 CSRF 刷新", async () => {

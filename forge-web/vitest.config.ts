@@ -12,13 +12,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    exclude: [
-      "tests/e2e/**",
-      "node_modules/**",
-      "src/features/work-item/api/work-item-api.test.ts",
-      "src/features/work-item/components/requirement-detail.test.tsx",
-      "src/features/work-item/components/ux-workspace.test.tsx",
-    ],
+    exclude: ["tests/e2e/**", "node_modules/**", "src/features/work-item/api/work-item-api.test.ts", "src/features/work-item/components/requirement-detail.test.tsx", "src/features/work-item/components/ux-workspace.test.tsx"],
     css: true,
   },
 });

@@ -43,10 +43,7 @@ function number(payload: Record<string, unknown>, key: string): number | undefin
   return typeof payload[key] === "number" ? payload[key] : undefined;
 }
 
-export function reduceRunEvent(
-  state: RunTimelineState,
-  event: AgentEventEnvelope,
-): RunTimelineState {
+export function reduceRunEvent(state: RunTimelineState, event: AgentEventEnvelope): RunTimelineState {
   if (event.type === "heartbeat" || event.sequence <= state.lastSequence) {
     return state;
   }

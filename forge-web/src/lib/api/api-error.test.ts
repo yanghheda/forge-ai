@@ -26,14 +26,23 @@ describe("API 错误中文提示", () => {
   });
 
   it("未知错误按 HTTP 状态返回中文兜底且不透传响应消息", () => {
-    const error = new ApiError({ code: "NEW_SERVER_ERROR", message: "Unknown backend failure", status: 503 });
+    const error = new ApiError({
+      code: "NEW_SERVER_ERROR",
+      message: "Unknown backend failure",
+      status: 503,
+    });
 
     expect(getUserErrorMessage(error)).toBe("服务暂时不可用，请稍后重试。");
     expect(getUserErrorMessage(error)).not.toContain("Unknown backend failure");
   });
 
   it("面向用户的错误提示不展示请求编号", () => {
-    const error = new ApiError({ code: "VERSION_CONFLICT", message: "Conflict", requestId: "req_123", status: 409 });
+    const error = new ApiError({
+      code: "VERSION_CONFLICT",
+      message: "Conflict",
+      requestId: "req_123",
+      status: 409,
+    });
 
     expect(formatRequestError(error)).toBe("数据已被其他操作更新，请刷新后重试。");
     expect(formatRequestError(error)).not.toContain("req_123");

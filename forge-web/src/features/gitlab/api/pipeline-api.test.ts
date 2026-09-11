@@ -9,14 +9,7 @@ describe("pipeline API", () => {
     await listPipelines(client);
     await triggerPipeline({ ref: "main" }, client);
 
-    expect(client.request).toHaveBeenNthCalledWith(
-      1,
-      "/v1/development/pipelines",
-    );
-    expect(client.request).toHaveBeenNthCalledWith(
-      2,
-      "/v1/development/pipelines",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(client.request).toHaveBeenNthCalledWith(1, "/v1/development/pipelines");
+    expect(client.request).toHaveBeenNthCalledWith(2, "/v1/development/pipelines", expect.objectContaining({ method: "POST" }));
   });
 });

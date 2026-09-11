@@ -1,11 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  selectEditableVersion,
-  unresolvedUxReviewHints,
-  UxReviewChecklist,
-} from "./requirement-detail";
+import { selectEditableVersion, unresolvedUxReviewHints, UxReviewChecklist } from "./requirement-detail";
 
 describe("UX review checklist", () => {
   it("在缺少已发布 UX Spec 时给出完成路径并允许确认交付项", () => {
@@ -63,11 +59,6 @@ describe("document version selection", () => {
 
 describe("UX review guard hints", () => {
   it("勾选后的检查项不再显示为缺失，但保留未发布文档提示", () => {
-    expect(
-      unresolvedUxReviewHints(
-        ["publishedUxSpec", "userFlow", "pageList", "keyInteraction", "exceptionState"],
-        { userFlow: true, pageList: true, keyInteraction: true, exceptionState: true },
-      ),
-    ).toEqual(["publishedUxSpec"]);
+    expect(unresolvedUxReviewHints(["publishedUxSpec", "userFlow", "pageList", "keyInteraction", "exceptionState"], { userFlow: true, pageList: true, keyInteraction: true, exceptionState: true })).toEqual(["publishedUxSpec"]);
   });
 });

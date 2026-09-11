@@ -18,9 +18,17 @@ export function GitLabSettings({ organizationSlug }: { organizationSlug: string 
     queryFn: () => listConnections(organization!.id),
     enabled: organization !== undefined,
   });
-  const [connectionForm, setConnectionForm] = useState({ name: "", baseUrl: "https://gitlab.com", token: "" });
+  const [connectionForm, setConnectionForm] = useState({
+    name: "",
+    baseUrl: "https://gitlab.com",
+    token: "",
+  });
   const [rotationToken, setRotationToken] = useState("");
-  const [binding, setBinding] = useState({ organizationId: 0, connectionId: 0, remoteProjectId: "" });
+  const [binding, setBinding] = useState({
+    organizationId: 0,
+    connectionId: 0,
+    remoteProjectId: "",
+  });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["gitlab-connections", organization?.id] });
   const create = useMutation({
     mutationFn: () => createConnection({ organizationId: organization!.id, ...connectionForm }),
@@ -32,8 +40,7 @@ export function GitLabSettings({ organizationSlug }: { organizationSlug: string 
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const rotate = useMutation({
-    mutationFn: (connection: { id: number; version: number }) =>
-      rotateToken(organization!.id, connection.id, connection.version, rotationToken),
+    mutationFn: (connection: { id: number; version: number }) => rotateToken(organization!.id, connection.id, connection.version, rotationToken),
     onSuccess: () => {
       Message.success("访问令牌已轮换。");
       setRotationToken("");
@@ -43,7 +50,10 @@ export function GitLabSettings({ organizationSlug }: { organizationSlug: string 
   });
   const test = useMutation({
     mutationFn: (connectionId: number) => testConnection(organization!.id, connectionId),
-    onSuccess: () => { Message.success("GitLab 连接测试完成。"); return invalidate(); },
+    onSuccess: () => {
+      Message.success("GitLab 连接测试完成。");
+      return invalidate();
+    },
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const bind = useMutation({
@@ -62,53 +72,52 @@ export function GitLabSettings({ organizationSlug }: { organizationSlug: string 
   return (
     <section className={ui.page}>
       <header className={ui.pageHeader}>
-        <div><span className={ui.eyebrow}>集成</span><h1>GitLab 集成</h1><p>管理连接凭据、健康状态与项目仓库绑定。</p></div>
+        <div>
+          <span className={ui.eyebrow}>集成</span>
+          <h1>GitLab 集成</h1>
+          <p>管理连接凭据、健康状态与项目仓库绑定。</p>
+        </div>
       </header>
       <div className={ui.twoColumns}>
-      <Card title="新增 GitLab 连接">
-        <Form layout="vertical" onSubmit={() => create.mutate()}>
-          <Form.Item label="连接名称" required>
-            <Input value={connectionForm.name} onChange={(name) => setConnectionForm({ ...connectionForm, name })} />
-          </Form.Item>
-          <Form.Item label="服务地址（Base URL）" required>
-            <Input value={connectionForm.baseUrl} onChange={(baseUrl) => setConnectionForm({ ...connectionForm, baseUrl })} />
-          </Form.Item>
-          <Form.Item label="访问令牌（Access Token）" required extra="保存后不会再次回显。">
-            <Input.Password value={connectionForm.token} onChange={(token) => setConnectionForm({ ...connectionForm, token })} />
-          </Form.Item>
-          <Button htmlType="submit" type="primary" loading={create.isPending}>保存连接</Button>
-        </Form>
-      </Card>
+        <Card title="新增 GitLab 连接">
+          <Form layout="vertical" onSubmit={() => create.mutate()}>
+            <Form.Item label="连接名称" required>
+              <Input value={connectionForm.name} onChange={(name) => setConnectionForm({ ...connectionForm, name })} />
+            </Form.Item>
+            <Form.Item label="服务地址（Base URL）" required>
+              <Input value={connectionForm.baseUrl} onChange={(baseUrl) => setConnectionForm({ ...connectionForm, baseUrl })} />
+            </Form.Item>
+            <Form.Item label="访问令牌（Access Token）" required extra="保存后不会再次回显。">
+              <Input.Password value={connectionForm.token} onChange={(token) => setConnectionForm({ ...connectionForm, token })} />
+            </Form.Item>
+            <Button htmlType="submit" type="primary" loading={create.isPending}>
+              保存连接
+            </Button>
+          </Form>
+        </Card>
 
-      <Card title="已有连接">
-        <Input.Password
-          aria-label="轮换后的新 Token"
-          value={rotationToken}
-          placeholder="输入新 Token 后选择连接轮换"
-          onChange={setRotationToken}
-        />
-        <List
-          dataSource={connections.data ?? []}
-          render={(connection) => (
-            <List.Item
-              actions={[
-                <Button key="test" onClick={() => test.mutate(connection.id)}>测试</Button>,
-                <Button
-                  key="rotate"
-                  disabled={!rotationToken}
-                  onClick={() => rotate.mutate({ id: connection.id, version: connection.version })}
-                >
-                  轮换 Token
-                </Button>,
-              ]}
-            >
-              <Typography.Text>
-                {connection.name} · {connection.baseUrl} · {connection.status} · 指纹 {connection.tokenFingerprint}
-              </Typography.Text>
-            </List.Item>
-          )}
-        />
-      </Card>
+        <Card title="已有连接">
+          <Input.Password aria-label="轮换后的新 Token" value={rotationToken} placeholder="输入新 Token 后选择连接轮换" onChange={setRotationToken} />
+          <List
+            dataSource={connections.data ?? []}
+            render={(connection) => (
+              <List.Item
+                actions={[
+                  <Button key="test" onClick={() => test.mutate(connection.id)}>
+                    测试
+                  </Button>,
+                  <Button key="rotate" disabled={!rotationToken} onClick={() => rotate.mutate({ id: connection.id, version: connection.version })}>
+                    轮换 Token
+                  </Button>,
+                ]}
+              >
+                <Typography.Text>
+                  {connection.name} · {connection.baseUrl} · {connection.status} · 指纹 {connection.tokenFingerprint}
+                </Typography.Text>
+              </List.Item>
+            )}
+          />
+        </Card>
       </div>
 
       <Card title="绑定项目仓库">
@@ -122,7 +131,9 @@ export function GitLabSettings({ organizationSlug }: { organizationSlug: string 
           <Form.Item label="GitLab Project ID 或完整路径" required>
             <Input value={binding.remoteProjectId} onChange={(remoteProjectId) => setBinding({ ...binding, remoteProjectId })} />
           </Form.Item>
-          <Button htmlType="submit" loading={bind.isPending}>读取并绑定仓库</Button>
+          <Button htmlType="submit" loading={bind.isPending}>
+            读取并绑定仓库
+          </Button>
         </Form>
       </Card>
     </section>

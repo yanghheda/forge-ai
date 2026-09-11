@@ -7,17 +7,7 @@ import { useState } from "react";
 import { listRequirements } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
 
-import {
-  createRelease,
-  decideDeployment,
-  listDeployments,
-  listReleases,
-  requestDeployment,
-  runPrecheck,
-  updateReleaseNote,
-  type DeploymentView,
-  type ReleaseView,
-} from "../api/release-api";
+import { createRelease, decideDeployment, listDeployments, listReleases, requestDeployment, runPrecheck, updateReleaseNote, type DeploymentView, type ReleaseView } from "../api/release-api";
 
 export function ReleasePanel({ organizationId }: { organizationId: number; organizationId: number }) {
   const queryClient = useQueryClient();
@@ -31,13 +21,14 @@ export function ReleasePanel({ organizationId }: { organizationId: number; organ
   const [selected, setSelected] = useState<number[]>([]);
   const refresh = () => queryClient.invalidateQueries({ queryKey: key });
   const create = useMutation({
-    mutationFn: () => createRelease({
-      organizationId,
-      versionName,
-      environment: "production",
-      itemIds: selected,
-      approvalTtlMinutes: 60,
-    }),
+    mutationFn: () =>
+      createRelease({
+        organizationId,
+        versionName,
+        environment: "production",
+        itemIds: selected,
+        approvalTtlMinutes: 60,
+      }),
     onSuccess: () => {
       setVersionName("");
       setSelected([]);
@@ -45,12 +36,13 @@ export function ReleasePanel({ organizationId }: { organizationId: number; organ
     },
   });
   const note = useMutation({
-    mutationFn: ({ release, value }: { release: ReleaseView; value: string }) => updateReleaseNote({
-      organizationId,
-      releaseId: release.id,
-      note: value,
-      expectedVersion: release.version,
-    }),
+    mutationFn: ({ release, value }: { release: ReleaseView; value: string }) =>
+      updateReleaseNote({
+        organizationId,
+        releaseId: release.id,
+        note: value,
+        expectedVersion: release.version,
+      }),
     onSuccess: refresh,
   });
   const precheck = useMutation({
@@ -72,30 +64,16 @@ export function ReleasePanel({ organizationId }: { organizationId: number; organ
         <Button disabled={!versionName.trim() || selected.length === 0} onClick={() => create.mutate()}>
           创建发布候选版本
         </Button>
-        {(create.error || note.error || precheck.error) && (
-          <Alert type="error" content={formatRequestError(create.error ?? note.error ?? precheck.error)} />
-        )}
+        {(create.error || note.error || precheck.error) && <Alert type="error" content={formatRequestError(create.error ?? note.error ?? precheck.error)} />}
         {(releases.data ?? []).map((release) => (
-          <ReleaseCard
-            key={release.id}
-            release={release}
-            onSaveNote={(value) => note.mutate({ release, value })}
-            onPrecheck={() => precheck.mutate(release.id)}
-            organizationId={organizationId}
-          />
+          <ReleaseCard key={release.id} release={release} onSaveNote={(value) => note.mutate({ release, value })} onPrecheck={() => precheck.mutate(release.id)} organizationId={organizationId} />
         ))}
       </Space>
     </Card>
   );
 }
 
-export function ReleaseCard({ release, onSaveNote, onPrecheck }: {
-  release: ReleaseView;
-  onSaveNote: (value: string) => void;
-  onPrecheck: () => void;
-  organizationId?: number;
-  organizationId?: number;
-}) {
+export function ReleaseCard({ release, onSaveNote, onPrecheck }: { release: ReleaseView; onSaveNote: (value: string) => void; onPrecheck: () => void; organizationId?: number; organizationId?: number }) {
   const [draft, setDraft] = useState(release.releaseNote);
   const organizationId = release.organizationId;
   const queryClient = useQueryClient();
@@ -106,24 +84,23 @@ export function ReleaseCard({ release, onSaveNote, onPrecheck }: {
   });
   const refreshDeployments = () => queryClient.invalidateQueries({ queryKey: deploymentKey });
   const deploy = useMutation({
-    mutationFn: () => requestDeployment({
-      organizationId,
-      releaseId: release.id,
-      simulateFailure: false,
-      idempotencyKey: crypto.randomUUID(),
-    }),
+    mutationFn: () =>
+      requestDeployment({
+        organizationId,
+        releaseId: release.id,
+        simulateFailure: false,
+        idempotencyKey: crypto.randomUUID(),
+      }),
     onSuccess: refreshDeployments,
   });
   const decide = useMutation({
-    mutationFn: ({ deployment, decision }: {
-      deployment: DeploymentView;
-      decision: "APPROVE" | "REJECT";
-    }) => decideDeployment({
-      organizationId,
-      deploymentId: deployment.id,
-      decision,
-      expectedVersion: deployment.version,
-    }),
+    mutationFn: ({ deployment, decision }: { deployment: DeploymentView; decision: "APPROVE" | "REJECT" }) =>
+      decideDeployment({
+        organizationId,
+        deploymentId: deployment.id,
+        decision,
+        expectedVersion: deployment.version,
+      }),
     onSuccess: refreshDeployments,
   });
   return (
@@ -138,32 +115,17 @@ export function ReleaseCard({ release, onSaveNote, onPrecheck }: {
             运行预检
           </Button>
         </Space>
-        <Alert
-          type="warning"
-          content="仅模拟执行：不会连接或改变生产环境。"
-        />
-        <Button
-          status="warning"
-          disabled={release.latestPrecheck?.status !== "PASS" || !release.latestPrecheck.current}
-          onClick={() => deploy.mutate()}
-        >
+        <Alert type="warning" content="仅模拟执行：不会连接或改变生产环境。" />
+        <Button status="warning" disabled={release.latestPrecheck?.status !== "PASS" || !release.latestPrecheck.current} onClick={() => deploy.mutate()}>
           申请 HIGH 审批并模拟部署
         </Button>
-        {(deploy.error || decide.error) && (
-          <Alert type="error" content={formatRequestError(deploy.error ?? decide.error)} />
-        )}
+        {(deploy.error || decide.error) && <Alert type="error" content={formatRequestError(deploy.error ?? decide.error)} />}
         {(deploymentQuery.data ?? []).map((deployment) => (
-          <DeploymentCard
-            key={deployment.id}
-            deployment={deployment}
-            onDecide={(decision) => decide.mutate({ deployment, decision })}
-          />
+          <DeploymentCard key={deployment.id} deployment={deployment} onDecide={(decision) => decide.mutate({ deployment, decision })} />
         ))}
         {release.latestPrecheck && (
           <>
-            {!release.latestPrecheck.current && (
-              <Alert type="warning" content="关键资源版本已变化，请重新运行预检。" />
-            )}
+            {!release.latestPrecheck.current && <Alert type="warning" content="关键资源版本已变化，请重新运行预检。" />}
             <Typography.Text>预检 #{release.latestPrecheck.id}</Typography.Text>
             {release.latestPrecheck.checks.map((check) => (
               <Space key={check.rule}>
@@ -179,10 +141,7 @@ export function ReleaseCard({ release, onSaveNote, onPrecheck }: {
   );
 }
 
-export function DeploymentCard({ deployment, onDecide }: {
-  deployment: DeploymentView;
-  onDecide: (decision: "APPROVE" | "REJECT") => void;
-}) {
+export function DeploymentCard({ deployment, onDecide }: { deployment: DeploymentView; onDecide: (decision: "APPROVE" | "REJECT") => void }) {
   return (
     <Card size="small" title={`部署 #${deployment.id}`}>
       <Space direction="vertical">
@@ -190,8 +149,12 @@ export function DeploymentCard({ deployment, onDecide }: {
         <Typography.Text>{deployment.status}</Typography.Text>
         {deployment.status === "PENDING_APPROVAL" && (
           <Space>
-            <Button type="primary" onClick={() => onDecide("APPROVE")}>批准</Button>
-            <Button status="danger" onClick={() => onDecide("REJECT")}>拒绝</Button>
+            <Button type="primary" onClick={() => onDecide("APPROVE")}>
+              批准
+            </Button>
+            <Button status="danger" onClick={() => onDecide("REJECT")}>
+              拒绝
+            </Button>
           </Space>
         )}
         {deployment.resultSummary && <Typography.Text>{deployment.resultSummary}</Typography.Text>}

@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,md}\" \"*.{js,mjs,ts,json}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,md}\" \"*.{js,mjs,ts,json}\"",
     "lint": "eslint src vitest.config.ts vitest.setup.ts",
     "lint:boundaries": "node tests/module-boundaries/check-boundaries.mjs",
     "typecheck": "tsc --noEmit",
@@ -37,6 +39,7 @@
     "eslint": "9.39.2",
     "eslint-config-next": "16.3.4",
     "jsdom": "27.4.0",
+    "prettier": "3.8.2",
     "typescript": "5.9.3",
     "typescript-eslint": "8.53.1",
     "vitest": "4.1.11"

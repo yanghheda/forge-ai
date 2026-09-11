@@ -41,3 +41,6 @@ __pycache__/
 tmp/
 dist/
 docs/learning/temp.md
+
+.pnpm-store/
+data/

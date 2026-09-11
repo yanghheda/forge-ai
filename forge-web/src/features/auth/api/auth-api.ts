@@ -59,9 +59,15 @@ export async function initializeInstance(input: InitializeInput, client: Request
   if (!input.logo) throw new Error("请选择公司 Logo");
   const { logo, ...fields } = input;
   const logoBase64 = await fileToBase64(logo);
-  return client.request("/v1/setup/initialize", jsonRequest("POST", {
-    ...fields, logoFileName: logo.name, logoMediaType: logo.type, logoBase64,
-  }));
+  return client.request(
+    "/v1/setup/initialize",
+    jsonRequest("POST", {
+      ...fields,
+      logoFileName: logo.name,
+      logoMediaType: logo.type,
+      logoBase64,
+    }),
+  );
 }
 
 function fileToBase64(file: File): Promise<string> {

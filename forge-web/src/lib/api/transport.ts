@@ -38,9 +38,7 @@ function asErrorEnvelope(value: unknown): ErrorEnvelope | undefined {
 
 function unwrapSuccessEnvelope(value: unknown): unknown {
   const envelope = typeof value === "object" && value !== null ? (value as SuccessEnvelope) : undefined;
-  return envelope?.code === 0 && envelope.message === "success" && "data" in envelope
-    ? envelope.data
-    : value;
+  return envelope?.code === 0 && envelope.message === "success" && "data" in envelope ? envelope.data : value;
 }
 
 function asDetails(value: unknown): Readonly<Record<string, unknown>> {
@@ -55,10 +53,7 @@ async function readJson(response: Response): Promise<unknown> {
   return response.json().catch(() => undefined);
 }
 
-export function createApiTransport({
-  baseUrl = resolveApiBaseUrl(),
-  fetchImplementation = fetch,
-}: ApiTransportOptions = {}): ApiTransport {
+export function createApiTransport({ baseUrl = resolveApiBaseUrl(), fetchImplementation = fetch }: ApiTransportOptions = {}): ApiTransport {
   const normalizedBaseUrl = baseUrl.replace(/\/$/, "");
   let csrfToken: CsrfTokenResponse | undefined;
   let csrfRequest: Promise<CsrfTokenResponse> | undefined;
@@ -118,10 +113,7 @@ export function createApiTransport({
       }
       throw new ApiError({
         code: typeof envelope?.code === "string" ? envelope.code : "HTTP_ERROR",
-        message:
-          typeof envelope?.message === "string"
-            ? envelope.message
-            : `Request failed with status ${response.status}`,
+        message: typeof envelope?.message === "string" ? envelope.message : `Request failed with status ${response.status}`,
         requestId: typeof envelope?.requestId === "string" ? envelope.requestId : undefined,
         details: asDetails(envelope?.details),
         status: response.status,

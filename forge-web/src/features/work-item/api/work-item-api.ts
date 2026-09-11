@@ -51,13 +51,9 @@ const json = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export const getRequirementOverview = (client: RequestClient = apiClient) =>
-  client.request<RequirementOverview>("/v1/requirements/overview");
+export const getRequirementOverview = (client: RequestClient = apiClient) => client.request<RequirementOverview>("/v1/requirements/overview");
 
-export const listOrganizationRequirements = (
-  filters: { mine?: boolean; q?: string; status?: string } = {},
-  client: RequestClient = apiClient,
-) => {
+export const listOrganizationRequirements = (filters: { mine?: boolean; q?: string; status?: string } = {}, client: RequestClient = apiClient) => {
   const query = new URLSearchParams();
   if (filters.mine) query.set("mine", "true");
   if (filters.q) query.set("q", filters.q);
@@ -65,22 +61,12 @@ export const listOrganizationRequirements = (
   return client.request<OrganizationRequirementPage>(`/v1/requirements?${query.toString()}`);
 };
 
-export const createOrganizationRequirement = (
-  input: { title: string; description: string; priority: string },
-  client: RequestClient = apiClient,
-) => client.request<OrganizationRequirement>("/v1/requirements", json("POST", input));
+export const createOrganizationRequirement = (input: { title: string; description: string; priority: string }, client: RequestClient = apiClient) => client.request<OrganizationRequirement>("/v1/requirements", json("POST", input));
 
-export const getOrganizationRequirement = (id: number, client: RequestClient = apiClient) =>
-  client.request<OrganizationRequirement>(`/v1/requirements/${id}`);
+export const getOrganizationRequirement = (id: number, client: RequestClient = apiClient) => client.request<OrganizationRequirement>(`/v1/requirements/${id}`);
 
-export const listRequirementMembers = (client: RequestClient = apiClient) =>
-  client.request<RequirementMember[]>("/v1/requirements/members");
+export const listRequirementMembers = (client: RequestClient = apiClient) => client.request<RequirementMember[]>("/v1/requirements/members");
 
-export const getRequirementParticipants = (id: number, client: RequestClient = apiClient) =>
-  client.request<RequirementParticipant[]>(`/v1/requirements/${id}/participants`);
+export const getRequirementParticipants = (id: number, client: RequestClient = apiClient) => client.request<RequirementParticipant[]>(`/v1/requirements/${id}/participants`);
 
-export const replaceRequirementParticipants = (
-  id: number,
-  participants: Array<{ role: RequirementRole; userId: number }>,
-  client: RequestClient = apiClient,
-) => client.request<RequirementParticipant[]>(`/v1/requirements/${id}/participants`, json("PUT", { participants }));
+export const replaceRequirementParticipants = (id: number, participants: Array<{ role: RequirementRole; userId: number }>, client: RequestClient = apiClient) => client.request<RequirementParticipant[]>(`/v1/requirements/${id}/participants`, json("PUT", { participants }));

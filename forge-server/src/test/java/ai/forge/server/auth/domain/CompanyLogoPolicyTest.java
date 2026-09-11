@@ -8,12 +8,13 @@ import org.junit.jupiter.api.Test;
 class CompanyLogoPolicyTest {
 
     @Test
-    void acceptsExactlyTwentyEightPixelWebp() {
+    void acceptsSquareWebpAtAnyDimensions() {
         assertThatNoException().isThrownBy(() -> CompanyLogoPolicy.validate(webp(28, 28)));
+        assertThatNoException().isThrownBy(() -> CompanyLogoPolicy.validate(webp(512, 512)));
     }
 
     @Test
-    void rejectsWebpWithAnyOtherDimensions() {
+    void rejectsNonSquareWebp() {
         assertThatThrownBy(() -> CompanyLogoPolicy.validate(webp(29, 28)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> CompanyLogoPolicy.validate(webp(28, 27)))

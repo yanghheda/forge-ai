@@ -35,9 +35,7 @@ describe("RequirementMaterials", () => {
     expect(screen.queryByRole("textbox", { name: "业务目标" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "编辑需求" }));
-    expect(screen.getByRole("textbox", { name: "业务目标" })).toHaveValue(
-      "让团队清晰查看需求",
-    );
+    expect(screen.getByRole("textbox", { name: "业务目标" })).toHaveValue("让团队清晰查看需求");
     expect(screen.getByRole("button", { name: "保存材料" })).toBeInTheDocument();
   });
 });

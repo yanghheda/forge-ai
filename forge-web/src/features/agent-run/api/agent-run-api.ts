@@ -42,32 +42,15 @@ export interface ApprovalSnapshot {
   version: number;
 }
 
-export function getAgentRun(
-  organizationId: number,
-  runId: string,
-  client: RequestClient = apiClient,
-): Promise<AgentRunSnapshot> {
-  return client.request(
-    `/v1/agent-runs/${runId}?organizationId=${organizationId}`,
-  );
+export function getAgentRun(organizationId: number, runId: string, client: RequestClient = apiClient): Promise<AgentRunSnapshot> {
+  return client.request(`/v1/agent-runs/${runId}?organizationId=${organizationId}`);
 }
 
-export function getRunApproval(
-  organizationId: number,
-  runId: string,
-  client: RequestClient = apiClient,
-): Promise<ApprovalSnapshot> {
-  return client.request(
-    `/v1/approvals/by-run/${runId}?organizationId=${organizationId}`,
-  );
+export function getRunApproval(organizationId: number, runId: string, client: RequestClient = apiClient): Promise<ApprovalSnapshot> {
+  return client.request(`/v1/approvals/by-run/${runId}?organizationId=${organizationId}`);
 }
 
-export function decideApproval(
-  approval: ApprovalSnapshot,
-  organizationId: number,
-  decision: "APPROVE" | "REJECT",
-  client: RequestClient = apiClient,
-): Promise<ApprovalSnapshot> {
+export function decideApproval(approval: ApprovalSnapshot, organizationId: number, decision: "APPROVE" | "REJECT", client: RequestClient = apiClient): Promise<ApprovalSnapshot> {
   return client.request(`/v1/approvals/${approval.id}:decide`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -79,11 +62,7 @@ export function decideApproval(
   });
 }
 
-export function agentEventUrl(
-  organizationId: number,
-  runId: string,
-  afterSequence: number,
-): string {
+export function agentEventUrl(organizationId: number, runId: string, afterSequence: number): string {
   const query = new URLSearchParams({
     organizationId: String(organizationId),
     afterSequence: String(afterSequence),

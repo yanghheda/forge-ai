@@ -1,1 +1,170 @@
-.page{max-width:1440px;margin:0 auto;padding:20px}.page>header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}.page h1{margin:0 0 4px;font-size:20px;font-weight:600}.page header p{margin:0;color:var(--forge-text-3);font-size:13px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}.stats>div{display:flex;min-height:88px;padding:16px;border:1px solid var(--forge-border-2);border-radius:4px;background:#fff;flex-direction:column}.stats span{color:var(--forge-text-3);font-size:12px}.stats strong{margin-top:7px;font-size:22px}.card{padding:16px;border:1px solid var(--forge-border-2);border-radius:4px;background:#fff}.filters{display:grid;grid-template-columns:minmax(260px,1fr) 180px;gap:12px;margin-bottom:16px}.member{display:flex;align-items:center;gap:10px}.member>span{display:grid;width:32px;height:32px;place-items:center;border-radius:50%;color:#fff;background:var(--forge-primary-5)}.member b,.member small{display:block}.member b{font-size:13px}.member small{color:var(--forge-text-3);font-size:11px}.form{display:grid;gap:20px}.form label{display:grid;gap:8px;color:var(--forge-text-2);font-size:13px}.switchLabel{display:flex!important;align-items:center;justify-content:space-between}.integrationGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.integration{position:relative;display:grid;grid-template-columns:48px 1fr;min-height:200px;padding:20px;border:1px solid var(--forge-border-2);border-radius:4px;background:#fff;gap:14px}.integrationIcon{display:grid;width:48px;height:48px;place-items:center;border-radius:8px;color:var(--forge-primary-6);background:var(--forge-primary-1);font-size:23px}.integration h2{margin:2px 0 6px;font-size:16px}.integration p{min-height:44px;margin:0 0 12px;color:var(--forge-text-3);font-size:13px}.integration>button{position:absolute;right:20px;bottom:20px}.notice{display:flex;align-items:flex-start;margin-top:16px;padding:16px;border:1px solid var(--forge-primary-2);border-radius:4px;color:var(--forge-primary-6);background:var(--forge-primary-1);gap:12px}.notice b{color:var(--forge-text-1)}.notice p{margin:3px 0 0;color:var(--forge-text-2);font-size:12px}@media(max-width:800px){.page{padding:16px}.stats{grid-template-columns:repeat(2,1fr)}.integrationGrid{grid-template-columns:1fr}.filters{grid-template-columns:1fr}}
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.page > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.page h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.page header p {
+  margin: 0;
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.stats > div {
+  display: flex;
+  min-height: 88px;
+  padding: 16px;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 4px;
+  background: #fff;
+  flex-direction: column;
+}
+.stats span {
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.stats strong {
+  margin-top: 7px;
+  font-size: 22px;
+}
+.card {
+  padding: 16px;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 4px;
+  background: #fff;
+}
+.filters {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 180px;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.member > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--forge-primary-5);
+}
+.member b,
+.member small {
+  display: block;
+}
+.member b {
+  font-size: 13px;
+}
+.member small {
+  color: var(--forge-text-3);
+  font-size: 11px;
+}
+.form {
+  display: grid;
+  gap: 20px;
+}
+.form label {
+  display: grid;
+  gap: 8px;
+  color: var(--forge-text-2);
+  font-size: 13px;
+}
+.switchLabel {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+}
+.integrationGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.integration {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  min-height: 200px;
+  padding: 20px;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 4px;
+  background: #fff;
+  gap: 14px;
+}
+.integrationIcon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--forge-primary-6);
+  background: var(--forge-primary-1);
+  font-size: 23px;
+}
+.integration h2 {
+  margin: 2px 0 6px;
+  font-size: 16px;
+}
+.integration p {
+  min-height: 44px;
+  margin: 0 0 12px;
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+.integration > button {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+}
+.notice {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--forge-primary-2);
+  border-radius: 4px;
+  color: var(--forge-primary-6);
+  background: var(--forge-primary-1);
+  gap: 12px;
+}
+.notice b {
+  color: var(--forge-text-1);
+}
+.notice p {
+  margin: 3px 0 0;
+  color: var(--forge-text-2);
+  font-size: 12px;
+}
+@media (max-width: 800px) {
+  .page {
+    padding: 16px;
+  }
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .integrationGrid {
+    grid-template-columns: 1fr;
+  }
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}

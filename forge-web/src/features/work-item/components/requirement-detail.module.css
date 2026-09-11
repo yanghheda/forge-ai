@@ -31,9 +31,9 @@
 
 .title span {
   color: var(--forge-color-muted);
-  font-size: .52em;
+  font-size: 0.52em;
   font-weight: 700;
-  letter-spacing: .2px;
+  letter-spacing: 0.2px;
 }
 
 .statusGroup {

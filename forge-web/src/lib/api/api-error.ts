@@ -111,9 +111,7 @@ export function getUserErrorMessage(error: unknown): string {
     return error instanceof TypeError ? "网络连接异常，请检查网络后重试。" : "请求失败，请稍后重试。";
   }
   const messageCode = ERROR_MESSAGES[error.message] ? error.message : error.code;
-  return ERROR_MESSAGES[messageCode]
-    ?? STATUS_MESSAGES[error.status]
-    ?? "请求失败，请稍后重试。";
+  return ERROR_MESSAGES[messageCode] ?? STATUS_MESSAGES[error.status] ?? "请求失败，请稍后重试。";
 }
 
 export function formatRequestError(error: unknown): string {

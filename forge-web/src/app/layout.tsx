@@ -11,6 +11,10 @@ import { AppProviders } from "./providers";
 export const metadata: Metadata = {
   title: "ForgeAI",
   description: "AI 原生软件交付工作台",
+  icons: {
+    icon: [{ url: "/favicon.ico", type: "image/x-icon" }],
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

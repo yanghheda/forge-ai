@@ -1,15 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  initialRunTimelineState,
-  reduceRunEvent,
-  type AgentEventEnvelope,
-} from "./run-reducer";
+import { initialRunTimelineState, reduceRunEvent, type AgentEventEnvelope } from "./run-reducer";
 
-const event = (
-  sequence: number,
-  type: string,
-  payload: Record<string, unknown> = {},
-): AgentEventEnvelope => ({
+const event = (sequence: number, type: string, payload: Record<string, unknown> = {}): AgentEventEnvelope => ({
   runId: "01KTEST0000000000000000000",
   sequence,
   type,
@@ -20,10 +12,7 @@ const event = (
 
 describe("reduceRunEvent", () => {
   it("ignores duplicate delivery by sequence", () => {
-    const once = reduceRunEvent(
-      initialRunTimelineState(0),
-      event(1, "agent.started", { status: "RUNNING" }),
-    );
+    const once = reduceRunEvent(initialRunTimelineState(0), event(1, "agent.started", { status: "RUNNING" }));
 
     expect(reduceRunEvent(once, event(1, "agent.started"))).toBe(once);
     expect(once.lastSequence).toBe(1);
@@ -37,10 +26,7 @@ describe("reduceRunEvent", () => {
   });
 
   it("projects step updates and closes on a terminal event", () => {
-    const started = reduceRunEvent(
-      initialRunTimelineState(0),
-      event(1, "step.started", { stepNo: 1, name: "Prepare", status: "RUNNING" }),
-    );
+    const started = reduceRunEvent(initialRunTimelineState(0), event(1, "step.started", { stepNo: 1, name: "Prepare", status: "RUNNING" }));
     const completed = reduceRunEvent(
       started,
       event(2, "step.completed", {
@@ -50,10 +36,7 @@ describe("reduceRunEvent", () => {
         summary: "done",
       }),
     );
-    const terminal = reduceRunEvent(
-      completed,
-      event(3, "agent.completed", { status: "SUCCEEDED", summary: "finished" }),
-    );
+    const terminal = reduceRunEvent(completed, event(3, "agent.completed", { status: "SUCCEEDED", summary: "finished" }));
 
     expect(terminal.steps[1]).toMatchObject({ status: "SUCCEEDED", summary: "done" });
     expect(terminal.final).toEqual({ status: "SUCCEEDED", summary: "finished" });

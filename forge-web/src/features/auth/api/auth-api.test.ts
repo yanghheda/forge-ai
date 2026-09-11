@@ -7,21 +7,42 @@ describe("auth api", () => {
     const client = { request: vi.fn().mockResolvedValue(undefined) };
 
     await getSetupStatus(client);
-    await initializeInstance({
-      adminEmail: "owner@example.com", adminDisplayName: "Owner", password: "correct-horse-42",
-      organizationName: "Forge", organizationSlug: "forge",
-      logo: new File(["RIFF0000WEBP"], "logo.webp", { type: "image/webp" }),
-    }, client);
-    await register({ email: "dev@example.com", displayName: "Dev", password: "member-password-42", role: "DEVELOPER" }, client);
+    await initializeInstance(
+      {
+        adminEmail: "owner@example.com",
+        adminDisplayName: "Owner",
+        password: "correct-horse-42",
+        organizationName: "Forge",
+        organizationSlug: "forge",
+        logo: new File(["RIFF0000WEBP"], "logo.webp", { type: "image/webp" }),
+      },
+      client,
+    );
+    await register(
+      {
+        email: "dev@example.com",
+        displayName: "Dev",
+        password: "member-password-42",
+        role: "DEVELOPER",
+      },
+      client,
+    );
     await login({ email: "owner@example.com", password: "correct-horse-42" }, client);
     await getCurrentUser(client);
     await logout(client);
 
     expect(client.request.mock.calls.map(([path, init]) => [path, init?.method])).toEqual([
-      ["/v1/setup/status", undefined], ["/v1/setup/initialize", "POST"], ["/v1/auth/register", "POST"], ["/v1/auth/login", "POST"],
-      ["/v1/me", undefined], ["/v1/auth/logout", "POST"],
+      ["/v1/setup/status", undefined],
+      ["/v1/setup/initialize", "POST"],
+      ["/v1/auth/register", "POST"],
+      ["/v1/auth/login", "POST"],
+      ["/v1/me", undefined],
+      ["/v1/auth/logout", "POST"],
     ]);
     const initializeBody = JSON.parse(client.request.mock.calls[1][1].body as string);
-    expect(initializeBody).toMatchObject({ logoFileName: "logo.webp", logoMediaType: "image/webp" });
+    expect(initializeBody).toMatchObject({
+      logoFileName: "logo.webp",
+      logoMediaType: "image/webp",
+    });
   });
 });

@@ -1,14 +1,79 @@
-.page { display: grid; gap: 20px; }
-.back { width: fit-content; color: #635bff; text-decoration: none; }
-.header { display: flex; justify-content: space-between; gap: 24px; padding: 28px; border: 1px solid #eaecf0; border-radius: 16px; background: linear-gradient(135deg, #fff, #f8f7ff); }
-.header h2 { margin: 6px 0; }
-.header p { max-width: 760px; margin-bottom: 0; }
-.header > div:last-child { display: flex; align-items: flex-start; gap: 8px; }
-.grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 18px; }
-.people p { color: #667085; }
-.roleGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
-.roleGrid label > span { display: block; margin-bottom: 7px; color: #344054; font-weight: 600; }
-.facts { display: grid; gap: 16px; margin: 0; }
-.facts div { display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid #f2f4f7; }
-.facts dt { color: #667085; }.facts dd { margin: 0; color: #101828; font-weight: 600; }
-@media (max-width: 800px) { .header, .grid { display: grid; grid-template-columns: 1fr; } .roleGrid { grid-template-columns: 1fr; } }
+.page {
+  display: grid;
+  gap: 20px;
+}
+.back {
+  width: fit-content;
+  color: #635bff;
+  text-decoration: none;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff, #f8f7ff);
+}
+.header h2 {
+  margin: 6px 0;
+}
+.header p {
+  max-width: 760px;
+  margin-bottom: 0;
+}
+.header > div:last-child {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 18px;
+}
+.people p {
+  color: #667085;
+}
+.roleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.roleGrid label > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #344054;
+  font-weight: 600;
+}
+.facts {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+}
+.facts div {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f2f4f7;
+}
+.facts dt {
+  color: #667085;
+}
+.facts dd {
+  margin: 0;
+  color: #101828;
+  font-weight: 600;
+}
+@media (max-width: 800px) {
+  .header,
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .roleGrid {
+    grid-template-columns: 1fr;
+  }
+}

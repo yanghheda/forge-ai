@@ -13,9 +13,28 @@ describe("QaRunView", () => {
           requirementId: 2,
           environment: "staging",
           status: "COMPLETED",
-          summary: { total: 2, passed: 1, failed: 0, blocked: 0, skipped: 1, notRun: 0, mandatorySkipped: 0 },
+          summary: {
+            total: 2,
+            passed: 1,
+            failed: 0,
+            blocked: 0,
+            skipped: 1,
+            notRun: 0,
+            mandatorySkipped: 0,
+          },
           decision: { passed: true, missing: [] },
-          results: [{ id: 3, testCaseId: 4, title: "核心路径", priority: "P0", status: "PASS", actualResult: "", evidence: [], version: 1 }],
+          results: [
+            {
+              id: 3,
+              testCaseId: 4,
+              title: "核心路径",
+              priority: "P0",
+              status: "PASS",
+              actualResult: "",
+              evidence: [],
+              version: 1,
+            },
+          ],
           version: 2,
         }}
         busy={false}
@@ -61,11 +80,6 @@ describe("BugList", () => {
 
     expect(screen.getByText("BLOCKER")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "验证" }));
-    expect(action).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 9 }),
-      "VERIFY",
-      undefined,
-      undefined,
-    );
+    expect(action).toHaveBeenCalledWith(expect.objectContaining({ id: 9 }), "VERIFY", undefined, undefined);
   });
 });

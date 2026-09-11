@@ -2,21 +2,18 @@ package ai.forge.server.auth.domain;
 
 public final class CompanyLogoPolicy {
 
-    /* 公司 Logo 唯一允许的宽度，单位为像素。 */
-    private static final int REQUIRED_WIDTH = 28;
-
-    /* 公司 Logo 唯一允许的高度，单位为像素。 */
-    private static final int REQUIRED_HEIGHT = 28;
+    /* 公司 Logo 文件内容允许的最大字节数，为 2 MiB。 */
+    private static final int MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
     private CompanyLogoPolicy() {}
 
     public static void validate(byte[] content) {
-        if (content.length == 0 || content.length > 2 * 1024 * 1024 || !hasWebpSignature(content)) {
+        if (content.length == 0 || content.length > MAX_FILE_SIZE_BYTES || !hasWebpSignature(content)) {
             throw new IllegalArgumentException("Invalid WebP logo");
         }
         int[] dimensions = dimensions(content);
-        if (dimensions[0] != REQUIRED_WIDTH || dimensions[1] != REQUIRED_HEIGHT) {
-            throw new IllegalArgumentException("Company logo must be exactly 28x28 pixels");
+        if (dimensions[0] != dimensions[1]) {
+            throw new IllegalArgumentException("Company logo must have a 1:1 aspect ratio");
         }
     }
 
