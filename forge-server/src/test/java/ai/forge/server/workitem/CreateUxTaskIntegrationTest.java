@@ -38,8 +38,8 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
 
     private String ownerCookie;
     private long ownerId;
-    private long workspaceId;
-    private long projectId;
+    private long organizationId;
+
     private long requirementId;
 
     @BeforeEach
@@ -50,9 +50,8 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
                         + "WHERE id = 1");
         jdbcTemplate.update("UPDATE work_items SET parent_id = NULL");
         for (String table : List.of(
-                "outbox_events", "work_item_relations", "work_item_labels", "project_policies", "work_item_events",
-                "review_records", "requirement_details", "work_items", "project_item_sequences", "project_members",
-                "projects", "audit_logs", "member_roles", "workspace_members", "workspaces", "organizations",
+                "outbox_events", "work_item_relations", "work_item_labels", "organization_policies", "work_item_events",
+                "review_records", "requirement_details", "work_items", "organization_item_sequences",                 "organization_policies", "audit_logs", "member_roles", "organization_members", "organizations",
                 "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
@@ -64,27 +63,20 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
-                        "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"),
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
                 null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         ownerCookie = login(ownerEmail);
         ownerId = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE normalized_email = ?", Long.class, ownerEmail);
-        workspaceId = jdbcTemplate.queryForObject(
-                "SELECT id FROM workspaces WHERE slug = 'engineering'", Long.class);
-        ResponseEntity<String> project = csrf().post(
-                "/api/v1/projects",
-                Map.of("workspaceId", workspaceId, "key", "FORGE", "name", "ForgeAI", "description", "会话 21"),
-                ownerCookie,
-                String.class);
-        projectId = objectMapper.readTree(project.getBody()).get("id").asLong();
+        organizationId = jdbcTemplate.queryForObject(
+                "SELECT default_organization_id FROM instance_settings WHERE id = 1", Long.class);
         ResponseEntity<String> requirement = csrf().post(
                 "/api/v1/work-items",
                 Map.of(
-                        "workspaceId", workspaceId,
-                        "projectId", projectId,
                         "type", "REQUIREMENT",
                         "title", "UX 跟随的需求",
                         "description", "parent fact",
@@ -97,7 +89,7 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
     @Test
     void createUxTaskPersistsParentLinkAndServerControlledDefaults() {
         var uxTask = commandService.createUxTask(
-                ownerId, workspaceId, projectId, requirementId, "注册流程重设计", "降低放弃率", null, null);
+                ownerId, organizationId, requirementId, "注册流程重设计", "降低放弃率", null, null);
 
         assertThat(uxTask.type().name()).isEqualTo("UX_TASK");
         assertThat(uxTask.status().name()).isEqualTo("TODO");
@@ -111,15 +103,15 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void createUxTaskRejectsMissingOrCrossScopeParent() {
-        long otherProjectRequirement = createRequirementInOtherProject();
+    void createUxTaskRejectsMissingOrNonRequirementParent() {
+        long nonRequirementParent = createNonRequirementParent();
 
         assertThatThrownBy(() -> commandService.createUxTask(
-                ownerId, workspaceId, projectId, 999_999L, "孤儿", null, null, null))
+                ownerId, organizationId, 999_999L, "孤儿", null, null, null))
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> commandService.createUxTask(
-                ownerId, workspaceId, projectId, otherProjectRequirement, "跨项目", null, null, null))
-                .isInstanceOf(ResourceNotFoundException.class);
+                ownerId, organizationId, nonRequirementParent, "错误父项", null, null, null))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM work_items WHERE type = 'UX_TASK'", Long.class))
                 .isZero();
@@ -128,10 +120,10 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
     @Test
     void createUxTaskRejectsNonRequirementParent() {
         var firstUxTask = commandService.createUxTask(
-                ownerId, workspaceId, projectId, requirementId, "第一个 UX Task", null, null, null);
+                ownerId, organizationId, requirementId, "第一个 UX Task", null, null, null);
 
         assertThatThrownBy(() -> commandService.createUxTask(
-                ownerId, workspaceId, projectId, firstUxTask.id(), "嵌套 UX Task", null, null, null))
+                ownerId, organizationId, firstUxTask.id(), "嵌套 UX Task", null, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -142,7 +134,7 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
                         + "AND permission_id = (SELECT id FROM permissions WHERE code = 'ux.create')");
 
         assertThatThrownBy(() -> commandService.createUxTask(
-                ownerId, workspaceId, projectId, requirementId, "权限撤回后的创建", null, null, null))
+                ownerId, organizationId, requirementId, "权限撤回后的创建", null, null, null))
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM work_items WHERE type = 'UX_TASK'", Long.class))
@@ -157,28 +149,20 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
                         + "(SELECT id FROM permissions WHERE code = 'ux.create'))");
     }
 
-    private long createRequirementInOtherProject() {
-        ResponseEntity<String> other = csrf().post(
-                "/api/v1/projects",
-                Map.of("workspaceId", workspaceId, "key", "OTHER", "name", "Other", "description", "另一项目"),
-                ownerCookie,
-                String.class);
+    private long createNonRequirementParent() {
         try {
-            long otherProjectId = objectMapper.readTree(other.getBody()).get("id").asLong();
-            ResponseEntity<String> requirement = csrf().post(
+            ResponseEntity<String> task = csrf().post(
                     "/api/v1/work-items",
                     Map.of(
-                            "workspaceId", workspaceId,
-                            "projectId", otherProjectId,
-                            "type", "REQUIREMENT",
-                            "title", "另一个项目的需求",
-                            "description", "cross scope fact",
+                            "type", "DEV_TASK",
+                            "title", "不能作为 UX 父项的开发任务",
+                            "description", "invalid parent fact",
                             "priority", "MEDIUM"),
                     ownerCookie,
                     String.class);
-            return objectMapper.readTree(requirement.getBody()).get("id").asLong();
+            return objectMapper.readTree(task.getBody()).get("id").asLong();
         } catch (Exception exception) {
-            throw new IllegalStateException("Cross scope requirement was not created", exception);
+            throw new IllegalStateException("Non-requirement parent was not created", exception);
         }
     }
 

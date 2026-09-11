@@ -7,17 +7,17 @@ import java.util.Optional;
 
 public interface ReleaseStore {
 
-    ReleaseView create(long workspaceId, long projectId, long userId, String versionName, String environment,
+    ReleaseView create(long organizationId, long userId, String versionName, String environment,
             List<Long> itemIds, long approvalTtlMinutes);
 
-    Optional<ReleaseView> find(long workspaceId, long projectId, long releaseId);
+    Optional<ReleaseView> find(long organizationId, long releaseId);
 
-    List<ReleaseView> list(long workspaceId, long projectId);
+    List<ReleaseView> list(long organizationId);
 
-    ReleaseView updateNote(long workspaceId, long projectId, long releaseId, String note, long expectedVersion);
+    ReleaseView updateNote(long organizationId, long releaseId, String note, long expectedVersion);
 
-    PrecheckFacts loadFacts(long workspaceId, long projectId, long releaseId);
+    PrecheckFacts loadFacts(long organizationId, long releaseId);
 
-    PrecheckSnapshot appendPrecheck(long workspaceId, long projectId, long releaseId, long checkedById,
+    PrecheckSnapshot appendPrecheck(long organizationId, long releaseId, long checkedById,
             String checkedByType, PrecheckDecision decision, PrecheckFacts facts);
 }

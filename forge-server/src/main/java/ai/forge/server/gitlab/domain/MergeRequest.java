@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 public record MergeRequest(
         /* 本地 MR 快照标识。 */ long id,
-        /* MR 所属工作区租户范围。 */ long workspaceId,
+        /* MR 所属工作区租户范围。 */ long organizationId,
         /* MR 所属本地仓库绑定。 */ long repositoryId,
         /* 关联的研发工作项；未关联时为空。 */ Long workItemId,
         /* GitLab 在项目内分配的 MR IID。 */ long remoteMrIid,

@@ -27,42 +27,42 @@ public class ReleaseService {
     }
 
     @Transactional
-    public ReleaseView create(long userId, long workspaceId, long projectId, String versionName,
+    public ReleaseView create(long userId, long organizationId, String versionName,
             String environment, List<Long> itemIds, long approvalTtlMinutes) {
-        permissions.requireProject(userId, workspaceId, projectId, "release.manage");
+        permissions.requireOrganization(userId, organizationId, "release.manage");
         if (versionName == null || versionName.isBlank() || environment == null || environment.isBlank()
                 || itemIds == null || itemIds.isEmpty()) {
             throw new IllegalArgumentException("release version, environment and items are required");
         }
-        return store.create(workspaceId, projectId, userId, versionName.trim(), environment.trim(),
+        return store.create(organizationId, userId, versionName.trim(), environment.trim(),
                 itemIds.stream().distinct().toList(), approvalTtlMinutes);
     }
 
-    public ReleaseView get(long userId, long workspaceId, long projectId, long releaseId) {
-        permissions.requireProject(userId, workspaceId, projectId, "release.read");
-        return store.find(workspaceId, projectId, releaseId).orElseThrow(ResourceNotFoundException::new);
+    public ReleaseView get(long userId, long organizationId, long releaseId) {
+        permissions.requireOrganization(userId, organizationId, "release.read");
+        return store.find(organizationId, releaseId).orElseThrow(ResourceNotFoundException::new);
     }
 
-    public List<ReleaseView> list(long userId, long workspaceId, long projectId) {
-        permissions.requireProject(userId, workspaceId, projectId, "release.read");
-        return store.list(workspaceId, projectId);
+    public List<ReleaseView> list(long userId, long organizationId) {
+        permissions.requireOrganization(userId, organizationId, "release.read");
+        return store.list(organizationId);
     }
 
     @Transactional
-    public ReleaseView updateNote(long userId, long workspaceId, long projectId, long releaseId,
+    public ReleaseView updateNote(long userId, long organizationId, long releaseId,
             String note, long expectedVersion) {
-        permissions.requireProject(userId, workspaceId, projectId, "release.manage");
+        permissions.requireOrganization(userId, organizationId, "release.manage");
         if (note == null || note.isBlank()) {
             throw new IllegalArgumentException("release note is required");
         }
-        return store.updateNote(workspaceId, projectId, releaseId, note.trim(), expectedVersion);
+        return store.updateNote(organizationId, releaseId, note.trim(), expectedVersion);
     }
 
     @Transactional
-    public PrecheckSnapshot precheck(long userId, long workspaceId, long projectId, long releaseId) {
-        permissions.requireProject(userId, workspaceId, projectId, "release.precheck");
-        PrecheckFacts facts = store.loadFacts(workspaceId, projectId, releaseId);
+    public PrecheckSnapshot precheck(long userId, long organizationId, long releaseId) {
+        permissions.requireOrganization(userId, organizationId, "release.precheck");
+        PrecheckFacts facts = store.loadFacts(organizationId, releaseId);
         PrecheckDecision decision = rules.evaluate(facts);
-        return store.appendPrecheck(workspaceId, projectId, releaseId, userId, "USER", decision, facts);
+        return store.appendPrecheck(organizationId, releaseId, userId, "USER", decision, facts);
     }
 }

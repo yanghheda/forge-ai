@@ -6,9 +6,7 @@ public record WorkItemEvent(
         /* 事件的单调数据库标识。 */
         long id,
         /* 事件所属工作区。 */
-        long workspaceId,
-        /* 事件所属项目。 */
-        long projectId,
+        long organizationId,
         /* 事件所属 Work Item。 */
         long workItemId,
         /* 触发该事件的固定工作流动作。 */

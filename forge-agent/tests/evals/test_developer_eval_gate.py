@@ -22,7 +22,7 @@ def test_developer_eval_cases_obey_contract_gate() -> None:
         "gitlab-timeout",
         "branch-already-exists",
         "failed-pipeline",
-        "cross-project-retrieval",
+        "foreign-company-retrieval",
     }
     for case in cases:
         assert case["skill"] == "DEVELOPER"

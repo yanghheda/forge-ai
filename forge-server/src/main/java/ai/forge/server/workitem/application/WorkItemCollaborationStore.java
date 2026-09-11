@@ -9,26 +9,24 @@ import java.util.List;
 public interface WorkItemCollaborationStore {
 
     boolean relationExists(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long sourceId,
             long targetId,
             WorkItemRelationType relationType);
 
     WorkItemRelation createRelation(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long sourceId,
             long targetId,
             WorkItemRelationType relationType,
             long createdBy);
 
-    List<WorkItemRelation> findRelations(long workspaceId, long projectId, long workItemId);
+    List<WorkItemRelation> findRelations(long organizationId, long workItemId);
 
-    void addLabel(long workspaceId, long projectId, long workItemId, WorkItemLabel label, long createdBy);
+    void addLabel(long organizationId, long workItemId, WorkItemLabel label, long createdBy);
 
     ActivityItem createComment(
-            long workspaceId, long projectId, long workItemId, long authorId, String body);
+            long organizationId, long workItemId, long authorId, String body);
 
-    List<ActivityItem> findActivity(long workspaceId, long projectId, long workItemId);
+    List<ActivityItem> findActivity(long organizationId, long workItemId);
 }

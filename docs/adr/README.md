@@ -21,7 +21,8 @@ ADR 用于记录影响多个模块、长期演进或安全边界的架构决策�
 | [ADR-014](ADR-014-local-docker-desktop-mvp.md) | Accepted | 本地开发使用 Docker Desktop 运行依赖服务 |
 | [ADR-011](ADR-011-openapi-contract-source.md) | Accepted | OpenAPI 为跨端 REST 契约来源 |
 | [ADR-013](ADR-013-springdoc-swagger-ui.md) | Accepted | 使用 springdoc-openapi 与 Swagger UI |
-| [ADR-015](ADR-015-single-organization-product-scope.md) | Accepted | 单组织产品模型与内部兼容 Scope |
+| [ADR-015](ADR-015-single-organization-product-scope.md) | Superseded | 单组织产品模型与内部兼容 Scope |
+| [ADR-016](ADR-016-remove-workspace-project-scope.md) | Accepted | 公司直属资源并物理移除 Workspace/Project scope |
 
 ## 何时新增 ADR
 

@@ -65,120 +65,120 @@ public class ApprovalService {
         List<ApprovalSnapshot.ResourceVersion> resources = resourceVersions(run, contract.name(), arguments);
         String approvalId = AgentRunIdGenerator.next();
         try {
-            store.insert(approvalId, run.workspaceId(), run.projectId(), run.id(), toolCallId,
+            store.insert(approvalId, run.organizationId(), run.id(), toolCallId,
                     contract.riskLevel(), run.userId(), contract.name(), contract.version(), hash,
                     cipher.encrypt(normalized), json(resources), contract.highRisk()
                             ? "HIGH Tool always requires another user's approval"
                             : "MEDIUM Tool requires explicit confirmation",
                     LocalDateTime.ofInstant(Instant.now().plus(APPROVAL_TTL), ZoneOffset.UTC));
-            store.insertWaitingToolCall(run.workspaceId(), run.projectId(), run.id(), toolCallId,
+            store.insertWaitingToolCall(run.organizationId(), run.id(), toolCallId,
                     contract.name(), contract.version(), contract.riskLevel(), hash, normalized,
                     run.id() + ":" + toolCallId, approvalId);
-            if (!store.markRunWaiting(run.workspaceId(), run.projectId(), run.id())) {
+            if (!store.markRunWaiting(run.organizationId(), run.id())) {
                 throw new VersionConflictException();
             }
-            store.insertRequiredEvent(run.workspaceId(), run.projectId(), run.id(), approvalId,
+            store.insertRequiredEvent(run.organizationId(), run.id(), approvalId,
                     contract.name(), "agent:" + run.id());
-            return find(run.workspaceId(), run.projectId(), approvalId);
+            return find(run.organizationId(), approvalId);
         } catch (DuplicateKeyException exception) {
-            ApprovalSnapshot existing = findByCall(run.workspaceId(), run.projectId(), run.id(), toolCallId);
+            ApprovalSnapshot existing = findByCall(run.organizationId(), run.id(), toolCallId);
             requireFrozenInput(existing, contract, hash);
             return existing;
         }
     }
 
-    public ApprovalSnapshot get(long userId, long workspaceId, long projectId, String approvalId) {
-        permissionEvaluator.requireProject(userId, workspaceId, projectId, "agent.run");
-        return expireIfNeeded(find(workspaceId, projectId, approvalId), workspaceId, projectId,
+    public ApprovalSnapshot get(long userId, long organizationId, String approvalId) {
+        permissionEvaluator.requireOrganization(userId, organizationId, "agent.run");
+        return expireIfNeeded(find(organizationId, approvalId), organizationId,
                 "approval-expiry:" + approvalId);
     }
 
-    public ApprovalSnapshot getForRun(long userId, long workspaceId, long projectId, String runId) {
-        permissionEvaluator.requireProject(userId, workspaceId, projectId, "agent.run");
-        Map<String, Object> row = store.findByRun(workspaceId, projectId, runId).stream().findFirst()
+    public ApprovalSnapshot getForRun(long userId, long organizationId, String runId) {
+        permissionEvaluator.requireOrganization(userId, organizationId, "agent.run");
+        Map<String, Object> row = store.findByRun(organizationId, runId).stream().findFirst()
                 .orElseThrow(ResourceNotFoundException::new);
         ApprovalSnapshot approval = snapshot(row);
-        return expireIfNeeded(approval, workspaceId, projectId, "approval-expiry:" + approval.id());
+        return expireIfNeeded(approval, organizationId, "approval-expiry:" + approval.id());
     }
 
     @Transactional
-    public ApprovalSnapshot decide(long userId, long workspaceId, long projectId, String approvalId,
+    public ApprovalSnapshot decide(long userId, long organizationId, String approvalId,
             boolean approve, long expectedVersion, String requestId) {
-        permissionEvaluator.requireProject(userId, workspaceId, projectId, "approval.decide");
-        ApprovalSnapshot current = find(workspaceId, projectId, approvalId);
+        permissionEvaluator.requireOrganization(userId, organizationId, "approval.decide");
+        ApprovalSnapshot current = find(organizationId, approvalId);
         if (current.requestedBy() == userId) {
             throw new ToolExecutionRejectedException(HttpStatus.FORBIDDEN.value(),
                     "SELF_APPROVAL_FORBIDDEN", "Requester cannot approve their own tool call");
         }
-        store.expire(workspaceId, projectId, approvalId);
-        current = find(workspaceId, projectId, approvalId);
+        store.expire(organizationId, approvalId);
+        current = find(organizationId, approvalId);
         if (current.status() == ApprovalStatus.EXPIRED) {
-            finishWithoutExecution(current, workspaceId, projectId, "approval.expired", "EXPIRED",
+            finishWithoutExecution(current, organizationId, "approval.expired", "EXPIRED",
                     "APPROVAL_EXPIRED", requestId);
             return current;
         }
-        if (current.status() != ApprovalStatus.PENDING || !store.decide(workspaceId, projectId, approvalId,
+        if (current.status() != ApprovalStatus.PENDING || !store.decide(organizationId, approvalId,
                 userId, approve ? "APPROVED" : "REJECTED", expectedVersion)) {
             throw new VersionConflictException();
         }
         if (approve) {
-            store.insertResumeOutbox(workspaceId, projectId, current.runId(), approvalId);
-            store.markRunResuming(workspaceId, projectId, current.runId());
+            store.insertResumeOutbox(organizationId, current.runId(), approvalId);
+            store.markRunResuming(organizationId, current.runId());
         } else {
-            store.markRunResuming(workspaceId, projectId, current.runId());
+            store.markRunResuming(organizationId, current.runId());
         }
-        store.insertDecisionEvent(workspaceId, projectId, current.runId(), approvalId,
+        store.insertDecisionEvent(organizationId, current.runId(), approvalId,
                 approve ? "approval.approved" : "approval.rejected", approve ? "APPROVED" : "REJECTED", requestId);
         if (!approve) {
-            runStore.fail(workspaceId, projectId, current.runId(), requestId, "APPROVAL_REJECTED");
+            runStore.fail(organizationId, current.runId(), requestId, "APPROVAL_REJECTED");
         }
-        return find(workspaceId, projectId, approvalId);
+        return find(organizationId, approvalId);
     }
 
     @Transactional
-    public ApprovalSnapshot cancel(long userId, long workspaceId, long projectId, String approvalId,
+    public ApprovalSnapshot cancel(long userId, long organizationId, String approvalId,
             long expectedVersion, String requestId) {
-        permissionEvaluator.requireProject(userId, workspaceId, projectId, "agent.run");
-        ApprovalSnapshot current = expireIfNeeded(find(workspaceId, projectId, approvalId),
-                workspaceId, projectId, requestId);
+        permissionEvaluator.requireOrganization(userId, organizationId, "agent.run");
+        ApprovalSnapshot current = expireIfNeeded(find(organizationId, approvalId),
+                organizationId, requestId);
         if (current.requestedBy() != userId) {
             throw new ToolExecutionRejectedException(HttpStatus.FORBIDDEN.value(),
                     "APPROVAL_CANCEL_FORBIDDEN", "Only the requester may cancel a pending approval");
         }
-        if (current.status() != ApprovalStatus.PENDING || !store.decide(workspaceId, projectId, approvalId,
+        if (current.status() != ApprovalStatus.PENDING || !store.decide(organizationId, approvalId,
                 userId, "CANCELLED", expectedVersion)) {
             throw new VersionConflictException();
         }
-        current = find(workspaceId, projectId, approvalId);
-        finishWithoutExecution(current, workspaceId, projectId, "approval.cancelled", "CANCELLED",
+        current = find(organizationId, approvalId);
+        finishWithoutExecution(current, organizationId, "approval.cancelled", "CANCELLED",
                 "APPROVAL_CANCELLED", requestId);
         return current;
     }
 
     public JsonNode requireApproved(AgentRun run, ToolContract contract, String toolCallId, JsonNode supplied) {
-        ApprovalSnapshot approval = findByCall(run.workspaceId(), run.projectId(), run.id(), toolCallId);
+        ApprovalSnapshot approval = findByCall(run.organizationId(), run.id(), toolCallId);
         String suppliedHash = sha256(normalized(supplied));
         requireFrozenInput(approval, contract, suppliedHash);
         if (approval.status() != ApprovalStatus.APPROVED || approval.expiresAt().isBefore(Instant.now())) {
             throw new ToolExecutionRejectedException(HttpStatus.CONFLICT.value(), "APPROVAL_NOT_ACTIVE",
                     "Approval is not approved or has expired");
         }
-        permissionEvaluator.requireProject(run.userId(), run.workspaceId(), run.projectId(), contract.requiredPermission());
+        permissionEvaluator.requireOrganization(run.userId(), run.organizationId(), contract.requiredPermission());
         requireResourceVersions(run, approval.resources());
-        Map<String, Object> row = rowByCall(run.workspaceId(), run.projectId(), run.id(), toolCallId);
+        Map<String, Object> row = rowByCall(run.organizationId(), run.id(), toolCallId);
         return readTree(cipher.decrypt(row.get("frozen_arguments_encrypted").toString()));
     }
 
-    public boolean existsForCall(long workspaceId, long projectId, String runId, String toolCallId) {
-        return !store.findByCall(workspaceId, projectId, runId, toolCallId).isEmpty();
+    public boolean existsForCall(long organizationId, String runId, String toolCallId) {
+        return !store.findByCall(organizationId, runId, toolCallId).isEmpty();
     }
 
-    public String approvalIdForCall(long workspaceId, long projectId, String runId, String toolCallId) {
-        return findByCall(workspaceId, projectId, runId, toolCallId).id();
+    public String approvalIdForCall(long organizationId, String runId, String toolCallId) {
+        return findByCall(organizationId, runId, toolCallId).id();
     }
 
-    public void complete(long workspaceId, long projectId, String runId, String toolCallId, JsonNode result) {
-        store.completeToolCall(workspaceId, projectId, runId, toolCallId, result.toString());
+    public void complete(long organizationId, String runId, String toolCallId, JsonNode result) {
+        store.completeToolCall(organizationId, runId, toolCallId, result.toString());
     }
 
     private void requireFrozenInput(ApprovalSnapshot approval, ToolContract contract, String hash) {
@@ -189,37 +189,37 @@ public class ApprovalService {
         }
     }
 
-    private ApprovalSnapshot expireIfNeeded(ApprovalSnapshot approval, long workspaceId, long projectId,
+    private ApprovalSnapshot expireIfNeeded(ApprovalSnapshot approval, long organizationId,
             String requestId) {
         if (approval.status() == ApprovalStatus.PENDING && !approval.expiresAt().isAfter(Instant.now())) {
-            store.expire(workspaceId, projectId, approval.id());
-            ApprovalSnapshot expired = find(workspaceId, projectId, approval.id());
-            finishWithoutExecution(expired, workspaceId, projectId, "approval.expired", "EXPIRED",
+            store.expire(organizationId, approval.id());
+            ApprovalSnapshot expired = find(organizationId, approval.id());
+            finishWithoutExecution(expired, organizationId, "approval.expired", "EXPIRED",
                     "APPROVAL_EXPIRED", requestId);
             return expired;
         }
         return approval;
     }
 
-    private void finishWithoutExecution(ApprovalSnapshot approval, long workspaceId, long projectId,
+    private void finishWithoutExecution(ApprovalSnapshot approval, long organizationId,
             String eventType, String status, String errorCode, String requestId) {
-        store.markRunResuming(workspaceId, projectId, approval.runId());
-        store.insertDecisionEvent(workspaceId, projectId, approval.runId(), approval.id(),
+        store.markRunResuming(organizationId, approval.runId());
+        store.insertDecisionEvent(organizationId, approval.runId(), approval.id(),
                 eventType, status, requestId);
-        runStore.fail(workspaceId, projectId, approval.runId(), requestId, errorCode);
+        runStore.fail(organizationId, approval.runId(), requestId, errorCode);
     }
 
     private List<ApprovalSnapshot.ResourceVersion> resourceVersions(
             AgentRun run, String toolName, JsonNode arguments) {
         if (List.of("create_ux_task", "create_prd_document", "create_ux_document").contains(toolName)) {
             long id = arguments.path("requirementId").asLong();
-            var item = workItemStore.findByIdAndScope(run.workspaceId(), run.projectId(), id)
+            var item = workItemStore.findByIdAndScope(run.organizationId(), id)
                     .orElseThrow(ResourceNotFoundException::new);
             return List.of(new ApprovalSnapshot.ResourceVersion("WORK_ITEM", Long.toString(id), item.version()));
         }
         if ("deploy_release".equals(toolName)) {
             long id = arguments.path("releaseId").asLong();
-            var release = releaseStore.find(run.workspaceId(), run.projectId(), id)
+            var release = releaseStore.find(run.organizationId(), id)
                     .orElseThrow(ResourceNotFoundException::new);
             return List.of(new ApprovalSnapshot.ResourceVersion("RELEASE", Long.toString(id), release.version()));
         }
@@ -229,7 +229,7 @@ public class ApprovalService {
     private void requireResourceVersions(AgentRun run, List<ApprovalSnapshot.ResourceVersion> resources) {
         for (ApprovalSnapshot.ResourceVersion resource : resources) {
             if ("RELEASE".equals(resource.type())) {
-                long current = releaseStore.find(run.workspaceId(), run.projectId(), Long.parseLong(resource.id()))
+                long current = releaseStore.find(run.organizationId(), Long.parseLong(resource.id()))
                         .orElseThrow(ResourceNotFoundException::new).version();
                 if (current != resource.version()) {
                     throw new ToolExecutionRejectedException(HttpStatus.CONFLICT.value(), "RESOURCE_VERSION_CHANGED",
@@ -241,7 +241,7 @@ public class ApprovalService {
                 throw new ToolExecutionRejectedException(HttpStatus.CONFLICT.value(), "RESOURCE_VERSION_CHANGED",
                         "Unsupported frozen resource type");
             }
-            long current = workItemStore.findByIdAndScope(run.workspaceId(), run.projectId(), Long.parseLong(resource.id()))
+            long current = workItemStore.findByIdAndScope(run.organizationId(), Long.parseLong(resource.id()))
                     .orElseThrow(ResourceNotFoundException::new).version();
             if (current != resource.version()) {
                 throw new ToolExecutionRejectedException(HttpStatus.CONFLICT.value(), "RESOURCE_VERSION_CHANGED",
@@ -250,17 +250,17 @@ public class ApprovalService {
         }
     }
 
-    private ApprovalSnapshot find(long workspaceId, long projectId, String approvalId) {
-        return store.find(workspaceId, projectId, approvalId).stream().findFirst()
+    private ApprovalSnapshot find(long organizationId, String approvalId) {
+        return store.find(organizationId, approvalId).stream().findFirst()
                 .map(this::snapshot).orElseThrow(ResourceNotFoundException::new);
     }
 
-    private ApprovalSnapshot findByCall(long workspaceId, long projectId, String runId, String toolCallId) {
-        return snapshot(rowByCall(workspaceId, projectId, runId, toolCallId));
+    private ApprovalSnapshot findByCall(long organizationId, String runId, String toolCallId) {
+        return snapshot(rowByCall(organizationId, runId, toolCallId));
     }
 
-    private Map<String, Object> rowByCall(long workspaceId, long projectId, String runId, String toolCallId) {
-        return store.findByCall(workspaceId, projectId, runId, toolCallId).stream().findFirst()
+    private Map<String, Object> rowByCall(long organizationId, String runId, String toolCallId) {
+        return store.findByCall(organizationId, runId, toolCallId).stream().findFirst()
                 .orElseThrow(ResourceNotFoundException::new);
     }
 

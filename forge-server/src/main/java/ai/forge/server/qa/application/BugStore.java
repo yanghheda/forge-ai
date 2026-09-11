@@ -10,10 +10,10 @@ public interface BugStore {
     BugView create(WorkItem item, BugSeverity severity, long requirementId, Long testRunId, Long testResultId,
             List<String> reproductionSteps, String expectedResult, String actualResult, Long devTaskId);
 
-    Optional<BugView> find(long workspaceId, long projectId, long bugId);
+    Optional<BugView> find(long organizationId, long bugId);
 
-    BugView transition(long workspaceId, long projectId, long bugId, long userId, BugAction action,
+    BugView transition(long organizationId, long bugId, long userId, BugAction action,
             String toStatus, String reason, List<String> fixEvidence, long expectedVersion, String idempotencyKey);
 
-    List<BugView> findByRequirement(long workspaceId, long projectId, long requirementId);
+    List<BugView> findByRequirement(long organizationId, long requirementId);
 }

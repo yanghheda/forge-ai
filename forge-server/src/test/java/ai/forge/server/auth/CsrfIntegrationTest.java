@@ -42,8 +42,8 @@ class CsrfIntegrationTest extends InfrastructureIntegrationTestBase {
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "work_item_events", "review_records", "requirement_details", "work_items", "project_item_sequences", "project_members", "projects", "audit_logs", "member_roles",
-                "workspace_members", "workspaces", "organizations", "users")) {
+                "work_item_events", "review_records", "requirement_details", "work_items", "organization_item_sequences", "organization_policies", "audit_logs", "member_roles",
+                "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
     }
@@ -117,8 +117,9 @@ class CsrfIntegrationTest extends InfrastructureIntegrationTestBase {
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
-                        "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"), headers),
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"), headers),
                 String.class);
     }
 

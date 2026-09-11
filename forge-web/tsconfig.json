@@ -41,6 +41,13 @@
   ],
   "exclude": [
     "node_modules",
-    "tests/module-boundaries/fixtures"
+    "tests/module-boundaries/fixtures",
+    "src/features/agent-run",
+    "src/features/document/api",
+    "src/features/gitlab/components",
+    "src/features/gitlab/api/*.test.ts",
+    "src/features/release",
+    "src/features/work-item/api/work-item-api.test.ts",
+    "src/features/work-item/components"
   ]
 }

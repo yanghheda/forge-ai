@@ -35,18 +35,14 @@ public class RagSearchService {
     }
 
     /* 在强制范围内检索；调用方只能提供 query、documentType 与 topK，不能触碰范围过滤。 */
-    public List<SearchChunk> search(long userId, long workspaceId, String query,
+    public List<SearchChunk> search(long userId, long organizationId, String query,
             String documentType, Integer topK) {
         String normalizedQuery = normalize(query);
         int limit = normalizeTopK(topK);
-        List<Long> projectIds =
-                permissions.projectIdsWithPermission(userId, workspaceId, "document.read");
-        if (projectIds.isEmpty()) {
-            return List.of();
-        }
+        permissions.requireOrganization(userId, organizationId, "document.read");
         float[] queryVector = embeddingClient.embed(normalizedQuery);
         VectorIndexClient.SearchFilter filter =
-                new VectorIndexClient.SearchFilter(workspaceId, projectIds, documentType);
+                new VectorIndexClient.SearchFilter(organizationId, documentType);
         String collectionName = "documents_" + embeddingClient.modelVersion();
         List<VectorIndexClient.ScoredChunk> hits;
         try {

@@ -43,11 +43,10 @@ public class AgentServiceTokenProvider {
         return encode(baseClaims(issuedAt).build());
     }
 
-    public String createRunToken(Instant issuedAt, String runId, long workspaceId, long projectId) {
+    public String createRunToken(Instant issuedAt, String runId, long organizationId) {
         JwtClaimsSet claims = baseClaims(issuedAt)
                 .claim("run_id", runId)
-                .claim("workspace_id", workspaceId)
-                .claim("project_id", projectId)
+                .claim("organization_id", organizationId)
                 .build();
         return encode(claims);
     }

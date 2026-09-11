@@ -15,7 +15,7 @@ public class WorkItemQueryService {
     /* 对详情按实际类型授权，对混合列表验证全部本轮读取能力。 */
     private final PermissionEvaluator permissionEvaluator;
 
-    /* 强制 Workspace 与 Project scope 的工作项查询端口。 */
+    /* 强制公司作用域的工作项查询端口。 */
     private final WorkItemStore workItemStore;
 
     public WorkItemQueryService(PermissionEvaluator permissionEvaluator, WorkItemStore workItemStore) {
@@ -23,30 +23,29 @@ public class WorkItemQueryService {
         this.workItemStore = workItemStore;
     }
 
-    public WorkItem get(long userId, long workspaceId, long projectId, long workItemId) {
-        WorkItem item = workItemStore.findByIdAndScope(workspaceId, projectId, workItemId)
+    public WorkItem get(long userId, long organizationId, long workItemId) {
+        WorkItem item = workItemStore.findByIdAndScope(organizationId, workItemId)
                 .orElseThrow(ResourceNotFoundException::new);
-        permissionEvaluator.requireProject(
-                userId, workspaceId, projectId, item.type().permissionResource() + ".read");
+        permissionEvaluator.requireOrganization(
+                userId, organizationId, item.type().permissionResource() + ".read");
         return item;
     }
 
     public WorkItemPage list(
             long userId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             WorkItemType type,
             WorkItemStatus status,
             int page,
             int pageSize) {
         if (type == null) {
             for (String resource : new String[] {"requirement", "ux", "task"}) {
-                permissionEvaluator.requireProject(userId, workspaceId, projectId, resource + ".read");
+                permissionEvaluator.requireOrganization(userId, organizationId, resource + ".read");
             }
         } else {
-            permissionEvaluator.requireProject(
-                    userId, workspaceId, projectId, type.permissionResource() + ".read");
+            permissionEvaluator.requireOrganization(
+                    userId, organizationId, type.permissionResource() + ".read");
         }
-        return workItemStore.findPage(workspaceId, projectId, type, status, page, pageSize);
+        return workItemStore.findPage(organizationId, type, status, page, pageSize);
     }
 }

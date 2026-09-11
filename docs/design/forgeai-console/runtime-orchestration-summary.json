@@ -199,7 +199,7 @@
       "htmlSrc": "pages/settings-members.html",
       "title": "成员管理",
       "group": 5,
-      "visualNorthStar": "设置-成员：项目成员表（姓名/邮箱/角色标签/状态）、邀请成员按钮、角色分配下拉、移除确认；左侧设置子导航。",
+      "visualNorthStar": "设置-成员：公司成员表（姓名/邮箱/角色标签/审核与启停状态）、角色分配下拉、停用确认；左侧设置子导航。",
       "inheritedFragments": ["partials/project-shell.html"],
       "businessSource": "详细设计 §4 Workspace/Project/Member、RBAC；PRD §11 权限矩阵",
       "allowedWritePaths": ["pages/settings-members.html", "assets/"]

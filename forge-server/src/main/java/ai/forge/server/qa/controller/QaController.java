@@ -1,6 +1,7 @@
 package ai.forge.server.qa.controller;
 
 import ai.forge.server.auth.controller.AuthController;
+import ai.forge.server.organization.application.OrganizationAccessService;
 import ai.forge.server.qa.application.QaService;
 import ai.forge.server.qa.application.TestCaseView;
 import ai.forge.server.qa.application.TestResultView;
@@ -41,58 +42,55 @@ public class QaController {
 
     /* 执行授权、输入规范化与 QA 应用编排。 */
     private final QaService service;
+    /* 从登录身份解析唯一公司作用域。 */
+    private final OrganizationAccessService organizations;
 
-    public QaController(QaService service) {
+    public QaController(QaService service, OrganizationAccessService organizations) {
         this.service = service;
+        this.organizations = organizations;
     }
 
     @PostMapping("/requirements/{requirementId}/cases")
     @Operation(summary = "创建 Test Case")
     public ResponseEntity<TestCaseView> createCase(@PathVariable long requirementId,
             @Valid @RequestBody CreateCaseRequest body, HttpServletRequest request) {
-        TestCaseView created = service.createCase(AuthController.requireContext(request).userId(), body.workspaceId(),
-                body.projectId(), requirementId, body.title(), body.preconditions(), body.steps(),
+        TestCaseView created = service.createCase(AuthController.requireContext(request).userId(), organizationId(request), requirementId, body.title(), body.preconditions(), body.steps(),
                 body.expectedResult(), body.priority());
         return ResponseEntity.created(URI.create("/api/v1/qa/cases/" + created.id())).body(created);
     }
 
     @GetMapping("/requirements/{requirementId}/cases")
     @Operation(summary = "列出 Requirement Test Case")
-    public List<TestCaseView> cases(@PathVariable long requirementId, @RequestParam long workspaceId,
-            @RequestParam long projectId, HttpServletRequest request) {
-        return service.cases(AuthController.requireContext(request).userId(), workspaceId, projectId, requirementId);
+    public List<TestCaseView> cases(@PathVariable long requirementId, HttpServletRequest request) {
+        return service.cases(AuthController.requireContext(request).userId(), organizationId(request), requirementId);
     }
 
     @GetMapping("/requirements/{requirementId}/runs/latest")
     @Operation(summary = "读取 Requirement 最新 Test Run")
-    public TestRunView latestRun(@PathVariable long requirementId, @RequestParam long workspaceId,
-            @RequestParam long projectId, HttpServletRequest request) {
+    public TestRunView latestRun(@PathVariable long requirementId, HttpServletRequest request) {
         return service.latestRun(
-                AuthController.requireContext(request).userId(), workspaceId, projectId, requirementId);
+                AuthController.requireContext(request).userId(), organizationId(request), requirementId);
     }
 
     @PostMapping("/requirements/{requirementId}/runs")
     @Operation(summary = "创建 Test Run", description = "将当前 ACTIVE Test Case 固化为 NOT_RUN 结果集合。")
     public ResponseEntity<TestRunView> createRun(@PathVariable long requirementId,
             @Valid @RequestBody CreateRunRequest body, HttpServletRequest request) {
-        TestRunView created = service.createRun(AuthController.requireContext(request).userId(), body.workspaceId(),
-                body.projectId(), requirementId, body.environment());
+        TestRunView created = service.createRun(AuthController.requireContext(request).userId(), organizationId(request), requirementId, body.environment());
         return ResponseEntity.created(URI.create("/api/v1/qa/runs/" + created.id())).body(created);
     }
 
     @GetMapping("/runs/{runId}")
     @Operation(summary = "读取 Test Run 与结果")
-    public TestRunView run(@PathVariable long runId, @RequestParam long workspaceId,
-            @RequestParam long projectId, HttpServletRequest request) {
-        return service.run(AuthController.requireContext(request).userId(), workspaceId, projectId, runId);
+    public TestRunView run(@PathVariable long runId, HttpServletRequest request) {
+        return service.run(AuthController.requireContext(request).userId(), organizationId(request), runId);
     }
 
     @PutMapping("/runs/{runId}/results/{resultId}")
     @Operation(summary = "记录 Test Result", description = "已完成 Run 必须先显式 reopen。")
     public TestResultView updateResult(@PathVariable long runId, @PathVariable long resultId,
             @Valid @RequestBody UpdateResultRequest body, HttpServletRequest request) {
-        return service.updateResult(AuthController.requireContext(request).userId(), body.workspaceId(),
-                body.projectId(), runId, resultId, body.status(), body.actualResult(), body.evidence(),
+        return service.updateResult(AuthController.requireContext(request).userId(), organizationId(request), runId, resultId, body.status(), body.actualResult(), body.evidence(),
                 body.expectedVersion());
     }
 
@@ -100,8 +98,7 @@ public class QaController {
     @Operation(summary = "完成 Test Run 并固化统计")
     public TestRunView complete(@PathVariable long runId, @Valid @RequestBody RunVersionRequest body,
             HttpServletRequest request) {
-        return service.completeRun(AuthController.requireContext(request).userId(), body.workspaceId(),
-                body.projectId(), runId, body.expectedVersion());
+        return service.completeRun(AuthController.requireContext(request).userId(), organizationId(request), runId, body.expectedVersion());
     }
 
     @PostMapping("/runs/{runId}/reopen")
@@ -109,13 +106,10 @@ public class QaController {
     public TestRunView reopen(@PathVariable long runId, @Valid @RequestBody ReopenRunRequest body,
             @RequestHeader(value = "X-Request-Id", defaultValue = "unknown") String requestId,
             HttpServletRequest request) {
-        return service.reopenRun(AuthController.requireContext(request).userId(), body.workspaceId(),
-                body.projectId(), runId, body.expectedVersion(), body.reason(), requestId);
+        return service.reopenRun(AuthController.requireContext(request).userId(), organizationId(request), runId, body.expectedVersion(), body.reason(), requestId);
     }
 
     public record CreateCaseRequest(
-            /* Test Case 所属工作区。 */ @Positive long workspaceId,
-            /* Test Case 所属项目。 */ @Positive long projectId,
             /* 用例标题。 */ @NotBlank @Size(max = 255) String title,
             /* 执行前置条件。 */ @Size(max = 20000) String preconditions,
             /* 按顺序执行的步骤。 */ @NotEmpty List<@NotBlank @Size(max = 2000) String> steps,
@@ -123,26 +117,23 @@ public class QaController {
             /* QA 执行优先级。 */ @NotNull TestCasePriority priority) {}
 
     public record CreateRunRequest(
-            /* Test Run 所属工作区。 */ @Positive long workspaceId,
-            /* Test Run 所属项目。 */ @Positive long projectId,
             /* 可审计执行环境。 */ @NotBlank @Size(max = 255) String environment) {}
 
     public record UpdateResultRequest(
-            /* Test Result 所属工作区。 */ @Positive long workspaceId,
-            /* Test Result 所属项目。 */ @Positive long projectId,
             /* 本次人工执行结论。 */ @NotNull TestResultStatus status,
             /* 实际观察结果。 */ @Size(max = 20000) String actualResult,
             /* 脱敏证据引用。 */ @NotNull List<@NotBlank @Size(max = 2000) String> evidence,
             /* 客户端读取到的结果版本。 */ @PositiveOrZero long expectedVersion) {}
 
     public record RunVersionRequest(
-            /* Test Run 所属工作区。 */ @Positive long workspaceId,
-            /* Test Run 所属项目。 */ @Positive long projectId,
             /* 客户端读取到的运行版本。 */ @PositiveOrZero long expectedVersion) {}
 
     public record ReopenRunRequest(
-            /* Test Run 所属工作区。 */ @Positive long workspaceId,
-            /* Test Run 所属项目。 */ @Positive long projectId,
             /* 客户端读取到的运行版本。 */ @PositiveOrZero long expectedVersion,
             /* 重新打开的审计原因。 */ @NotBlank @Size(max = 500) String reason) {}
+
+    private long organizationId(HttpServletRequest request) {
+        long userId = AuthController.requireContext(request).userId();
+        return organizations.requireContext(userId).organizationId();
+    }
 }

@@ -17,7 +17,7 @@ import org.springframework.stereotype.Repository;
 @Profile("!test-unit")
 public class MybatisDeploymentStore implements DeploymentStore {
 
-    /* 所有部署 SQL 均显式携带租户与项目范围。 */
+    /* 所有部署 SQL 均显式携带公司范围。 */
     private final DeploymentMapper mapper;
 
     public MybatisDeploymentStore(DeploymentMapper mapper) {
@@ -25,35 +25,35 @@ public class MybatisDeploymentStore implements DeploymentStore {
     }
 
     @Override
-    public DeploymentView request(long workspaceId, long projectId, long releaseId, long requestedBy,
+    public DeploymentView request(long organizationId, long releaseId, long requestedBy,
             long releaseVersion, long precheckId, String argumentHash, boolean simulateFailure,
             String idempotencyKey, Instant expiresAt, String approvalSource, String agentApprovalId) {
         Map<String, Object> generated = new LinkedHashMap<>();
         String status = "AGENT_TOOL".equals(approvalSource) ? "APPROVED" : "PENDING_APPROVAL";
         try {
-            mapper.insert(generated, workspaceId, projectId, releaseId, status, requestedBy,
+            mapper.insert(generated, organizationId, releaseId, status, requestedBy,
                     LocalDateTime.ofInstant(expiresAt, ZoneOffset.UTC), releaseVersion, precheckId,
                     argumentHash, simulateFailure, idempotencyKey, approvalSource, agentApprovalId);
         } catch (DuplicateKeyException exception) {
-            return mapper.findByIdempotencyKey(workspaceId, projectId, idempotencyKey).stream()
+            return mapper.findByIdempotencyKey(organizationId, idempotencyKey).stream()
                     .findFirst().map(this::view).orElseThrow(() -> exception);
         }
-        return find(workspaceId, projectId, number(generated.get("id"))).orElseThrow();
+        return find(organizationId, number(generated.get("id"))).orElseThrow();
     }
 
     @Override
-    public Optional<DeploymentView> find(long workspaceId, long projectId, long deploymentId) {
-        return mapper.find(workspaceId, projectId, deploymentId).stream().findFirst().map(this::view);
+    public Optional<DeploymentView> find(long organizationId, long deploymentId) {
+        return mapper.find(organizationId, deploymentId).stream().findFirst().map(this::view);
     }
 
     @Override
-    public List<DeploymentView> list(long workspaceId, long projectId, long releaseId) {
-        return mapper.list(workspaceId, projectId, releaseId).stream().map(this::view).toList();
+    public List<DeploymentView> list(long organizationId, long releaseId) {
+        return mapper.list(organizationId, releaseId).stream().map(this::view).toList();
     }
 
     @Override
-    public Optional<DeploymentView> findByIdempotencyKey(long workspaceId, long projectId, String idempotencyKey) {
-        return mapper.findByIdempotencyKey(workspaceId, projectId, idempotencyKey).stream()
+    public Optional<DeploymentView> findByIdempotencyKey(long organizationId, String idempotencyKey) {
+        return mapper.findByIdempotencyKey(organizationId, idempotencyKey).stream()
                 .findFirst().map(this::view);
     }
 
@@ -63,14 +63,14 @@ public class MybatisDeploymentStore implements DeploymentStore {
     }
 
     @Override
-    public boolean decide(long workspaceId, long projectId, long deploymentId, long approverUserId,
+    public boolean decide(long organizationId, long deploymentId, long approverUserId,
             String status, long expectedVersion) {
-        return mapper.decide(workspaceId, projectId, deploymentId, approverUserId, status, expectedVersion) == 1;
+        return mapper.decide(organizationId, deploymentId, approverUserId, status, expectedVersion) == 1;
     }
 
     @Override
-    public boolean expire(long workspaceId, long projectId, long deploymentId, long expectedVersion) {
-        return mapper.expire(workspaceId, projectId, deploymentId, expectedVersion) == 1;
+    public boolean expire(long organizationId, long deploymentId, long expectedVersion) {
+        return mapper.expire(organizationId, deploymentId, expectedVersion) == 1;
     }
 
     @Override
@@ -86,33 +86,33 @@ public class MybatisDeploymentStore implements DeploymentStore {
     }
 
     @Override
-    public void updateReleaseStatus(long workspaceId, long projectId, long releaseId, String status) {
-        if (mapper.updateReleaseStatus(workspaceId, projectId, releaseId, status) != 1) {
+    public void updateReleaseStatus(long organizationId, long releaseId, String status) {
+        if (mapper.updateReleaseStatus(organizationId, releaseId, status) != 1) {
             throw new IllegalStateException("Release status cannot be updated");
         }
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public void completeRequirements(long workspaceId, long projectId, long releaseId, long actorId,
+    public void completeRequirements(long organizationId, long releaseId, long actorId,
             long deploymentId) {
-        mapper.insertRequirementEvents(workspaceId, projectId, releaseId, actorId, deploymentId,
+        mapper.insertRequirementEvents(organizationId, releaseId, actorId, deploymentId,
                 "MARK_RELEASED", "READY_FOR_RELEASE", "RELEASED");
-        mapper.transitionRequirements(workspaceId, projectId, releaseId, "READY_FOR_RELEASE", "RELEASED");
-        mapper.insertRequirementEvents(workspaceId, projectId, releaseId, actorId, deploymentId,
+        mapper.transitionRequirements(organizationId, releaseId, "READY_FOR_RELEASE", "RELEASED");
+        mapper.insertRequirementEvents(organizationId, releaseId, actorId, deploymentId,
                 "CLOSE_REQUIREMENT", "RELEASED", "DONE");
-        mapper.transitionRequirements(workspaceId, projectId, releaseId, "RELEASED", "DONE");
+        mapper.transitionRequirements(organizationId, releaseId, "RELEASED", "DONE");
     }
 
     @Override
-    public void audit(long workspaceId, long projectId, String actorType, long actorId, String action,
+    public void audit(long organizationId, String actorType, long actorId, String action,
             long deploymentId, String result, String requestId, String runId) {
-        mapper.audit(workspaceId, projectId, actorType, actorId, action, deploymentId, result, requestId, runId);
+        mapper.audit(organizationId, actorType, actorId, action, deploymentId, result, requestId, runId);
     }
 
     private DeploymentView view(Map<String, Object> row) {
-        return new DeploymentView(number(row.get("id")), number(row.get("workspace_id")),
-                number(row.get("project_id")), number(row.get("release_id")), text(row.get("mode")),
+        return new DeploymentView(number(row.get("id")), number(row.get("organization_id")),
+                number(row.get("release_id")), text(row.get("mode")),
                 text(row.get("status")), number(row.get("requested_by")), nullableNumber(row.get("approver_user_id")),
                 instant(row.get("approval_expires_at")), number(row.get("release_version")),
                 number(row.get("precheck_id")), text(row.get("argument_hash")),

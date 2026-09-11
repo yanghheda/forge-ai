@@ -1,6 +1,6 @@
 # ForgeAI 上下文路由索引
 
-> 本文档用于将当前任务定位到最小必读上下文，不替代原始设计基线。
+> 本文档用于将当前任务定位到最小必读上下文。公司级架构基线 v2 是当前产品与工程事实；旧 v1 文档仅用于追溯历史。
 
 ## 1. 读取协议
 
@@ -15,12 +15,13 @@
 
 | 代号 | 文档 | 使用场景 |
 |---|---|---|
+| `COMPANY` | `docs/design/ForgeAI_公司级架构基线_v2.md` | 当前产品作用域、数据、权限、API、路由和部署基线 |
 | `PRD` | `docs/design/ForgeAI_PRD_v0.2.md` | 产品目标、用户旅程、范围、非目标和产品验收 |
 | `ARCH` | `docs/design/ForgeAI_完整技术方案_v1.3.md` | 总体架构、技术选型、跨模块边界、部署和风险 |
 | `DETAIL` | `docs/design/ForgeAI_详细设计_v1.0.md` | 可编码的数据、状态机、权限、API、Agent、SSE、GitLab、测试与部署契约 |
 | `GUIDE` | `docs/development/ForgeAI_分阶段开发指南_v1.0.md` | 会话范围、学习目标、验证和本轮明确不做的内容 |
 
-实施细节以 `DETAIL` 为稳定工程基线，会话范围以 `GUIDE` 为准，产品取舍回溯 `PRD`，跨模块和部署决策回溯 `ARCH`。任何已有 ADR 在其适用范围内优先于上述文档。
+新实施先读取 `COMPANY`；`PRD`、`ARCH`、`DETAIL`、`GUIDE` 均为历史基线，只在追溯旧功能时使用，且任何冲突均以 ADR-016 和 `COMPANY` 为准。
 
 ## 3. 会话路由
 
@@ -36,7 +37,7 @@
 | 06 | 实例初始化与密码 | `DETAIL` 4.2、6、14.1 |
 | 07 | 登录、Session、退出 | `ARCH` 9；`DETAIL` 4.2、14.1 |
 | 08 | CSRF 与 Web 登录闭环 | `DETAIL` 8、13、14.1 |
-| 09 | Workspace、Project、成员范围 | `DETAIL` 4.2–4.3、6、14.2 |
+| 09 | 公司成员范围与审核 | `COMPANY` 2–5 |
 | 10 | RBAC 与权限矩阵 | `ARCH` 8；`DETAIL` 4.3、6、14.2 |
 | 11 | Work Item 聚合与原子编号 | `DETAIL` 3.2–3.4、4.4、7、8 |
 | 12 | Requirement 状态机与 Guard | `DETAIL` 4.4、5.1–5.2、5.4、6 |
@@ -72,7 +73,7 @@
 | 产品定位、MVP 范围、用户旅程、成功指标 | `PRD` 1–5、7、18–20 |
 | 命名、仓库、模块边界、契约 | `ARCH` 3–5；`DETAIL` 2–3 |
 | 登录、Session、CSRF、初始化 | `ARCH` 9；`DETAIL` 4.2、6、14.1 |
-| Workspace、Project、成员、RBAC、租户隔离 | `ARCH` 8；`DETAIL` 4.2–4.3、6、14.2 |
+| 公司、成员、RBAC、账号审核 | `COMPANY` 2–5；ADR-016 |
 | Work Item、Requirement、Task、Bug、关系 | `DETAIL` 4.4、5 |
 | 文档、版本、附件、编辑器 | `DETAIL` 4.5、8.3、13.4、14.3 |
 | API、DTO、错误、分页、幂等 | `ARCH` 10；`DETAIL` 3.2–3.3、8 |

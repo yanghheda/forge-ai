@@ -5,6 +5,7 @@ import ai.forge.server.qa.application.BugService;
 import ai.forge.server.qa.application.BugView;
 import ai.forge.server.qa.domain.BugAction;
 import ai.forge.server.qa.domain.BugSeverity;
+import ai.forge.server.organization.application.OrganizationAccessService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -34,43 +35,40 @@ public class BugController {
 
     /* 编排 Bug 创建、查询和状态迁移。 */
     private final BugService service;
+    /* 从登录身份解析唯一公司作用域。 */
+    private final OrganizationAccessService organizations;
 
-    public BugController(BugService service) {
+    public BugController(BugService service, OrganizationAccessService organizations) {
         this.service = service;
+        this.organizations = organizations;
     }
 
     @PostMapping
     public ResponseEntity<BugView> create(@Valid @RequestBody CreateBugRequest body,
             HttpServletRequest request) {
-        BugView bug = service.create(AuthController.requireContext(request).userId(), body.workspaceId(),
-                body.projectId(), body.requirementId(), body.testRunId(), body.testResultId(), body.devTaskId(),
+        BugView bug = service.create(AuthController.requireContext(request).userId(), organizationId(request), body.requirementId(), body.testRunId(), body.testResultId(), body.devTaskId(),
                 body.title(), body.severity(), body.reproductionSteps(), body.expectedResult(), body.actualResult());
         return ResponseEntity.created(URI.create("/api/v1/bugs/" + bug.id())).body(bug);
     }
 
     @GetMapping("/{bugId}")
-    public BugView get(@PathVariable long bugId, @RequestParam long workspaceId,
-            @RequestParam long projectId, HttpServletRequest request) {
-        return service.get(AuthController.requireContext(request).userId(), workspaceId, projectId, bugId);
+    public BugView get(@PathVariable long bugId, HttpServletRequest request) {
+        return service.get(AuthController.requireContext(request).userId(), organizationId(request), bugId);
     }
 
     @GetMapping
-    public List<BugView> list(@RequestParam long workspaceId, @RequestParam long projectId,
-            @RequestParam long requirementId, HttpServletRequest request) {
-        return service.list(AuthController.requireContext(request).userId(), workspaceId, projectId, requirementId);
+    public List<BugView> list(@RequestParam long requirementId, HttpServletRequest request) {
+        return service.list(AuthController.requireContext(request).userId(), organizationId(request), requirementId);
     }
 
     @PostMapping("/{bugId}/transitions")
     public BugView transition(@PathVariable long bugId, @Valid @RequestBody BugTransitionRequest body,
             HttpServletRequest request) {
-        return service.transition(AuthController.requireContext(request).userId(), body.workspaceId(),
-                body.projectId(), bugId, body.action(), body.expectedVersion(), body.reason(), body.fixEvidence(),
+        return service.transition(AuthController.requireContext(request).userId(), organizationId(request), bugId, body.action(), body.expectedVersion(), body.reason(), body.fixEvidence(),
                 body.idempotencyKey());
     }
 
     public record CreateBugRequest(
-            /* Bug 所属工作区。 */ @Positive long workspaceId,
-            /* Bug 所属项目。 */ @Positive long projectId,
             /* Bug 关联 Requirement。 */ @Positive long requirementId,
             /* 来源 Test Run；人工草稿为空。 */ Long testRunId,
             /* 来源失败 Test Result；人工草稿为空。 */ Long testResultId,
@@ -82,12 +80,15 @@ public class BugController {
             /* 实际失败结果。 */ @NotBlank @Size(max = 20000) String actualResult) {}
 
     public record BugTransitionRequest(
-            /* Bug 所属工作区。 */ @Positive long workspaceId,
-            /* Bug 所属项目。 */ @Positive long projectId,
             /* 请求的固定 Bug 动作。 */ @NotNull BugAction action,
             /* 客户端读取的 Work Item 版本。 */ @PositiveOrZero long expectedVersion,
             /* 修复说明或 reopen 原因。 */ @Size(max = 20000) String reason,
             /* MR、Commit 等修复证据。 */ List<@NotBlank @Size(max = 2000) String> fixEvidence,
             /* 同一 Bug 内唯一的迁移重试标识。 */ @NotBlank @Size(max = 128) String idempotencyKey) {}
+
+    private long organizationId(HttpServletRequest request) {
+        long userId = AuthController.requireContext(request).userId();
+        return organizations.requireContext(userId).organizationId();
+    }
 
 }

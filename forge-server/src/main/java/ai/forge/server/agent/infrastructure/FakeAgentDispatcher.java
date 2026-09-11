@@ -31,18 +31,16 @@ public class FakeAgentDispatcher {
     public void dispatch(AgentRunRequested requested) {
         try {
             runStore.start(
-                    requested.workspaceId(), requested.projectId(), requested.runId(), requested.requestId());
+                    requested.organizationId(), requested.runId(), requested.requestId());
             runStore.complete(
-                    requested.workspaceId(),
-                    requested.projectId(),
+                    requested.organizationId(),
                     requested.runId(),
                     requested.requestId(),
                     "Fake runner completed without LLM");
         } catch (RuntimeException exception) {
             LOGGER.error("Fake Agent Run failed: runId={}", requested.runId(), exception);
             runStore.fail(
-                    requested.workspaceId(),
-                    requested.projectId(),
+                    requested.organizationId(),
                     requested.runId(),
                     requested.requestId(),
                     "FAKE_RUNNER_FAILED");

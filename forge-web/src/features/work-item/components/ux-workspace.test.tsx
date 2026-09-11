@@ -1,12 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { UxTaskDetailView, UxTaskList } from "./ux-workspace";
+import { UxTaskDetailView, UxTaskList } from "./ux-organization";
 
 const task = {
   id: 2,
-  workspaceId: 10,
-  projectId: 20,
+  organizationId: 10,
   itemKey: "FORGE-2",
   title: "测试需求",
   description: "完善关键交互",
@@ -15,9 +14,9 @@ const task = {
   version: 0,
 };
 
-describe("UX workspace", () => {
+describe("UX organization", () => {
   it("将 UX Task 渲染为可进入详情的链接", () => {
-    render(<UxTaskList workspaceSlug="personal" projectKey="FORGE" tasks={[task]} />);
+    render(<UxTaskList organizationSlug="personal" organizationKey="FORGE" tasks={[task]} />);
 
     expect(screen.getByRole("link", { name: /FORGE-2.*测试需求.*TODO/ })).toHaveAttribute(
       "href",

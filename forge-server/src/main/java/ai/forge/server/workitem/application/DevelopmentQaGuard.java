@@ -19,8 +19,7 @@ public final class DevelopmentQaGuard implements TransitionGuard {
     @Override
     public GuardResult evaluate(TransitionContext context) {
         DevelopmentQaSummary summary = store.summarize(
-                context.workItem().workspaceId(),
-                context.workItem().projectId(),
+                context.workItem().organizationId(),
                 context.workItem().id());
         LinkedHashSet<String> missing = new LinkedHashSet<>();
         if (summary.tasks().isEmpty()) {

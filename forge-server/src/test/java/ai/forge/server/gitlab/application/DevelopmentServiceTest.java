@@ -26,14 +26,14 @@ class DevelopmentServiceTest {
         FakeStore store = new FakeStore();
         DevelopmentService service = service(store, new FakeProvider());
 
-        WorkItem created = service.createDevTask(1L, 7L, 9L, 11L, "Implement API", "Details", null);
+        WorkItem created = service.createDevTask(1L, 7L, 11L, "Implement API", "Details", null);
 
         assertThat(created.type()).isEqualTo(WorkItemType.DEV_TASK);
         assertThat(created.status()).isEqualTo(WorkItemStatus.TODO);
         assertThat(store.parentId).isEqualTo(11L);
 
         store.requirement = item(WorkItemType.REQUIREMENT, WorkItemStatus.UX_IN_PROGRESS);
-        assertThatThrownBy(() -> service.createDevTask(1L, 7L, 9L, 11L, "Too early", "", null))
+        assertThatThrownBy(() -> service.createDevTask(1L, 7L, 11L, "Too early", "", null))
                 .isInstanceOf(DevelopmentStateException.class);
     }
 
@@ -43,7 +43,7 @@ class DevelopmentServiceTest {
         FakeProvider provider = new FakeProvider();
         DevelopmentService service = service(store, provider);
 
-        DevelopmentResult result = service.start(1L, 7L, 9L, 12L, "main", "idem-1");
+        DevelopmentResult result = service.start(1L, 7L, 12L, "main", "idem-1");
 
         assertThat(result.branch().name()).isEqualTo("feature/forge-12-implement-api");
         assertThat(result.mergeRequest().remoteMrIid()).isEqualTo(44L);
@@ -59,7 +59,7 @@ class DevelopmentServiceTest {
         provider.branch = Optional.of(branch("abc"));
         provider.mergeRequest = Optional.of(mergeRequest());
 
-        DevelopmentResult result = service(store, provider).start(1L, 7L, 9L, 12L, "main", "idem-1");
+        DevelopmentResult result = service(store, provider).start(1L, 7L, 12L, "main", "idem-1");
 
         assertThat(result.reconciled()).isTrue();
         assertThat(provider.createBranchCalls).isZero();
@@ -72,7 +72,7 @@ class DevelopmentServiceTest {
         provider.branch = Optional.of(branch("different"));
 
         assertThatThrownBy(() -> service(new FakeStore(), provider)
-                        .start(1L, 7L, 9L, 12L, "main", "idem-1"))
+                        .start(1L, 7L, 12L, "main", "idem-1"))
                 .isInstanceOf(RemoteResourceConflictException.class);
     }
 
@@ -82,7 +82,7 @@ class DevelopmentServiceTest {
         provider.timeoutAfterBranchCreation = true;
 
         DevelopmentResult result = service(new FakeStore(), provider)
-                .start(1L, 7L, 9L, 12L, "main", "idem-1");
+                .start(1L, 7L, 12L, "main", "idem-1");
 
         assertThat(result.reconciled()).isTrue();
         assertThat(provider.createBranchCalls).isEqualTo(1);
@@ -94,7 +94,7 @@ class DevelopmentServiceTest {
         FakeProvider provider = new FakeProvider();
         provider.rateLimited = true;
 
-        assertThatThrownBy(() -> service(store, provider).start(1L, 7L, 9L, 12L, "main", "idem-1"))
+        assertThatThrownBy(() -> service(store, provider).start(1L, 7L, 12L, "main", "idem-1"))
                 .isInstanceOf(GitLabRemoteException.class)
                 .extracting(exception -> ((GitLabRemoteException) exception).code())
                 .isEqualTo("GITLAB_RATE_LIMITED");
@@ -103,7 +103,7 @@ class DevelopmentServiceTest {
         DevelopmentService denied = new DevelopmentService(
                 permissions(false), store, provider);
         int reads = store.reads;
-        assertThatThrownBy(() -> denied.start(2L, 7L, 9L, 12L, "main", "idem-2"))
+        assertThatThrownBy(() -> denied.start(2L, 7L, 12L, "main", "idem-2"))
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThat(store.reads).isEqualTo(reads);
     }
@@ -113,7 +113,7 @@ class DevelopmentServiceTest {
         FakeStore store = new FakeStore();
 
         WorkItem completed = service(store, new FakeProvider())
-                .completeTask(1L, 7L, 9L, 12L, 3L);
+                .completeTask(1L, 7L, 12L, 3L);
 
         assertThat(completed.status()).isEqualTo(WorkItemStatus.DONE);
         assertThat(store.completedTaskExpectedVersion).isEqualTo(3L);
@@ -123,7 +123,7 @@ class DevelopmentServiceTest {
     void reconciliationReusesFrozenOperationAndDefersRateLimit() {
         FakeStore store = new FakeStore();
         store.pending = Optional.of(new PendingDevelopmentOperation(
-                7L, 9L, 12L, "release", "idem-recovery", 0));
+                7L, 12L, "release", "idem-recovery", 0));
         FakeProvider provider = new FakeProvider();
         provider.rateLimited = true;
 
@@ -143,25 +143,14 @@ class DevelopmentServiceTest {
     private static PermissionEvaluator permissions(boolean allowed) {
         return new PermissionEvaluator(new PermissionStore() {
             @Override
-            public Set<String> findWorkspacePermissionSet(long userId, long workspaceId) {
-                return Set.of();
-            }
-
-            @Override
-            public Optional<ProjectAccess> findProjectAccess(long userId, long workspaceId, long projectId) {
-                return Optional.of(new ProjectAccess(
-                        allowed, Set.of("DEVELOPER"), allowed ? Set.of("task.create", "task.edit", "repo.read") : Set.of()));
-            }
-
-            @Override
-            public List<Long> findProjectIdsWithPermission(long userId, long workspaceId, String permission) {
-                return List.of();
+            public Set<String> findOrganizationPermissionSet(long userId, long organizationId) {
+                return allowed ? Set.of("task.create", "task.edit", "repo.read") : Set.of();
             }
         });
     }
 
     private static WorkItem item(WorkItemType type, WorkItemStatus status) {
-        return new WorkItem(12L, 7L, 9L, 12L, "FORGE-12", type, "Implement API", "", status,
+        return new WorkItem(12L, 7L, 12L, "FORGE-12", type, "Implement API", "", status,
                 WorkItemPriority.MEDIUM, null, 1L, null, 0L, Instant.EPOCH, Instant.EPOCH);
     }
 
@@ -188,25 +177,25 @@ class DevelopmentServiceTest {
         private String deferredErrorCode;
 
         @Override
-        public Optional<WorkItem> findWorkItem(long workspaceId, long projectId, long workItemId) {
+        public Optional<WorkItem> findWorkItem(long organizationId, long workItemId) {
             reads++;
             return Optional.of(workItemId == 11L ? requirement : item(WorkItemType.DEV_TASK, WorkItemStatus.TODO));
         }
 
         @Override
-        public boolean hasActiveProjectMember(long workspaceId, long projectId, long userId) {
+        public boolean hasActiveOrganizationMember(long organizationId, long userId) {
             return true;
         }
 
         @Override
-        public WorkItem createDevTask(long workspaceId, long projectId, long actorId, long requirementId,
+        public WorkItem createDevTask(long organizationId, long actorId, long requirementId,
                 String title, String description, Long assigneeUserId) {
             parentId = requirementId;
             return item(WorkItemType.DEV_TASK, WorkItemStatus.TODO);
         }
 
         @Override
-        public DevelopmentContext begin(long workspaceId, long projectId, long devTaskId, String targetBranch,
+        public DevelopmentContext begin(long organizationId, long devTaskId, String targetBranch,
                 String idempotencyKey) {
             reads++;
             lastTargetBranch = targetBranch;
@@ -236,8 +225,7 @@ class DevelopmentServiceTest {
 
         @Override
         public WorkItem completeTask(
-                long workspaceId,
-                long projectId,
+                long organizationId,
                 long taskId,
                 long expectedVersion) {
             completedTaskExpectedVersion = expectedVersion;

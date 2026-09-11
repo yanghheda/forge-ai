@@ -43,31 +43,28 @@ export interface ApprovalSnapshot {
 }
 
 export function getAgentRun(
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   runId: string,
   client: RequestClient = apiClient,
 ): Promise<AgentRunSnapshot> {
   return client.request(
-    `/v1/agent-runs/${runId}?workspaceId=${workspaceId}&projectId=${projectId}`,
+    `/v1/agent-runs/${runId}?organizationId=${organizationId}`,
   );
 }
 
 export function getRunApproval(
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   runId: string,
   client: RequestClient = apiClient,
 ): Promise<ApprovalSnapshot> {
   return client.request(
-    `/v1/approvals/by-run/${runId}?workspaceId=${workspaceId}&projectId=${projectId}`,
+    `/v1/approvals/by-run/${runId}?organizationId=${organizationId}`,
   );
 }
 
 export function decideApproval(
   approval: ApprovalSnapshot,
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   decision: "APPROVE" | "REJECT",
   client: RequestClient = apiClient,
 ): Promise<ApprovalSnapshot> {
@@ -75,8 +72,7 @@ export function decideApproval(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      workspaceId,
-      projectId,
+      organizationId,
       decision,
       expectedVersion: approval.version,
     }),
@@ -84,14 +80,12 @@ export function decideApproval(
 }
 
 export function agentEventUrl(
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   runId: string,
   afterSequence: number,
 ): string {
   const query = new URLSearchParams({
-    workspaceId: String(workspaceId),
-    projectId: String(projectId),
+    organizationId: String(organizationId),
     afterSequence: String(afterSequence),
   });
   return `${resolveApiBaseUrl()}/v1/agent-runs/${runId}/events?${query}`;

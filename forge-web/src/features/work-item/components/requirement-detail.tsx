@@ -15,7 +15,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { getCurrentUser } from "@/features/auth";
-import { listProjects } from "@/features/project";
 import { formatRequestError } from "@/lib/api";
 import { guardHintLabel, workflowActionLabel } from "@/lib/labels";
 import {
@@ -95,32 +94,30 @@ export function unresolvedUxReviewHints(hints: string[] | undefined, checklist: 
   );
 }
 export function RequirementDetail({
-  workspaceId,
-  projectId,
+  organizationId,
   workItemId,
   userId,
 }: {
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   workItemId: number;
   userId: number;
 }) {
   const qc = useQueryClient();
   const detail = useQuery({
     queryKey: ["work-item", workItemId],
-    queryFn: () => getWorkItem(workspaceId, projectId, workItemId),
+    queryFn: () => getWorkItem(organizationId, workItemId),
   });
   const materials = useQuery({
     queryKey: ["requirement-details", workItemId],
-    queryFn: () => getRequirementDetails(workspaceId, projectId, workItemId),
+    queryFn: () => getRequirementDetails(organizationId, workItemId),
   });
   const documents = useQuery({
     queryKey: ["documents", workItemId],
-    queryFn: () => listWorkItemDocuments(workspaceId, projectId, workItemId),
+    queryFn: () => listWorkItemDocuments(organizationId, workItemId),
   });
   const activity = useQuery({
     queryKey: ["work-item-activity", workItemId],
-    queryFn: () => getWorkItemActivity(workspaceId, projectId, workItemId),
+    queryFn: () => getWorkItemActivity(organizationId, workItemId),
   });
   const [reason, setReason] = useState("");
   const [checklist, setChecklist] = useState({
@@ -139,8 +136,7 @@ export function RequirementDetail({
   const createPrd = useMutation({
     mutationFn: () =>
       createDocument({
-        workspaceId,
-        projectId,
+        organizationId,
         workItemId,
         type: "PRD",
         title: `${detail.data!.title} PRD`,
@@ -150,8 +146,7 @@ export function RequirementDetail({
   const createUxSpec = useMutation({
     mutationFn: () =>
       createDocument({
-        workspaceId,
-        projectId,
+        organizationId,
         workItemId,
         type: "UX_SPEC",
         title: `${detail.data!.title} UX Spec`,
@@ -161,8 +156,7 @@ export function RequirementDetail({
   const transition = useMutation({
     mutationFn: (action: WorkflowAction) =>
       transitionRequirement(
-        workspaceId,
-        projectId,
+        organizationId,
         workItemId,
         action,
         detail.data!.version,
@@ -212,8 +206,7 @@ export function RequirementDetail({
         <Tabs.TabPane key="details" title="需求">
           <RequirementMaterials
             key={materials.data.version}
-            workspaceId={workspaceId}
-            projectId={projectId}
+            organizationId={organizationId}
             workItemId={workItemId}
             details={materials.data}
             onChanged={invalidate}
@@ -223,8 +216,7 @@ export function RequirementDetail({
           <PrdPanel
             documentType="PRD"
             userId={userId}
-            workspaceId={workspaceId}
-            projectId={projectId}
+            organizationId={organizationId}
             workItemId={workItemId}
             document={prd}
             onChanged={invalidate}
@@ -235,8 +227,7 @@ export function RequirementDetail({
           <PrdPanel
             documentType="UX Spec"
             userId={userId}
-            workspaceId={workspaceId}
-            projectId={projectId}
+            organizationId={organizationId}
             workItemId={workItemId}
             document={uxSpec}
             onChanged={invalidate}
@@ -252,8 +243,7 @@ export function RequirementDetail({
         </Tabs.TabPane>
         <Tabs.TabPane key="delivery" title="交付关系图">
           <DeliveryGraphPanel
-            workspaceId={workspaceId}
-            projectId={projectId}
+            organizationId={organizationId}
             workItemId={workItemId}
           />
         </Tabs.TabPane>
@@ -318,24 +308,21 @@ export function RequirementDetail({
       <div className={styles.phasePanels}>
       {detail.data.status === "READY_FOR_DEV" && (
         <DevTaskPanel
-          workspaceId={workspaceId}
-          projectId={projectId}
+          organizationId={organizationId}
           requirementId={workItemId}
           onChanged={invalidate}
         />
       )}
       {(detail.data.status === "READY_FOR_DEV" || detail.data.status === "IN_DEVELOPMENT") && (
         <DevelopmentPanel
-          workspaceId={workspaceId}
-          projectId={projectId}
+          organizationId={organizationId}
           requirementId={workItemId}
           onChanged={invalidate}
         />
       )}
       {(detail.data.status === "READY_FOR_QA" || detail.data.status === "IN_QA") && (
         <QaPanel
-          workspaceId={workspaceId}
-          projectId={projectId}
+          organizationId={organizationId}
           requirementId={workItemId}
           onChanged={invalidate}
         />
@@ -346,13 +333,11 @@ export function RequirementDetail({
 }
 
 function DevTaskPanel({
-  workspaceId,
-  projectId,
+  organizationId,
   requirementId,
   onChanged,
 }: {
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   requirementId: number;
   onChanged: () => Promise<unknown>;
 }) {
@@ -360,7 +345,7 @@ function DevTaskPanel({
   const [description, setDescription] = useState("");
   const create = useMutation({
     mutationFn: () =>
-      createDevTask({ workspaceId, projectId, requirementId, title, description }),
+      createDevTask({ organizationId, requirementId, title, description }),
     onSuccess: () => {
       setTitle("");
       setDescription("");
@@ -397,35 +382,22 @@ function DevTaskPanel({
 }
 
 export function RequirementRoute({
-  workspaceSlug,
-  projectKey,
   workItemId,
 }: {
-  workspaceSlug: string;
-  projectKey: string;
   workItemId: number;
 }) {
   const user = useQuery({
     queryKey: ["current-user"],
     queryFn: () => getCurrentUser(),
   });
-  const workspace = user.data?.workspaces.find(
-    (item) => item.slug === workspaceSlug,
-  );
-  const projects = useQuery({
-    queryKey: ["projects", workspace?.id],
-    queryFn: () => listProjects(workspace!.id),
-    enabled: !!workspace,
-  });
-  const project = projects.data?.find((item) => item.key === projectKey);
-  if (user.isPending || projects.isPending) return <Spin />;
-  if (!user.data || !workspace || !project)
-    return <Alert type="error" content="项目不存在或当前账户无权访问。" />;
+  const organization = user.data?.organization;
+  if (user.isPending) return <Spin />;
+  if (!user.data || !organization)
+    return <Alert type="error" content="公司不存在或当前账户无权访问。" />;
   return (
     <RequirementDetail
       userId={user.data.id}
-      workspaceId={workspace.id}
-      projectId={project.id}
+      organizationId={organization.id}
       workItemId={workItemId}
     />
   );
@@ -434,16 +406,14 @@ export function RequirementRoute({
 function PrdPanel({
   documentType,
   userId,
-  workspaceId,
-  projectId,
+  organizationId,
   document,
   onChanged,
   create,
 }: {
   documentType: "PRD" | "UX Spec";
   userId: number;
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   workItemId: number;
   document: import("@/features/document").Document | undefined;
   onChanged: () => Promise<unknown>;
@@ -452,14 +422,13 @@ function PrdPanel({
   const qc = useQueryClient();
   const versions = useQuery({
     queryKey: ["document-versions", document?.id],
-    queryFn: () => listDocumentVersions(workspaceId, projectId, document!.id),
+    queryFn: () => listDocumentVersions(organizationId, document!.id),
     enabled: !!document,
   });
   const save = useMutation({
     mutationFn: (content: ProseMirrorDocument) =>
       saveDocumentVersion(
-        workspaceId,
-        projectId,
+        organizationId,
         document!.id,
         document!.version,
         content,
@@ -474,8 +443,7 @@ function PrdPanel({
   const publish = useMutation({
     mutationFn: (versionId: number) =>
       publishDocumentVersion(
-        workspaceId,
-        projectId,
+        organizationId,
         document!.id,
         versionId,
         document!.version,

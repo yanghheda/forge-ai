@@ -51,18 +51,18 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
     private WorkItemCommandService commandService;
 
     private String ownerCookie;
-    private long workspaceId;
-    private long projectId;
+    private long organizationId;
+
 
     @BeforeEach
-    void initializeProject() throws Exception {
+    void initializeOrganization() throws Exception {
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "comments", "work_item_relations", "work_item_labels", "project_policies", "work_item_events",
-                "review_records", "requirement_details", "work_items", "project_item_sequences",
-                "project_members", "projects", "audit_logs", "member_roles",
-                "workspace_members", "workspaces", "organizations", "users")) {
+                "comments", "work_item_relations", "work_item_labels", "organization_policies", "work_item_events",
+                "review_records", "requirement_details", "work_items", "organization_item_sequences",
+                "organization_policies", "audit_logs", "member_roles",
+                "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         ResponseEntity<String> initialized = csrf().post(
@@ -73,20 +73,15 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
-                        "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"),
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
                 null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         ownerCookie = loginOwner();
-        workspaceId = jdbcTemplate.queryForObject("SELECT id FROM workspaces WHERE slug = 'engineering'", Long.class);
-        ResponseEntity<String> project = csrf().post(
-                "/api/v1/projects",
-                Map.of("workspaceId", workspaceId, "key", "FORGE", "name", "ForgeAI", "description", "会话 11"),
-                ownerCookie,
-                String.class);
-        assertThat(project.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        projectId = objectMapper.readTree(project.getBody()).get("id").asLong();
+        organizationId = jdbcTemplate.queryForObject(
+                "SELECT default_organization_id FROM instance_settings WHERE id = 1", Long.class);
     }
 
     @Test
@@ -96,15 +91,15 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
         JsonNode devTask = create("DEV_TASK", "Build API", "URGENT");
         JsonNode qaTask = create("QA_TASK", "Verify concurrency", "LOW");
 
-        assertThat(requirement.get("itemKey").asText()).isEqualTo("FORGE-1");
+        assertThat(requirement.get("itemKey").asText()).isEqualTo("REQ-1");
         assertThat(requirement.get("itemNumber").asLong()).isEqualTo(1);
         assertThat(requirement.get("status").asText()).isEqualTo("DRAFT");
         assertThat(uxTask.get("status").asText()).isEqualTo("TODO");
         assertThat(devTask.get("status").asText()).isEqualTo("TODO");
         assertThat(qaTask.get("status").asText()).isEqualTo("TODO");
-        assertThat(qaTask.get("itemKey").asText()).isEqualTo("FORGE-4");
+        assertThat(qaTask.get("itemKey").asText()).isEqualTo("REQ-4");
         assertThat(jdbcTemplate.queryForObject(
-                        "SELECT next_value FROM project_item_sequences WHERE project_id = ?", Long.class, projectId))
+                        "SELECT next_value FROM organization_item_sequences WHERE organization_id = ?", Long.class, organizationId))
                 .isEqualTo(5);
     }
 
@@ -114,25 +109,23 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
         create("DEV_TASK", "Second", "MEDIUM");
         create("DEV_TASK", "Third", "HIGH");
 
-        ResponseEntity<String> response = get("/api/v1/work-items?workspaceId=" + workspaceId
-                + "&projectId=" + projectId + "&type=DEV_TASK&status=TODO&page=1&pageSize=1", ownerCookie);
+        ResponseEntity<String> response = get("/api/v1/work-items?type=DEV_TASK&status=TODO&page=1&pageSize=1", ownerCookie);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode page = objectMapper.readTree(response.getBody());
         assertThat(page.get("page").asInt()).isEqualTo(1);
         assertThat(page.get("pageSize").asInt()).isEqualTo(1);
         assertThat(page.get("total").asLong()).isEqualTo(2);
         assertThat(page.get("items").size()).isEqualTo(1);
-        assertThat(page.get("items").get(0).get("itemKey").asText()).isEqualTo("FORGE-3");
+        assertThat(page.get("items").get(0).get("itemKey").asText()).isEqualTo("REQ-3");
         assertThat(page.get("items").get(0).has("description")).isFalse();
 
         List<String> usedKeys = jdbcTemplate.query(
                 "EXPLAIN SELECT id FROM work_items FORCE INDEX (idx_work_items_scope_type_status_page) "
-                        + "WHERE workspace_id = ? AND project_id = ? AND type = 'DEV_TASK' "
+                        + "WHERE organization_id = ? AND type = 'DEV_TASK' "
                         + "AND status = 'TODO' AND deleted_at IS NULL "
                         + "ORDER BY item_number DESC LIMIT 1",
                 (resultSet, rowNumber) -> resultSet.getString("key"),
-                workspaceId,
-                projectId);
+                organizationId);
         assertThat(usedKeys).contains("idx_work_items_scope_type_status_page");
     }
 
@@ -151,7 +144,7 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(stale.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(stale.getBody()).contains("VERSION_CONFLICT");
         JsonNode stored = objectMapper.readTree(get(
-                "/api/v1/work-items/" + id + "?workspaceId=" + workspaceId + "&projectId=" + projectId,
+                "/api/v1/work-items/" + id,
                 ownerCookie).getBody());
         assertThat(stored.get("title").asText()).isEqualTo("Winner");
         assertThat(stored.get("version").asLong()).isEqualTo(1);
@@ -164,19 +157,17 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
 
         JsonNode second = create("REQUIREMENT", "Replacement", "MEDIUM");
 
-        assertThat(second.get("itemKey").asText()).isEqualTo("FORGE-2");
-        assertThat(get("/api/v1/work-items/" + first.get("id").asLong() + "?workspaceId=" + workspaceId
-                + "&projectId=" + projectId, ownerCookie).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(second.get("itemKey").asText()).isEqualTo("REQ-2");
+        assertThat(get("/api/v1/work-items/" + first.get("id").asLong(), ownerCookie).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
-    void knownWorkItemIdCannotCrossWorkspaceOrProjectScope() throws Exception {
+    void clientSuppliedOrganizationScopeCannotOverrideSessionScope() throws Exception {
         JsonNode item = create("REQUIREMENT", "Private", "MEDIUM");
 
-        assertThat(get("/api/v1/work-items/" + item.get("id").asLong() + "?workspaceId=" + (workspaceId + 999)
-                + "&projectId=" + projectId, ownerCookie).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(get("/api/v1/work-items/" + item.get("id").asLong() + "?workspaceId=" + workspaceId
-                + "&projectId=" + (projectId + 999), ownerCookie).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(get("/api/v1/work-items/" + item.get("id").asLong() + "?organizationId=" + (organizationId + 999)
+                , ownerCookie).getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
@@ -192,22 +183,15 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
         long developerId = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE normalized_email = 'developer@example.com'", Long.class);
         jdbcTemplate.update(
-                "INSERT INTO workspace_members (workspace_id, user_id, status, joined_at, created_at, updated_at, version) "
+                "INSERT INTO organization_members (organization_id, user_id, status, joined_at, created_at, updated_at, version) "
                         + "VALUES (?, ?, 'ACTIVE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)",
-                workspaceId,
+                organizationId,
                 developerId);
         jdbcTemplate.update(
-                "INSERT INTO project_members (workspace_id, project_id, user_id, status, created_at, updated_at) "
-                        + "VALUES (?, ?, ?, 'ACTIVE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))",
-                workspaceId,
-                projectId,
-                developerId);
-        jdbcTemplate.update(
-                "INSERT INTO member_roles (workspace_member_id, role_id, project_id, created_at) "
-                        + "SELECT wm.id, r.id, ?, UTC_TIMESTAMP(6) FROM workspace_members wm CROSS JOIN roles r "
-                        + "WHERE wm.workspace_id = ? AND wm.user_id = ? AND r.code = 'DEVELOPER'",
-                projectId,
-                workspaceId,
+                "INSERT INTO member_roles (organization_member_id, role_id, created_at) "
+                        + "SELECT wm.id, r.id, UTC_TIMESTAMP(6) FROM organization_members wm CROSS JOIN roles r "
+                        + "WHERE wm.organization_id = ? AND wm.user_id = ? AND r.code = 'DEVELOPER'",
+                organizationId,
                 developerId);
         String developerCookie = login("developer@example.com");
 
@@ -222,15 +206,14 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void rejectsOutOfRangePaginationBeforeQueryingMySql() {
-        ResponseEntity<String> response = get("/api/v1/work-items?workspaceId=" + workspaceId
-                + "&projectId=" + projectId + "&page=0&pageSize=101", ownerCookie);
+        ResponseEntity<String> response = get("/api/v1/work-items?page=0&pageSize=101", ownerCookie);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("VALIDATION_FAILED");
     }
 
     @Test
-    void fiftyConcurrentCreatesAllocateUniqueMonotonicProjectNumbers() throws Exception {
+    void fiftyConcurrentCreatesAllocateUniqueMonotonicOrganizationNumbers() throws Exception {
         long ownerId = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE normalized_email = 'owner@example.com'", Long.class);
         CountDownLatch start = new CountDownLatch(1);
@@ -240,8 +223,7 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
                         start.await();
                         return commandService.create(
                                 ownerId,
-                                workspaceId,
-                                projectId,
+                                organizationId,
                                 WorkItemType.REQUIREMENT,
                                 "Concurrent " + index,
                                 "",
@@ -259,7 +241,7 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
                     IntStream.rangeClosed(1, 50).mapToObj(value -> (long) value).toList());
             assertThat(keys).hasSize(50);
             assertThat(jdbcTemplate.queryForObject(
-                            "SELECT next_value FROM project_item_sequences WHERE project_id = ?", Long.class, projectId))
+                            "SELECT next_value FROM organization_item_sequences WHERE organization_id = ?", Long.class, organizationId))
                     .isEqualTo(51);
         }
     }
@@ -300,8 +282,7 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
         start.await();
         return commandService.update(
                 ownerId,
-                workspaceId,
-                projectId,
+                organizationId,
                 workItemId,
                 title,
                 "race",
@@ -332,8 +313,6 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
         return csrf().post(
                 "/api/v1/work-items",
                 Map.of(
-                        "workspaceId", workspaceId,
-                        "projectId", projectId,
                         "type", type,
                         "title", title,
                         "description", "description",
@@ -344,7 +323,7 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
 
     private ResponseEntity<String> patch(long id, Map<String, Object> body) {
         return csrf().patch(
-                "/api/v1/work-items/" + id + "?workspaceId=" + workspaceId + "&projectId=" + projectId,
+                "/api/v1/work-items/" + id,
                 body,
                 ownerCookie,
                 String.class);

@@ -12,8 +12,7 @@ describe("ReleaseCard", () => {
         <ReleaseCard
         release={{
           id: 1,
-          workspaceId: 2,
-          projectId: 3,
+          organizationId: 2,
           versionName: "v1.0.0",
           environment: "production",
           status: "PRECHECKED",

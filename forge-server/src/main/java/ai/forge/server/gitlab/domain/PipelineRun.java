@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 public record PipelineRun(
         /* 本地 Pipeline 快照稳定标识；尚未持久化时为零。 */ long id,
-        /* Pipeline 所属工作区租户范围。 */ long workspaceId,
+        /* Pipeline 所属工作区租户范围。 */ long organizationId,
         /* Pipeline 所属仓库绑定标识。 */ long repositoryId,
         /* 可选关联 MR 本地标识；分支 Pipeline 可为空。 */ Long mergeRequestId,
         /* GitLab 分配的项目内 Pipeline 标识。 */ long remotePipelineId,

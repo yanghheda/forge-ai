@@ -3,7 +3,6 @@ package ai.forge.server.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ai.forge.server.gitlab.application.DevelopmentStore;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,15 +27,12 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    @Autowired
-    private DevelopmentStore developmentStore;
-
     @TempDir
     private Path temporaryMigrationDirectory;
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("28");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("1");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -97,22 +93,24 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                 "id", "固定为 1 的单例主键",
                 "initialized_at", "首次管理员初始化完成时间；为空表示实例尚未初始化",
                 "default_organization_id", "初始化后创建的默认组织标识；为空表示实例尚未完成初始化",
-                "default_workspace_id", "单组织产品模型内部使用的默认工作区标识，不向新客户端暴露",
-                "default_project_id", "单组织产品模型内部使用的默认项目标识，不向新客户端暴露",
                 "settings_json", "不属于独立领域表的实例级扩展设置",
                 "version", "实例设置并发更新使用的乐观锁版本"));
     }
 
     @Test
-    void identityWorkspaceBootstrapSchemaHasRequiredTablesAndComments() {
+    void companyIdentitySchemaHasRequiredTablesAndNoLegacyScopeTables() {
         assertThat(jdbcTemplate.queryForList(
                         "SELECT table_name FROM information_schema.tables "
                                 + "WHERE table_schema = DATABASE() AND table_name IN "
-                                + "('users','organizations','workspaces','workspace_members','roles','member_roles','audit_logs','projects','project_members')",
+                                + "('users','organizations','organization_members','roles','member_roles','audit_logs')",
                         String.class))
                 .containsExactlyInAnyOrder(
-                        "users", "organizations", "workspaces", "workspace_members", "roles", "member_roles", "audit_logs",
-                        "projects", "project_members");
+                        "users", "organizations", "organization_members", "roles", "member_roles", "audit_logs");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "AND table_name IN ('workspaces','workspace_members','projects','project_members','project_policies','project_item_sequences')",
+                        Integer.class))
+                .isZero();
 
         Integer undocumentedTables = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables "
@@ -139,17 +137,16 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForList(
                         "SELECT code FROM permissions ORDER BY code", String.class))
                 .contains(
-                        "member.manage", "member.read", "project.manage", "project.read",
+                        "member.manage", "member.read",
                         "bug.create", "bug.edit", "bug.read", "bug.resolve", "bug.verify",
                         "qa.execute", "qa.manage", "qa.read",
                         "requirement.create", "requirement.edit", "requirement.read",
                         "task.create", "task.edit", "task.read",
-                        "ux.create", "ux.edit", "ux.read",
-                        "workspace.manage", "workspace.read");
+                        "ux.create", "ux.edit", "ux.read");
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                 Integer.class))
-                .isEqualTo(40);
+                .isEqualTo(36);
     }
 
     @Test
@@ -191,7 +188,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                         String.class))
                 .containsExactlyInAnyOrder(
                         "target_branch", "attempt_count", "next_attempt_at", "last_error_code");
-        assertThat(developmentStore.findPendingOperation()).isEmpty();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM source_control_operations", Integer.class)).isZero();
     }
 
     @Test
@@ -243,34 +240,34 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void workItemMigrationCreatesScopedSequenceAndAggregateTables() {
+    void workItemMigrationCreatesCompanySequenceAndAggregateTables() {
         assertThat(jdbcTemplate.queryForList(
                         "SELECT table_name FROM information_schema.tables "
                                 + "WHERE table_schema = DATABASE() AND table_name IN "
-                                + "('project_item_sequences','work_items')",
+                                + "('organization_item_sequences','work_items')",
                         String.class))
-                .containsExactlyInAnyOrder("project_item_sequences", "work_items");
+                .containsExactlyInAnyOrder("organization_item_sequences", "work_items");
 
         assertThat(jdbcTemplate.queryForList(
                         "SELECT index_name FROM information_schema.statistics "
                                 + "WHERE table_schema = DATABASE() AND table_name = 'work_items'",
                         String.class))
                 .contains(
-                        "uq_work_items_project_number",
-                        "uq_work_items_project_key",
-                        "idx_work_items_project_type_status",
-                        "idx_work_items_workspace_assignee_status");
+                        "uq_work_items_organization_number",
+                        "uq_work_items_organization_key",
+                        "idx_work_items_organization_type_status",
+                        "idx_work_items_organization_assignee_status");
 
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM information_schema.columns "
                                 + "WHERE table_schema = DATABASE() "
-                                + "AND table_name IN ('project_item_sequences','work_items') AND column_comment = ''",
+                                + "AND table_name IN ('organization_item_sequences','work_items') AND column_comment = ''",
                         Integer.class))
                 .isZero();
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM information_schema.tables "
                                 + "WHERE table_schema = DATABASE() "
-                                + "AND table_name IN ('project_item_sequences','work_items') AND table_comment = ''",
+                                + "AND table_name IN ('organization_item_sequences','work_items') AND table_comment = ''",
                         Integer.class))
                 .isZero();
     }
@@ -312,20 +309,20 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     void uxSkipRelationAndActivityMigrationCreatesScopedCommentedFacts() {
         assertThat(jdbcTemplate.queryForList(
                         "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() "
-                                + "AND table_name IN ('project_policies','work_item_labels',"
+                                + "AND table_name IN ('organization_policies','work_item_labels',"
                                 + "'work_item_relations','comments')",
                         String.class))
                 .containsExactlyInAnyOrder(
-                        "project_policies", "work_item_labels", "work_item_relations", "comments");
+                        "organization_policies", "work_item_labels", "work_item_relations", "comments");
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
-                                + "AND table_name IN ('project_policies','work_item_labels',"
+                                + "AND table_name IN ('organization_policies','work_item_labels',"
                                 + "'work_item_relations','comments') AND column_comment = ''",
                         Integer.class))
                 .isZero();
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
-                                + "AND table_name IN ('project_policies','work_item_labels',"
+                                + "AND table_name IN ('organization_policies','work_item_labels',"
                                 + "'work_item_relations','comments') AND table_comment = ''",
                         Integer.class))
                 .isZero();
@@ -335,7 +332,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     void developmentQaMigrationAddsDocumentedDefaultSafePolicyAndPermission() {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT CONCAT(column_default, ':', column_comment) FROM information_schema.columns "
-                                + "WHERE table_schema = DATABASE() AND table_name = 'project_policies' "
+                                + "WHERE table_schema = DATABASE() AND table_name = 'organization_policies' "
                                 + "AND column_name = 'ci_required'",
                         String.class))
                 .isEqualTo("1:提交 QA 前是否强制每个 Dev Task 的 MR 当前 head Pipeline 成功；无仓库时不放行");
@@ -352,14 +349,14 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         Map<String, String> nullability = jdbcTemplate.query(
                         "SELECT column_name, is_nullable FROM information_schema.columns "
                                 + "WHERE table_schema = DATABASE() AND table_name = 'audit_logs' "
-                                + "AND column_name IN ('workspace_id', 'actor_id')",
+                                + "AND column_name IN ('organization_id', 'actor_id')",
                         (resultSet, rowNumber) -> Map.entry(
                                 resultSet.getString("column_name"), resultSet.getString("is_nullable")))
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         assertThat(nullability).containsExactlyInAnyOrderEntriesOf(Map.of(
-                "workspace_id", "YES",
+                "organization_id", "YES",
                 "actor_id", "YES"));
     }
 
@@ -370,16 +367,9 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void changedPublishedMigrationFailsChecksumValidation() throws IOException {
-        copyMigration("V1__baseline.sql");
-        copyMigration("V2__instance_settings.sql");
-        copyMigration("V3__identity_workspace_bootstrap.sql");
-        copyMigration("V4__authentication_audit_scope.sql");
-        copyMigration("V5__project_member_scope.sql");
-        copyMigration("V6__rbac_permissions.sql");
-        copyMigration("V7__work_item_aggregate.sql");
-        copyMigration("V8__requirement_workflow.sql");
+        copyMigration("V1__company_platform_baseline.sql");
         Files.writeString(
-                temporaryMigrationDirectory.resolve("V1__baseline.sql"),
+                temporaryMigrationDirectory.resolve("V1__company_platform_baseline.sql"),
                 System.lineSeparator() + "-- 模拟错误修改已发布迁移。",
                 java.nio.file.StandardOpenOption.APPEND);
 

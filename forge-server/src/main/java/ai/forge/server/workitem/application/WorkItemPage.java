@@ -3,7 +3,7 @@ package ai.forge.server.workitem.application;
 import java.util.List;
 
 public record WorkItemPage(
-        /* 当前页的工作项摘要，按项目内编号倒序排列。 */
+        /* 当前页的工作项摘要，按公司内编号倒序排列。 */
         List<WorkItemSummary> items,
         /* 从 1 开始的当前页码。 */
         int page,

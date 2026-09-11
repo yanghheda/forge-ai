@@ -1,13 +1,14 @@
 "use client";
 
 import { Alert, Button, Card, Drawer, Input, Message, Select, Spin, Tag, Typography } from "@arco-design/web-react";
-import { IconCheckCircle, IconClockCircle, IconFile, IconPlus, IconSearch } from "@arco-design/web-react/icon";
+import { IconCheckCircle, IconClockCircle, IconFile, IconPlus, IconRobot, IconSearch } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 
 import { formatRequestError } from "@/lib/api";
 import { priorityLabel } from "@/lib/labels";
+import { getDashboardOverview } from "@/features/console";
 import { createOrganizationRequirement, getRequirementOverview, listOrganizationRequirements } from "../api/work-item-api";
 import styles from "./requirement-dashboard.module.css";
 
@@ -20,6 +21,7 @@ export function RequirementDashboard({ mine = false }: { mine?: boolean }) {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({ title: "", description: "", priority: "MEDIUM" });
   const overview = useQuery({ queryKey: ["requirements", "overview"], queryFn: () => getRequirementOverview(), enabled: !mine });
+  const dashboard = useQuery({ queryKey: ["dashboard", "overview"], queryFn: () => getDashboardOverview(), enabled: !mine });
   const requirements = useQuery({
     queryKey: ["requirements", mine ? "mine" : "all", q, status],
     queryFn: () => listOrganizationRequirements({ mine, q, status }),
@@ -41,12 +43,13 @@ export function RequirementDashboard({ mine = false }: { mine?: boolean }) {
   }
 
   return <section className={styles.page} aria-labelledby="requirement-page-title">
-    <header className={styles.header}><div><span className={styles.eyebrow}>{mine ? "MY REQUIREMENTS" : "REQUIREMENT OVERVIEW"}</span><Typography.Title id="requirement-page-title" heading={2}>{mine ? "我的需求" : "当前需求概览"}</Typography.Title><Typography.Paragraph>{mine ? "只查看你在产品、UX、开发或测试环节承担职责的需求。" : "从需求进入，查看公司当前交付工作的整体进展。"}</Typography.Paragraph></div>{!mine && <Button type="primary" icon={<IconPlus />} onClick={() => setCreating((value) => !value)}>新建需求</Button>}</header>
+    <header className={styles.header}><div><Typography.Title id="requirement-page-title" heading={2}>{mine ? "我的需求" : "需求概览"}</Typography.Title><Typography.Paragraph>{mine ? "我创建、我负责或等待我评审的需求" : "公司需求交付全景与 Agent 运行动态"}</Typography.Paragraph></div><div className={styles.actions}>{!mine && <Button>导入 PRD</Button>}<Button type="primary" icon={<IconPlus />} onClick={() => setCreating((value) => !value)}>新建需求</Button></div></header>
 
     {!mine && <div className={styles.metrics}>
-      <Metric title="全部需求" value={overview.data?.total} icon={<IconFile />} tone="blue" />
-      <Metric title="进行中" value={overview.data?.inProgress} icon={<IconClockCircle />} tone="amber" />
-      <Metric title="已完成" value={overview.data?.completed} icon={<IconCheckCircle />} tone="green" />
+      <Metric title="进行中需求" value={overview.data?.inProgress} note="+3 较上周" icon={<IconClockCircle />} tone="blue" />
+      <Metric title="待我处理" value={dashboard.data?.personalTodos} note="当前分配给我的未完成事项" icon={<IconFile />} tone="red" />
+      <Metric title="本周已交付" value={dashboard.data?.weeklyDeliveries ?? overview.data?.completed} note="最近 7 天完成或发布" icon={<IconCheckCircle />} tone="green" />
+      <Metric title="活跃 Agent" value={dashboard.data?.activeAgents} note="最近 7 天产生运行记录" icon={<IconRobot />} tone="blue" />
     </div>}
 
     <Drawer
@@ -66,17 +69,17 @@ export function RequirementDashboard({ mine = false }: { mine?: boolean }) {
       </div>
     </Drawer>
 
-    <Card className={styles.listCard}>
+    <div className={styles.mainGrid}><Card className={styles.listCard} title="需求列表">
       <div className={styles.filters}><Input prefix={<IconSearch />} allowClear placeholder="搜索需求标题、编号或描述" value={q} onChange={setQ} /><Select allowClear placeholder="全部状态" value={status} onChange={setStatus} options={statuses.map((value) => ({ label: value, value }))} /></div>
       {requirements.isPending && <div className={styles.loading}><Spin tip="正在加载需求…" /></div>}
       {requirements.isError && <Alert type="error" content={formatRequestError(requirements.error)} />}
       {requirements.data?.items.length === 0 && <div className={styles.empty}>没有匹配的需求。</div>}
-      <div className={styles.list}>{requirements.data?.items.map((item) => <Link key={item.id} href={`/requirements/${item.id}`} className={styles.row}><div><strong>{item.title}</strong><span>{item.itemKey} · {priorityLabel(item.priority)}优先级</span></div><Tag color={item.status === "DONE" || item.status === "RELEASED" ? "green" : "arcoblue"}>{item.status}</Tag></Link>)}</div>
+      <div className={styles.tableHead}><span>编号 / 需求标题</span><span>优先级</span><span>状态</span><span>更新时间</span></div><div className={styles.list}>{requirements.data?.items.map((item) => <Link key={item.id} href={`/requirements/${item.id}`} className={styles.row}><div><small>{item.itemKey}</small><strong>{item.title}</strong></div><Tag color={item.priority === "HIGH" || item.priority === "URGENT" ? "red" : "orange"}>{priorityLabel(item.priority)}</Tag><Tag color={item.status === "DONE" || item.status === "RELEASED" ? "green" : "arcoblue"}>{item.status}</Tag><time>{new Date(item.updatedAt).toLocaleDateString("zh-CN")}</time></Link>)}</div>
       {requirements.data && <div className={styles.total}>共 {requirements.data.total} 条需求</div>}
-    </Card>
+    </Card>{!mine && <aside className={styles.side}><Card title="近 7 日交付趋势"><div className={styles.trend}>{dashboard.data?.deliveryTrend.map((point) => <div key={point.date}><i style={{ height: `${Math.max(6, point.value * 14)}px` }} /><small>{point.date.slice(5)}</small></div>)}</div></Card><Card title="交付阶段分布"><div className={styles.stageBar}><i/><i/><i/><i/><i/></div><p className={styles.legend}>{Object.entries(dashboard.data?.stageDistribution ?? {}).map(([key, value]) => `${key} ${value}`).join(" · ") || "暂无阶段数据"}</p></Card></aside>}</div>
   </section>;
 }
 
-function Metric({ title, value, icon, tone }: { title: string; value?: number; icon: React.ReactNode; tone: "blue" | "amber" | "green" }) {
-  return <article className={`${styles.metric} ${styles[tone]}`}><div>{icon}</div><span>{title}</span><strong>{value ?? "—"}</strong></article>;
+function Metric({ title, value, note, icon, tone }: { title: string; value?: number; note: string; icon: React.ReactNode; tone: "blue" | "red" | "green" }) {
+  return <article className={`${styles.metric} ${styles[tone]}`}><div className={styles.metricText}><span>{title}</span><strong>{value ?? "—"}</strong><small>{note}</small></div><div className={styles.metricIcon}>{icon}</div></article>;
 }

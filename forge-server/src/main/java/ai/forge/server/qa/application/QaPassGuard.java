@@ -17,7 +17,7 @@ public final class QaPassGuard implements TransitionGuard {
     @Override
     public GuardResult evaluate(TransitionContext context) {
         QaGuardDecision decision = store.findLatestCompletedSummary(
-                        context.workItem().workspaceId(), context.workItem().projectId(), context.workItem().id())
+                        context.workItem().organizationId(), context.workItem().id())
                 .map(QaGuardDecision::from)
                 .orElseGet(QaGuardDecision::noCompletedRun);
         return new GuardResult(decision.missing());

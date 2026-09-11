@@ -45,13 +45,13 @@ public class SecretService {
         this.keyVersion = keyVersion;
     }
 
-    public EncryptedSecret encrypt(long workspaceId, String type, String plaintext) {
+    public EncryptedSecret encrypt(long organizationId, String type, String plaintext) {
         try {
             byte[] iv = new byte[IV_BYTES];
             secureRandom.nextBytes(iv);
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, masterKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
-            cipher.updateAAD(aad(workspaceId, type, keyVersion));
+            cipher.updateAAD(aad(organizationId, type, keyVersion));
             byte[] ciphertext = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
             return new EncryptedSecret(
                     Base64.getEncoder().encodeToString(ciphertext),
@@ -63,7 +63,7 @@ public class SecretService {
         }
     }
 
-    public String decrypt(long workspaceId, String type, EncryptedSecret encrypted) {
+    public String decrypt(long organizationId, String type, EncryptedSecret encrypted) {
         if (encrypted.keyVersion() != keyVersion) {
             throw new SecretDecryptionException(new IllegalStateException("Unsupported key version"));
         }
@@ -73,7 +73,7 @@ public class SecretService {
                     Cipher.DECRYPT_MODE,
                     masterKey,
                     new GCMParameterSpec(GCM_TAG_BITS, Base64.getDecoder().decode(encrypted.iv())));
-            cipher.updateAAD(aad(workspaceId, type, encrypted.keyVersion()));
+            cipher.updateAAD(aad(organizationId, type, encrypted.keyVersion()));
             return new String(
                     cipher.doFinal(Base64.getDecoder().decode(encrypted.ciphertext())),
                     StandardCharsets.UTF_8);
@@ -89,10 +89,10 @@ public class SecretService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(Arrays.copyOf(digest, 9));
     }
 
-    private static byte[] aad(long workspaceId, String type, int keyVersion) {
+    private static byte[] aad(long organizationId, String type, int keyVersion) {
         byte[] typeBytes = type.getBytes(StandardCharsets.UTF_8);
         return ByteBuffer.allocate(Long.BYTES + Integer.BYTES + typeBytes.length)
-                .putLong(workspaceId)
+                .putLong(organizationId)
                 .putInt(keyVersion)
                 .put(typeBytes)
                 .array();

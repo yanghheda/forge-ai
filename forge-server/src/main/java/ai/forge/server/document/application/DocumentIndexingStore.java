@@ -4,7 +4,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
-/** Outbox 事件到派生索引任务之间的持久化端口；SQL 必须显式携带 workspace 范围。 */
+/** Outbox 事件到派生索引任务之间的持久化端口；SQL 必须显式携带公司作用域。 */
 public interface DocumentIndexingStore {
 
     /* 在事务内领取一批未消费的文档发布事件；使用 FOR UPDATE SKIP LOCKED 支持多实例。 */
@@ -32,16 +32,14 @@ public interface DocumentIndexingStore {
     /** 从 Outbox 领取的文档发布事件载荷。 */
     record PublishedDocumentEvent(
             /* Outbox 事件标识；用于同一事务内回写 processed_at。 */ long outboxId,
-            /* 事件归属工作区。 */ long workspaceId,
-            /* 事件归属项目。 */ long projectId,
+            /* 事件归属工作区。 */ long organizationId,
             /* 发布的文档标识。 */ long documentId,
             /* 发布的不可变版本标识。 */ long versionId) {}
 
     /** 已领取待处理的索引任务。 */
     record DocumentIndexJob(
             /* 任务标识。 */ long id,
-            /* 任务归属工作区。 */ long workspaceId,
-            /* 任务归属项目。 */ long projectId,
+            /* 任务归属工作区。 */ long organizationId,
             /* 待索引文档标识。 */ long documentId,
             /* 待索引版本标识。 */ long versionId,
             /* 已失败尝试次数；用于计算下一次退避。 */ int attempts) {}
@@ -49,8 +47,7 @@ public interface DocumentIndexingStore {
     /** 索引任务对应的文档与版本事实快照。 */
     record IndexingFact(
             /* 文档是否已逻辑删除或归档；为真时本轮应清除派生切片而不是写入。 */ boolean documentRetired,
-            /* 文档归属工作区。 */ long workspaceId,
-            /* 文档归属项目。 */ long projectId,
+            /* 文档归属工作区。 */ long organizationId,
             /* 可选关联工作项。 */ Long workItemId,
             /* 文档类型。 */ String documentType,
             /* 文档标题。 */ String title,

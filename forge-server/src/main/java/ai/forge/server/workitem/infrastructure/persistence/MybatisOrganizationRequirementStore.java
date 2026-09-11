@@ -32,8 +32,7 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
 
     @Override
     public OrganizationRequirementPage findRequirements(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             Long participantUserId,
             String query,
             WorkItemStatus status,
@@ -41,24 +40,24 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
             int pageSize) {
         String statusValue = status == null ? null : status.name();
         List<OrganizationRequirementView> items = mapper.findRequirements(
-                        workspaceId, projectId, participantUserId, query, statusValue, pageSize, (page - 1) * pageSize)
+                        organizationId, participantUserId, query, statusValue, pageSize, (page - 1) * pageSize)
                 .stream()
                 .map(this::requirement)
                 .toList();
-        long total = mapper.countRequirements(workspaceId, projectId, participantUserId, query, statusValue);
+        long total = mapper.countRequirements(organizationId, participantUserId, query, statusValue);
         return new OrganizationRequirementPage(items, page, pageSize, total);
     }
 
     @Override
-    public RequirementOverview overview(long workspaceId, long projectId) {
-        Map<String, Object> row = mapper.overview(workspaceId, projectId);
+    public RequirementOverview overview(long organizationId) {
+        Map<String, Object> row = mapper.overview(organizationId);
         return new RequirementOverview(number(row, "total"), number(row, "in_progress"), number(row, "completed"));
     }
 
     @Override
     public List<RequirementParticipantView> findParticipants(
-            long workspaceId, long projectId, long requirementId) {
-        return mapper.findParticipants(workspaceId, projectId, requirementId).stream()
+            long organizationId, long requirementId) {
+        return mapper.findParticipants(organizationId, requirementId).stream()
                 .map(row -> new RequirementParticipantView(
                         RequirementParticipantRole.valueOf(text(row, "role_code")),
                         number(row, "user_id"),
@@ -70,33 +69,31 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
     @Override
     @Transactional
     public List<RequirementParticipantView> replaceParticipants(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long requirementId,
             long actorUserId,
             List<ParticipantAssignment> assignments) {
-        mapper.deleteParticipants(workspaceId, projectId, requirementId);
+        mapper.deleteParticipants(organizationId, requirementId);
         for (ParticipantAssignment assignment : assignments) {
             mapper.insertParticipant(
-                    workspaceId,
-                    projectId,
+                    organizationId,
                     requirementId,
                     assignment.role().name(),
                     assignment.userId(),
                     actorUserId);
         }
-        return findParticipants(workspaceId, projectId, requirementId);
+        return findParticipants(organizationId, requirementId);
     }
 
     @Override
     public boolean memberCanFillRole(
-            long workspaceId, long projectId, long userId, RequirementParticipantRole role) {
-        return mapper.memberCanFillRole(workspaceId, projectId, userId, role.name());
+            long organizationId, long userId, RequirementParticipantRole role) {
+        return mapper.memberCanFillRole(organizationId, userId, role.name());
     }
 
     @Override
-    public List<RequirementMemberView> findMembers(long workspaceId, long projectId) {
-        return mapper.findMembers(workspaceId, projectId).stream()
+    public List<RequirementMemberView> findMembers(long organizationId) {
+        return mapper.findMembers(organizationId).stream()
                 .map(row -> new RequirementMemberView(
                         number(row, "user_id"),
                         text(row, "display_name"),

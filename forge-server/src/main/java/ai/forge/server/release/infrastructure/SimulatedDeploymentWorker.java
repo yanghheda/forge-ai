@@ -33,17 +33,17 @@ public class SimulatedDeploymentWorker {
         if (!deployments.claim(deployment.id(), deployment.version())) {
             return;
         }
-        deployments.updateReleaseStatus(deployment.workspaceId(), deployment.projectId(),
+        deployments.updateReleaseStatus(deployment.organizationId(),
                 deployment.releaseId(), "DEPLOYING");
         SimulatedDeploymentResult result = executor.execute(deployment.simulateFailure());
         deployments.complete(deployment.id(), result.succeeded(), result.code(), result.summary());
-        deployments.updateReleaseStatus(deployment.workspaceId(), deployment.projectId(), deployment.releaseId(),
+        deployments.updateReleaseStatus(deployment.organizationId(), deployment.releaseId(),
                 result.succeeded() ? "RELEASED" : "FAILED");
         if (result.succeeded()) {
-            deployments.completeRequirements(deployment.workspaceId(), deployment.projectId(),
+            deployments.completeRequirements(deployment.organizationId(),
                     deployment.releaseId(), deployment.requestedBy(), deployment.id());
         }
-        deployments.audit(deployment.workspaceId(), deployment.projectId(), "SYSTEM", deployment.requestedBy(),
+        deployments.audit(deployment.organizationId(), "SYSTEM", deployment.requestedBy(),
                 "deployment.simulated.completed", deployment.id(), result.code(), "deployment:" + deployment.id(),
                 null);
     }

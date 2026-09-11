@@ -49,8 +49,8 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "work_item_events", "review_records", "requirement_details", "work_items", "project_item_sequences", "project_members", "projects", "audit_logs", "member_roles",
-                "workspace_members", "workspaces", "organizations", "users")) {
+                "work_item_events", "review_records", "requirement_details", "work_items", "organization_item_sequences", "organization_policies", "audit_logs", "member_roles",
+                "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         ResponseEntity<String> initialized = new CsrfTestClient(restTemplate, objectMapper).post(
@@ -61,14 +61,15 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
                         "password", PASSWORD,
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
-                        "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"), null,
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"), null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 
     @Test
-    void loginCreatesRedisSessionAndMeReadsCurrentWorkspace(CapturedOutput output) {
+    void loginCreatesRedisSessionAndMeReadsCurrentCompany(CapturedOutput output) {
         ResponseEntity<String> login = login("owner@example.com", PASSWORD, null);
 
         assertThat(login.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
@@ -84,7 +85,7 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(me.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(me.getBody())
                 .contains("\"email\":\"Owner@Example.COM\"")
-                .contains("\"slug\":\"engineering\"")
+                .contains("\"slug\":\"forge\"")
                 .contains("\"roles\":[\"OWNER\"]")
                 .doesNotContain("password");
         assertThat(redisTemplate.keys("forge:session:sessions:*")).isNotEmpty();

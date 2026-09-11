@@ -41,24 +41,24 @@ public class PipelineService {
         this.maxLogBytes = maxLogBytes;
     }
 
-    public PipelineRun trigger(long userId, long workspaceId, long projectId, String ref) {
-        permissions.requireProject(userId, workspaceId, projectId, "repo.write");
-        PipelineContext context = store.loadContext(workspaceId, projectId);
+    public PipelineRun trigger(long userId, long organizationId, String ref) {
+        permissions.requireOrganization(userId, organizationId, "repo.write");
+        PipelineContext context = store.loadContext(organizationId);
         PipelineRun remote = sourceControl.triggerPipeline(context, requireRef(ref));
         return store.save(remote);
     }
 
-    public List<PipelineRun> list(long userId, long workspaceId, long projectId) {
-        permissions.requireProject(userId, workspaceId, projectId, "repo.read");
-        return store.list(workspaceId, projectId, 50);
+    public List<PipelineRun> list(long userId, long organizationId) {
+        permissions.requireOrganization(userId, organizationId, "repo.read");
+        return store.list(organizationId, 50);
     }
 
     public PipelineLogTail logTail(
-            long userId, long workspaceId, long projectId, long pipelineId, long jobId) {
-        permissions.requireProject(userId, workspaceId, projectId, "repo.read");
-        PipelineRun pipeline = store.find(workspaceId, projectId, pipelineId)
+            long userId, long organizationId, long pipelineId, long jobId) {
+        permissions.requireOrganization(userId, organizationId, "repo.read");
+        PipelineRun pipeline = store.find(organizationId, pipelineId)
                 .orElseThrow(ResourceNotFoundException::new);
-        PipelineContext context = store.loadContext(workspaceId, projectId);
+        PipelineContext context = store.loadContext(organizationId);
         byte[] remote = sourceControl.getJobLog(context, pipeline.remotePipelineId(), jobId, maxLogBytes + 1);
         boolean truncated = remote.length > maxLogBytes;
         int start = Math.max(0, remote.length - maxLogBytes);

@@ -6,7 +6,7 @@ import java.util.List;
 
 public record BugView(
         /* Bug 工作项标识。 */ long id,
-        /* 项目内展示编号。 */ String itemKey,
+        /* 公司内展示编号。 */ String itemKey,
         /* Bug 标题。 */ String title,
         /* 当前缺陷状态。 */ WorkItemStatus status,
         /* 发布阻断语义使用的严重级别。 */ BugSeverity severity,

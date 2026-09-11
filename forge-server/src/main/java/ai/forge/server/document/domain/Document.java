@@ -5,8 +5,7 @@ import java.time.Instant;
 /** 文档元数据和当前可读版本指针。 */
 public record Document(
         /* 文档稳定标识。 */ long id,
-        /* 所属工作区。 */ long workspaceId,
-        /* 所属项目。 */ long projectId,
+        /* 所属工作区。 */ long organizationId,
         /* 可选关联的 Requirement 标识。 */ Long workItemId,
         /* 文档类型。 */ String type,
         /* 显示标题。 */ String title,

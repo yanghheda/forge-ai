@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
 @Profile("!test-unit")
 public class MybatisDevelopmentQaStore implements DevelopmentQaStore {
 
-    /* 执行显式携带租户与项目范围的研发汇总 SQL。 */
+    /* 执行显式携带公司范围的研发汇总 SQL。 */
     private final DevelopmentQaMapper mapper;
 
     public MybatisDevelopmentQaStore(DevelopmentQaMapper mapper) {
@@ -23,15 +23,15 @@ public class MybatisDevelopmentQaStore implements DevelopmentQaStore {
     }
 
     @Override
-    public DevelopmentQaSummary summarize(long workspaceId, long projectId, long requirementId) {
-        Map<String, Object> header = mapper.findHeader(workspaceId, projectId, requirementId).stream()
+    public DevelopmentQaSummary summarize(long organizationId, long requirementId) {
+        Map<String, Object> header = mapper.findHeader(organizationId, requirementId).stream()
                 .findFirst()
                 .orElseThrow(ResourceNotFoundException::new);
         return new DevelopmentQaSummary(
                 requirementId,
                 booleanValue(header.get("ci_required")),
                 booleanValue(header.get("repository_configured")),
-                mapper.findTasks(workspaceId, projectId, requirementId).stream()
+                mapper.findTasks(organizationId, requirementId).stream()
                         .map(this::task)
                         .toList());
     }

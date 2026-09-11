@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 public record GitLabConnection(
         /* 连接的本地稳定标识。 */ long id,
-        /* 连接所属工作区。 */ long workspaceId,
+        /* 连接所属工作区。 */ long organizationId,
         /* 管理员可识别的连接名称。 */ String name,
         /* 已规范化并通过 SSRF 校验的 GitLab 根地址。 */ String baseUrl,
         /* 不可逆的当前 Token 短指纹。 */ String tokenFingerprint,

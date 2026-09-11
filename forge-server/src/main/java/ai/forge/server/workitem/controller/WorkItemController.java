@@ -2,6 +2,7 @@ package ai.forge.server.workitem.controller;
 
 import ai.forge.server.auth.controller.AuthController;
 import ai.forge.server.auth.domain.AuthContext;
+import ai.forge.server.organization.application.OrganizationAccessService;
 import ai.forge.server.workitem.application.WorkItemCommandService;
 import ai.forge.server.workitem.application.WorkItemCollaborationService;
 import ai.forge.server.workitem.application.WorkItemPage;
@@ -61,7 +62,7 @@ public class WorkItemController {
     /* 执行服务端类型授权、原子编号创建和乐观锁编辑。 */
     private final WorkItemCommandService commandService;
 
-    /* 执行强制租户与项目范围的详情和分页查询。 */
+    /* 执行强制公司范围的详情和分页查询。 */
     private final WorkItemQueryService queryService;
 
     /* 执行 Requirement 固定 Action，并读取同范围内的追加活动事件。 */
@@ -75,6 +76,8 @@ public class WorkItemController {
 
     /* 以有界批量查询投影 Requirement 的端到端交付关系。 */
     private final DeliveryGraphQuery deliveryGraphQuery;
+    /* 从登录身份解析唯一公司作用域。 */
+    private final OrganizationAccessService organizations;
 
     public WorkItemController(
             WorkItemCommandService commandService,
@@ -82,28 +85,29 @@ public class WorkItemController {
             RequirementTransitionService transitionService,
             RequirementDetailsService detailsService,
             WorkItemCollaborationService collaborationService,
-            DeliveryGraphQuery deliveryGraphQuery) {
+            DeliveryGraphQuery deliveryGraphQuery,
+            OrganizationAccessService organizations) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.transitionService = transitionService;
         this.detailsService = detailsService;
         this.collaborationService = collaborationService;
         this.deliveryGraphQuery = deliveryGraphQuery;
+        this.organizations = organizations;
     }
 
     @GetMapping("/{workItemId}/details")
     public RequirementDetails details(
-            @PathVariable long workItemId, @RequestParam long workspaceId, @RequestParam long projectId,
-            HttpServletRequest request) {
-        return detailsService.get(AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId);
+            @PathVariable long workItemId, HttpServletRequest request) {
+        return detailsService.get(AuthController.requireContext(request).userId(), organizationId(request), workItemId);
     }
 
     @PutMapping("/{workItemId}/details")
     public RequirementDetails saveDetails(
-            @PathVariable long workItemId, @RequestParam long workspaceId, @RequestParam long projectId,
-            @Valid @RequestBody RequirementDetailsRequest body, HttpServletRequest request) {
+            @PathVariable long workItemId, @Valid @RequestBody RequirementDetailsRequest body,
+            HttpServletRequest request) {
         return detailsService.save(
-                AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId,
+                AuthController.requireContext(request).userId(), organizationId(request), workItemId,
                 body.goal(), body.inScope(), body.outOfScope(), body.acceptanceCriteria(),
                 body.businessValue(), body.expectedVersion());
     }
@@ -113,17 +117,16 @@ public class WorkItemController {
             summary = "创建 Work Item",
             description = "按 type 校验 requirement/ux/task.create；itemKey、status 和 reporter 仅由服务端生成。")
     @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "工作项已使用项目内原子编号创建"),
+        @ApiResponse(responseCode = "201", description = "工作项已使用公司内原子编号创建"),
         @ApiResponse(responseCode = "400", description = "类型或基础字段不合法"),
-        @ApiResponse(responseCode = "404", description = "项目、权限范围或负责人项目成员不存在")
+        @ApiResponse(responseCode = "404", description = "公司权限范围或负责人不存在")
     })
     public ResponseEntity<WorkItem> create(
             @Valid @RequestBody CreateWorkItemRequest body, HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
         WorkItem item = commandService.create(
                 context.userId(),
-                body.workspaceId(),
-                body.projectId(),
+                organizationId(request),
                 body.type(),
                 body.title(),
                 body.description(),
@@ -136,18 +139,15 @@ public class WorkItemController {
     @GetMapping("/{workItemId}")
     @Operation(
             summary = "读取 Work Item",
-            description = "按实际 type 校验 read 权限，并同时限制 workspaceId、projectId 和未删除状态。")
+            description = "按实际 type 校验 read 权限，并限制公司作用域和未删除状态。")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "工作项详情"),
         @ApiResponse(responseCode = "404", description = "资源不存在、已删除、越权或 scope 不匹配")
     })
     public WorkItemDetailResponse get(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            HttpServletRequest request) {
+            @PathVariable long workItemId, HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
-        WorkItem item = queryService.get(context.userId(), workspaceId, projectId, workItemId);
+        WorkItem item = queryService.get(context.userId(), organizationId(request), workItemId);
         RequirementTransitionService.ActionHints hints = transitionService.hints(context.userId(), item);
         return WorkItemDetailResponse.from(item, hints);
     }
@@ -157,20 +157,18 @@ public class WorkItemController {
             summary = "分页查询 Work Item",
             description = "列表固定按 itemNumber 倒序；page 从 1 开始，pageSize 最大 100，筛选值使用枚举白名单。")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "项目范围内的工作项分页摘要"),
+        @ApiResponse(responseCode = "200", description = "公司范围内的工作项分页摘要"),
         @ApiResponse(responseCode = "400", description = "分页或枚举筛选参数不合法"),
-        @ApiResponse(responseCode = "404", description = "项目不存在或当前用户无读取范围")
+        @ApiResponse(responseCode = "404", description = "当前用户无公司读取权限")
     })
     public WorkItemPage list(
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
             @RequestParam(required = false) WorkItemType type,
             @RequestParam(required = false) WorkItemStatus status,
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int pageSize,
             HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
-        return queryService.list(context.userId(), workspaceId, projectId, type, status, page, pageSize);
+        return queryService.list(context.userId(), organizationId(request), type, status, page, pageSize);
     }
 
     @PatchMapping("/{workItemId}")
@@ -181,19 +179,15 @@ public class WorkItemController {
         @ApiResponse(responseCode = "200", description = "基础字段已更新且 version 增加"),
         @ApiResponse(responseCode = "400", description = "基础字段或 expectedVersion 不合法"),
         @ApiResponse(responseCode = "409", description = "expectedVersion 已过期"),
-        @ApiResponse(responseCode = "404", description = "资源、权限范围或负责人项目成员不存在")
+        @ApiResponse(responseCode = "404", description = "资源、权限范围或负责人不存在")
     })
     public WorkItem update(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            @Valid @RequestBody UpdateWorkItemRequest body,
+            @PathVariable long workItemId, @Valid @RequestBody UpdateWorkItemRequest body,
             HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
         return commandService.update(
                 context.userId(),
-                workspaceId,
-                projectId,
+                organizationId(request),
                 workItemId,
                 body.title(),
                 body.description(),
@@ -214,16 +208,12 @@ public class WorkItemController {
         @ApiResponse(responseCode = "404", description = "资源、scope 或动作权限不可见")
     })
     public RequirementTransitionStore.TransitionResult transition(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            @Valid @RequestBody TransitionRequest body,
+            @PathVariable long workItemId, @Valid @RequestBody TransitionRequest body,
             HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
         return transitionService.transition(
                 context.userId(),
-                workspaceId,
-                projectId,
+                organizationId(request),
                 workItemId,
                 body.action(),
                 body.expectedVersion(),
@@ -235,25 +225,18 @@ public class WorkItemController {
     @GetMapping("/{workItemId}/events")
     @Operation(summary = "读取 Work Item 状态事件", description = "按事件 id 升序返回追加写工作流事件。")
     public List<WorkItemEvent> events(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            HttpServletRequest request) {
+            @PathVariable long workItemId, HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
-        return transitionService.events(context.userId(), workspaceId, projectId, workItemId);
+        return transitionService.events(context.userId(), organizationId(request), workItemId);
     }
 
     @PostMapping("/{workItemId}/relations")
     public ResponseEntity<WorkItemRelation> createRelation(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            @Valid @RequestBody CreateRelationRequest body,
+            @PathVariable long workItemId, @Valid @RequestBody CreateRelationRequest body,
             HttpServletRequest request) {
         WorkItemRelation relation = collaborationService.createRelation(
                 AuthController.requireContext(request).userId(),
-                workspaceId,
-                projectId,
+                organizationId(request),
                 workItemId,
                 body.targetId(),
                 body.relationType());
@@ -263,25 +246,18 @@ public class WorkItemController {
 
     @GetMapping("/{workItemId}/relations")
     public List<WorkItemRelation> relations(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            HttpServletRequest request) {
+            @PathVariable long workItemId, HttpServletRequest request) {
         return collaborationService.relations(
-                AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId);
+                AuthController.requireContext(request).userId(), organizationId(request), workItemId);
     }
 
     @PostMapping("/{workItemId}/labels")
     public ResponseEntity<Void> addLabel(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            @Valid @RequestBody AddLabelRequest body,
+            @PathVariable long workItemId, @Valid @RequestBody AddLabelRequest body,
             HttpServletRequest request) {
         collaborationService.addLabel(
                 AuthController.requireContext(request).userId(),
-                workspaceId,
-                projectId,
+                organizationId(request),
                 workItemId,
                 body.label());
         return ResponseEntity.noContent().build();
@@ -289,15 +265,11 @@ public class WorkItemController {
 
     @PostMapping("/{workItemId}/comments")
     public ResponseEntity<ActivityItem> comment(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            @Valid @RequestBody CreateCommentRequest body,
+            @PathVariable long workItemId, @Valid @RequestBody CreateCommentRequest body,
             HttpServletRequest request) {
         ActivityItem comment = collaborationService.comment(
                 AuthController.requireContext(request).userId(),
-                workspaceId,
-                projectId,
+                organizationId(request),
                 workItemId,
                 body.body());
         return ResponseEntity.created(URI.create("/api/v1/work-items/" + workItemId + "/comments/" + comment.id()))
@@ -307,12 +279,9 @@ public class WorkItemController {
     @GetMapping("/{workItemId}/activity")
     @Operation(summary = "读取统一 Activity", description = "按发生时间合并工作流事件和未删除评论。")
     public List<ActivityItem> activity(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            HttpServletRequest request) {
+            @PathVariable long workItemId, HttpServletRequest request) {
         return collaborationService.activity(
-                AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId);
+                AuthController.requireContext(request).userId(), organizationId(request), workItemId);
     }
 
     @GetMapping("/{workItemId}/delivery-graph")
@@ -320,16 +289,13 @@ public class WorkItemController {
             summary = "读取 Requirement Delivery Graph",
             description = "逐类授权后，以深度 8、节点 500 的上限批量投影 Work Item、文档与关系。")
     public DeliveryGraph deliveryGraph(
-            @PathVariable long workItemId,
-            @RequestParam long workspaceId,
-            @RequestParam long projectId,
-            HttpServletRequest request) {
+            @PathVariable long workItemId, HttpServletRequest request) {
         return deliveryGraphQuery.get(
-                AuthController.requireContext(request).userId(), workspaceId, projectId, workItemId);
+                AuthController.requireContext(request).userId(), organizationId(request), workItemId);
     }
 
     public record CreateRelationRequest(
-            /* 同一项目内的关系目标工作项。 */ @Positive long targetId,
+            /* 同一公司内的关系目标工作项。 */ @Positive long targetId,
             /* 非树状关系的固定业务语义。 */ @NotNull WorkItemRelationType relationType) {}
 
     public record CreateCommentRequest(
@@ -339,10 +305,6 @@ public class WorkItemController {
             /* 服务端白名单内、可用于 UX 跳过判断的分类。 */ @NotNull WorkItemLabel label) {}
 
     public record CreateWorkItemRequest(
-            /* 所属 Workspace；服务端会与项目和当前权限重新比对。 */
-            @NotNull @Positive Long workspaceId,
-            /* 所属 Project；编号序列和所有查询均限制在该范围。 */
-            @NotNull @Positive Long projectId,
             /* 本轮允许创建的 Requirement 或角色 Task 类型。 */
             @NotNull WorkItemType type,
             /* 工作项标题；服务端去除首尾空白后仍必须非空。 */
@@ -351,7 +313,7 @@ public class WorkItemController {
             String description,
             /* 工作项业务优先级，不能与 Tool 风险等级混用。 */
             @NotNull WorkItemPriority priority,
-            /* 可选负责人；若存在则必须是当前项目的有效成员。 */
+            /* 可选负责人；若存在则必须是当前公司的有效成员。 */
             @Positive Long assigneeUserId,
             /* 可选 UTC 截止时间。 */
             Instant dueAt) {}
@@ -363,7 +325,7 @@ public class WorkItemController {
             String description,
             /* 可选新业务优先级；空值表示保留当前值。 */
             WorkItemPriority priority,
-            /* 可选新负责人；存在时必须是当前项目的有效成员。 */
+            /* 可选新负责人；存在时必须是当前公司的有效成员。 */
             @Positive Long assigneeUserId,
             /* 可选新 UTC 截止时间；空值表示保留当前值。 */
             Instant dueAt,
@@ -392,9 +354,7 @@ public class WorkItemController {
 
     public record WorkItemDetailResponse(
             /* 工作项稳定标识。 */ long id,
-            /* 所属工作区。 */ long workspaceId,
-            /* 所属项目。 */ long projectId,
-            /* 项目内展示编号。 */ String itemKey,
+            /* 公司内展示编号。 */ String itemKey,
             /* 工作项类型。 */ WorkItemType type,
             /* 工作项标题。 */ String title,
             /* 工作项说明。 */ String description,
@@ -409,10 +369,15 @@ public class WorkItemController {
             /* 当前身份与状态下可尝试的动作，不替代执行时授权。 */ List<WorkflowAction> availableActions,
             /* 动作对应的机器可读缺失材料。 */ java.util.Map<WorkflowAction, List<String>> guardHints) {
         static WorkItemDetailResponse from(WorkItem item, RequirementTransitionService.ActionHints hints) {
-            return new WorkItemDetailResponse(item.id(), item.workspaceId(), item.projectId(), item.itemKey(),
+            return new WorkItemDetailResponse(item.id(), item.itemKey(),
                     item.type(), item.title(), item.description(), item.status(), item.priority(), item.assigneeUserId(),
                     item.reporterUserId(), item.dueAt(), item.version(), item.createdAt(), item.updatedAt(),
                     hints.availableActions(), hints.guardHints());
         }
+    }
+
+    private long organizationId(HttpServletRequest request) {
+        long userId = AuthController.requireContext(request).userId();
+        return organizations.requireContext(userId).organizationId();
     }
 }

@@ -5,8 +5,7 @@ import java.util.List;
 
 public record ReleaseView(
         /* Release Candidate 标识。 */ long id,
-        /* 所属工作区。 */ long workspaceId,
-        /* 所属项目。 */ long projectId,
+        /* 所属工作区。 */ long organizationId,
         /* 项目与环境内唯一版本名。 */ String versionName,
         /* 目标环境。 */ String environment,
         /* 当前聚合状态。 */ String status,

@@ -1,2 +1,1 @@
-export { GitLabSettings } from "./components/gitlab-settings";
-export { PipelinePanel } from "./components/pipeline-panel";
+export * from "./api/gitlab-api";

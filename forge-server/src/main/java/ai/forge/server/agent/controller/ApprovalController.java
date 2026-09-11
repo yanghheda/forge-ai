@@ -4,6 +4,7 @@ import ai.forge.server.agent.application.ApprovalService;
 import ai.forge.server.agent.application.ApprovalSnapshot;
 import ai.forge.server.auth.controller.AuthController;
 import ai.forge.server.auth.domain.AuthContext;
+import ai.forge.server.organization.application.OrganizationAccessService;
 import ai.forge.server.platform.web.RequestIdFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,18 +30,19 @@ public class ApprovalController {
 
     /* 执行审批 scope、权限、自批与乐观锁规则。 */
     private final ApprovalService approvalService;
+    /* 从登录成员解析唯一公司范围。 */ private final OrganizationAccessService organizationAccess;
 
-    public ApprovalController(ApprovalService approvalService) {
+    public ApprovalController(ApprovalService approvalService, OrganizationAccessService organizationAccess) {
         this.approvalService = approvalService;
+        this.organizationAccess = organizationAccess;
     }
 
     @GetMapping("/{approvalId}")
     @Operation(summary = "读取审批卡片", description = "只返回参数摘要与资源版本，不返回加密前完整参数。")
     public ApprovalSnapshot get(@PathVariable String approvalId,
-            @RequestParam @Positive long workspaceId, @RequestParam @Positive long projectId,
             HttpServletRequest request) {
-        return approvalService.get(AuthController.requireContext(request).userId(),
-                workspaceId, projectId, approvalId);
+        long userId = AuthController.requireContext(request).userId();
+        return approvalService.get(userId, organizationAccess.requireContext(userId).organizationId(), approvalId);
     }
 
     @PostMapping("/{approvalId}:decide")
@@ -48,7 +50,7 @@ public class ApprovalController {
     public ApprovalSnapshot decide(@PathVariable String approvalId, @Valid @RequestBody DecisionRequest body,
             HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
-        return approvalService.decide(context.userId(), body.workspaceId(), body.projectId(), approvalId,
+        return approvalService.decide(context.userId(), organizationAccess.requireContext(context.userId()).organizationId(), approvalId,
                 body.decision() == Decision.APPROVE, body.expectedVersion(),
                 (String) request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE));
     }
@@ -56,18 +58,17 @@ public class ApprovalController {
     @GetMapping("/by-run/{runId}")
     @Operation(summary = "读取 Run 当前审批", description = "页面刷新后从 MySQL 恢复审批卡片。")
     public ApprovalSnapshot getForRun(@PathVariable String runId,
-            @RequestParam @Positive long workspaceId, @RequestParam @Positive long projectId,
             HttpServletRequest request) {
-        return approvalService.getForRun(AuthController.requireContext(request).userId(),
-                workspaceId, projectId, runId);
+        long userId = AuthController.requireContext(request).userId();
+        return approvalService.getForRun(userId, organizationAccess.requireContext(userId).organizationId(), runId);
     }
 
     @PostMapping("/{approvalId}:cancel")
     @Operation(summary = "取消待审批调用", description = "只有 Run 发起人可以取消尚未决定的审批。")
     public ApprovalSnapshot cancel(@PathVariable String approvalId, @Valid @RequestBody CancelRequest body,
             HttpServletRequest request) {
-        return approvalService.cancel(AuthController.requireContext(request).userId(), body.workspaceId(),
-                body.projectId(), approvalId, body.expectedVersion(),
+        long userId = AuthController.requireContext(request).userId();
+        return approvalService.cancel(userId, organizationAccess.requireContext(userId).organizationId(), approvalId, body.expectedVersion(),
                 (String) request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE));
     }
 
@@ -79,15 +80,11 @@ public class ApprovalController {
     }
 
     public record DecisionRequest(
-            /* 审批所属工作区。 */ @Positive long workspaceId,
-            /* 审批所属项目。 */ @Positive long projectId,
             /* 明确批准或拒绝。 */ @NotNull Decision decision,
             /* 审批卡片读取到的乐观锁版本。 */ @PositiveOrZero long expectedVersion) {
     }
 
     public record CancelRequest(
-            /* 审批所属工作区。 */ @Positive long workspaceId,
-            /* 审批所属项目。 */ @Positive long projectId,
             /* 审批卡片读取到的乐观锁版本。 */ @PositiveOrZero long expectedVersion) {
     }
 }

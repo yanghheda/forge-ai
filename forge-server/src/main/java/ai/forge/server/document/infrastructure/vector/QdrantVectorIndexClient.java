@@ -122,9 +122,6 @@ public class QdrantVectorIndexClient implements VectorIndexClient {
     @Override
     public List<ScoredChunk> search(
             String collectionName, float[] queryVector, SearchFilter filter, int limit) {
-        if (filter.projectIds().isEmpty()) {
-            return List.of();
-        }
         ObjectNode body = objectMapper.createObjectNode();
         ArrayNode vector = body.putArray("vector");
         for (float value : queryVector) {
@@ -132,12 +129,7 @@ public class QdrantVectorIndexClient implements VectorIndexClient {
         }
         ObjectNode jsonFilter = body.putObject("filter");
         ArrayNode must = jsonFilter.putArray("must");
-        matchLong(must.addObject(), "workspace_id", filter.workspaceId());
-        /* project_id IN allowed 用 MatchAny 表达；字段名和取值都来自服务端授权结果。 */
-        ObjectNode projectMatch = must.addObject();
-        projectMatch.put("key", "project_id");
-        ArrayNode any = projectMatch.putObject("match").putArray("any");
-        filter.projectIds().forEach(any::add);
+        matchLong(must.addObject(), "organization_id", filter.organizationId());
         if (filter.documentType() != null) {
             matchString(must.addObject(), "document_type", filter.documentType());
         }
@@ -169,8 +161,8 @@ public class QdrantVectorIndexClient implements VectorIndexClient {
 
     private ObjectNode payloadJson(IndexedChunkPayload payload) {
         ObjectNode json = objectMapper.createObjectNode();
-        json.put("workspace_id", payload.workspaceId());
-        json.put("project_id", payload.projectId());
+        json.put("organization_id", payload.organizationId());
+        json.put("organization_id", payload.organizationId());
         if (payload.workItemId() == null) {
             json.putNull("work_item_id");
         } else {
@@ -189,8 +181,7 @@ public class QdrantVectorIndexClient implements VectorIndexClient {
 
     private IndexedChunkPayload payload(JsonNode json) {
         return new IndexedChunkPayload(
-                json.path("workspace_id").asLong(),
-                json.path("project_id").asLong(),
+                json.path("organization_id").asLong(),
                 json.path("work_item_id").isNumber() ? json.path("work_item_id").asLong() : null,
                 json.path("document_id").asLong(),
                 json.path("version_id").asLong(),

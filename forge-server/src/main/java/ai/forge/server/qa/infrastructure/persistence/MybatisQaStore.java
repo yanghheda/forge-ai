@@ -40,63 +40,63 @@ public class MybatisQaStore implements QaStore {
     }
 
     @Override
-    public TestCaseView createCase(long workspaceId, long projectId, long requirementId, long userId,
+    public TestCaseView createCase(long organizationId, long requirementId, long userId,
             String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority) {
-        if (mapper.countQaRequirement(workspaceId, projectId, requirementId) == 0) {
+        if (mapper.countQaRequirement(organizationId, requirementId) == 0) {
             throw new ResourceNotFoundException();
         }
         Map<String, Object> generated = new LinkedHashMap<>();
-        mapper.insertCase(generated, workspaceId, projectId, requirementId, title, preconditions,
+        mapper.insertCase(generated, organizationId, requirementId, title, preconditions,
                 write(steps), expectedResult, priority.name(), userId);
         return new TestCaseView(number(generated.get("id")), requirementId, title, preconditions,
                 List.copyOf(steps), expectedResult, priority, 0L);
     }
 
     @Override
-    public List<TestCaseView> findCases(long workspaceId, long projectId, long requirementId) {
-        return mapper.findCases(workspaceId, projectId, requirementId).stream().map(this::caseView).toList();
+    public List<TestCaseView> findCases(long organizationId, long requirementId) {
+        return mapper.findCases(organizationId, requirementId).stream().map(this::caseView).toList();
     }
 
     @Override
     @Transactional
-    public TestRunView createRun(long workspaceId, long projectId, long requirementId, long userId,
+    public TestRunView createRun(long organizationId, long requirementId, long userId,
             String environment) {
-        if (mapper.countQaRequirement(workspaceId, projectId, requirementId) == 0) {
+        if (mapper.countQaRequirement(organizationId, requirementId) == 0) {
             throw new ResourceNotFoundException();
         }
         Map<String, Object> generated = new LinkedHashMap<>();
-        mapper.insertRun(generated, workspaceId, projectId, requirementId, environment, userId);
+        mapper.insertRun(generated, organizationId, requirementId, environment, userId);
         long runId = number(generated.get("id"));
-        if (mapper.snapshotResults(workspaceId, projectId, requirementId, runId) == 0) {
+        if (mapper.snapshotResults(organizationId, requirementId, runId) == 0) {
             throw new QaStateException();
         }
-        return findRun(workspaceId, projectId, runId).orElseThrow();
+        return findRun(organizationId, runId).orElseThrow();
     }
 
     @Override
-    public Optional<TestRunView> findRun(long workspaceId, long projectId, long runId) {
-        return mapper.findRun(workspaceId, projectId, runId).stream().findFirst()
-                .map(row -> runView(row, mapper.findResults(workspaceId, projectId, runId)));
+    public Optional<TestRunView> findRun(long organizationId, long runId) {
+        return mapper.findRun(organizationId, runId).stream().findFirst()
+                .map(row -> runView(row, mapper.findResults(organizationId, runId)));
     }
 
     @Override
-    public Optional<TestRunView> findLatestRun(long workspaceId, long projectId, long requirementId) {
-        return mapper.findLatestRun(workspaceId, projectId, requirementId).stream().findFirst()
-                .map(row -> runView(row, mapper.findResults(workspaceId, projectId, number(row.get("id")))));
+    public Optional<TestRunView> findLatestRun(long organizationId, long requirementId) {
+        return mapper.findLatestRun(organizationId, requirementId).stream().findFirst()
+                .map(row -> runView(row, mapper.findResults(organizationId, number(row.get("id")))));
     }
 
     @Override
     @Transactional
-    public TestResultView updateResult(long workspaceId, long projectId, long runId, long resultId, long userId,
+    public TestResultView updateResult(long organizationId, long runId, long resultId, long userId,
             TestResultStatus status, String actualResult, List<String> evidence, long expectedVersion) {
         if (status == TestResultStatus.NOT_RUN) {
             throw new IllegalArgumentException("NOT_RUN cannot be submitted as an execution result");
         }
-        if (mapper.updateResult(workspaceId, projectId, runId, resultId, userId, status.name(), actualResult,
+        if (mapper.updateResult(organizationId, runId, resultId, userId, status.name(), actualResult,
                 write(evidence), expectedVersion) == 0) {
             throw new VersionConflictException();
         }
-        return mapper.findResults(workspaceId, projectId, runId).stream()
+        return mapper.findResults(organizationId, runId).stream()
                 .filter(row -> number(row.get("id")) == resultId)
                 .findFirst()
                 .map(this::resultView)
@@ -105,36 +105,36 @@ public class MybatisQaStore implements QaStore {
 
     @Override
     @Transactional
-    public TestRunView completeRun(long workspaceId, long projectId, long runId, long userId,
+    public TestRunView completeRun(long organizationId, long runId, long userId,
             long expectedVersion) {
-        TestRunSummary summary = summary(mapper.calculateSummary(workspaceId, projectId, runId));
+        TestRunSummary summary = summary(mapper.calculateSummary(organizationId, runId));
         if (summary.total() == 0 || summary.notRun() > 0) {
             throw new QaStateException();
         }
-        if (mapper.completeRun(workspaceId, projectId, runId, write(summary), expectedVersion) != 1) {
+        if (mapper.completeRun(organizationId, runId, write(summary), expectedVersion) != 1) {
             throw new VersionConflictException();
         }
-        return findRun(workspaceId, projectId, runId).orElseThrow();
+        return findRun(organizationId, runId).orElseThrow();
     }
 
     @Override
     @Transactional
-    public TestRunView reopenRun(long workspaceId, long projectId, long runId, long userId, long expectedVersion,
+    public TestRunView reopenRun(long organizationId, long runId, long userId, long expectedVersion,
             String reason, String requestId) {
         if (reason == null || reason.isBlank()) {
             throw new IllegalArgumentException("reopen reason is required");
         }
-        if (mapper.reopenRun(workspaceId, projectId, runId, expectedVersion) != 1) {
+        if (mapper.reopenRun(organizationId, runId, expectedVersion) != 1) {
             throw new VersionConflictException();
         }
-        mapper.insertReopenAudit(workspaceId, projectId, runId, userId, reason.trim(), requestId);
-        return findRun(workspaceId, projectId, runId).orElseThrow();
+        mapper.insertReopenAudit(organizationId, runId, userId, reason.trim(), requestId);
+        return findRun(organizationId, runId).orElseThrow();
     }
 
     @Override
     public Optional<TestRunSummary> findLatestCompletedSummary(
-            long workspaceId, long projectId, long requirementId) {
-        return mapper.findLatestCompletedSummary(workspaceId, projectId, requirementId).stream()
+            long organizationId, long requirementId) {
+        return mapper.findLatestCompletedSummary(organizationId, requirementId).stream()
                 .filter(row -> "COMPLETED".equals(text(row.get("status"))) && row.get("summary_json") != null)
                 .findFirst()
                 .map(row -> read(text(row.get("summary_json")), TestRunSummary.class));

@@ -19,7 +19,7 @@ class DeliveryGraphQueryTest {
     void returnsRootOnlyForAnEmptyGraph() {
         DeliveryGraph graph = query(snapshot(
                 List.of(item(1, null, WorkItemType.REQUIREMENT)), List.of(), List.of()), allPermissions()).get(
-                7, 10, 20, 1);
+                7, 10, 1);
 
         assertThat(graph.nodes()).extracting(DeliveryGraph.Node::id).containsExactly("work-item:1");
         assertThat(graph.edges()).isEmpty();
@@ -36,7 +36,7 @@ class DeliveryGraphQueryTest {
                 List.of(relation(1, 1, 2), relation(2, 2, 3), relation(3, 3, 1)),
                 List.of(new DeliveryGraphStore.Document(8, 1, "PRD", "Login PRD", "PUBLISHED")));
 
-        DeliveryGraph graph = query(snapshot, allPermissions()).get(7, 10, 20, 1);
+        DeliveryGraph graph = query(snapshot, allPermissions()).get(7, 10, 1);
 
         assertThat(graph.nodes()).extracting(DeliveryGraph.Node::id)
                 .containsExactly("work-item:1", "work-item:2", "work-item:3", "document:8");
@@ -54,7 +54,7 @@ class DeliveryGraphQueryTest {
                 List.of(relation(1, 1, 2), relation(2, 2, 3)),
                 List.of(new DeliveryGraphStore.Document(8, 1, "PRD", "Private PRD", "PUBLISHED")));
 
-        DeliveryGraph graph = query(snapshot, Set.of("requirement.read", "task.read")).get(7, 10, 20, 1);
+        DeliveryGraph graph = query(snapshot, Set.of("requirement.read", "task.read")).get(7, 10, 1);
 
         assertThat(graph.nodes()).extracting(DeliveryGraph.Node::id).containsExactly("work-item:1");
         assertThat(graph.edges()).isEmpty();
@@ -77,7 +77,7 @@ class DeliveryGraphQueryTest {
                                 "release:11", "work-item:1", 11, "RELEASE",
                                 "RELEASE", "v1", "RELEASED", "release.read")));
 
-        DeliveryGraph graph = query(snapshot, Set.of("requirement.read", "repo.read")).get(7, 10, 20, 1);
+        DeliveryGraph graph = query(snapshot, Set.of("requirement.read", "repo.read")).get(7, 10, 1);
 
         assertThat(graph.nodes()).extracting(DeliveryGraph.Node::id)
                 .containsExactly("work-item:1", "merge-request:9", "pipeline:10");
@@ -95,7 +95,7 @@ class DeliveryGraphQueryTest {
             relations.add(relation(id, 1, id));
         }
 
-        DeliveryGraph graph = query(snapshot(items, relations, List.of()), allPermissions()).get(7, 10, 20, 1);
+        DeliveryGraph graph = query(snapshot(items, relations, List.of()), allPermissions()).get(7, 10, 1);
 
         assertThat(graph.nodes()).hasSize(500);
         assertThat(graph.truncated()).isTrue();
@@ -114,7 +114,7 @@ class DeliveryGraphQueryTest {
             }
         }
 
-        DeliveryGraph graph = query(snapshot(items, relations, List.of()), allPermissions()).get(7, 10, 20, 1);
+        DeliveryGraph graph = query(snapshot(items, relations, List.of()), allPermissions()).get(7, 10, 1);
 
         assertThat(graph.nodes()).hasSize(9);
         assertThat(graph.truncated()).isTrue();
@@ -122,7 +122,7 @@ class DeliveryGraphQueryTest {
 
     private DeliveryGraphQuery query(DeliveryGraphStore.Snapshot snapshot, Set<String> permissions) {
         PermissionStore permissionStore = new FixedPermissionStore(permissions);
-        return new DeliveryGraphQuery((workspaceId, projectId) -> snapshot, new PermissionEvaluator(permissionStore));
+        return new DeliveryGraphQuery(organizationId -> snapshot, new PermissionEvaluator(permissionStore));
     }
 
     private Set<String> allPermissions() {
@@ -149,21 +149,11 @@ class DeliveryGraphQueryTest {
     }
 
     private record FixedPermissionStore(
-            /* 测试场景显式允许的项目权限集合。 */ Set<String> permissions) implements PermissionStore {
+            /* 测试场景显式允许的公司权限集合。 */ Set<String> permissions) implements PermissionStore {
 
         @Override
-        public Set<String> findWorkspacePermissionSet(long userId, long workspaceId) {
-            return Set.of();
-        }
-
-        @Override
-        public Optional<ProjectAccess> findProjectAccess(long userId, long workspaceId, long projectId) {
-            return Optional.of(new ProjectAccess(true, new LinkedHashSet<>(), permissions));
-        }
-
-        @Override
-        public List<Long> findProjectIdsWithPermission(long userId, long workspaceId, String permission) {
-            return List.of();
+        public Set<String> findOrganizationPermissionSet(long userId, long organizationId) {
+            return permissions;
         }
     }
 }

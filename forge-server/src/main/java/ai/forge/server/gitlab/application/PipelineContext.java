@@ -1,8 +1,7 @@
 package ai.forge.server.gitlab.application;
 
 public record PipelineContext(
-        /* 请求所属工作区范围。 */ long workspaceId,
-        /* 请求所属 ForgeAI 项目。 */ long projectId,
+        /* 请求所属公司范围。 */ long organizationId,
         /* 本地仓库绑定标识。 */ long repositoryId,
         /* GitLab 连接标识。 */ long connectionId,
         /* 已通过 SSRF 策略保存的 GitLab Base URL。 */ String baseUrl,

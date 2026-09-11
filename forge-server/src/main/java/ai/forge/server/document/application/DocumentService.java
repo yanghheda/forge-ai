@@ -21,7 +21,7 @@ public class DocumentService {
     /* 项目范围授权的最终服务端判断。 */
     private final PermissionEvaluator permissions;
 
-    /* 具有显式 workspace 与 project 范围条件的 MyBatis SQL。 */
+    /* 具有显式公司作用域条件的 MyBatis SQL。 */
     private final DocumentStore store;
 
     public DocumentService(
@@ -32,49 +32,49 @@ public class DocumentService {
 
     @Transactional
     public Document create(
-        long userId, long workspaceId, long projectId, long workItemId, String type, String title) {
-        permissions.requireProject(userId, workspaceId, projectId, "document.create");
+        long userId, long organizationId, long workItemId, String type, String title) {
+        permissions.requireOrganization(userId, organizationId, "document.create");
         if (!SUPPORTED_TYPES.contains(type) || title == null || title.trim().isEmpty()) {
             throw new IllegalArgumentException("only nonblank Product or UX documents are supported");
         }
-        if (!store.requirementExists(workspaceId, projectId, workItemId)) {
+        if (!store.requirementExists(organizationId, workItemId)) {
             throw new ResourceNotFoundException();
         }
-        return store.create(workspaceId, projectId, workItemId, userId, type, title.trim());
+        return store.create(organizationId, workItemId, userId, type, title.trim());
     }
 
-    public Document get(long userId, long workspaceId, long projectId, long documentId) {
-        permissions.requireProject(userId, workspaceId, projectId, "document.read");
-        return store.get(workspaceId, projectId, documentId);
+    public Document get(long userId, long organizationId, long documentId) {
+        permissions.requireOrganization(userId, organizationId, "document.read");
+        return store.get(organizationId, documentId);
     }
 
     public List<Document> listByWorkItem(
-        long userId, long workspaceId, long projectId, long workItemId) {
-        permissions.requireProject(userId, workspaceId, projectId, "document.read");
-        if (!store.requirementExists(workspaceId, projectId, workItemId)) {
+        long userId, long organizationId, long workItemId) {
+        permissions.requireOrganization(userId, organizationId, "document.read");
+        if (!store.requirementExists(organizationId, workItemId)) {
             throw new ResourceNotFoundException();
         }
-        return store.listByWorkItem(workspaceId, projectId, workItemId);
+        return store.listByWorkItem(organizationId, workItemId);
     }
 
-    public List<DocumentVersion> history(long userId, long workspaceId, long projectId, long documentId) {
-        get(userId, workspaceId, projectId, documentId);
-        return store.history(workspaceId, documentId);
+    public List<DocumentVersion> history(long userId, long organizationId, long documentId) {
+        get(userId, organizationId, documentId);
+        return store.history(organizationId, documentId);
     }
 
     @Transactional
-    public Document save(long userId, long workspaceId, long projectId, long documentId, long expectedVersion, JsonNode content) {
-        permissions.requireProject(userId, workspaceId, projectId, "document.edit");
-        store.get(workspaceId, projectId, documentId);
+    public Document save(long userId, long organizationId, long documentId, long expectedVersion, JsonNode content) {
+        permissions.requireOrganization(userId, organizationId, "document.edit");
+        store.get(organizationId, documentId);
         DocumentContent normalized = DocumentContent.from(content);
-        return store.save(workspaceId, projectId, documentId, userId, expectedVersion,
+        return store.save(organizationId, documentId, userId, expectedVersion,
             normalized.contentJson(), normalized.plainText(), normalized.hash());
     }
 
     @Transactional
-    public Document publish(long userId, long workspaceId, long projectId, long documentId, long versionId, long expectedVersion) {
-        permissions.requireProject(userId, workspaceId, projectId, "document.publish");
-        store.get(workspaceId, projectId, documentId);
-        return store.publish(workspaceId, projectId, documentId, versionId, expectedVersion);
+    public Document publish(long userId, long organizationId, long documentId, long versionId, long expectedVersion) {
+        permissions.requireOrganization(userId, organizationId, "document.publish");
+        store.get(organizationId, documentId);
+        return store.publish(organizationId, documentId, versionId, expectedVersion);
     }
 }

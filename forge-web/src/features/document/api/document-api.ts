@@ -5,8 +5,7 @@ interface RequestClient {
 }
 export interface Document {
   id: number;
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   workItemId: number;
   type: "PRD" | "UX_SPEC" | "PROTOTYPE_SPEC" | "DESIGN_GUIDE";
   title: string;
@@ -30,8 +29,7 @@ const json = (method: string, body: unknown): RequestInit => ({
 });
 export const createDocument = (
   input: {
-    workspaceId: number;
-    projectId: number;
+    organizationId: number;
     workItemId: number;
     type: Document["type"];
     title: string;
@@ -39,53 +37,48 @@ export const createDocument = (
   client: RequestClient = apiClient,
 ) => client.request<Document>("/v1/documents", json("POST", input));
 export const listWorkItemDocuments = (
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   workItemId: number,
   client: RequestClient = apiClient,
 ) =>
   client.request<Document[]>(
-    `/v1/documents?workspaceId=${workspaceId}&projectId=${projectId}&workItemId=${workItemId}`,
+    `/v1/documents?organizationId=${organizationId}&workItemId=${workItemId}`,
   );
 export const getDocument = (
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   id: number,
   client: RequestClient = apiClient,
 ) =>
   client.request<Document>(
-    `/v1/documents/${id}?workspaceId=${workspaceId}&projectId=${projectId}`,
+    `/v1/documents/${id}?organizationId=${organizationId}`,
   );
 export const saveDocumentVersion = (
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   id: number,
   expectedVersion: number,
   content: ProseMirrorDocument,
   client: RequestClient = apiClient,
 ) =>
   client.request<Document>(
-    `/v1/documents/${id}/versions?workspaceId=${workspaceId}&projectId=${projectId}`,
+    `/v1/documents/${id}/versions?organizationId=${organizationId}`,
     json("POST", { expectedVersion, content }),
   );
 export const publishDocumentVersion = (
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   id: number,
   versionId: number,
   expectedVersion: number,
   client: RequestClient = apiClient,
 ) =>
   client.request<Document>(
-    `/v1/documents/${id}/publish?workspaceId=${workspaceId}&projectId=${projectId}`,
+    `/v1/documents/${id}/publish?organizationId=${organizationId}`,
     json("POST", { versionId, expectedVersion }),
   );
 export const listDocumentVersions = (
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   id: number,
   client: RequestClient = apiClient,
 ) =>
   client.request<DocumentVersion[]>(
-    `/v1/documents/${id}/versions?workspaceId=${workspaceId}&projectId=${projectId}`,
+    `/v1/documents/${id}/versions?organizationId=${organizationId}`,
   );

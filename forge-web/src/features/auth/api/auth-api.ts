@@ -29,7 +29,7 @@ export interface LoginInput {
   password: string;
 }
 
-export interface WorkspaceAccess {
+export interface OrganizationAccess {
   id: number;
   slug: string;
   name: string;
@@ -40,7 +40,7 @@ export interface CurrentUser {
   id: number;
   email: string;
   displayName: string;
-  workspaces: WorkspaceAccess[];
+  organization: OrganizationAccess;
 }
 
 function jsonRequest(method: string, body?: unknown): RequestInit {

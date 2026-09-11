@@ -9,21 +9,21 @@ import ui from "@/components/workbench/workbench.module.css";
 import { formatRequestError } from "@/lib/api";
 import { bindRepository, createConnection, listConnections, rotateToken, testConnection } from "../api/gitlab-api";
 
-export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
+export function GitLabSettings({ organizationSlug }: { organizationSlug: string }) {
   const queryClient = useQueryClient();
   const currentUser = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
-  const workspace = currentUser.data?.workspaces.find((item) => item.slug === workspaceSlug);
+  const organization = currentUser.data?.organizations.find((item) => item.slug === organizationSlug);
   const connections = useQuery({
-    queryKey: ["gitlab-connections", workspace?.id],
-    queryFn: () => listConnections(workspace!.id),
-    enabled: workspace !== undefined,
+    queryKey: ["gitlab-connections", organization?.id],
+    queryFn: () => listConnections(organization!.id),
+    enabled: organization !== undefined,
   });
   const [connectionForm, setConnectionForm] = useState({ name: "", baseUrl: "https://gitlab.com", token: "" });
   const [rotationToken, setRotationToken] = useState("");
-  const [binding, setBinding] = useState({ projectId: 0, connectionId: 0, remoteProjectId: "" });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["gitlab-connections", workspace?.id] });
+  const [binding, setBinding] = useState({ organizationId: 0, connectionId: 0, remoteProjectId: "" });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["gitlab-connections", organization?.id] });
   const create = useMutation({
-    mutationFn: () => createConnection({ workspaceId: workspace!.id, ...connectionForm }),
+    mutationFn: () => createConnection({ organizationId: organization!.id, ...connectionForm }),
     onSuccess: () => {
       Message.success("GitLab 连接已保存。");
       setConnectionForm((value) => ({ ...value, token: "" }));
@@ -33,7 +33,7 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
   });
   const rotate = useMutation({
     mutationFn: (connection: { id: number; version: number }) =>
-      rotateToken(workspace!.id, connection.id, connection.version, rotationToken),
+      rotateToken(organization!.id, connection.id, connection.version, rotationToken),
     onSuccess: () => {
       Message.success("访问令牌已轮换。");
       setRotationToken("");
@@ -42,12 +42,12 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const test = useMutation({
-    mutationFn: (connectionId: number) => testConnection(workspace!.id, connectionId),
+    mutationFn: (connectionId: number) => testConnection(organization!.id, connectionId),
     onSuccess: () => { Message.success("GitLab 连接测试完成。"); return invalidate(); },
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const bind = useMutation({
-    mutationFn: () => bindRepository({ workspaceId: workspace!.id, ...binding }),
+    mutationFn: () => bindRepository({ organizationId: organization!.id, ...binding }),
     onSuccess: () => Message.success("项目仓库已绑定。"),
     onError: (error) => Message.error(formatRequestError(error)),
   });
@@ -55,7 +55,7 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
   if (currentUser.isPending || connections.isPending) {
     return <Spin tip="正在加载 GitLab 设置…" />;
   }
-  if (!workspace) {
+  if (!organization) {
     return <Alert type="error" content="当前账户无权访问此工作空间。" />;
   }
 
@@ -114,7 +114,7 @@ export function GitLabSettings({ workspaceSlug }: { workspaceSlug: string }) {
       <Card title="绑定项目仓库">
         <Form layout="vertical" onSubmit={() => bind.mutate()}>
           <Form.Item label="项目 ID" required>
-            <InputNumber min={1} value={binding.projectId} onChange={(projectId) => setBinding({ ...binding, projectId: projectId ?? 0 })} />
+            <InputNumber min={1} value={binding.organizationId} onChange={(organizationId) => setBinding({ ...binding, organizationId: organizationId ?? 0 })} />
           </Form.Item>
           <Form.Item label="连接 ID" required>
             <InputNumber min={1} value={binding.connectionId} onChange={(connectionId) => setBinding({ ...binding, connectionId: connectionId ?? 0 })} />

@@ -8,23 +8,23 @@ import java.util.Optional;
 public interface GitLabConnectionStore {
 
     GitLabConnection create(
-            long workspaceId, long createdBy, String name, String baseUrl, EncryptedSecret encryptedSecret);
+            long organizationId, long createdBy, String name, String baseUrl, EncryptedSecret encryptedSecret);
 
-    List<GitLabConnection> findConnections(long workspaceId);
+    List<GitLabConnection> findConnections(long organizationId);
 
-    Optional<GitLabConnection> findConnection(long workspaceId, long connectionId);
+    Optional<GitLabConnection> findConnection(long organizationId, long connectionId);
 
-    Optional<StoredSecret> findCredential(long workspaceId, long connectionId);
+    Optional<StoredSecret> findCredential(long organizationId, long connectionId);
 
     Optional<GitLabConnection> rotateCredential(
-            long workspaceId, long connectionId, long expectedVersion, EncryptedSecret encryptedSecret);
+            long organizationId, long connectionId, long expectedVersion, EncryptedSecret encryptedSecret);
 
-    default void configureWebhookSecret(long workspaceId, long connectionId, EncryptedSecret encryptedSecret) {
+    default void configureWebhookSecret(long organizationId, long connectionId, EncryptedSecret encryptedSecret) {
         throw new UnsupportedOperationException("webhook secret configuration is not implemented");
     }
 
-    void recordTest(long workspaceId, long connectionId, boolean successful);
+    void recordTest(long organizationId, long connectionId, boolean successful);
 
     GitRepository bindRepository(
-            long workspaceId, long projectId, long connectionId, RepositoryDto repository);
+            long organizationId, long connectionId, RepositoryDto repository);
 }

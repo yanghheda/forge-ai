@@ -50,8 +50,8 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     private String ownerCookie;
     private long ownerId;
-    private long workspaceId;
-    private long projectId;
+    private long organizationId;
+
     private long requirementId;
     private String ownerEmail;
 
@@ -66,10 +66,9 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 "webhook_deliveries", "pipeline_runs", "source_control_operations", "merge_requests", "branches",
                 "git_repositories", "gitlab_connections", "secrets", "outbox_events", "document_versions",
                 "documents", "comments", "work_item_relations",
-                "work_item_labels", "project_policies", "work_item_events", "review_records",
-                "requirement_details", "work_items", "project_item_sequences",
-                "project_members", "projects", "audit_logs", "member_roles", "workspace_members", "workspaces",
-                "organizations", "users")) {
+                "work_item_labels", "organization_policies", "work_item_events", "review_records",
+                "requirement_details", "work_items", "organization_item_sequences",
+                "organization_policies", "audit_logs", "member_roles", "organization_members",                 "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         ResponseEntity<String> initialized = csrf().post(
@@ -80,26 +79,20 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
-                        "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"),
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
                 null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         ownerCookie = login();
         ownerId = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE normalized_email = ?", Long.class, ownerEmail);
-        workspaceId = jdbcTemplate.queryForObject("SELECT id FROM workspaces WHERE slug = 'engineering'", Long.class);
-        ResponseEntity<String> project = csrf().post(
-                "/api/v1/projects",
-                Map.of("workspaceId", workspaceId, "key", "FORGE", "name", "ForgeAI", "description", "会话 12"),
-                ownerCookie,
-                String.class);
-        projectId = objectMapper.readTree(project.getBody()).get("id").asLong();
+        organizationId = jdbcTemplate.queryForObject(
+                "SELECT default_organization_id FROM instance_settings WHERE id = 1", Long.class);
         ResponseEntity<String> requirement = csrf().post(
                 "/api/v1/work-items",
                 Map.of(
-                        "workspaceId", workspaceId,
-                        "projectId", projectId,
                         "type", "REQUIREMENT",
                         "title", "Requirement workflow",
                         "description", "fixed actions",
@@ -147,8 +140,8 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         requirementId))
                 .containsExactly("SUBMITTED", "REJECTED");
 
-        JsonNode timeline = objectMapper.readTree(get("/api/v1/work-items/" + requirementId + "/events?workspaceId="
-                        + workspaceId + "&projectId=" + projectId)
+        JsonNode timeline = objectMapper.readTree(get("/api/v1/work-items/" + requirementId + "/events?organizationId="
+                        + organizationId + "&organizationId=" + organizationId)
                 .getBody());
         assertThat(timeline).hasSize(2);
         assertThat(timeline.get(0).get("action").asText()).isEqualTo("SUBMIT_PRODUCT_REVIEW");
@@ -199,8 +192,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         completeMaterials();
         transitionService.transition(
                 ownerId,
-                workspaceId,
-                projectId,
+                organizationId,
                 requirementId,
                 WorkflowAction.SUBMIT_PRODUCT_REVIEW,
                 0,
@@ -209,8 +201,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> transitionService.transition(
                         ownerId,
-                        workspaceId,
-                        projectId,
+                        organizationId,
                         requirementId,
                         WorkflowAction.REJECT_PRODUCT_REVIEW,
                         1,
@@ -224,8 +215,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         completeMaterials();
         transitionService.transition(
                 ownerId,
-                workspaceId,
-                projectId,
+                organizationId,
                 requirementId,
                 WorkflowAction.SUBMIT_PRODUCT_REVIEW,
                 0,
@@ -235,8 +225,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> transitionService.transition(
                         ownerId,
-                        workspaceId,
-                        projectId,
+                        organizationId,
                         requirementId,
                         WorkflowAction.REJECT_PRODUCT_REVIEW,
                         1,
@@ -294,17 +283,17 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     }
 
     @Test
-    void eventTimelineCannotCrossTheRequestedScope() {
-        ResponseEntity<String> response = get("/api/v1/work-items/" + requirementId + "/events?workspaceId="
-                + workspaceId + "&projectId=" + (projectId + 999));
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    void eventTimelineIgnoresClientSuppliedOrganizationScope() {
+        ResponseEntity<String> response = get("/api/v1/work-items/" + requirementId + "/events?organizationId="
+                + organizationId + "&organizationId=" + (organizationId + 999));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
     void productCanCompleteTheManualVerticalSliceAndRefreshServerFacts() throws Exception {
         ResponseEntity<String> details = csrf().put(
-                "/api/v1/work-items/" + requirementId + "/details?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/work-items/" + requirementId + "/details?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of(
                         "goal", "Improve login conversion",
                         "inScope", "Mobile login",
@@ -327,22 +316,22 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
         JsonNode document = objectMapper.readTree(csrf().post(
                 "/api/v1/documents",
-                Map.of("workspaceId", workspaceId, "projectId", projectId, "workItemId", requirementId,
+                Map.of("workItemId", requirementId,
                         "type", "PRD", "title", "Login PRD"),
                 ownerCookie,
                 String.class).getBody());
         long documentId = document.get("id").asLong();
         JsonNode saved = objectMapper.readTree(csrf().post(
-                "/api/v1/documents/" + documentId + "/versions?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/documents/" + documentId + "/versions?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("expectedVersion", 0, "content", Map.of("type", "doc", "content", List.of(
                         Map.of("type", "paragraph", "content", List.of(
                                 Map.of("type", "text", "text", "Goal, scope and acceptance criteria")))))),
                 ownerCookie,
                 String.class).getBody());
         assertThat(csrf().post(
-                        "/api/v1/documents/" + documentId + "/publish?workspaceId=" + workspaceId
-                                + "&projectId=" + projectId,
+                        "/api/v1/documents/" + documentId + "/publish?organizationId=" + organizationId
+                                + "&organizationId=" + organizationId,
                         Map.of("versionId", saved.get("currentVersionId").asLong(),
                                 "expectedVersion", saved.get("version").asLong()),
                         ownerCookie,
@@ -353,7 +342,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "product-approve", null).getBody());
         assertThat(approved.get("status").asText()).isEqualTo("UX_IN_PROGRESS");
         JsonNode refreshed = objectMapper.readTree(get("/api/v1/work-items/" + requirementId
-                        + "?workspaceId=" + workspaceId + "&projectId=" + projectId).getBody());
+                        + "?organizationId=" + organizationId + "&organizationId=" + organizationId).getBody());
         assertThat(refreshed.get("status").asText()).isEqualTo("UX_IN_PROGRESS");
         assertThat(refreshed.get("availableActions").get(0).asText()).isEqualTo("SUBMIT_UX_REVIEW");
         assertThat(jdbcTemplate.queryForList(
@@ -408,7 +397,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 .isEqualTo("1");
 
         JsonNode graph = objectMapper.readTree(get("/api/v1/work-items/" + requirementId
-                + "/delivery-graph?workspaceId=" + workspaceId + "&projectId=" + projectId).getBody());
+                + "/delivery-graph?organizationId=" + organizationId + "&organizationId=" + organizationId).getBody());
         assertThat(graph.get("nodes")).extracting(node -> node.get("type").asText())
                 .contains("REQUIREMENT", "PRD", "UX_TASK", "UX_SPEC");
         assertThat(graph.get("truncated").asBoolean()).isFalse();
@@ -424,18 +413,14 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 WorkflowAction.SKIP_UX, 1, "skip-disabled", "No user interface");
         assertThat(disabled.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(objectMapper.readTree(disabled.getBody()).at("/details/missing/0").asText())
-                .isEqualTo("projectPolicy.allowSkipUx");
+                .isEqualTo("organizationPolicy.allowSkipUx");
 
-        JsonNode defaultPolicy = objectMapper.readTree(get(
-                        "/api/v1/projects/" + projectId + "/policy?workspaceId=" + workspaceId)
-                .getBody());
-        assertThat(defaultPolicy.get("allowSkipUx").asBoolean()).isFalse();
-        ResponseEntity<String> policyUpdated = csrf().patch(
-                "/api/v1/projects/" + projectId + "/policy?workspaceId=" + workspaceId,
-                Map.of("allowSkipUx", true, "expectedVersion", 0),
-                ownerCookie,
-                String.class);
-        assertThat(policyUpdated.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT allow_skip_ux FROM organization_policies WHERE organization_id=?",
+                Boolean.class, organizationId)).isFalse();
+        jdbcTemplate.update(
+                "UPDATE organization_policies SET allow_skip_ux=TRUE,version=version+1 WHERE organization_id=?",
+                organizationId);
         ResponseEntity<String> ordinary = transition(
                 WorkflowAction.SKIP_UX, 1, "skip-ordinary", "No user interface");
         assertThat(ordinary.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
@@ -443,8 +428,8 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 .isEqualTo("eligibleSkipUxLabel");
 
         ResponseEntity<String> labelAdded = csrf().post(
-                "/api/v1/work-items/" + requirementId + "/labels?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/work-items/" + requirementId + "/labels?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("label", "BACKEND_ONLY"),
                 ownerCookie,
                 String.class);
@@ -477,18 +462,15 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         assertThat(objectMapper.readTree(required.getBody()).at("/details/missing/0").asText())
                 .isEqualTo("repository");
         JsonNode summary = objectMapper.readTree(get(
-                "/api/v1/development/requirements/" + requirementId + "?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId)
+                "/api/v1/development/requirements/" + requirementId + "?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId)
                 .getBody());
         assertThat(summary.get("ciRequired").asBoolean()).isTrue();
         assertThat(summary.at("/tasks/0/id").asLong()).isEqualTo(taskId);
 
-        ResponseEntity<String> policyUpdated = csrf().patch(
-                "/api/v1/projects/" + projectId + "/policy?workspaceId=" + workspaceId,
-                Map.of("allowSkipUx", false, "ciRequired", false, "expectedVersion", 0),
-                ownerCookie,
-                String.class);
-        assertThat(policyUpdated.getStatusCode()).isEqualTo(HttpStatus.OK);
+        jdbcTemplate.update(
+                "UPDATE organization_policies SET ci_required=FALSE,version=version+1 WHERE organization_id=?",
+                organizationId);
 
         ResponseEntity<String> submitted = transition(
                 WorkflowAction.SUBMIT_FOR_QA, 0, "qa-optional", null);
@@ -502,20 +484,20 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         long taskId = prepareDevelopmentRequirement("DONE");
         long repositoryId = insertRepository();
         jdbcTemplate.update(
-                "INSERT INTO merge_requests (workspace_id,repository_id,work_item_id,remote_mr_iid,title,"
+                "INSERT INTO merge_requests (organization_id,repository_id,work_item_id,remote_mr_iid,title,"
                         + "source_branch,target_branch,state,web_url,head_sha,remote_updated_at,last_synced_at,version) "
                         + "VALUES (?,?,?,7,'MR','feature/task','main','opened','https://gitlab.example/mr/7',"
                         + "'new-head',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
-                workspaceId,
+                organizationId,
                 repositoryId,
                 taskId);
         long mergeRequestId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         jdbcTemplate.update(
-                "INSERT INTO pipeline_runs (workspace_id,repository_id,merge_request_id,remote_pipeline_id,ref,"
+                "INSERT INTO pipeline_runs (organization_id,repository_id,merge_request_id,remote_pipeline_id,ref,"
                         + "commit_sha,status,web_url,remote_updated_at,last_synced_at,summary_json) "
                         + "VALUES (?,?,?,9,'feature/task','old-head','success','https://gitlab.example/p/9',"
                         + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),JSON_OBJECT())",
-                workspaceId,
+                organizationId,
                 repositoryId,
                 mergeRequestId);
 
@@ -532,15 +514,14 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         long taskId = prepareDevelopmentRequirement("IN_PROGRESS");
         ResponseEntity<String> completed = csrf().post(
                 "/api/v1/development/tasks/" + taskId + "/complete",
-                Map.of("workspaceId", workspaceId, "projectId", projectId, "expectedVersion", 0),
+                Map.of("expectedVersion", 0),
                 ownerCookie,
                 String.class);
         assertThat(completed.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(objectMapper.readTree(completed.getBody()).get("status").asText()).isEqualTo("DONE");
         jdbcTemplate.update(
-                "UPDATE project_policies SET ci_required=FALSE WHERE workspace_id=? AND project_id=?",
-                workspaceId,
-                projectId);
+                "UPDATE organization_policies SET ci_required=FALSE WHERE organization_id=?",
+                organizationId);
 
         CountDownLatch start = new CountDownLatch(1);
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
@@ -571,57 +552,43 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     }
 
     @Test
-    void relationsRejectDuplicateSelfAndCrossProjectWhileActivityMergesComments() throws Exception {
-        long targetId = createWorkItem(projectId, "Related task", "DEV_TASK");
+    void relationsRejectDuplicateAndSelfWhileActivityMergesComments() throws Exception {
+        long targetId = createWorkItem(organizationId, "Related task", "DEV_TASK");
         ResponseEntity<String> self = csrf().post(
-                "/api/v1/work-items/" + requirementId + "/relations?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/work-items/" + requirementId + "/relations?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("targetId", requirementId, "relationType", "RELATES_TO"),
                 ownerCookie,
                 String.class);
         assertThat(self.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
         ResponseEntity<String> created = csrf().post(
-                "/api/v1/work-items/" + requirementId + "/relations?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/work-items/" + requirementId + "/relations?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("targetId", targetId, "relationType", "DEPENDS_ON"),
                 ownerCookie,
                 String.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         ResponseEntity<String> duplicate = csrf().post(
-                "/api/v1/work-items/" + requirementId + "/relations?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/work-items/" + requirementId + "/relations?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("targetId", targetId, "relationType", "DEPENDS_ON"),
                 ownerCookie,
                 String.class);
         assertThat(duplicate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
-        JsonNode secondProject = objectMapper.readTree(csrf().post(
-                "/api/v1/projects",
-                Map.of("workspaceId", workspaceId, "key", "OTHER", "name", "Other", "description", "scope"),
-                ownerCookie,
-                String.class).getBody());
-        long crossProjectTarget = createWorkItem(secondProject.get("id").asLong(), "Foreign task", "DEV_TASK");
-        ResponseEntity<String> crossProject = csrf().post(
-                "/api/v1/work-items/" + requirementId + "/relations?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
-                Map.of("targetId", crossProjectTarget, "relationType", "BLOCKS"),
-                ownerCookie,
-                String.class);
-        assertThat(crossProject.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-
         completeMaterials();
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "activity-event", null);
         ResponseEntity<String> comment = csrf().post(
-                "/api/v1/work-items/" + requirementId + "/comments?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/work-items/" + requirementId + "/comments?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("body", "  Please verify the API contract.  "),
                 ownerCookie,
                 String.class);
         assertThat(comment.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         JsonNode activity = objectMapper.readTree(get("/api/v1/work-items/" + requirementId
-                        + "/activity?workspaceId=" + workspaceId + "&projectId=" + projectId)
+                        + "/activity?organizationId=" + organizationId + "&organizationId=" + organizationId)
                 .getBody());
         assertThat(activity).hasSize(2);
         assertThat(activity.get(0).get("kind").asText()).isEqualTo("EVENT");
@@ -631,25 +598,23 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     @Test
     void deliveryGraphUsesScopedBatchSnapshotForWorkItemsDocumentsAndCycles() throws Exception {
-        long uxTaskId = createWorkItem(projectId, "Design login", "UX_TASK");
+        long uxTaskId = createWorkItem(organizationId, "Design login", "UX_TASK");
         JsonNode prd = publishDocument("PRD", "Login PRD", "Goal and acceptance criteria");
         jdbcTemplate.update(
-                "INSERT INTO work_item_relations (workspace_id, project_id, source_id, target_id, relation_type, "
-                        + "created_by, created_at) VALUES (?, ?, ?, ?, 'RELATES_TO', ?, UTC_TIMESTAMP(6)), "
-                        + "(?, ?, ?, ?, 'DEPENDS_ON', ?, UTC_TIMESTAMP(6))",
-                workspaceId,
-                projectId,
+                "INSERT INTO work_item_relations (organization_id,source_id,target_id,relation_type,created_by,created_at) "
+                        + "VALUES (?, ?, ?, 'RELATES_TO', ?, UTC_TIMESTAMP(6)), "
+                        + "(?, ?, ?, 'DEPENDS_ON', ?, UTC_TIMESTAMP(6))",
+                organizationId,
                 requirementId,
                 uxTaskId,
                 ownerId,
-                workspaceId,
-                projectId,
+                organizationId,
                 uxTaskId,
                 requirementId,
                 ownerId);
 
         ResponseEntity<String> response = get("/api/v1/work-items/" + requirementId
-                + "/delivery-graph?workspaceId=" + workspaceId + "&projectId=" + projectId);
+                + "/delivery-graph?organizationId=" + organizationId + "&organizationId=" + organizationId);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode graph = objectMapper.readTree(response.getBody());
@@ -659,17 +624,13 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         assertThat(graph.get("edges")).hasSize(3);
         assertThat(graph.get("truncated").asBoolean()).isFalse();
 
-        ResponseEntity<String> wrongProject = get("/api/v1/work-items/" + requirementId
-                + "/delivery-graph?workspaceId=" + workspaceId + "&projectId=" + (projectId + 999));
-        assertThat(wrongProject.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     private void transitionAfter(CountDownLatch start, String idempotencyKey) throws InterruptedException {
         start.await();
         transitionService.transition(
                 ownerId,
-                workspaceId,
-                projectId,
+                organizationId,
                 requirementId,
                 WorkflowAction.SUBMIT_PRODUCT_REVIEW,
                 0,
@@ -681,8 +642,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         start.await();
         transitionService.transition(
                 ownerId,
-                workspaceId,
-                projectId,
+                organizationId,
                 requirementId,
                 WorkflowAction.SUBMIT_FOR_QA,
                 0,
@@ -692,11 +652,11 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     private void completeMaterials() {
         jdbcTemplate.update(
-                "INSERT INTO requirement_details (work_item_id, workspace_id, goal, in_scope, out_of_scope, "
+                "INSERT INTO requirement_details (work_item_id, organization_id, goal, in_scope, out_of_scope, "
                         + "acceptance_criteria_json, business_value, updated_at, version) VALUES "
                         + "(?, ?, 'Ship safely', 'Transition API', '', JSON_ARRAY('State changes'), '', UTC_TIMESTAMP(6), 0)",
                 requirementId,
-                workspaceId);
+                organizationId);
     }
 
     private long prepareDevelopmentRequirement(String taskStatus) {
@@ -704,12 +664,11 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 "UPDATE work_items SET status='IN_DEVELOPMENT' WHERE id=?",
                 requirementId);
         jdbcTemplate.update(
-                "INSERT INTO work_items (workspace_id,project_id,item_number,item_key,type,title,description,status,"
+                "INSERT INTO work_items (organization_id,item_number,item_key,type,title,description,status,"
                         + "priority,parent_id,reporter_user_id,created_at,updated_at,version) "
-                        + "VALUES (?,?,2,'FORGE-2','DEV_TASK','Implement','',?,'MEDIUM',?,?,"
+                        + "VALUES (?,2,'FORGE-2','DEV_TASK','Implement','',?,'MEDIUM',?,?,"
                         + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
-                workspaceId,
-                projectId,
+                organizationId,
                 taskStatus,
                 requirementId,
                 ownerId);
@@ -718,25 +677,24 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     private long insertRepository() {
         jdbcTemplate.update(
-                "INSERT INTO secrets (workspace_id,type,ciphertext,iv,key_version,fingerprint,created_at) "
+                "INSERT INTO secrets (organization_id,type,ciphertext,iv,key_version,fingerprint,created_at) "
                         + "VALUES (?,'GITLAB_TOKEN','cipher','iv',1,'fingerprint',UTC_TIMESTAMP(6))",
-                workspaceId);
+                organizationId);
         long secretId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         jdbcTemplate.update(
-                "INSERT INTO gitlab_connections (workspace_id,name,base_url,credential_secret_id,status,created_by,"
+                "INSERT INTO gitlab_connections (organization_id,name,base_url,credential_secret_id,status,created_by,"
                         + "created_at,updated_at,version) VALUES (?,'GitLab','https://gitlab.example',?,'ACTIVE',?,"
                         + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
-                workspaceId,
+                organizationId,
                 secretId,
                 ownerId);
         long connectionId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         jdbcTemplate.update(
-                "INSERT INTO git_repositories (workspace_id,project_id,connection_id,remote_project_id,"
+                "INSERT INTO git_repositories (organization_id,connection_id,remote_project_id,"
                         + "path_with_namespace,http_url,default_branch,status,last_synced_at,created_at,updated_at,version) "
-                        + "VALUES (?,?,?,'100','forge/project','https://gitlab.example/forge/project','main','ACTIVE',"
+                        + "VALUES (?,?,'100','forge/project','https://gitlab.example/forge/project','main','ACTIVE',"
                         + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
-                workspaceId,
-                projectId,
+                organizationId,
                 connectionId);
         return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
@@ -773,8 +731,8 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
             body.put("checklist", checklist);
         }
         return csrf().post(
-                "/api/v1/work-items/" + workItemId + "/transitions?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/work-items/" + workItemId + "/transitions?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 body,
                 ownerCookie,
                 String.class);
@@ -783,22 +741,22 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     private JsonNode publishDocument(String type, String title, String text) throws Exception {
         JsonNode document = objectMapper.readTree(csrf().post(
                 "/api/v1/documents",
-                Map.of("workspaceId", workspaceId, "projectId", projectId, "workItemId", requirementId,
+                Map.of("workItemId", requirementId,
                         "type", type, "title", title),
                 ownerCookie,
                 String.class).getBody());
         long documentId = document.get("id").asLong();
         JsonNode saved = objectMapper.readTree(csrf().post(
-                "/api/v1/documents/" + documentId + "/versions?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/documents/" + documentId + "/versions?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("expectedVersion", 0, "content", Map.of("type", "doc", "content", List.of(
                         Map.of("type", "paragraph", "content", List.of(
                                 Map.of("type", "text", "text", text)))))),
                 ownerCookie,
                 String.class).getBody());
         ResponseEntity<String> published = csrf().post(
-                "/api/v1/documents/" + documentId + "/publish?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/documents/" + documentId + "/publish?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("versionId", saved.get("currentVersionId").asLong(),
                         "expectedVersion", saved.get("version").asLong()),
                 ownerCookie,
@@ -807,12 +765,10 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         return objectMapper.readTree(published.getBody());
     }
 
-    private long createWorkItem(long targetProjectId, String title, String type) throws Exception {
+    private long createWorkItem(long ignoredOrganizationId, String title, String type) throws Exception {
         ResponseEntity<String> response = csrf().post(
                 "/api/v1/work-items",
                 Map.of(
-                        "workspaceId", workspaceId,
-                        "projectId", targetProjectId,
                         "type", type,
                         "title", title,
                         "description", "relation target",

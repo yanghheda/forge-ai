@@ -19,7 +19,7 @@ class PipelineServiceTest {
     void triggersPipelineOutsideStoreAndPersistsReturnedSnapshot() {
         FakeStore store = new FakeStore();
         FakeProvider provider = new FakeProvider();
-        PipelineRun result = service(store, provider, 8).trigger(1L, 7L, 9L, " main ");
+        PipelineRun result = service(store, provider, 8).trigger(1L, 7L, " main ");
 
         assertThat(provider.ref).isEqualTo("main");
         assertThat(store.saved).isEqualTo(result);
@@ -33,7 +33,7 @@ class PipelineServiceTest {
         provider.log = "0123456789".getBytes(StandardCharsets.UTF_8);
 
         PipelineService.PipelineLogTail tail = service(store, provider, 6)
-                .logTail(1L, 7L, 9L, 1L, 99L);
+                .logTail(1L, 7L, 1L, 99L);
 
         assertThat(tail.content()).isEqualTo("456789");
         assertThat(tail.truncated()).isTrue();
@@ -49,7 +49,7 @@ class PipelineServiceTest {
                 .getBytes(StandardCharsets.UTF_8);
 
         PipelineService.PipelineLogTail tail = service(store, provider, 4096)
-                .logTail(1L, 7L, 9L, 1L, 99L);
+                .logTail(1L, 7L, 1L, 99L);
 
         assertThat(tail.content()).doesNotContain("top-secret", "abc.def", "glpat-1234567890abcdef");
         assertThat(tail.content()).contains("PRIVATE-TOKEN: [REDACTED]");
@@ -59,18 +59,8 @@ class PipelineServiceTest {
     private static PipelineService service(FakeStore store, FakeProvider provider, int maxBytes) {
         PermissionStore permissionStore = new PermissionStore() {
             @Override
-            public Set<String> findWorkspacePermissionSet(long userId, long workspaceId) {
-                return Set.of();
-            }
-
-            @Override
-            public Optional<ProjectAccess> findProjectAccess(long userId, long workspaceId, long projectId) {
-                return Optional.of(new ProjectAccess(true, Set.of("DEVELOPER"), Set.of("repo.read", "repo.write")));
-            }
-
-            @Override
-            public List<Long> findProjectIdsWithPermission(long userId, long workspaceId, String permission) {
-                return List.of(9L);
+            public Set<String> findOrganizationPermissionSet(long userId, long organizationId) {
+                return Set.of("repo.read", "repo.write");
             }
         };
         return new PipelineService(new PermissionEvaluator(permissionStore), store, provider, maxBytes);
@@ -86,14 +76,14 @@ class PipelineServiceTest {
         private PipelineRun saved;
 
         @Override
-        public PipelineContext loadContext(long workspaceId, long projectId) {
-            return new PipelineContext(workspaceId, projectId, 41L, 21L,
+        public PipelineContext loadContext(long organizationId) {
+            return new PipelineContext(organizationId, 41L, 21L,
                     "https://gitlab.example", "123", "token");
         }
 
         @Override
         public PipelineRun save(PipelineRun pipeline) {
-            saved = new PipelineRun(1L, pipeline.workspaceId(), pipeline.repositoryId(), pipeline.mergeRequestId(),
+            saved = new PipelineRun(1L, pipeline.organizationId(), pipeline.repositoryId(), pipeline.mergeRequestId(),
                     pipeline.remotePipelineId(), pipeline.ref(), pipeline.commitSha(), pipeline.status(),
                     pipeline.webUrl(), pipeline.startedAt(), pipeline.finishedAt(), pipeline.remoteUpdatedAt(),
                     pipeline.lastSyncedAt(),
@@ -102,12 +92,12 @@ class PipelineServiceTest {
         }
 
         @Override
-        public Optional<PipelineRun> find(long workspaceId, long projectId, long pipelineId) {
+        public Optional<PipelineRun> find(long organizationId, long pipelineId) {
             return Optional.of(pipeline(pipelineId));
         }
 
         @Override
-        public List<PipelineRun> list(long workspaceId, long projectId, int limit) {
+        public List<PipelineRun> list(long organizationId, int limit) {
             return new ArrayList<>();
         }
     }

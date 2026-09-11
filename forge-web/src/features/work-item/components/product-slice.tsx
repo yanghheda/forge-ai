@@ -21,28 +21,25 @@ import { priorityLabel } from "@/lib/labels";
 import { createRequirement, listRequirements } from "../api/work-item-api";
 
 export function ProductSlice({
-  workspaceId,
-  projectId,
-  workspaceSlug,
-  projectKey,
+  organizationId,
+  organizationSlug,
+  organizationKey,
 }: {
-  workspaceId: number;
-  projectId: number;
-  workspaceSlug: string;
-  projectKey: string;
+  organizationId: number;
+  organizationSlug: string;
+  organizationKey: string;
 }) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
   const requirements = useQuery({
-    queryKey: ["work-items", projectId, "REQUIREMENT"],
-    queryFn: () => listRequirements(workspaceId, projectId),
+    queryKey: ["work-items", organizationId, "REQUIREMENT"],
+    queryFn: () => listRequirements(organizationId),
   });
   const create = useMutation({
     mutationFn: () =>
       createRequirement({
-        workspaceId,
-        projectId,
+        organizationId,
         title,
         description: "",
         priority,
@@ -51,7 +48,7 @@ export function ProductSlice({
       Message.success("需求创建成功。");
       setTitle("");
       void queryClient.invalidateQueries({
-        queryKey: ["work-items", projectId],
+        queryKey: ["work-items", organizationId],
       });
     },
     onError: (error) => Message.error(formatRequestError(error)),
@@ -103,7 +100,7 @@ export function ProductSlice({
           <Link
             className={ui.listItem}
             key={item.id}
-            href={`/w/${workspaceSlug}/p/${projectKey}/requirements/${item.id}`}
+            href={`/w/${organizationSlug}/p/${organizationKey}/requirements/${item.id}`}
           >
             <span className={ui.itemMain}>
               <span className={ui.itemTitle}>{item.title}</span>

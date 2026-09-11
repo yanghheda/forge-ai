@@ -11,7 +11,7 @@ public class DevelopmentQaQuery {
     /* 在返回研发交付快照前执行 Requirement 读取授权。 */
     private final PermissionEvaluator permissions;
 
-    /* 查询严格限定 Workspace、Project 与 Requirement 的本地投影。 */
+    /* 查询严格限定公司与 Requirement 的本地投影。 */
     private final DevelopmentQaStore store;
 
     public DevelopmentQaQuery(PermissionEvaluator permissions, DevelopmentQaStore store) {
@@ -21,10 +21,9 @@ public class DevelopmentQaQuery {
 
     public DevelopmentQaSummary get(
             long userId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long requirementId) {
-        permissions.requireProject(userId, workspaceId, projectId, "requirement.read");
-        return store.summarize(workspaceId, projectId, requirementId);
+        permissions.requireOrganization(userId, organizationId, "requirement.read");
+        return store.summarize(organizationId, requirementId);
     }
 }

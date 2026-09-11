@@ -6,9 +6,7 @@ public record AgentRun(
         /* 服务端生成的 ULID Run 标识。 */
         String id,
         /* Run 所属工作区。 */
-        long workspaceId,
-        /* Run 所属项目。 */
-        long projectId,
+        long organizationId,
         /* 可选的工作项上下文。 */
         Long workItemId,
         /* 发起 Run 的用户。 */

@@ -17,7 +17,7 @@ public final class PublishedPrdGuard implements TransitionGuard {
     @Override
     public GuardResult evaluate(TransitionContext context) {
         boolean published = materialStore.hasPublishedPrd(
-                context.workItem().workspaceId(), context.workItem().projectId(), context.workItem().id());
+                context.workItem().organizationId(), context.workItem().id());
         return published ? GuardResult.allowed() : new GuardResult(List.of("publishedPrd"));
     }
 }

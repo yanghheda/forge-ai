@@ -6,19 +6,19 @@ import java.util.List;
 
 public interface DeliveryGraphStore {
 
-    Snapshot load(long workspaceId, long projectId);
+    Snapshot load(long organizationId);
 
     record Snapshot(
-            /* 项目内未删除的 Work Item 快照。 */ List<Item> items,
-            /* 项目内关系快照。 */ List<Relation> relations,
-            /* 项目内未删除的文档快照。 */ List<Document> documents,
+            /* 公司内未删除的 Work Item 快照。 */ List<Item> items,
+            /* 公司内关系快照。 */ List<Relation> relations,
+            /* 公司内未删除的文档快照。 */ List<Document> documents,
             /* 由 Server 事实表投影的外部交付节点及其父边。 */ List<Artifact> artifacts) {}
 
     record Item(
             /* Work Item 标识。 */ long id,
             /* 可选父工作项标识。 */ Long parentId,
             /* 决定节点授权的工作项类型。 */ WorkItemType type,
-            /* 项目内展示编号。 */ String itemKey,
+            /* 公司内展示编号。 */ String itemKey,
             /* 工作项标题。 */ String title,
             /* 当前工作流状态。 */ WorkItemStatus status) {}
 

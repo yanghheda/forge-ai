@@ -29,11 +29,10 @@ class ManifestSubject(BaseModel):
 
 
 class ManifestScope(BaseModel):
-    """Backend 已裁剪的租户与业务资源范围。"""
+    """Backend 已裁剪的公司与业务资源范围。"""
 
     model_config = ConfigDict(alias_generator=_camel, populate_by_name=True)
-    workspace_id: int = Field(gt=0)
-    project_id: int = Field(gt=0)
+    organization_id: int = Field(gt=0)
     work_item_id: int | None = Field(default=None, gt=0)
 
 

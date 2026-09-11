@@ -1,5 +1,7 @@
 # ForgeAI 完整技术方案 v1.3
 
+> **已被公司级架构基线 v2 取代**：本文中的 Workspace/Project 数据、授权和路由设计不得用于新代码。当前部署只有一个公司作用域，公司下直接创建需求；详见 `ForgeAI_公司级架构基线_v2.md` 与 ADR-016。
+
 > **AI-Native Software Delivery Workbench**  
 > 面向个人、小团队与小公司的开源、自托管、AI 原生软件交付工作台  
 > 标准流程：**产品（Product）→ UX → 开发（Developer）→ 测试（QA）→ 发布（Release）**

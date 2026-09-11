@@ -77,7 +77,7 @@ public class DemoSourceControlProvider implements SourceControlProvider {
                 mergeRequestKey(context.repositoryId(), sourceBranch, targetBranch),
                 ignored -> new MergeRequest(
                         0,
-                        context.task().workspaceId(),
+                        context.task().organizationId(),
                         context.repositoryId(),
                         context.task().id(),
                         18,
@@ -98,7 +98,7 @@ public class DemoSourceControlProvider implements SourceControlProvider {
     public PipelineRun triggerPipeline(PipelineContext context, String ref) {
         return new PipelineRun(
                 0,
-                context.workspaceId(),
+                context.organizationId(),
                 context.repositoryId(),
                 null,
                 801,
@@ -122,7 +122,7 @@ public class DemoSourceControlProvider implements SourceControlProvider {
     private Branch branch(DevelopmentContext context, String name, String commitSha) {
         return new Branch(
                 0,
-                context.task().workspaceId(),
+                context.task().organizationId(),
                 context.repositoryId(),
                 context.task().id(),
                 name,

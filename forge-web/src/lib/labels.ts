@@ -69,7 +69,7 @@ const priorityLabels: Record<string, string> = {
   URGENT: "紧急",
 };
 
-/* Workspace 成员角色的中文文案。 */
+/* Organization 成员角色的中文文案。 */
 const roleLabels: Record<string, string> = {
   OWNER: "所有者",
   ADMIN: "管理员",

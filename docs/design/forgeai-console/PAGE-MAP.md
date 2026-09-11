@@ -11,7 +11,7 @@
 | 文件 | 用途 | 说明 |
 |------|------|------|
 | `colors_and_type.css` | 设计令牌 | 颜色、字号、圆角、阴影、间距、侧边栏深色面，直接映射 Arco 主题变量与 CSS 变量 |
-| `partials/project-shell.html` | 应用外壳 | 深色侧边栏 + 顶栏布局，所有业务页面共用，做成 AppLayout 组件 |
+| `partials/project-shell.html` | 应用外壳（原型文件名保留） | 深色侧边栏 + 顶栏布局，所有公司业务页面共用，做成 AppLayout 组件；正式产品不存在项目切换器 |
 | `partials/auth-shell.html` | 认证外壳 | 左品牌右表单的登录/注册/初始化布局，做成 AuthLayout 组件 |
 
 ---
@@ -72,8 +72,8 @@
 |------|------|----------|------|------|
 | 成员管理 | `settings-members.html` | `/settings/members` | 页面 | 公司成员列表 + 角色分配 |
 | 编辑成员（抽屉） | `settings-members-edit.html` | — | Drawer 组件 | 列表"编辑"按钮触发 |
-| 集成配置 | `settings-integrations.html` | `/settings/integrations` | 页面 | GitLab/飞书/Webhook 集成列表 |
-| 添加集成（抽屉） | `settings-integrations-add.html` | — | Drawer 组件 | "添加集成"按钮触发 |
+| 集成配置 | `settings-integrations.html` | `/settings/integrations` | 页面 | 当前版本只提供公司级 GitLab 集成 |
+| 添加 GitLab（抽屉） | `settings-integrations-add.html` | — | Drawer 组件 | “添加 GitLab”按钮触发 |
 
 ---
 

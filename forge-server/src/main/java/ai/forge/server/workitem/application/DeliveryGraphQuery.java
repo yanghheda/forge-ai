@@ -38,9 +38,9 @@ public class DeliveryGraphQuery {
     }
 
     @Transactional(readOnly = true)
-    public DeliveryGraph get(long userId, long workspaceId, long projectId, long requirementId) {
-        permissions.requireProject(userId, workspaceId, projectId, "requirement.read");
-        DeliveryGraphStore.Snapshot snapshot = store.load(workspaceId, projectId);
+    public DeliveryGraph get(long userId, long organizationId, long requirementId) {
+        permissions.requireOrganization(userId, organizationId, "requirement.read");
+        DeliveryGraphStore.Snapshot snapshot = store.load(organizationId);
         Map<Long, DeliveryGraphStore.Item> allItems = new HashMap<>();
         snapshot.items().forEach(item -> allItems.put(item.id(), item));
         DeliveryGraphStore.Item root = allItems.get(requirementId);
@@ -50,11 +50,11 @@ public class DeliveryGraphQuery {
 
         Map<WorkItemType, Boolean> readableTypes = new HashMap<>();
         for (WorkItemType type : WorkItemType.values()) {
-            readableTypes.put(type, permissions.hasProjectPermission(
-                    userId, workspaceId, projectId, type.permissionResource() + ".read"));
+            readableTypes.put(type, permissions.hasOrganizationPermission(
+                    userId, organizationId, type.permissionResource() + ".read"));
         }
-        boolean documentsReadable = permissions.hasProjectPermission(
-                userId, workspaceId, projectId, "document.read");
+        boolean documentsReadable = permissions.hasOrganizationPermission(
+                userId, organizationId, "document.read");
         Map<Long, List<Long>> adjacency = adjacency(snapshot, allItems, readableTypes);
         Map<Long, Integer> depths = traverse(requirementId, adjacency);
         List<DeliveryGraphStore.Item> reachable = depths.keySet().stream()
@@ -99,8 +99,8 @@ public class DeliveryGraphQuery {
                             .thenComparing(DeliveryGraphStore.Artifact::parentNodeId))
                     .toList()) {
                 if (nodeDepths.containsKey(artifact.nodeId())
-                        || !permissions.hasProjectPermission(
-                                userId, workspaceId, projectId, artifact.requiredPermission())) {
+                        || !permissions.hasOrganizationPermission(
+                                userId, organizationId, artifact.requiredPermission())) {
                     continue;
                 }
                 Integer parentDepth = nodeDepths.get(artifact.parentNodeId());

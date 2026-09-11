@@ -43,8 +43,8 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "work_item_events", "review_records", "requirement_details", "work_items", "project_item_sequences", "project_members", "projects", "audit_logs", "member_roles",
-                "workspace_members", "workspaces", "organizations", "users")) {
+                "work_item_events", "review_records", "requirement_details", "work_items", "organization_item_sequences", "organization_policies", "audit_logs", "member_roles",
+                "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
     }
@@ -57,16 +57,13 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getHeaders().getLocation().getPath()).isEqualTo("/api/v1/organization");
         assertThat(response.getBody()).contains("\"organizationSlug\":\"forge\"")
-                .doesNotContain("workspaceId")
-                .doesNotContain("projectId")
+                .contains("organizationId")
                 .doesNotContain(password)
                 .doesNotContain("passwordHash");
         assertThat(count("users")).isOne();
         assertThat(count("organizations")).isOne();
-        assertThat(count("workspaces")).isOne();
-        assertThat(count("projects")).isOne();
-        assertThat(count("project_item_sequences")).isOne();
-        assertThat(count("workspace_members")).isOne();
+        assertThat(count("organization_item_sequences")).isOne();
+        assertThat(count("organization_members")).isOne();
         assertThat(count("member_roles")).isOne();
         assertThat(count("audit_logs")).isOne();
         assertThat(jdbcTemplate.queryForObject("SELECT normalized_email FROM users", String.class))
@@ -107,8 +104,8 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
                 HttpStatus.valueOf(response.getStatusCode().value())).toList();
         assertThat(statuses).containsExactlyInAnyOrder(HttpStatus.CREATED, HttpStatus.CONFLICT);
         assertThat(count("users")).isOne();
-        assertThat(count("workspaces")).isOne();
-        assertThat(count("projects")).isOne();
+        assertThat(count("organizations")).isOne();
+        assertThat(count("organization_members")).isOne();
         assertThat(count("audit_logs")).isOne();
     }
 
@@ -125,20 +122,18 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
 
     @Test
     void rollsBackEveryFactWhenMidTransactionWriteFails() {
-        String oversizedWorkspaceSlug = "w".repeat(81);
+        String oversizedOrganizationSlug = "w".repeat(81);
         BootstrapCommand command = new BootstrapCommand(
                 "owner@example.com",
                 "Forge Owner",
                 "correct-horse-42",
                 "Forge",
-                "forge",
-                "Engineering",
-                oversizedWorkspaceSlug,
+                oversizedOrganizationSlug,
                 "req_transaction_rollback");
 
         assertThatThrownBy(() -> bootstrapService.initialize(command)).isInstanceOf(RuntimeException.class);
         for (String table : List.of(
-                "users", "organizations", "workspaces", "workspace_members", "member_roles", "audit_logs")) {
+                "users", "organizations", "organization_members", "member_roles", "audit_logs")) {
             assertThat(count(table)).as(table).isZero();
         }
         assertThat(jdbcTemplate.queryForObject(
@@ -164,9 +159,7 @@ class InstanceBootstrapIntegrationTest extends InfrastructureIntegrationTestBase
                         "password", password,
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
-                        "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering",
-                        "logoFileName", "company.webp",
+                                                                        "logoFileName", "company.webp",
                         "logoMediaType", "image/webp",
                         "logoBase64", validLogoBase64()), null,
                 String.class);

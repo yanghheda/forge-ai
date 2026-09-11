@@ -37,12 +37,20 @@ describe("AuthEntry", () => {
     expect(screen.getByRole("button", { name: "完成初始化" })).toBeEnabled();
   });
 
+  it("初始化路由始终展示初始化向导", async () => {
+    authApi.getSetupStatus.mockResolvedValue({ initialized: true });
+    render(<AuthEntry initialMode="init" />, { wrapper });
+
+    expect(await screen.findByText("初始化 ForgeAI")).toBeInTheDocument();
+    expect(screen.getByLabelText("公司 Logo")).toBeRequired();
+  });
+
   it("登录成功后直接进入需求概览", async () => {
     authApi.getSetupStatus.mockResolvedValue({ initialized: true });
     authApi.login.mockResolvedValue(undefined);
     authApi.getCurrentUser.mockResolvedValue({
       id: 1, email: "owner@example.com", displayName: "Owner",
-      workspaces: [{ id: 2, slug: "engineering", name: "Engineering", roles: ["OWNER"] }],
+      organizations: [{ id: 2, slug: "engineering", name: "Engineering", roles: ["OWNER"] }],
     });
     render(<AuthEntry />, { wrapper });
     const user = userEvent.setup();
@@ -77,7 +85,7 @@ describe("AuthEntry", () => {
     await user.type(screen.getByLabelText("密码"), "correct-horse-42");
     await user.click(screen.getByRole("button", { name: "完成注册" }));
 
-    expect(await screen.findByText("注册完成，请使用新账号登录。")).toBeInTheDocument();
+    expect(await screen.findByText("注册申请已提交，请等待公司管理员审核后登录。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "登录" })).toBeInTheDocument();
   });
 

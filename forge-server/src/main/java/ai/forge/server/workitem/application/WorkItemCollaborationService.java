@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Profile("!test-unit")
 public class WorkItemCollaborationService {
 
-    /* 读取工作项类型并强制 Workspace/Project scope。 */
+    /* 读取工作项类型并强制公司作用域。 */
     private final WorkItemStore workItemStore;
 
     /* 在资源加载后执行最终项目权限检查。 */
@@ -38,69 +38,67 @@ public class WorkItemCollaborationService {
     @Transactional
     public WorkItemRelation createRelation(
             long userId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long sourceId,
             long targetId,
             WorkItemRelationType relationType) {
         if (sourceId == targetId) {
             throw new IllegalArgumentException("Self relation is forbidden");
         }
-        WorkItem source = requireItem(workspaceId, projectId, sourceId);
-        permissionEvaluator.requireProject(
-                userId, workspaceId, projectId, source.type().permissionResource() + ".edit");
-        requireItem(workspaceId, projectId, targetId);
-        if (collaborationStore.relationExists(workspaceId, projectId, sourceId, targetId, relationType)) {
+        WorkItem source = requireItem(organizationId, sourceId);
+        permissionEvaluator.requireOrganization(
+                userId, organizationId, source.type().permissionResource() + ".edit");
+        requireItem(organizationId, targetId);
+        if (collaborationStore.relationExists(organizationId, sourceId, targetId, relationType)) {
             throw new RelationConflictException();
         }
         return collaborationStore.createRelation(
-                workspaceId, projectId, sourceId, targetId, relationType, userId);
+                organizationId, sourceId, targetId, relationType, userId);
     }
 
     public List<WorkItemRelation> relations(
-            long userId, long workspaceId, long projectId, long workItemId) {
-        WorkItem item = requireItem(workspaceId, projectId, workItemId);
-        permissionEvaluator.requireProject(
-                userId, workspaceId, projectId, item.type().permissionResource() + ".read");
-        return collaborationStore.findRelations(workspaceId, projectId, workItemId);
+            long userId, long organizationId, long workItemId) {
+        WorkItem item = requireItem(organizationId, workItemId);
+        permissionEvaluator.requireOrganization(
+                userId, organizationId, item.type().permissionResource() + ".read");
+        return collaborationStore.findRelations(organizationId, workItemId);
     }
 
     @Transactional
     public void addLabel(
             long userId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long workItemId,
             WorkItemLabel label) {
-        WorkItem item = requireItem(workspaceId, projectId, workItemId);
-        permissionEvaluator.requireProject(
-                userId, workspaceId, projectId, item.type().permissionResource() + ".edit");
-        collaborationStore.addLabel(workspaceId, projectId, workItemId, label, userId);
+        WorkItem item = requireItem(organizationId, workItemId);
+        permissionEvaluator.requireOrganization(
+                userId, organizationId, item.type().permissionResource() + ".edit");
+        collaborationStore.addLabel(organizationId, workItemId, label, userId);
     }
 
     @Transactional
     public ActivityItem comment(
-            long userId, long workspaceId, long projectId, long workItemId, String body) {
-        WorkItem item = requireItem(workspaceId, projectId, workItemId);
-        permissionEvaluator.requireProject(
-                userId, workspaceId, projectId, item.type().permissionResource() + ".read");
+            long userId, long organizationId, long workItemId, String body) {
+        WorkItem item = requireItem(organizationId, workItemId);
+        permissionEvaluator.requireOrganization(
+                userId, organizationId, item.type().permissionResource() + ".read");
         String normalized = body == null ? "" : body.trim();
         if (normalized.isEmpty()) {
             throw new IllegalArgumentException("Comment body is required");
         }
-        return collaborationStore.createComment(workspaceId, projectId, workItemId, userId, normalized);
+        return collaborationStore.createComment(organizationId, workItemId, userId, normalized);
     }
 
     public List<ActivityItem> activity(
-            long userId, long workspaceId, long projectId, long workItemId) {
-        WorkItem item = requireItem(workspaceId, projectId, workItemId);
-        permissionEvaluator.requireProject(
-                userId, workspaceId, projectId, item.type().permissionResource() + ".read");
-        return collaborationStore.findActivity(workspaceId, projectId, workItemId);
+            long userId, long organizationId, long workItemId) {
+        WorkItem item = requireItem(organizationId, workItemId);
+        permissionEvaluator.requireOrganization(
+                userId, organizationId, item.type().permissionResource() + ".read");
+        return collaborationStore.findActivity(organizationId, workItemId);
     }
 
-    private WorkItem requireItem(long workspaceId, long projectId, long workItemId) {
-        return workItemStore.findByIdAndScope(workspaceId, projectId, workItemId)
+    private WorkItem requireItem(long organizationId, long workItemId) {
+        return workItemStore.findByIdAndScope(organizationId, workItemId)
                 .orElseThrow(ResourceNotFoundException::new);
     }
 

@@ -16,9 +16,9 @@ class DevelopmentQaGuardTest {
     @Test
     void reportsMissingAndIncompleteDevTasksBeforeCiChecks() {
         DevelopmentQaGuard missingGuard = new DevelopmentQaGuard(
-                (workspaceId, projectId, requirementId) -> DevelopmentQaSummary.empty(requirementId, true));
+                (organizationId, requirementId) -> DevelopmentQaSummary.empty(requirementId, true));
         DevelopmentQaGuard incompleteGuard = new DevelopmentQaGuard(
-                (workspaceId, projectId, requirementId) -> new DevelopmentQaSummary(
+                (organizationId, requirementId) -> new DevelopmentQaSummary(
                         requirementId,
                         true,
                         true,
@@ -55,7 +55,7 @@ class DevelopmentQaGuardTest {
     }
 
     private static List<String> evaluate(DevelopmentQaSummary summary) {
-        return new DevelopmentQaGuard((workspaceId, projectId, requirementId) -> summary)
+        return new DevelopmentQaGuard((organizationId, requirementId) -> summary)
                 .evaluate(context())
                 .missing();
     }
@@ -106,7 +106,6 @@ class DevelopmentQaGuardTest {
         WorkItem requirement = new WorkItem(
                 1L,
                 3L,
-                4L,
                 1L,
                 "FORGE-1",
                 WorkItemType.REQUIREMENT,

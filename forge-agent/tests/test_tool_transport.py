@@ -77,7 +77,7 @@ def test_execute_maps_non_ok_status_to_failed_envelope() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(409, json={"code": "VALIDATION_FAILED", "message": "conflict"})
 
-    execution = transport_with(handler).execute("get_project", "call-3", {}, "token")
+    execution = transport_with(handler).execute("get_organization", "call-3", {}, "token")
 
     assert execution.status == "FAILED"
     assert execution.error_code == "SERVER_ERROR"
@@ -89,7 +89,7 @@ def test_execute_raises_on_unauthorized_credential() -> None:
         return httpx.Response(401)
 
     with pytest.raises(ToolTransportFailure, match="credential rejected"):
-        transport_with(handler).execute("get_project", "call-4", {}, "expired-token")
+        transport_with(handler).execute("get_organization", "call-4", {}, "expired-token")
 
 
 def test_execute_raises_on_network_failure() -> None:
@@ -97,7 +97,7 @@ def test_execute_raises_on_network_failure() -> None:
         raise httpx.ConnectError("connection refused")
 
     with pytest.raises(ToolTransportFailure, match="request failed"):
-        transport_with(handler).execute("get_project", "call-5", {}, "token")
+        transport_with(handler).execute("get_organization", "call-5", {}, "token")
 
 
 def test_execute_raises_on_invalid_payload() -> None:
@@ -107,4 +107,4 @@ def test_execute_raises_on_invalid_payload() -> None:
         )
 
     with pytest.raises(ToolTransportFailure, match="not valid"):
-        transport_with(handler).execute("get_project", "call-6", {}, "token")
+        transport_with(handler).execute("get_organization", "call-6", {}, "token")

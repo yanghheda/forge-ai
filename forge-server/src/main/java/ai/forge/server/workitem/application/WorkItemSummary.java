@@ -7,10 +7,9 @@ import java.time.Instant;
 
 public record WorkItemSummary(
         /* 工作项稳定标识，客户端仍需结合当前 scope 使用。 */ long id,
-        /* 所属工作区，用于列表结果的租户范围核对。 */ long workspaceId,
-        /* 所属项目，用于列表结果的项目范围核对。 */ long projectId,
-        /* 项目内单调编号，用于稳定倒序分页。 */ long itemNumber,
-        /* 面向用户展示的项目内工作项键。 */ String itemKey,
+        /* 所属工作区，用于列表结果的租户范围核对。 */ long organizationId,
+        /* 公司内单调编号，用于稳定倒序分页。 */ long itemNumber,
+        /* 面向用户展示的公司内工作项键。 */ String itemKey,
         /* 决定状态与权限语义的工作项类型。 */ WorkItemType type,
         /* 列表展示使用的短标题。 */ String title,
         /* 服务端权威的当前工作流状态。 */ WorkItemStatus status,

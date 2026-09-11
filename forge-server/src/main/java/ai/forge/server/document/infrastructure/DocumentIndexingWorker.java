@@ -98,7 +98,7 @@ public class DocumentIndexingWorker {
         List<VectorIndexClient.ChunkPoint> points = new ArrayList<>();
         for (DocumentChunk chunk : chunks) {
             IndexedChunkPayload payload = new IndexedChunkPayload(
-                    fact.workspaceId(), fact.projectId(), fact.workItemId(), job.documentId(),
+                    fact.organizationId(), fact.workItemId(), job.documentId(),
                     job.versionId(), fact.documentType(), fact.visibility(), fact.contentHash(),
                     chunk.chunkIndex(), fact.title(), chunk.text());
             points.add(new VectorIndexClient.ChunkPoint(embeddingClient.embed(chunk.text()), payload));

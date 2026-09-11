@@ -51,19 +51,8 @@ class GitLabConnectionServiceTest {
             MutableStore store, CapturingProvider provider, boolean authorized) {
         PermissionStore permissionStore = new PermissionStore() {
             @Override
-            public Set<String> findWorkspacePermissionSet(long userId, long workspaceId) {
+            public Set<String> findOrganizationPermissionSet(long userId, long organizationId) {
                 return authorized ? Set.of("integration.manage") : Set.of();
-            }
-
-            @Override
-            public Optional<ProjectAccess> findProjectAccess(long userId, long workspaceId, long projectId) {
-                return Optional.of(new ProjectAccess(
-                        authorized, Set.of("ADMIN"), authorized ? Set.of("project.manage", "repo.read") : Set.of()));
-            }
-
-            @Override
-            public List<Long> findProjectIdsWithPermission(long userId, long workspaceId, String permission) {
-                return List.of();
             }
         };
         SecretService secrets = new SecretService(Base64.getEncoder().encodeToString(new byte[32]), 1);
@@ -102,57 +91,57 @@ class GitLabConnectionServiceTest {
 
         @Override
         public GitLabConnection create(
-                long workspaceId, long createdBy, String name, String baseUrl, EncryptedSecret encrypted) {
-            credential = new StoredSecret(11L, workspaceId, "GITLAB_TOKEN", encrypted);
+                long organizationId, long createdBy, String name, String baseUrl, EncryptedSecret encrypted) {
+            credential = new StoredSecret(11L, organizationId, "GITLAB_TOKEN", encrypted);
             connection = new GitLabConnection(
-                    21L, workspaceId, name, baseUrl, encrypted.fingerprint(), "UNVERIFIED", null, 0L);
+                    21L, organizationId, name, baseUrl, encrypted.fingerprint(), "UNVERIFIED", null, 0L);
             return connection;
         }
 
         @Override
-        public List<GitLabConnection> findConnections(long workspaceId) {
+        public List<GitLabConnection> findConnections(long organizationId) {
             readCount++;
             return connection == null ? List.of() : List.of(connection);
         }
 
         @Override
-        public Optional<GitLabConnection> findConnection(long workspaceId, long connectionId) {
+        public Optional<GitLabConnection> findConnection(long organizationId, long connectionId) {
             readCount++;
             return Optional.ofNullable(connection)
-                    .filter(value -> value.workspaceId() == workspaceId && value.id() == connectionId);
+                    .filter(value -> value.organizationId() == organizationId && value.id() == connectionId);
         }
 
         @Override
-        public Optional<StoredSecret> findCredential(long workspaceId, long connectionId) {
+        public Optional<StoredSecret> findCredential(long organizationId, long connectionId) {
             readCount++;
-            return Optional.ofNullable(credential).filter(value -> value.workspaceId() == workspaceId);
+            return Optional.ofNullable(credential).filter(value -> value.organizationId() == organizationId);
         }
 
         @Override
         public Optional<GitLabConnection> rotateCredential(
-                long workspaceId, long connectionId, long expectedVersion, EncryptedSecret encrypted) {
+                long organizationId, long connectionId, long expectedVersion, EncryptedSecret encrypted) {
             if (connection.version() != expectedVersion) {
                 return Optional.empty();
             }
-            credential = new StoredSecret(11L, workspaceId, "GITLAB_TOKEN", encrypted);
+            credential = new StoredSecret(11L, organizationId, "GITLAB_TOKEN", encrypted);
             connection = new GitLabConnection(
-                    connection.id(), workspaceId, connection.name(), connection.baseUrl(),
+                    connection.id(), organizationId, connection.name(), connection.baseUrl(),
                     encrypted.fingerprint(), "UNVERIFIED", null, connection.version() + 1);
             return Optional.of(connection);
         }
 
         @Override
-        public void recordTest(long workspaceId, long connectionId, boolean successful) {
+        public void recordTest(long organizationId, long connectionId, boolean successful) {
             connection = new GitLabConnection(
-                    connection.id(), workspaceId, connection.name(), connection.baseUrl(), connection.tokenFingerprint(),
+                    connection.id(), organizationId, connection.name(), connection.baseUrl(), connection.tokenFingerprint(),
                     successful ? "ACTIVE" : "ERROR", LocalDateTime.now(), connection.version());
         }
 
         @Override
         public GitRepository bindRepository(
-                long workspaceId, long projectId, long connectionId, RepositoryDto repository) {
+                long organizationId, long connectionId, RepositoryDto repository) {
             return new GitRepository(
-                    31L, workspaceId, projectId, connectionId, repository.remoteProjectId(),
+                    31L, organizationId, connectionId, repository.remoteProjectId(),
                     repository.pathWithNamespace(), repository.httpUrl(), repository.defaultBranch(),
                     "ACTIVE", LocalDateTime.now(), 0L);
         }

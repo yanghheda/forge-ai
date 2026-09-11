@@ -28,29 +28,27 @@ public class MybatisWorkItemCollaborationStore implements WorkItemCollaborationS
 
     @Override
     public boolean relationExists(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long sourceId,
             long targetId,
             WorkItemRelationType relationType) {
-        return mapper.countRelation(workspaceId, projectId, sourceId, targetId, relationType.name()) > 0;
+        return mapper.countRelation(organizationId, sourceId, targetId, relationType.name()) > 0;
     }
 
     @Override
     public WorkItemRelation createRelation(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long sourceId,
             long targetId,
             WorkItemRelationType relationType,
             long createdBy) {
         try {
-            mapper.insertRelation(workspaceId, projectId, sourceId, targetId, relationType.name(), createdBy);
+            mapper.insertRelation(organizationId, sourceId, targetId, relationType.name(), createdBy);
         } catch (DuplicateKeyException exception) {
             throw new RelationConflictException();
         }
         long id = mapper.lastInsertId();
-        return mapper.findRelations(workspaceId, projectId, sourceId).stream()
+        return mapper.findRelations(organizationId, sourceId).stream()
                 .map(this::relation)
                 .filter(value -> value.id() == id)
                 .findFirst()
@@ -58,30 +56,30 @@ public class MybatisWorkItemCollaborationStore implements WorkItemCollaborationS
     }
 
     @Override
-    public List<WorkItemRelation> findRelations(long workspaceId, long projectId, long workItemId) {
-        return mapper.findRelations(workspaceId, projectId, workItemId).stream().map(this::relation).toList();
+    public List<WorkItemRelation> findRelations(long organizationId, long workItemId) {
+        return mapper.findRelations(organizationId, workItemId).stream().map(this::relation).toList();
     }
 
     @Override
     public void addLabel(
-            long workspaceId, long projectId, long workItemId, WorkItemLabel label, long createdBy) {
-        mapper.insertLabel(workspaceId, projectId, workItemId, label.name(), createdBy);
+            long organizationId, long workItemId, WorkItemLabel label, long createdBy) {
+        mapper.insertLabel(organizationId, workItemId, label.name(), createdBy);
     }
 
     @Override
     public ActivityItem createComment(
-            long workspaceId, long projectId, long workItemId, long authorId, String body) {
-        mapper.insertComment(workspaceId, projectId, workItemId, authorId, body);
+            long organizationId, long workItemId, long authorId, String body) {
+        mapper.insertComment(organizationId, workItemId, authorId, body);
         long id = mapper.lastInsertId();
-        return findActivity(workspaceId, projectId, workItemId).stream()
+        return findActivity(organizationId, workItemId).stream()
                 .filter(item -> item.kind().equals("COMMENT") && item.id() == id)
                 .findFirst()
                 .orElseThrow();
     }
 
     @Override
-    public List<ActivityItem> findActivity(long workspaceId, long projectId, long workItemId) {
-        return mapper.findActivity(workspaceId, projectId, workItemId).stream().map(this::activityItem).toList();
+    public List<ActivityItem> findActivity(long organizationId, long workItemId) {
+        return mapper.findActivity(organizationId, workItemId).stream().map(this::activityItem).toList();
     }
 
     private WorkItemRelation relation(Map<String, Object> row) {

@@ -10,8 +10,7 @@ import java.util.Optional;
 public interface WorkItemStore {
 
     WorkItem create(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long reporterUserId,
             WorkItemType type,
             String title,
@@ -22,8 +21,7 @@ public interface WorkItemStore {
             Instant dueAt);
 
     WorkItem createChild(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long reporterUserId,
             WorkItemType type,
             long parentId,
@@ -34,19 +32,17 @@ public interface WorkItemStore {
             Long assigneeUserId,
             Instant dueAt);
 
-    Optional<WorkItem> findByIdAndScope(long workspaceId, long projectId, long workItemId);
+    Optional<WorkItem> findByIdAndScope(long organizationId, long workItemId);
 
     WorkItemPage findPage(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             WorkItemType type,
             WorkItemStatus status,
             int page,
             int pageSize);
 
     boolean update(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long workItemId,
             String title,
             String description,

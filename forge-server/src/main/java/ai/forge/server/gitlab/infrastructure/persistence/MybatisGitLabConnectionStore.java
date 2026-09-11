@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Profile("!test-unit")
 public class MybatisGitLabConnectionStore implements GitLabConnectionStore {
 
-    /* 执行所有显式携带 Workspace 范围的 GitLab MyBatis SQL。 */
+    /* 执行所有显式携带公司作用域的 GitLab MyBatis SQL。 */
     private final GitLabConnectionMapper mapper;
 
     public MybatisGitLabConnectionStore(GitLabConnectionMapper mapper) {
@@ -30,70 +30,69 @@ public class MybatisGitLabConnectionStore implements GitLabConnectionStore {
     @Override
     @Transactional
     public GitLabConnection create(
-            long workspaceId, long createdBy, String name, String baseUrl, EncryptedSecret encrypted) {
+            long organizationId, long createdBy, String name, String baseUrl, EncryptedSecret encrypted) {
         mapper.insertSecret(
-                workspaceId, encrypted.ciphertext(), encrypted.iv(), encrypted.keyVersion(), encrypted.fingerprint());
+                organizationId, encrypted.ciphertext(), encrypted.iv(), encrypted.keyVersion(), encrypted.fingerprint());
         long secretId = mapper.lastInsertId();
-        mapper.insertConnection(workspaceId, createdBy, name, baseUrl, secretId);
+        mapper.insertConnection(organizationId, createdBy, name, baseUrl, secretId);
         long connectionId = mapper.lastInsertId();
-        return findConnection(workspaceId, connectionId).orElseThrow();
+        return findConnection(organizationId, connectionId).orElseThrow();
     }
 
     @Override
-    public List<GitLabConnection> findConnections(long workspaceId) {
-        return mapper.findConnections(workspaceId).stream().map(this::connection).toList();
+    public List<GitLabConnection> findConnections(long organizationId) {
+        return mapper.findConnections(organizationId).stream().map(this::connection).toList();
     }
 
     @Override
-    public Optional<GitLabConnection> findConnection(long workspaceId, long connectionId) {
-        return mapper.findConnection(workspaceId, connectionId).stream().findFirst().map(this::connection);
+    public Optional<GitLabConnection> findConnection(long organizationId, long connectionId) {
+        return mapper.findConnection(organizationId, connectionId).stream().findFirst().map(this::connection);
     }
 
     @Override
-    public Optional<StoredSecret> findCredential(long workspaceId, long connectionId) {
-        return mapper.findCredential(workspaceId, connectionId).stream().findFirst().map(this::secret);
+    public Optional<StoredSecret> findCredential(long organizationId, long connectionId) {
+        return mapper.findCredential(organizationId, connectionId).stream().findFirst().map(this::secret);
     }
 
     @Override
     @Transactional
     public Optional<GitLabConnection> rotateCredential(
-            long workspaceId, long connectionId, long expectedVersion, EncryptedSecret encrypted) {
+            long organizationId, long connectionId, long expectedVersion, EncryptedSecret encrypted) {
         int updated = mapper.rotateCredential(
-                workspaceId,
+                organizationId,
                 connectionId,
                 expectedVersion,
                 encrypted.ciphertext(),
                 encrypted.iv(),
                 encrypted.keyVersion(),
                 encrypted.fingerprint());
-        return updated == 1 ? findConnection(workspaceId, connectionId) : Optional.empty();
+        return updated == 1 ? findConnection(organizationId, connectionId) : Optional.empty();
     }
 
     @Override
     @Transactional
-    public void configureWebhookSecret(long workspaceId, long connectionId, EncryptedSecret encrypted) {
-        mapper.insertWebhookSecret(workspaceId, encrypted.ciphertext(), encrypted.iv(),
+    public void configureWebhookSecret(long organizationId, long connectionId, EncryptedSecret encrypted) {
+        mapper.insertWebhookSecret(organizationId, encrypted.ciphertext(), encrypted.iv(),
                 encrypted.keyVersion(), encrypted.fingerprint());
         long secretId = mapper.lastInsertId();
-        if (mapper.attachWebhookSecret(workspaceId, connectionId, secretId) != 1) {
+        if (mapper.attachWebhookSecret(organizationId, connectionId, secretId) != 1) {
             throw new IllegalStateException("GitLab connection disappeared while configuring webhook");
         }
     }
 
     @Override
     @Transactional
-    public void recordTest(long workspaceId, long connectionId, boolean successful) {
-        mapper.recordTest(workspaceId, connectionId, successful ? "ACTIVE" : "ERROR");
+    public void recordTest(long organizationId, long connectionId, boolean successful) {
+        mapper.recordTest(organizationId, connectionId, successful ? "ACTIVE" : "ERROR");
     }
 
     @Override
     @Transactional
     public GitRepository bindRepository(
-            long workspaceId, long projectId, long connectionId, RepositoryDto repository) {
+            long organizationId, long connectionId, RepositoryDto repository) {
         try {
             mapper.insertRepository(
-                    workspaceId,
-                    projectId,
+                    organizationId,
                     connectionId,
                     repository.remoteProjectId(),
                     repository.pathWithNamespace(),
@@ -102,7 +101,7 @@ public class MybatisGitLabConnectionStore implements GitLabConnectionStore {
         } catch (DuplicateKeyException exception) {
             throw new VersionConflictException();
         }
-        return mapper.findActiveRepository(workspaceId, projectId).stream()
+        return mapper.findActiveRepository(organizationId).stream()
                 .findFirst()
                 .map(this::repository)
                 .orElseThrow();
@@ -111,7 +110,7 @@ public class MybatisGitLabConnectionStore implements GitLabConnectionStore {
     private GitLabConnection connection(Map<String, Object> row) {
         return new GitLabConnection(
                 number(row, "id"),
-                number(row, "workspace_id"),
+                number(row, "organization_id"),
                 text(row, "name"),
                 text(row, "base_url"),
                 text(row, "fingerprint"),
@@ -123,7 +122,7 @@ public class MybatisGitLabConnectionStore implements GitLabConnectionStore {
     private StoredSecret secret(Map<String, Object> row) {
         return new StoredSecret(
                 number(row, "id"),
-                number(row, "workspace_id"),
+                number(row, "organization_id"),
                 text(row, "type"),
                 new EncryptedSecret(
                         text(row, "ciphertext"),
@@ -135,8 +134,7 @@ public class MybatisGitLabConnectionStore implements GitLabConnectionStore {
     private GitRepository repository(Map<String, Object> row) {
         return new GitRepository(
                 number(row, "id"),
-                number(row, "workspace_id"),
-                number(row, "project_id"),
+                number(row, "organization_id"),
                 number(row, "connection_id"),
                 text(row, "remote_project_id"),
                 text(row, "path_with_namespace"),

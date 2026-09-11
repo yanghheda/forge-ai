@@ -10,11 +10,17 @@ const api = vi.hoisted(() => ({
   getRequirementOverview: vi.fn(),
   listOrganizationRequirements: vi.fn(),
   createOrganizationRequirement: vi.fn(),
+  getDashboardOverview: vi.fn(),
 }));
 
 vi.mock("../api/work-item-api", async () => ({
   ...await vi.importActual("../api/work-item-api"),
   ...api,
+}));
+
+vi.mock("@/features/console", async () => ({
+  ...await vi.importActual("@/features/console"),
+  getDashboardOverview: api.getDashboardOverview,
 }));
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -26,6 +32,7 @@ describe("RequirementDashboard", () => {
 
   beforeEach(() => {
     api.getRequirementOverview.mockResolvedValue({ total: 8, inProgress: 5, completed: 3 });
+    api.getDashboardOverview.mockResolvedValue({ weeklyDeliveries: 3, activeAgents: 4, personalTodos: 3, stageDistribution: { IN_DEVELOPMENT: 4 }, deliveryTrend: [] });
     api.listOrganizationRequirements.mockResolvedValue({
       items: [{ id: 1, itemKey: "REQ-1", title: "公司级需求", description: "", status: "DRAFT", priority: "HIGH", version: 0, createdAt: "2026-09-09", updatedAt: "2026-09-09" }],
       page: 1, pageSize: 20, total: 1,
@@ -35,10 +42,11 @@ describe("RequirementDashboard", () => {
   it("展示三项需求统计、创建入口和可搜索列表", async () => {
     render(<RequirementDashboard />, { wrapper });
 
-    expect(await screen.findByText("8")).toBeInTheDocument();
-    expect(screen.getByText("全部需求")).toBeInTheDocument();
-    expect(screen.getByText("进行中")).toBeInTheDocument();
-    expect(screen.getByText("已完成")).toBeInTheDocument();
+    expect(await screen.findByText("5")).toBeInTheDocument();
+    expect(screen.getByText("进行中需求")).toBeInTheDocument();
+    expect(screen.getByText("待我处理")).toBeInTheDocument();
+    expect(screen.getByText("本周已交付")).toBeInTheDocument();
+    expect(screen.getByText("活跃 Agent")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("搜索需求标题、编号或描述")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "新建需求" })).toBeInTheDocument();
     expect(await screen.findByText("公司级需求")).toBeInTheDocument();

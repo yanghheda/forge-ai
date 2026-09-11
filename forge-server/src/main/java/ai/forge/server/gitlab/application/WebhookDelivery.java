@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 public record WebhookDelivery(
         /* 本地 delivery 稳定标识。 */ long id,
-        /* 事件所属工作区范围。 */ long workspaceId,
+        /* 事件所属工作区范围。 */ long organizationId,
         /* 接收事件的 GitLab 连接。 */ long connectionId,
         /* 远端 UUID 或确定性 fallback key。 */ String deliveryKey,
         /* GitLab 事件类型 Header。 */ String eventType,

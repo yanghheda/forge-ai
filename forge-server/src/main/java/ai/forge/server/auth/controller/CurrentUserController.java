@@ -16,10 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Profile("!test-unit")
 @RequestMapping("/api/v1/me")
-@Tag(name = "当前用户", description = "读取当前 Session 对应用户及其实时有效 Workspace 范围")
+@Tag(name = "当前用户", description = "读取当前 Session 对应用户及其实时有效公司角色")
 public class CurrentUserController {
 
-    /* 从 MySQL 查询当前有效用户、成员关系和 Workspace 级角色。 */
+    /* 从 MySQL 查询当前有效用户、公司成员关系和角色。 */
     private final CurrentUserQuery currentUserQuery;
 
     public CurrentUserController(CurrentUserQuery currentUserQuery) {
@@ -29,7 +29,7 @@ public class CurrentUserController {
     @GetMapping
     @Operation(summary = "查询当前用户", description = "权限：已登录；成员关系和角色始终从 MySQL 当前事实解析。")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "当前用户与有效 Workspace 范围"),
+        @ApiResponse(responseCode = "200", description = "当前用户与有效公司角色"),
         @ApiResponse(responseCode = "401", description = "当前请求没有有效 Session")
     })
     public CurrentUser me(HttpServletRequest request) {

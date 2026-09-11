@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 @Profile("!test-unit")
 public class CurrentUserQuery {
 
-    /* 当前用户及其有效租户范围的 MySQL 查询端口。 */
+    /* 当前用户及其有效公司角色的 MySQL 查询端口。 */
     private final AuthenticationStore authenticationStore;
 
     public CurrentUserQuery(AuthenticationStore authenticationStore) {

@@ -5,7 +5,7 @@ import java.util.List;
 
 public record RequirementDetails(
         /* 对应的 Requirement 工作项标识。 */ long workItemId,
-        /* 所属工作区范围。 */ long workspaceId,
+        /* 所属工作区范围。 */ long organizationId,
         /* 可验证的业务目标。 */ String goal,
         /* 本次明确纳入的范围。 */ String inScope,
         /* 本次明确排除的范围；允许为空。 */ String outOfScope,

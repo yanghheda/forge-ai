@@ -22,46 +22,44 @@ import {
   type TestRunView,
 } from "../api/work-item-api";
 
-export function QaPanel({ workspaceId, projectId, requirementId, onChanged }: {
-  workspaceId: number;
-  projectId: number;
+export function QaPanel({ organizationId, requirementId, onChanged }: {
+  organizationId: number;
   requirementId: number;
   onChanged: () => Promise<unknown>;
 }) {
   const client = useQueryClient();
-  const key = ["qa", workspaceId, projectId, requirementId];
-  const cases = useQuery({ queryKey: [...key, "cases"], queryFn: () => listTestCases(workspaceId, projectId, requirementId) });
-  const run = useQuery({ queryKey: [...key, "run"], queryFn: () => getLatestTestRun(workspaceId, projectId, requirementId), retry: false });
-  const bugs = useQuery({ queryKey: [...key, "bugs"], queryFn: () => listBugs(workspaceId, projectId, requirementId) });
+  const key = ["qa", organizationId, requirementId];
+  const cases = useQuery({ queryKey: [...key, "cases"], queryFn: () => listTestCases(organizationId, requirementId) });
+  const run = useQuery({ queryKey: [...key, "run"], queryFn: () => getLatestTestRun(organizationId, requirementId), retry: false });
+  const bugs = useQuery({ queryKey: [...key, "bugs"], queryFn: () => listBugs(organizationId, requirementId) });
   const [title, setTitle] = useState("");
   const refresh = async () => {
     await Promise.all([client.invalidateQueries({ queryKey: key }), onChanged()]);
   };
   const createCase = useMutation({
-    mutationFn: () => createTestCase({ workspaceId, projectId, requirementId, title, preconditions: "", steps: ["执行测试"], expectedResult: "符合预期", priority: "P1" }),
+    mutationFn: () => createTestCase({ organizationId, requirementId, title, preconditions: "", steps: ["执行测试"], expectedResult: "符合预期", priority: "P1" }),
     onSuccess: () => { setTitle(""); void refresh(); },
   });
   const createRun = useMutation({
-    mutationFn: () => createTestRun({ workspaceId, projectId, requirementId, environment: "staging" }),
+    mutationFn: () => createTestRun({ organizationId, requirementId, environment: "staging" }),
     onSuccess: refresh,
   });
   const update = useMutation({
     mutationFn: ({ resultId, status, version }: { resultId: number; status: "PASS" | "FAIL" | "BLOCKED" | "SKIPPED"; version: number }) =>
-      updateTestResult({ workspaceId, projectId, runId: run.data!.id, resultId, status, expectedVersion: version }),
+      updateTestResult({ organizationId, runId: run.data!.id, resultId, status, expectedVersion: version }),
     onSuccess: refresh,
   });
   const complete = useMutation({
-    mutationFn: () => completeTestRun({ workspaceId, projectId, runId: run.data!.id, expectedVersion: run.data!.version }),
+    mutationFn: () => completeTestRun({ organizationId, runId: run.data!.id, expectedVersion: run.data!.version }),
     onSuccess: refresh,
   });
   const reopen = useMutation({
-    mutationFn: () => reopenTestRun({ workspaceId, projectId, runId: run.data!.id, expectedVersion: run.data!.version, reason: "重新回归" }),
+    mutationFn: () => reopenTestRun({ organizationId, runId: run.data!.id, expectedVersion: run.data!.version, reason: "重新回归" }),
     onSuccess: refresh,
   });
   const createFailureBug = useMutation({
     mutationFn: (result: TestRunView["results"][number]) => createBug({
-      workspaceId,
-      projectId,
+      organizationId,
       requirementId,
       testRunId: run.data!.id,
       testResultId: result.id,
@@ -80,8 +78,7 @@ export function QaPanel({ workspaceId, projectId, requirementId, onChanged }: {
       reason?: string;
       evidence?: string;
     }) => transitionBug({
-      workspaceId,
-      projectId,
+      organizationId,
       bugId: bug.id,
       action,
       expectedVersion: bug.version,

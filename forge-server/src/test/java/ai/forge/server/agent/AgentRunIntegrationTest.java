@@ -35,18 +35,17 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     private JdbcTemplate jdbcTemplate;
 
     private String ownerCookie;
-    private long workspaceId;
-    private long projectId;
+    private long organizationId;
+
 
     @BeforeEach
-    void initializeProject() throws Exception {
+    void initializeOrganization() throws Exception {
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
                 "outbox_events", "agent_tool_calls", "approvals", "agent_events", "agent_steps", "agent_runs", "comments", "work_item_relations",
-                "work_item_labels", "project_policies", "work_item_events", "review_records",
-                "requirement_details", "work_items", "project_item_sequences", "project_members", "projects",
-                "audit_logs", "member_roles", "workspace_members", "workspaces", "organizations", "users")) {
+                "work_item_labels", "organization_policies", "work_item_events", "review_records",
+                "requirement_details", "work_items", "organization_item_sequences",                 "organization_policies", "audit_logs", "member_roles", "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         ResponseEntity<String> initialized = csrf().post(
@@ -57,20 +56,15 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
-                        "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"),
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
                 null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         ownerCookie = loginOwner();
-        workspaceId = jdbcTemplate.queryForObject("SELECT id FROM workspaces WHERE slug = 'engineering'", Long.class);
-        ResponseEntity<String> project = csrf().post(
-                "/api/v1/projects",
-                Map.of("workspaceId", workspaceId, "key", "FORGE", "name", "ForgeAI", "description", "会话 18"),
-                ownerCookie,
-                String.class);
-        assertThat(project.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        projectId = objectMapper.readTree(project.getBody()).get("id").asLong();
+        organizationId = jdbcTemplate.queryForObject(
+                "SELECT default_organization_id FROM instance_settings WHERE id = 1", Long.class);
     }
 
     @AfterEach
@@ -112,7 +106,7 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void clientRequestIdIsIdempotentForTheSameUserAndProject() throws Exception {
+    void clientRequestIdIsIdempotentForTheSameUserAndOrganization() throws Exception {
         JsonNode first = data(createRun("first", "same-request"));
         JsonNode repeated = data(createRun("first", "same-request"));
 
@@ -165,11 +159,11 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void knownRunIdCannotCrossWorkspaceOrProjectScope() throws Exception {
+    void knownRunIdUsesCompanyScopeFromSession() throws Exception {
         String runId = data(createRun("scope", "scope-request")).get("id").asText();
 
-        assertThat(getRun(runId, workspaceId + 999, projectId).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(getRun(runId, workspaceId, projectId + 999).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(getRun(runId).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(getRun("00000000000000000000000000").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
@@ -182,7 +176,7 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
         headers.setAccept(List.of(MediaType.TEXT_EVENT_STREAM));
         headers.set("Last-Event-ID", "2");
         ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/agent-runs/" + runId + "/events?workspaceId=" + workspaceId + "&projectId=" + projectId,
+                "/api/v1/agent-runs/" + runId + "/events",
                 org.springframework.http.HttpMethod.GET,
                 new org.springframework.http.HttpEntity<>(headers),
                 String.class);
@@ -195,8 +189,7 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
                 .doesNotContain("should-not-be-persisted");
 
         ResponseEntity<String> caughtUp = restTemplate.exchange(
-                "/api/v1/agent-runs/" + runId + "/events?workspaceId=" + workspaceId + "&projectId=" + projectId
-                        + "&afterSequence=" + terminal.get("lastSequence").asLong(),
+                "/api/v1/agent-runs/" + runId + "/events?afterSequence=" + terminal.get("lastSequence").asLong(),
                 org.springframework.http.HttpMethod.GET,
                 new org.springframework.http.HttpEntity<>(headers),
                 String.class);
@@ -205,14 +198,13 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void streamScopeViolationIsHiddenAsNotFound() throws Exception {
-        String runId = data(createRun("stream scope", "stream-scope")).get("id").asText();
+    void unknownStreamIsHiddenAsNotFound() {
+        String runId = "00000000000000000000000000";
         org.springframework.http.HttpHeaders headers = headers(ownerCookie);
         headers.setAccept(List.of(MediaType.TEXT_EVENT_STREAM));
 
         ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/agent-runs/" + runId + "/events?workspaceId=" + workspaceId
-                        + "&projectId=" + (projectId + 999),
+                "/api/v1/agent-runs/" + runId + "/events",
                 org.springframework.http.HttpMethod.GET,
                 new org.springframework.http.HttpEntity<>(headers),
                 String.class);
@@ -227,8 +219,8 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
 
     private ResponseEntity<String> createRun(String message, String clientRequestId, String mediumToolConfirmation) {
         Map<String, Object> body = new java.util.LinkedHashMap<>();
-        body.put("workspaceId", workspaceId);
-        body.put("projectId", projectId);
+        body.put("organizationId", organizationId);
+        body.put("organizationId", organizationId);
         body.put("skill", "PRODUCT");
         body.put("message", message);
         body.put("clientRequestId", clientRequestId);
@@ -242,7 +234,7 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
         Instant deadline = Instant.now().plus(Duration.ofSeconds(5));
         JsonNode snapshot;
         do {
-            ResponseEntity<String> response = getRun(runId, workspaceId, projectId);
+            ResponseEntity<String> response = getRun(runId);
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             snapshot = data(response);
             if (snapshot.get("terminal").asBoolean()) {
@@ -253,10 +245,9 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
         throw new AssertionError("Fake dispatcher did not finish run before deadline");
     }
 
-    private ResponseEntity<String> getRun(String runId, long requestedWorkspaceId, long requestedProjectId) {
+    private ResponseEntity<String> getRun(String runId) {
         return restTemplate.exchange(
-                "/api/v1/agent-runs/" + runId + "?workspaceId=" + requestedWorkspaceId
-                        + "&projectId=" + requestedProjectId,
+                "/api/v1/agent-runs/" + runId,
                 org.springframework.http.HttpMethod.GET,
                 new org.springframework.http.HttpEntity<>(headers(ownerCookie)),
                 String.class);

@@ -51,8 +51,7 @@ public class InternalToolController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         AgentToolExecution execution = executeService.execute(
-                credential.workspaceId(),
-                credential.projectId(),
+                credential.organizationId(),
                 credential.runId(),
                 toolName,
                 body.toolCallId(),

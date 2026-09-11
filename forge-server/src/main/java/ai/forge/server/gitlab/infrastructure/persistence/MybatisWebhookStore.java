@@ -38,7 +38,7 @@ public class MybatisWebhookStore implements WebhookStore {
     @Override
     public Optional<String> findSecret(long connectionId) {
         return mapper.findWebhookSecret(connectionId).stream().findFirst().map(row -> secrets.decrypt(
-                number(row, "workspace_id"), text(row, "type"), new EncryptedSecret(
+                number(row, "organization_id"), text(row, "type"), new EncryptedSecret(
                         text(row, "ciphertext"), text(row, "iv"), ((Number) row.get("key_version")).intValue(),
                         text(row, "fingerprint"))));
     }
@@ -57,7 +57,7 @@ public class MybatisWebhookStore implements WebhookStore {
             return Optional.empty();
         }
         mapper.markProcessing(number(row, "id"), lease.toSeconds());
-        return Optional.of(new WebhookDelivery(number(row, "id"), number(row, "workspace_id"),
+        return Optional.of(new WebhookDelivery(number(row, "id"), number(row, "organization_id"),
                 number(row, "connection_id"), text(row, "delivery_key"), text(row, "event_type"),
                 text(row, "payload_hash"), text(row, "payload"), ((Number) row.get("attempts")).intValue(),
                 (LocalDateTime) row.get("received_at")));
@@ -72,19 +72,19 @@ public class MybatisWebhookStore implements WebhookStore {
             mapper.markDone(delivery.id(), "IGNORED");
             return;
         }
-        long workspaceId = number(repository, "workspace_id");
+        long organizationId = number(repository, "organization_id");
         long repositoryId = number(repository, "id");
         int affected;
         String aggregateType;
         long aggregateId;
         String eventType;
         if (change instanceof WebhookChange.MergeRequestChanged mr) {
-            if (!isNewer(mapper.lockMergeRequestTime(workspaceId, repositoryId, mr.remoteMrIid()),
+            if (!isNewer(mapper.lockMergeRequestTime(organizationId, repositoryId, mr.remoteMrIid()),
                     mr.remoteUpdatedAt())) {
                 mapper.markDone(delivery.id(), "PROCESSED");
                 return;
             }
-            affected = mapper.upsertMergeRequest(workspaceId, repositoryId, mr.remoteMrIid(), mr.title(),
+            affected = mapper.upsertMergeRequest(organizationId, repositoryId, mr.remoteMrIid(), mr.title(),
                     mr.sourceBranch(), mr.targetBranch(), mr.state(), mr.webUrl(), mr.authorExternalId(),
                     mr.headSha(), mr.mergeStatus(), mr.remoteUpdatedAt());
             aggregateType = "MERGE_REQUEST";
@@ -92,12 +92,12 @@ public class MybatisWebhookStore implements WebhookStore {
             eventType = "MERGE_REQUEST_CHANGED";
         } else {
             WebhookChange.PipelineChanged pipeline = (WebhookChange.PipelineChanged) change;
-            if (!isNewer(mapper.lockPipelineTime(workspaceId, repositoryId, pipeline.remotePipelineId()),
+            if (!isNewer(mapper.lockPipelineTime(organizationId, repositoryId, pipeline.remotePipelineId()),
                     pipeline.remoteUpdatedAt())) {
                 mapper.markDone(delivery.id(), "PROCESSED");
                 return;
             }
-            affected = mapper.upsertPipeline(workspaceId, repositoryId, pipeline.remotePipelineId(), pipeline.ref(),
+            affected = mapper.upsertPipeline(organizationId, repositoryId, pipeline.remotePipelineId(), pipeline.ref(),
                     pipeline.commitSha(), pipeline.status(), pipeline.webUrl(), pipeline.startedAt(),
                     pipeline.finishedAt(), pipeline.remoteUpdatedAt());
             aggregateType = "PIPELINE";
@@ -106,7 +106,7 @@ public class MybatisWebhookStore implements WebhookStore {
         }
         if (affected > 0) {
             mapper.insertOutbox(aggregateType, aggregateId, eventType, outboxPayload(
-                    workspaceId, repositoryId, aggregateId, delivery.deliveryKey()));
+                    organizationId, repositoryId, aggregateId, delivery.deliveryKey()));
         }
         mapper.markDone(delivery.id(), "PROCESSED");
     }
@@ -123,9 +123,9 @@ public class MybatisWebhookStore implements WebhookStore {
         mapper.markFailed(delivery.id(), maxAttempts, backoff.toNanos() / 1_000L, errorMessage);
     }
 
-    private String outboxPayload(long workspaceId, long repositoryId, long remoteId, String deliveryKey) {
+    private String outboxPayload(long organizationId, long repositoryId, long remoteId, String deliveryKey) {
         try {
-            return objectMapper.writeValueAsString(Map.of("workspaceId", workspaceId, "repositoryId", repositoryId,
+            return objectMapper.writeValueAsString(Map.of("organizationId", organizationId, "repositoryId", repositoryId,
                     "remoteId", remoteId, "deliveryKey", deliveryKey));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException(exception);

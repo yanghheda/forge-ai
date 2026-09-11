@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Profile("!test-unit")
 public class MybatisWorkItemStore implements WorkItemStore {
 
-    /* 执行显式带 Workspace/Project scope、行锁与乐观锁的 MyBatis SQL。 */
+    /* 执行显式带公司 scope、行锁与乐观锁的 MyBatis SQL。 */
     private final WorkItemMapper mapper;
 
     public MybatisWorkItemStore(WorkItemMapper mapper) {
@@ -32,8 +32,7 @@ public class MybatisWorkItemStore implements WorkItemStore {
     @Override
     @Transactional
     public WorkItem create(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long reporterUserId,
             WorkItemType type,
             String title,
@@ -43,8 +42,7 @@ public class MybatisWorkItemStore implements WorkItemStore {
             Long assigneeUserId,
             Instant dueAt) {
         return insertWorkItem(
-                workspaceId,
-                projectId,
+                organizationId,
                 reporterUserId,
                 type,
                 null,
@@ -59,8 +57,7 @@ public class MybatisWorkItemStore implements WorkItemStore {
     @Override
     @Transactional
     public WorkItem createChild(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long reporterUserId,
             WorkItemType type,
             long parentId,
@@ -71,8 +68,7 @@ public class MybatisWorkItemStore implements WorkItemStore {
             Long assigneeUserId,
             Instant dueAt) {
         return insertWorkItem(
-                workspaceId,
-                projectId,
+                organizationId,
                 reporterUserId,
                 type,
                 parentId,
@@ -86,8 +82,7 @@ public class MybatisWorkItemStore implements WorkItemStore {
 
     /* 在同一事务内锁定项目编号序列并写入工作项；parentId 为空表示顶层工作项。 */
     private WorkItem insertWorkItem(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long reporterUserId,
             WorkItemType type,
             Long parentId,
@@ -97,17 +92,16 @@ public class MybatisWorkItemStore implements WorkItemStore {
             WorkItemPriority priority,
             Long assigneeUserId,
             Instant dueAt) {
-        Map<String, Object> sequence = mapper.lockSequence(workspaceId, projectId).stream()
+        Map<String, Object> sequence = mapper.lockSequence(organizationId).stream()
                 .findFirst()
                 .orElseThrow(ResourceNotFoundException::new);
         long itemNumber = number(sequence, "next_value");
-        if (mapper.consumeSequence(projectId, itemNumber) != 1) {
+        if (mapper.consumeSequence(organizationId, itemNumber) != 1) {
             throw new IllegalStateException("Locked work item sequence changed unexpectedly");
         }
-        String itemKey = text(sequence, "project_key") + "-" + itemNumber;
+        String itemKey = "REQ-" + itemNumber;
         mapper.insert(
-                workspaceId,
-                projectId,
+                organizationId,
                 itemNumber,
                 itemKey,
                 type.name(),
@@ -120,20 +114,19 @@ public class MybatisWorkItemStore implements WorkItemStore {
                 reporterUserId,
                 dueAt);
         long workItemId = mapper.lastInsertId();
-        return findByIdAndScope(workspaceId, projectId, workItemId).orElseThrow();
+        return findByIdAndScope(organizationId, workItemId).orElseThrow();
     }
 
     @Override
-    public Optional<WorkItem> findByIdAndScope(long workspaceId, long projectId, long workItemId) {
-        return mapper.findByIdAndScope(workspaceId, projectId, workItemId).stream()
+    public Optional<WorkItem> findByIdAndScope(long organizationId, long workItemId) {
+        return mapper.findByIdAndScope(organizationId, workItemId).stream()
                 .findFirst()
                 .map(this::workItem);
     }
 
     @Override
     public WorkItemPage findPage(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             WorkItemType type,
             WorkItemStatus status,
             int page,
@@ -141,19 +134,18 @@ public class MybatisWorkItemStore implements WorkItemStore {
         String typeValue = type == null ? null : type.name();
         String statusValue = status == null ? null : status.name();
         List<WorkItemSummary> items = mapper.findPage(
-                        workspaceId, projectId, typeValue, statusValue, pageSize, (page - 1) * pageSize)
+                        organizationId, typeValue, statusValue, pageSize, (page - 1) * pageSize)
                 .stream()
                 .map(this::workItemSummary)
                 .toList();
         return new WorkItemPage(
-                items, page, pageSize, mapper.countPage(workspaceId, projectId, typeValue, statusValue));
+                items, page, pageSize, mapper.countPage(organizationId, typeValue, statusValue));
     }
 
     private WorkItemSummary workItemSummary(Map<String, Object> row) {
         return new WorkItemSummary(
                 number(row, "id"),
-                number(row, "workspace_id"),
-                number(row, "project_id"),
+                number(row, "organization_id"),
                 number(row, "item_number"),
                 text(row, "item_key"),
                 WorkItemType.valueOf(text(row, "type")),
@@ -169,8 +161,7 @@ public class MybatisWorkItemStore implements WorkItemStore {
 
     @Override
     public boolean update(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long workItemId,
             String title,
             String description,
@@ -179,8 +170,7 @@ public class MybatisWorkItemStore implements WorkItemStore {
             Instant dueAt,
             long expectedVersion) {
         return mapper.update(
-                        workspaceId,
-                        projectId,
+                        organizationId,
                         workItemId,
                         title,
                         description,
@@ -194,8 +184,7 @@ public class MybatisWorkItemStore implements WorkItemStore {
     private WorkItem workItem(Map<String, Object> row) {
         return new WorkItem(
                 number(row, "id"),
-                number(row, "workspace_id"),
-                number(row, "project_id"),
+                number(row, "organization_id"),
                 number(row, "item_number"),
                 text(row, "item_key"),
                 WorkItemType.valueOf(text(row, "type")),

@@ -42,24 +42,22 @@ public class AgentRunService {
     @Transactional
     public AgentRunSnapshot create(
             long userId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             Long workItemId,
             AgentSkill skill,
             MediumToolConfirmation mediumToolConfirmation,
             String message,
             String clientRequestId,
             String requestId) {
-        permissionEvaluator.requireProject(userId, workspaceId, projectId, "agent.run");
-        permissionEvaluator.requireProject(userId, workspaceId, projectId, skill.requiredPermission());
-        requireWorkItemScope(userId, workspaceId, projectId, workItemId);
+        permissionEvaluator.requireOrganization(userId, organizationId, "agent.run");
+        permissionEvaluator.requireOrganization(userId, organizationId, skill.requiredPermission());
+        requireWorkItemScope(userId, organizationId, workItemId);
         MediumToolConfirmation policy = mediumToolConfirmation == null
                 ? MediumToolConfirmation.ASK
                 : mediumToolConfirmation;
         AgentRunStore.CreateResult result = runStore.create(
                 AgentRunIdGenerator.next(),
-                workspaceId,
-                projectId,
+                organizationId,
                 workItemId,
                 userId,
                 skill,
@@ -71,8 +69,7 @@ public class AgentRunService {
         if (result.created()) {
             eventPublisher.publishEvent(new AgentRunRequested(
                     result.run().id(),
-                    workspaceId,
-                    projectId,
+                    organizationId,
                     workItemId,
                     userId,
                     skill.name(),
@@ -80,25 +77,25 @@ public class AgentRunService {
                     message.trim(),
                     requestId));
         }
-        return snapshot(workspaceId, projectId, result.run().id());
+        return snapshot(organizationId, result.run().id());
     }
 
-    public AgentRunSnapshot get(long userId, long workspaceId, long projectId, String runId) {
-        permissionEvaluator.requireProject(userId, workspaceId, projectId, "agent.run");
-        return snapshot(workspaceId, projectId, normalizeRunId(runId));
+    public AgentRunSnapshot get(long userId, long organizationId, String runId) {
+        permissionEvaluator.requireOrganization(userId, organizationId, "agent.run");
+        return snapshot(organizationId, normalizeRunId(runId));
     }
 
     public java.util.List<ai.forge.server.agent.domain.AgentEvent> eventsAfter(
-            long userId, long workspaceId, long projectId, String runId, long afterSequence, int limit) {
-        get(userId, workspaceId, projectId, runId);
+            long userId, long organizationId, String runId, long afterSequence, int limit) {
+        get(userId, organizationId, runId);
         if (afterSequence < 0) {
             throw new IllegalArgumentException("afterSequence must not be negative");
         }
-        return runStore.findEventsAfter(workspaceId, projectId, runId, afterSequence, limit);
+        return runStore.findEventsAfter(organizationId, runId, afterSequence, limit);
     }
 
-    private AgentRunSnapshot snapshot(long workspaceId, long projectId, String runId) {
-        AgentRun run = runStore.find(workspaceId, projectId, runId).orElseThrow(ResourceNotFoundException::new);
+    private AgentRunSnapshot snapshot(long organizationId, String runId) {
+        AgentRun run = runStore.find(organizationId, runId).orElseThrow(ResourceNotFoundException::new);
         return new AgentRunSnapshot(
                 run.id(),
                 run.status(),
@@ -107,17 +104,17 @@ public class AgentRunService {
                 run.startedAt(),
                 run.finishedAt(),
                 run.errorCode(),
-                runStore.findSteps(workspaceId, projectId, runId));
+                runStore.findSteps(organizationId, runId));
     }
 
-    private void requireWorkItemScope(long userId, long workspaceId, long projectId, Long workItemId) {
+    private void requireWorkItemScope(long userId, long organizationId, Long workItemId) {
         if (workItemId == null) {
             return;
         }
-        WorkItem item = workItemStore.findByIdAndScope(workspaceId, projectId, workItemId)
+        WorkItem item = workItemStore.findByIdAndScope(organizationId, workItemId)
                 .orElseThrow(ResourceNotFoundException::new);
-        permissionEvaluator.requireProject(
-                userId, workspaceId, projectId, item.type().permissionResource() + ".read");
+        permissionEvaluator.requireOrganization(
+                userId, organizationId, item.type().permissionResource() + ".read");
     }
 
     private String redact(String message) {

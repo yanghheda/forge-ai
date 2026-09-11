@@ -14,7 +14,7 @@ ForgeAI 的 Spring Boot 模块化单体，是业务事实、授权、状态机�
 
 默认 profile 连接 Compose 网络中的 `mysql`、`redis` 和 `qdrant`。MySQL 与 Redis 决定 readiness；Qdrant 是可重建派生索引，故障时报告 `DEGRADED` 而不阻断 Backend readiness。Swagger UI 默认关闭，仅在 `dev` profile 开启。
 
-Flyway 是 MySQL Schema 的唯一演进入口。`db/migration` 中已发布的版本迁移不可修改，只能新增更高版本。身份、Workspace 初始化事实和认证审计范围已经由 V3/V4 建立。
+Flyway 是 MySQL Schema 的唯一演进入口。当前尚未上线的历史迁移已压平为公司级 `V1__company_platform_baseline.sql`；从该基线开始，后续结构调整只能新增更高版本迁移。
 
 ## 模块与分层
 

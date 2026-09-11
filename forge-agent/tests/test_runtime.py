@@ -24,7 +24,7 @@ def manifest(
         {
             "runId": run_id,
             "subject": {"userId": 12},
-            "scope": {"workspaceId": 2, "projectId": 10, "workItemId": 1024},
+            "scope": {"organizationId": 1, "workItemId": 1024},
             "skill": "UX",
             "effectiveToolNames": (
                 effective_tool_names if effective_tool_names is not None else ["get_work_item"]
@@ -148,8 +148,8 @@ def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:
     class TwoToolModel(FakeLanguageModel):
         def select_tool(self, skill, message, executed_tool_names):
             self.select_calls += 1
-            if "get_project" not in executed_tool_names:
-                return ToolSelection(tool_name="get_project")
+            if "get_organization" not in executed_tool_names:
+                return ToolSelection(tool_name="get_organization")
             if "get_work_item" not in executed_tool_names:
                 return ToolSelection(tool_name="get_work_item", arguments={"workItemId": 1024})
             return None
@@ -158,7 +158,7 @@ def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:
         [
             ToolExecution(
                 status="SUCCEEDED",
-                tool_name="get_project",
+                tool_name="get_organization",
                 tool_call_id="call-1",
                 result={"id": 10},
             ),
@@ -175,7 +175,7 @@ def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:
     result = runtime.start(
         RunStart(
             manifest=manifest(
-                effective_tool_names=["get_project", "get_work_item"],
+                effective_tool_names=["get_organization", "get_work_item"],
                 max_tool_calls=2,
             ),
             message="读取项目和工作项",

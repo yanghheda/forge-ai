@@ -16,7 +16,7 @@ public final class PublishedUxSpecGuard implements TransitionGuard {
     @Override
     public GuardResult evaluate(TransitionContext context) {
         boolean present = materialStore.hasPublishedUxSpec(
-                context.workItem().workspaceId(), context.workItem().projectId(), context.workItem().id());
+                context.workItem().organizationId(), context.workItem().id());
         return present ? GuardResult.allowed() : new GuardResult(java.util.List.of("publishedUxSpec"));
     }
 }

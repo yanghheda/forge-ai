@@ -25,7 +25,7 @@ class DemoSourceControlProviderTest {
                 context, branch.name(), "main", "手机号验证码登录", "start-1");
         var replayedMergeRequest = provider.findOpenMergeRequest(context, branch.name(), "main").orElseThrow();
         var pipeline = provider.triggerPipeline(
-                new PipelineContext(32004, 32007, 32042, 32041, "https://gitlab.demo.invalid", "32007",
+                new PipelineContext(32004, 32042, 32041, "https://gitlab.demo.invalid", "32007",
                         "demo-token"),
                 branch.name());
 
@@ -40,7 +40,7 @@ class DemoSourceControlProviderTest {
 
     private DevelopmentContext context() {
         WorkItem task = new WorkItem(
-                32013, 32004, 32007, 3, "DEMO-3", WorkItemType.DEV_TASK,
+                32013, 32004, 3, "DEMO-3", WorkItemType.DEV_TASK,
                 "手机号验证码登录", "", WorkItemStatus.TODO, WorkItemPriority.HIGH,
                 32011L, 32001L, null, 0, Instant.EPOCH, Instant.EPOCH);
         return new DevelopmentContext(

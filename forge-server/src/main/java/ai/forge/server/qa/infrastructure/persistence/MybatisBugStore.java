@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Profile("!test-unit")
 public class MybatisBugStore implements BugStore {
 
-    /* 执行显式 Workspace 与 Project scope SQL。 */
+    /* 执行显式公司作用域 SQL。 */
     private final BugMapper mapper;
 
     /* 序列化复现步骤与修复证据。 */
@@ -37,60 +37,60 @@ public class MybatisBugStore implements BugStore {
     public BugView create(WorkItem item, BugSeverity severity, long requirementId, Long testRunId,
             Long testResultId, List<String> reproductionSteps, String expectedResult, String actualResult,
             Long devTaskId) {
-        if (mapper.countRequirement(item.workspaceId(), item.projectId(), requirementId) != 1) {
+        if (mapper.countRequirement(item.organizationId(), requirementId) != 1) {
             throw new ResourceNotFoundException();
         }
         if ((testRunId == null) != (testResultId == null)) {
             throw new IllegalArgumentException("testRunId and testResultId must be supplied together");
         }
-        if (testResultId != null && mapper.countFailedResult(item.workspaceId(), item.projectId(), requirementId,
+        if (testResultId != null && mapper.countFailedResult(item.organizationId(), requirementId,
                 testRunId, testResultId) != 1) {
             throw new IllegalArgumentException("bug source must be a FAIL or BLOCKED result in the requirement");
         }
-        if (devTaskId != null && mapper.countDevTask(item.workspaceId(), item.projectId(), devTaskId) != 1) {
+        if (devTaskId != null && mapper.countDevTask(item.organizationId(), devTaskId) != 1) {
             throw new ResourceNotFoundException();
         }
-        mapper.setSeverity(item.workspaceId(), item.projectId(), item.id(), severity.name());
-        mapper.insertDetails(item.workspaceId(), item.projectId(), item.id(), requirementId, testRunId,
+        mapper.setSeverity(item.organizationId(), item.id(), severity.name());
+        mapper.insertDetails(item.organizationId(), item.id(), requirementId, testRunId,
                 testResultId, write(reproductionSteps), expectedResult, actualResult);
-        mapper.insertRelation(item.workspaceId(), item.projectId(), item.id(), requirementId,
+        mapper.insertRelation(item.organizationId(), item.id(), requirementId,
                 "FOUND_IN", item.reporterUserId());
         if (devTaskId != null) {
-            mapper.insertRelation(item.workspaceId(), item.projectId(), item.id(), devTaskId,
+            mapper.insertRelation(item.organizationId(), item.id(), devTaskId,
                     "FIXED_BY", item.reporterUserId());
         }
-        return find(item.workspaceId(), item.projectId(), item.id()).orElseThrow();
+        return find(item.organizationId(), item.id()).orElseThrow();
     }
 
     @Override
-    public Optional<BugView> find(long workspaceId, long projectId, long bugId) {
-        return mapper.find(workspaceId, projectId, bugId).stream().findFirst().map(this::view);
+    public Optional<BugView> find(long organizationId, long bugId) {
+        return mapper.find(organizationId, bugId).stream().findFirst().map(this::view);
     }
 
     @Override
     @Transactional
-    public BugView transition(long workspaceId, long projectId, long bugId, long userId, BugAction action,
+    public BugView transition(long organizationId, long bugId, long userId, BugAction action,
             String toStatus, String reason, List<String> fixEvidence, long expectedVersion, String idempotencyKey) {
-        BugView current = find(workspaceId, projectId, bugId).orElseThrow(ResourceNotFoundException::new);
-        if (mapper.transition(workspaceId, projectId, bugId, current.status().name(), toStatus,
+        BugView current = find(organizationId, bugId).orElseThrow(ResourceNotFoundException::new);
+        if (mapper.transition(organizationId, bugId, current.status().name(), toStatus,
                 expectedVersion) != 1) {
             throw new VersionConflictException();
         }
         if (action == BugAction.RESOLVE) {
-            mapper.resolveDetails(workspaceId, projectId, bugId, reason, write(fixEvidence));
+            mapper.resolveDetails(organizationId, bugId, reason, write(fixEvidence));
         } else if (action == BugAction.VERIFY) {
-            mapper.verifyDetails(workspaceId, projectId, bugId, userId);
+            mapper.verifyDetails(organizationId, bugId, userId);
         } else if (action == BugAction.REOPEN) {
-            mapper.reopenDetails(workspaceId, projectId, bugId);
+            mapper.reopenDetails(organizationId, bugId);
         }
-        mapper.insertEvent(workspaceId, projectId, bugId, action.name(), current.status().name(), toStatus,
+        mapper.insertEvent(organizationId, bugId, action.name(), current.status().name(), toStatus,
                 userId, reason, idempotencyKey);
-        return find(workspaceId, projectId, bugId).orElseThrow();
+        return find(organizationId, bugId).orElseThrow();
     }
 
     @Override
-    public List<BugView> findByRequirement(long workspaceId, long projectId, long requirementId) {
-        return mapper.findByRequirement(workspaceId, projectId, requirementId).stream().map(this::view).toList();
+    public List<BugView> findByRequirement(long organizationId, long requirementId) {
+        return mapper.findByRequirement(organizationId, requirementId).stream().map(this::view).toList();
     }
 
     private BugView view(Map<String, Object> row) {

@@ -28,31 +28,31 @@ public class RequirementDetailsService {
         this.store = store;
     }
 
-    public RequirementDetails get(long userId, long workspaceId, long projectId, long workItemId) {
-        requireRequirement(workspaceId, projectId, workItemId);
-        permissions.requireProject(userId, workspaceId, projectId, "requirement.read");
-        return store.find(workspaceId, projectId, workItemId)
-                .orElse(new RequirementDetails(workItemId, workspaceId, "", "", "", List.of(), "", 0, null));
+    public RequirementDetails get(long userId, long organizationId, long workItemId) {
+        requireRequirement(organizationId, workItemId);
+        permissions.requireOrganization(userId, organizationId, "requirement.read");
+        return store.find(organizationId, workItemId)
+                .orElse(new RequirementDetails(workItemId, organizationId, "", "", "", List.of(), "", 0, null));
     }
 
     @Transactional
     public RequirementDetails save(
-            long userId, long workspaceId, long projectId, long workItemId,
+            long userId, long organizationId, long workItemId,
             String goal, String inScope, String outOfScope, List<String> acceptanceCriteria,
             String businessValue, long expectedVersion) {
-        requireRequirement(workspaceId, projectId, workItemId);
-        permissions.requireProject(userId, workspaceId, projectId, "requirement.edit");
+        requireRequirement(organizationId, workItemId);
+        permissions.requireOrganization(userId, organizationId, "requirement.edit");
         List<String> criteria = acceptanceCriteria.stream().map(String::trim).filter(value -> !value.isEmpty()).toList();
-        boolean changed = store.save(workspaceId, projectId, workItemId, normalize(goal), normalize(inScope),
+        boolean changed = store.save(organizationId, workItemId, normalize(goal), normalize(inScope),
                 normalize(outOfScope), criteria, normalize(businessValue), expectedVersion);
         if (!changed) {
             throw new VersionConflictException();
         }
-        return store.find(workspaceId, projectId, workItemId).orElseThrow();
+        return store.find(organizationId, workItemId).orElseThrow();
     }
 
-    private void requireRequirement(long workspaceId, long projectId, long workItemId) {
-        if (workItems.findByIdAndScope(workspaceId, projectId, workItemId)
+    private void requireRequirement(long organizationId, long workItemId) {
+        if (workItems.findByIdAndScope(organizationId, workItemId)
                 .filter(item -> item.type() == WorkItemType.REQUIREMENT).isEmpty()) {
             throw new ResourceNotFoundException();
         }

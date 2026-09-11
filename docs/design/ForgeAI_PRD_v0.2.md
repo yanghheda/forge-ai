@@ -1,5 +1,7 @@
 # ForgeAI 产品需求文档（PRD）v0.2
 
+> **历史基线（已停止用于新实施）**：当前产品采用单实例单公司模型，公司下直接创建需求，不存在 Workspace/Project。现行范围与架构以 `ForgeAI_公司级架构基线_v2.md` 和 ADR-016 为准；本文仅保留产品演进背景。
+
 > **AI-Native Software Delivery Workbench**
 
 | 属性 | 内容 |

@@ -50,7 +50,7 @@ public class SetupController {
             summary = "初始化 ForgeAI 实例",
             description = "权限：无需登录且仅未初始化实例可调用；不使用幂等键，首次成功后永久返回冲突。")
     @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "首个 Owner、Organization 与 Workspace 已原子创建"),
+        @ApiResponse(responseCode = "201", description = "首个 Owner 与公司已原子创建"),
         @ApiResponse(responseCode = "400", description = "字段格式或密码安全要求不满足"),
         @ApiResponse(responseCode = "409", description = "实例已经初始化")
     })
@@ -63,8 +63,6 @@ public class SetupController {
                 body.password(),
                 body.organizationName(),
                 body.organizationSlug(),
-                body.workspaceName() == null ? body.organizationName() : body.workspaceName(),
-                body.workspaceSlug() == null ? body.organizationSlug() : body.workspaceSlug(),
                 requestId), decodeLogo(body));
         InitializeResponse response = new InitializeResponse(
                 result.userId(),
@@ -84,10 +82,6 @@ public class SetupController {
             @NotBlank @Size(max = 120) String organizationName,
             /* 默认组织的小写字母、数字和短横线路由短名。 */
             @NotBlank @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String organizationSlug,
-            /* 旧客户端兼容字段；新产品入口不再展示工作区。 */
-            @Size(max = 120) String workspaceName,
-            /* 旧客户端兼容字段；新产品入口不再展示工作区短名。 */
-            @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String workspaceSlug,
             /* 公司 Logo 的原始文件名，仅允许使用 .webp 后缀。 */
             @NotBlank @Pattern(regexp = ".+\\.[wW][eE][bB][pP]") String logoFileName,
             /* 公司 Logo 的媒体类型，必须精确为 image/webp。 */

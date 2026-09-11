@@ -44,9 +44,9 @@ class ToolArgumentValidatorTest {
                 Map.of("title", Map.of("type", "string", "minLength", 1)));
 
         List<String> errors = ToolArgumentValidator.validate(
-                schema, objectMapper.readTree("{\"title\": \"x\", \"workspaceId\": 999}"));
+                schema, objectMapper.readTree("{\"title\": \"x\", \"organizationId\": 999}"));
 
-        assertThat(errors).singleElement().asString().contains("workspaceId").contains("未定义");
+        assertThat(errors).singleElement().asString().contains("organizationId").contains("未定义");
     }
 
     @Test

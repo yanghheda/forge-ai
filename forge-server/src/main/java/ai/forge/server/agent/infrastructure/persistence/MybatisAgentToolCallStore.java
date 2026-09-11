@@ -20,9 +20,9 @@ public class MybatisAgentToolCallStore implements AgentToolCallStore {
 
     @Override
     public Optional<StoredToolCall> findSuccessful(
-            long workspaceId, long projectId, String runId, String idempotencyKey) {
+            long organizationId, String runId, String idempotencyKey) {
         List<Map<String, Object>> rows =
-                mapper.findSuccessful(workspaceId, projectId, runId, idempotencyKey);
+                mapper.findSuccessful(organizationId, runId, idempotencyKey);
         return rows.stream().findFirst().map(row -> new StoredToolCall(
                 row.get("tool_name").toString(),
                 ((Number) row.get("tool_version")).intValue(),
@@ -32,8 +32,7 @@ public class MybatisAgentToolCallStore implements AgentToolCallStore {
 
     @Override
     public void record(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             String runId,
             String toolCallId,
             String toolName,
@@ -44,8 +43,7 @@ public class MybatisAgentToolCallStore implements AgentToolCallStore {
             String idempotencyKey) {
         mapper.insertToolCall(
                 runId,
-                workspaceId,
-                projectId,
+                organizationId,
                 toolCallId,
                 toolName,
                 toolVersion,

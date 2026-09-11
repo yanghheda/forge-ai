@@ -35,29 +35,29 @@ public class DevelopmentService {
         this.sourceControl = sourceControl;
     }
 
-    public WorkItem createDevTask(long userId, long workspaceId, long projectId, long requirementId,
+    public WorkItem createDevTask(long userId, long organizationId, long requirementId,
             String title, String description, Long assigneeUserId) {
-        permissions.requireProject(userId, workspaceId, projectId, "task.create");
-        WorkItem requirement = store.findWorkItem(workspaceId, projectId, requirementId)
+        permissions.requireOrganization(userId, organizationId, "task.create");
+        WorkItem requirement = store.findWorkItem(organizationId, requirementId)
                 .orElseThrow(ResourceNotFoundException::new);
         if (requirement.type() != WorkItemType.REQUIREMENT
                 || requirement.status() != WorkItemStatus.READY_FOR_DEV) {
             throw new DevelopmentStateException();
         }
         if (assigneeUserId != null
-                && !store.hasActiveProjectMember(workspaceId, projectId, assigneeUserId)) {
+                && !store.hasActiveOrganizationMember(organizationId, assigneeUserId)) {
             throw new ResourceNotFoundException();
         }
         return store.createDevTask(
-                workspaceId, projectId, userId, requirementId, normalizeTitle(title), normalizeDescription(description),
+                organizationId, userId, requirementId, normalizeTitle(title), normalizeDescription(description),
                 assigneeUserId);
     }
 
-    public DevelopmentResult start(long userId, long workspaceId, long projectId, long devTaskId,
+    public DevelopmentResult start(long userId, long organizationId, long devTaskId,
             String requestedTargetBranch, String idempotencyKey) {
-        permissions.requireProject(userId, workspaceId, projectId, "task.edit");
-        permissions.requireProject(userId, workspaceId, projectId, "repo.read");
-        return startScoped(workspaceId, projectId, devTaskId, requestedTargetBranch, idempotencyKey);
+        permissions.requireOrganization(userId, organizationId, "task.edit");
+        permissions.requireOrganization(userId, organizationId, "repo.read");
+        return startScoped(organizationId, devTaskId, requestedTargetBranch, idempotencyKey);
     }
 
     public boolean reconcileNext() {
@@ -68,8 +68,7 @@ public class DevelopmentService {
         PendingDevelopmentOperation operation = pending.orElseThrow();
         try {
             startScoped(
-                    operation.workspaceId(),
-                    operation.projectId(),
+                    operation.organizationId(),
                     operation.workItemId(),
                     operation.targetBranch(),
                     operation.idempotencyKey());
@@ -88,13 +87,12 @@ public class DevelopmentService {
     }
 
     private DevelopmentResult startScoped(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long devTaskId,
             String requestedTargetBranch,
             String idempotencyKey) {
         DevelopmentContext context = store.begin(
-                workspaceId, projectId, devTaskId, requestedTargetBranch, requireText(idempotencyKey));
+                organizationId, devTaskId, requestedTargetBranch, requireText(idempotencyKey));
         String targetBranch = requestedTargetBranch == null || requestedTargetBranch.isBlank()
                 ? context.defaultBranch()
                 : requestedTargetBranch.trim();
@@ -155,12 +153,11 @@ public class DevelopmentService {
 
     public WorkItem completeTask(
             long userId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long devTaskId,
             long expectedVersion) {
-        permissions.requireProject(userId, workspaceId, projectId, "task.edit");
-        return store.completeTask(workspaceId, projectId, devTaskId, expectedVersion);
+        permissions.requireOrganization(userId, organizationId, "task.edit");
+        return store.completeTask(organizationId, devTaskId, expectedVersion);
     }
 
     static String branchName(WorkItem task) {

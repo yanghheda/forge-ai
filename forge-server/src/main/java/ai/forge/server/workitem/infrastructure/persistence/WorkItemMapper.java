@@ -12,26 +12,24 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface WorkItemMapper {
 
-    @Select("SELECT s.next_value, p.`key` AS project_key FROM project_item_sequences s "
-            + "JOIN projects p ON p.id = s.project_id "
-            + "WHERE s.project_id = #{projectId} AND p.workspace_id = #{workspaceId} AND p.status = 'ACTIVE' FOR UPDATE")
+    @Select("SELECT next_value FROM organization_item_sequences "
+            + "WHERE organization_id = #{organizationId} FOR UPDATE")
     List<Map<String, Object>> lockSequence(
-            @Param("workspaceId") long workspaceId, @Param("projectId") long projectId);
+            @Param("organizationId") long organizationId);
 
-    @Update("UPDATE project_item_sequences SET next_value = next_value + 1, version = version + 1 "
-            + "WHERE project_id = #{projectId} AND next_value = #{allocatedValue}")
+    @Update("UPDATE organization_item_sequences SET next_value = next_value + 1, version = version + 1 "
+            + "WHERE organization_id = #{organizationId} AND next_value = #{allocatedValue}")
     int consumeSequence(
-            @Param("projectId") long projectId, @Param("allocatedValue") long allocatedValue);
+            @Param("organizationId") long organizationId, @Param("allocatedValue") long allocatedValue);
 
-    @Insert("INSERT INTO work_items (workspace_id, project_id, item_number, item_key, type, title, description, "
+    @Insert("INSERT INTO work_items (organization_id, item_number, item_key, type, title, description, "
             + "status, priority, parent_id, assignee_user_id, reporter_user_id, due_at, severity, blocked_at, "
             + "blocked_reason, blocked_by, created_at, updated_at, deleted_at, version) VALUES "
-            + "(#{workspaceId}, #{projectId}, #{itemNumber}, #{itemKey}, #{type}, #{title}, #{description}, "
+            + "(#{organizationId}, #{itemNumber}, #{itemKey}, #{type}, #{title}, #{description}, "
             + "#{status}, #{priority}, #{parentId}, #{assigneeUserId}, #{reporterUserId}, #{dueAt}, NULL, NULL, NULL, "
             + "NULL, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), NULL, 0)")
     int insert(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("itemNumber") long itemNumber,
             @Param("itemKey") String itemKey,
             @Param("type") String type,
@@ -47,46 +45,42 @@ public interface WorkItemMapper {
     @Select("SELECT LAST_INSERT_ID()")
     long lastInsertId();
 
-    @Select("SELECT id, workspace_id, project_id, item_number, item_key, type, title, description, status, "
+    @Select("SELECT id, organization_id, item_number, item_key, type, title, description, status, "
             + "priority, assignee_user_id, reporter_user_id, due_at, version, created_at, updated_at "
-            + "FROM work_items WHERE id = #{workItemId} AND workspace_id = #{workspaceId} "
-            + "AND project_id = #{projectId} AND deleted_at IS NULL")
+            + "FROM work_items WHERE id = #{workItemId} AND organization_id = #{organizationId} "
+            + "AND deleted_at IS NULL")
     List<Map<String, Object>> findByIdAndScope(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("workItemId") long workItemId);
 
-    @Select("<script>SELECT id, workspace_id, project_id, item_number, item_key, type, title, status, "
+    @Select("<script>SELECT id, organization_id, item_number, item_key, type, title, status, "
             + "priority, assignee_user_id, due_at, version, created_at, updated_at "
-            + "FROM work_items WHERE workspace_id = #{workspaceId} AND project_id = #{projectId} "
+            + "FROM work_items WHERE organization_id = #{organizationId} "
             + "AND deleted_at IS NULL <if test='type != null'>AND type = #{type}</if> "
             + "<if test='status != null'>AND status = #{status}</if> "
             + "ORDER BY item_number DESC LIMIT #{limit} OFFSET #{offset}</script>")
     List<Map<String, Object>> findPage(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("type") String type,
             @Param("status") String status,
             @Param("limit") int limit,
             @Param("offset") int offset);
 
-    @Select("<script>SELECT COUNT(*) FROM work_items WHERE workspace_id = #{workspaceId} "
-            + "AND project_id = #{projectId} AND deleted_at IS NULL "
+    @Select("<script>SELECT COUNT(*) FROM work_items WHERE organization_id = #{organizationId} "
+            + "AND deleted_at IS NULL "
             + "<if test='type != null'>AND type = #{type}</if> "
             + "<if test='status != null'>AND status = #{status}</if></script>")
     long countPage(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("type") String type,
             @Param("status") String status);
 
     @Update("UPDATE work_items SET title = #{title}, description = #{description}, priority = #{priority}, "
             + "assignee_user_id = #{assigneeUserId}, due_at = #{dueAt}, updated_at = UTC_TIMESTAMP(6), "
-            + "version = version + 1 WHERE id = #{workItemId} AND workspace_id = #{workspaceId} "
-            + "AND project_id = #{projectId} AND deleted_at IS NULL AND version = #{expectedVersion}")
+            + "version = version + 1 WHERE id = #{workItemId} AND organization_id = #{organizationId} "
+            + "AND deleted_at IS NULL AND version = #{expectedVersion}")
     int update(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("workItemId") long workItemId,
             @Param("title") String title,
             @Param("description") String description,

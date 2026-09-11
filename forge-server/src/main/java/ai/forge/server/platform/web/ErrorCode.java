@@ -3,8 +3,6 @@ package ai.forge.server.platform.web;
 public enum ErrorCode {
     /* 请求指向的公开资源或路由不存在。 */
     RESOURCE_NOT_FOUND,
-    /* 同一 Workspace 内项目短键已经被其他项目占用。 */
-    PROJECT_KEY_CONFLICT,
     /* 创建成员账号时邮箱已经被现有本地账号占用。 */
     MEMBER_EMAIL_CONFLICT,
     /* 写入请求携带的 expectedVersion 已落后于当前资源版本。 */

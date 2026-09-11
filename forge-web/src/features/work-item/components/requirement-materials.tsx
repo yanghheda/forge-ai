@@ -47,14 +47,12 @@ function MaterialField({
 }
 
 export function RequirementMaterials({
-  workspaceId,
-  projectId,
+  organizationId,
   workItemId,
   details,
   onChanged,
 }: {
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   workItemId: number;
   details: RequirementDetails;
   onChanged: () => Promise<unknown>;
@@ -69,7 +67,7 @@ export function RequirementMaterials({
   });
   const save = useMutation({
     mutationFn: () =>
-      saveRequirementDetails(workspaceId, projectId, workItemId, {
+      saveRequirementDetails(organizationId, workItemId, {
         ...form,
         acceptanceCriteria: form.acceptanceCriteria.split("\n").filter(Boolean),
         version: details.version,

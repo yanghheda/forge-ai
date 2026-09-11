@@ -44,8 +44,7 @@ public class MybatisAgentRunStore implements AgentRunStore {
     @Override
     public CreateResult create(
             String runId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             Long workItemId,
             long userId,
             AgentSkill skill,
@@ -54,15 +53,14 @@ public class MybatisAgentRunStore implements AgentRunStore {
             String clientRequestId,
             String requestHash,
             String requestId) {
-        Optional<Map<String, Object>> existing = findByClientRequest(workspaceId, projectId, userId, clientRequestId);
+        Optional<Map<String, Object>> existing = findByClientRequest(organizationId, userId, clientRequestId);
         if (existing.isPresent()) {
             return repeated(existing.orElseThrow(), requestHash);
         }
         try {
             mapper.insertRun(
                     runId,
-                    workspaceId,
-                    projectId,
+                    organizationId,
                     workItemId,
                     userId,
                     skill.name(),
@@ -71,64 +69,61 @@ public class MybatisAgentRunStore implements AgentRunStore {
                     clientRequestId,
                     requestHash);
             mapper.insertEvent(
-                    workspaceId,
-                    projectId,
+                    organizationId,
                     runId,
                     1,
                     "agent.queued",
                     requestId,
                     json(Map.of("status", "QUEUED")));
-            return new CreateResult(find(workspaceId, projectId, runId).orElseThrow(), true);
+            return new CreateResult(find(organizationId, runId).orElseThrow(), true);
         } catch (DuplicateKeyException exception) {
-            Map<String, Object> repeated = findByClientRequest(workspaceId, projectId, userId, clientRequestId)
+            Map<String, Object> repeated = findByClientRequest(organizationId, userId, clientRequestId)
                     .orElseThrow(() -> exception);
             return repeated(repeated, requestHash);
         }
     }
 
     @Override
-    public Optional<AgentRun> find(long workspaceId, long projectId, String runId) {
-        return mapper.findRun(workspaceId, projectId, runId).stream().findFirst().map(this::run);
+    public Optional<AgentRun> find(long organizationId, String runId) {
+        return mapper.findRun(organizationId, runId).stream().findFirst().map(this::run);
     }
 
     @Override
-    public List<AgentStep> findSteps(long workspaceId, long projectId, String runId) {
-        return mapper.findSteps(workspaceId, projectId, runId).stream().map(this::step).toList();
+    public List<AgentStep> findSteps(long organizationId, String runId) {
+        return mapper.findSteps(organizationId, runId).stream().map(this::step).toList();
     }
 
     @Override
     public List<AgentEvent> findEventsAfter(
-            long workspaceId, long projectId, String runId, long afterSequence, int limit) {
-        return mapper.findEventsAfter(workspaceId, projectId, runId, afterSequence, limit).stream()
+            long organizationId, String runId, long afterSequence, int limit) {
+        return mapper.findEventsAfter(organizationId, runId, afterSequence, limit).stream()
                 .map(this::event)
                 .toList();
     }
 
     @Override
     @Transactional
-    public void start(long workspaceId, long projectId, String runId, String requestId) {
-        Map<String, Object> locked = mapper.lockRun(workspaceId, projectId, runId).stream()
+    public void start(long organizationId, String runId, String requestId) {
+        Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
                 .findFirst()
                 .orElse(null);
         if (locked == null || !"QUEUED".equals(text(locked, "status"))) {
             return;
         }
         long firstSequence = number(locked, "last_sequence") + 1;
-        if (mapper.markRunning(workspaceId, projectId, runId, firstSequence + 1) != 1) {
+        if (mapper.markRunning(organizationId, runId, firstSequence + 1) != 1) {
             return;
         }
-        mapper.insertAgentStep(workspaceId, projectId, runId);
+        mapper.insertAgentStep(organizationId, runId);
         mapper.insertEvent(
-                workspaceId,
-                projectId,
+                organizationId,
                 runId,
                 firstSequence,
                 "agent.started",
                 requestId,
                 json(Map.of("status", "RUNNING")));
         mapper.insertEvent(
-                workspaceId,
-                projectId,
+                organizationId,
                 runId,
                 firstSequence + 1,
                 "step.started",
@@ -139,25 +134,23 @@ public class MybatisAgentRunStore implements AgentRunStore {
     @Override
     @Transactional
     public void complete(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             String runId,
             String requestId,
             String summary) {
-        Map<String, Object> locked = mapper.lockRun(workspaceId, projectId, runId).stream()
+        Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
                 .findFirst()
                 .orElse(null);
         if (locked == null || !"RUNNING".equals(text(locked, "status"))) {
             return;
         }
         long firstSequence = number(locked, "last_sequence") + 1;
-        if (mapper.completeAgentStep(workspaceId, projectId, runId, summary) != 1
-                || mapper.markSucceeded(workspaceId, projectId, runId, firstSequence + 1) != 1) {
+        if (mapper.completeAgentStep(organizationId, runId, summary) != 1
+                || mapper.markSucceeded(organizationId, runId, firstSequence + 1) != 1) {
             throw new IllegalStateException("Fake run state changed unexpectedly");
         }
         mapper.insertEvent(
-                workspaceId,
-                projectId,
+                organizationId,
                 runId,
                 firstSequence,
                 "step.completed",
@@ -168,8 +161,7 @@ public class MybatisAgentRunStore implements AgentRunStore {
                         "status", "SUCCEEDED",
                         "summary", summary)));
         mapper.insertEvent(
-                workspaceId,
-                projectId,
+                organizationId,
                 runId,
                 firstSequence + 1,
                 "agent.completed",
@@ -180,18 +172,17 @@ public class MybatisAgentRunStore implements AgentRunStore {
     @Override
     @Transactional
     public void fail(
-            long workspaceId, long projectId, String runId, String requestId, String errorCode) {
-        Map<String, Object> locked = mapper.lockRun(workspaceId, projectId, runId).stream()
+            long organizationId, String runId, String requestId, String errorCode) {
+        Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
                 .findFirst()
                 .orElse(null);
         if (locked == null || AgentRunStatus.valueOf(text(locked, "status")).terminal()) {
             return;
         }
         long sequence = number(locked, "last_sequence") + 1;
-        if (mapper.markFailed(workspaceId, projectId, runId, sequence, errorCode) == 1) {
+        if (mapper.markFailed(organizationId, runId, sequence, errorCode) == 1) {
             mapper.insertEvent(
-                    workspaceId,
-                    projectId,
+                    organizationId,
                     runId,
                     sequence,
                     "agent.failed",
@@ -201,8 +192,8 @@ public class MybatisAgentRunStore implements AgentRunStore {
     }
 
     private Optional<Map<String, Object>> findByClientRequest(
-            long workspaceId, long projectId, long userId, String clientRequestId) {
-        return mapper.findByClientRequest(workspaceId, projectId, userId, clientRequestId).stream().findFirst();
+            long organizationId, long userId, String clientRequestId) {
+        return mapper.findByClientRequest(organizationId, userId, clientRequestId).stream().findFirst();
     }
 
     private CreateResult repeated(Map<String, Object> row, String requestHash) {
@@ -215,8 +206,7 @@ public class MybatisAgentRunStore implements AgentRunStore {
     private AgentRun run(Map<String, Object> row) {
         return new AgentRun(
                 text(row, "id"),
-                number(row, "workspace_id"),
-                number(row, "project_id"),
+                number(row, "organization_id"),
                 nullableNumber(row, "work_item_id"),
                 number(row, "user_id"),
                 AgentSkill.valueOf(text(row, "skill")),

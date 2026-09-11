@@ -36,7 +36,7 @@ make test-apps-up
 make hardening-performance
 ```
 
-脚本会重放黄金 Demo，并在 `workspace=32004` 的独立 `PERF` 项目中幂等写入 10,000 条 Work Item。随后执行真实列表 SQL 的 `EXPLAIN`，要求选择 `idx_work_items_scope_type_status_page`；再通过真实 CSRF、登录 Session 和 Web 代理采集 100 次、每页 100 条的列表请求。
+脚本会幂等创建独立的 `ForgeAI Performance` 公司和测试 Owner，并写入 10,000 条 Work Item。随后执行真实列表 SQL 的 `EXPLAIN`，要求选择 `idx_work_items_scope_type_status_page`；再通过真实 CSRF、登录 Session 和 Web 代理采集 100 次、每页 100 条的列表请求。性能夹具不依赖人工验收数据，也不会写入人工验收公司。
 
 默认门槛是 P95 不超过 `0.300s`，并断言列表响应不含 `description` 正文。慢速机器可用环境变量改变采样数，但正式验收不应放宽预算：
 

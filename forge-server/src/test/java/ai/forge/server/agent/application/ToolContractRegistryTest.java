@@ -14,12 +14,12 @@ class ToolContractRegistryTest {
 
     @Test
     void firstBatchToolsAreRegisteredWithContractMetadata() {
-        Optional<ToolContract> getProject = registry.findTool("get_project");
+        Optional<ToolContract> getProject = registry.findTool("get_organization");
         Optional<ToolContract> createUxTask = registry.findTool("create_ux_task");
 
         assertThat(getProject).isPresent();
         assertThat(getProject.get().riskLevel()).isEqualTo("LOW");
-        assertThat(getProject.get().requiredPermission()).isEqualTo("project.read");
+        assertThat(getProject.get().requiredPermission()).isEqualTo("requirement.read");
         assertThat(getProject.get().idempotencyRequired()).isFalse();
         assertThat(createUxTask).isPresent();
         assertThat(createUxTask.get().riskLevel()).isEqualTo("MEDIUM");
@@ -35,7 +35,7 @@ class ToolContractRegistryTest {
                 .containsEntry("additionalProperties", false);
         assertThat(getWorkItem.inputSchema().get("properties"))
                 .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
-                .doesNotContainKeys("workspaceId", "projectId");
+                .doesNotContainKeys("organizationId", "organizationId");
     }
 
     @Test
@@ -47,21 +47,21 @@ class ToolContractRegistryTest {
         List<String> release = registry.effectiveToolNames(AgentSkill.RELEASE);
 
         assertThat(product).containsExactly(
-                "get_project", "get_work_item", "get_delivery_graph", "search_documents",
+                "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
                 "create_requirement", "create_prd_document");
         assertThat(ux).containsExactly(
-                "get_project", "get_work_item", "get_delivery_graph", "search_documents",
+                "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
                 "create_ux_task", "create_ux_document");
         assertThat(developer).containsExactly(
-                "get_project", "get_work_item", "get_delivery_graph", "search_documents",
+                "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
                 "create_tech_design", "create_dev_task", "start_development", "get_pipeline_log")
                 .doesNotContain("deploy_release", "create_test_case");
         assertThat(qa).containsExactly(
-                "get_project", "get_work_item", "get_delivery_graph", "search_documents",
+                "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
                 "create_test_case", "create_bug")
                 .doesNotContain("update_test_result", "deploy_release");
         assertThat(release).containsExactly(
-                "get_project", "get_release_precheck", "get_delivery_graph", "update_release_note",
+                "get_organization", "get_release_precheck", "get_delivery_graph", "update_release_note",
                 "deploy_release")
                 .doesNotContain("run_release_precheck");
     }

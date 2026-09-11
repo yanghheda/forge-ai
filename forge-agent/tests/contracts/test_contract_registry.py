@@ -25,7 +25,7 @@ def test_registry_loads_real_repository_contracts() -> None:
     assert tool.backend_path == "/internal/v1/tools/create_requirement:execute"
     assert tool.input_schema["required"] == ["title"]
 
-    read_tool = registry.find_tool("get_project")
+    read_tool = registry.find_tool("get_organization")
     assert read_tool is not None
     assert not read_tool.medium_risk
 
@@ -48,7 +48,7 @@ def test_developer_skill_excludes_qa_and_deployment_writes() -> None:
     developer = registry.find_skill("DEVELOPER")
 
     assert allowed == [
-        "get_project",
+        "get_organization",
         "get_work_item",
         "get_delivery_graph",
         "search_documents",
@@ -70,7 +70,7 @@ def test_qa_skill_can_only_create_drafts() -> None:
     allowed = registry.effective_tool_names("QA")
 
     assert allowed == [
-        "get_project",
+        "get_organization",
         "get_work_item",
         "get_delivery_graph",
         "search_documents",
@@ -104,14 +104,14 @@ def test_registry_rejects_skill_referencing_unknown_tool(tmp_path: Path) -> None
     write_contract(
         tmp_path,
         "tools",
-        "get_project.yaml",
+        "get_organization.yaml",
         """
-name: get_project
+name: get_organization
 version: 1
 description: 读取项目
 input_schema: { type: object }
 risk_level: LOW
-backend_mapping: { method: POST, path: /internal/v1/tools/get_project:execute }
+backend_mapping: { method: POST, path: /internal/v1/tools/get_organization:execute }
 timeout_ms: 5000
 """,
     )
@@ -123,7 +123,7 @@ timeout_ms: 5000
 name: product
 version: 1
 description: Product Skill
-allowed_tools: [get_project, missing_tool]
+allowed_tools: [get_organization, missing_tool]
 limits: { max_tool_calls: 15 }
 """,
     )
@@ -134,15 +134,15 @@ limits: { max_tool_calls: 15 }
 
 def test_registry_rejects_duplicate_tool_contract(tmp_path: Path) -> None:
     document = """
-name: get_project
+name: get_organization
 version: 1
 description: 读取项目
 input_schema: { type: object }
 risk_level: LOW
-backend_mapping: { method: POST, path: /internal/v1/tools/get_project:execute }
+backend_mapping: { method: POST, path: /internal/v1/tools/get_organization:execute }
 timeout_ms: 5000
 """
-    write_contract(tmp_path, "tools", "get_project.yaml", document)
+    write_contract(tmp_path, "tools", "get_organization.yaml", document)
     write_contract(tmp_path, "tools", "copy.yaml", document)
     write_contract(
         tmp_path,

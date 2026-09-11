@@ -19,10 +19,10 @@ public interface DocumentIndexingMapper {
     List<Map<String, Object>> claimOutboxEvents(@Param("limit") int limit);
 
     /* 唯一键 (document_id, version_id) 保证重复事件不重复建任务。 */
-    @Insert("INSERT INTO document_index_jobs (workspace_id, project_id, document_id, version_id, status, attempts, next_attempt_at, created_at, updated_at) "
-            + "VALUES (#{workspaceId}, #{projectId}, #{documentId}, #{versionId}, 'PENDING', 0, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)) "
+    @Insert("INSERT INTO document_index_jobs (organization_id, document_id, version_id, status, attempts, next_attempt_at, created_at, updated_at) "
+            + "VALUES (#{organizationId}, #{documentId}, #{versionId}, 'PENDING', 0, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)) "
             + "ON DUPLICATE KEY UPDATE id = id")
-    int insertIndexJob(@Param("workspaceId") long workspaceId, @Param("projectId") long projectId,
+    int insertIndexJob(@Param("organizationId") long organizationId,
             @Param("documentId") long documentId, @Param("versionId") long versionId);
 
     @Update("<script>UPDATE outbox_events SET processed_at = UTC_TIMESTAMP(6) WHERE id IN "
@@ -30,7 +30,7 @@ public interface DocumentIndexingMapper {
     int markOutboxProcessed(@Param("ids") List<Long> ids);
 
     /* PENDING/FAILED 到期可领取；INDEXING 租约过期视为持有者失联，允许重新领取。 */
-    @Select("SELECT id, workspace_id, project_id, document_id, version_id, attempts FROM document_index_jobs "
+    @Select("SELECT id, organization_id, document_id, version_id, attempts FROM document_index_jobs "
             + "WHERE ((status IN ('PENDING', 'FAILED') AND next_attempt_at <= UTC_TIMESTAMP(6)) "
             + "OR (status = 'INDEXING' AND updated_at < TIMESTAMPADD(SECOND, -#{leaseSeconds}, UTC_TIMESTAMP(6)))) "
             + "ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED")
@@ -40,13 +40,13 @@ public interface DocumentIndexingMapper {
             + "WHERE id = #{jobId}")
     int markIndexing(@Param("jobId") long jobId, @Param("leaseSeconds") long leaseSeconds);
 
-    /* 显式按任务行 join 文档与版本，并要求 workspace 一致防御跨租户数据错配。 */
-    @Select("SELECT d.id AS document_id, d.workspace_id AS workspace_id, d.project_id AS project_id, d.work_item_id AS work_item_id, "
+    /* 显式按任务行 join 文档与版本，并要求公司一致以防御跨公司数据错配。 */
+    @Select("SELECT d.id AS document_id, d.organization_id AS organization_id, d.organization_id AS organization_id, d.work_item_id AS work_item_id, "
             + "d.type AS document_type, d.title AS title, d.status AS document_status, d.visibility AS visibility, d.deleted_at AS deleted_at, "
             + "v.id AS version_id, v.plain_text AS plain_text, v.content_hash AS content_hash "
             + "FROM document_index_jobs j "
-            + "JOIN documents d ON d.id = j.document_id AND d.workspace_id = j.workspace_id "
-            + "JOIN document_versions v ON v.id = j.version_id AND v.document_id = j.document_id AND v.workspace_id = j.workspace_id "
+            + "JOIN documents d ON d.id = j.document_id AND d.organization_id = j.organization_id "
+            + "JOIN document_versions v ON v.id = j.version_id AND v.document_id = j.document_id AND v.organization_id = j.organization_id "
             + "WHERE j.id = #{jobId}")
     Map<String, Object> findIndexingFactRow(@Param("jobId") long jobId);
 

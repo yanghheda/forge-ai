@@ -19,12 +19,12 @@ import {
 } from "../api/work-item-api";
 
 export function UxTaskList({
-  workspaceSlug,
-  projectKey,
+  organizationSlug,
+  organizationKey,
   tasks,
 }: {
-  workspaceSlug: string;
-  projectKey: string;
+  organizationSlug: string;
+  organizationKey: string;
   tasks: WorkItemSummary[];
 }) {
   if (tasks.length === 0) return <Typography.Text>暂无待处理 UX 任务。</Typography.Text>;
@@ -35,7 +35,7 @@ export function UxTaskList({
           aria-label={`${task.itemKey} · ${task.title} · ${task.status}`}
           className={ui.listItem}
           key={task.id}
-          href={`/w/${workspaceSlug}/p/${projectKey}/ux/${task.id}`}
+          href={`/w/${organizationSlug}/p/${organizationKey}/ux/${task.id}`}
         >
           <span className={ui.itemMain}>
             <span className={ui.itemTitle}>{task.title}</span>
@@ -48,28 +48,28 @@ export function UxTaskList({
   );
 }
 
-export function UxWorkspace({
-  workspaceSlug,
-  projectKey,
+export function UxOrganization({
+  organizationSlug,
+  organizationKey,
 }: {
-  workspaceSlug: string;
-  projectKey: string;
+  organizationSlug: string;
+  organizationKey: string;
 }) {
   const user = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
-  const workspace = user.data?.workspaces.find((item) => item.slug === workspaceSlug);
+  const organization = user.data?.organizations.find((item) => item.slug === organizationSlug);
   const projects = useQuery({
-    queryKey: ["projects", workspace?.id],
-    queryFn: () => listProjects(workspace!.id),
-    enabled: !!workspace,
+    queryKey: ["projects", organization?.id],
+    queryFn: () => listProjects(organization!.id),
+    enabled: !!organization,
   });
-  const project = projects.data?.find((item) => item.key === projectKey);
+  const project = projects.data?.find((item) => item.key === organizationKey);
   const tasks = useQuery({
     queryKey: ["work-items", project?.id, "UX_TASK"],
-    queryFn: () => listUxTasks(workspace!.id, project!.id),
-    enabled: !!workspace && !!project,
+    queryFn: () => listUxTasks(organization!.id, project!.id),
+    enabled: !!organization && !!project,
   });
   if (user.isPending || projects.isPending || tasks.isPending) return <Spin tip="正在加载 UX 队列…" />;
-  if (!workspace || !project) return <Alert type="error" content="项目不存在或无 UX 读取权限。" />;
+  if (!organization || !project) return <Alert type="error" content="项目不存在或无 UX 读取权限。" />;
   return (
     <section className={ui.page}>
       <header className={ui.pageHeader}>
@@ -77,8 +77,8 @@ export function UxWorkspace({
       </header>
     <Card title="UX 任务" className={ui.panel}>
       <UxTaskList
-        workspaceSlug={workspaceSlug}
-        projectKey={projectKey}
+        organizationSlug={organizationSlug}
+        organizationKey={organizationKey}
         tasks={tasks.data?.items ?? []}
       />
     </Card>
@@ -140,33 +140,33 @@ export function UxTaskDetailView({
 }
 
 export function UxTaskRoute({
-  workspaceSlug,
-  projectKey,
+  organizationSlug,
+  organizationKey,
   workItemId,
 }: {
-  workspaceSlug: string;
-  projectKey: string;
+  organizationSlug: string;
+  organizationKey: string;
   workItemId: number;
 }) {
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
   const user = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
-  const workspace = user.data?.workspaces.find((item) => item.slug === workspaceSlug);
+  const organization = user.data?.organizations.find((item) => item.slug === organizationSlug);
   const projects = useQuery({
-    queryKey: ["projects", workspace?.id],
-    queryFn: () => listProjects(workspace!.id),
-    enabled: !!workspace,
+    queryKey: ["projects", organization?.id],
+    queryFn: () => listProjects(organization!.id),
+    enabled: !!organization,
   });
-  const project = projects.data?.find((item) => item.key === projectKey);
+  const project = projects.data?.find((item) => item.key === organizationKey);
   const task = useQuery({
     queryKey: ["work-item", workItemId],
-    queryFn: () => getWorkItem(workspace!.id, project!.id, workItemId),
-    enabled: !!workspace && !!project,
+    queryFn: () => getWorkItem(organization!.id, project!.id, workItemId),
+    enabled: !!organization && !!project,
   });
   const transition = useMutation({
     mutationFn: (action: WorkflowAction) =>
       transitionRequirement(
-        workspace!.id,
+        organization!.id,
         project!.id,
         workItemId,
         action,
@@ -181,7 +181,7 @@ export function UxTaskRoute({
   });
 
   if (user.isPending || projects.isPending || task.isPending) return <Spin tip="正在加载 UX 任务…" />;
-  if (!workspace || !project || !task.data || task.data.type !== "UX_TASK")
+  if (!organization || !project || !task.data || task.data.type !== "UX_TASK")
     return <Alert type="error" content="UX 任务不存在或当前账户无权访问。" />;
   const error = transition.error;
   return (
@@ -189,7 +189,7 @@ export function UxTaskRoute({
       <header className={ui.pageHeader}>
         <div><span className={ui.eyebrow}>UX 任务</span><h1>{task.data.itemKey}</h1><p>{task.data.title}</p></div>
       </header>
-      <Link href={`/w/${workspaceSlug}/p/${projectKey}/ux`}>返回 UX 工作台</Link>
+      <Link href={`/w/${organizationSlug}/p/${organizationKey}/ux`}>返回 UX 工作台</Link>
       <UxTaskDetailView
         task={task.data}
         busy={transition.isPending}

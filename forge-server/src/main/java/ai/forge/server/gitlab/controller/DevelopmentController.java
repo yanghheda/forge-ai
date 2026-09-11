@@ -3,6 +3,7 @@ package ai.forge.server.gitlab.controller;
 import ai.forge.server.auth.controller.AuthController;
 import ai.forge.server.gitlab.application.DevelopmentResult;
 import ai.forge.server.gitlab.application.DevelopmentService;
+import ai.forge.server.organization.application.OrganizationAccessService;
 import ai.forge.server.workitem.application.DevelopmentQaQuery;
 import ai.forge.server.workitem.application.DevelopmentQaSummary;
 import ai.forge.server.workitem.domain.WorkItem;
@@ -36,10 +37,14 @@ public class DevelopmentController {
 
     /* 返回与 QA Guard 使用同一事实投影的开发页面汇总。 */
     private final DevelopmentQaQuery developmentQaQuery;
+    /* 从登录身份解析唯一公司作用域。 */
+    private final OrganizationAccessService organizations;
 
-    public DevelopmentController(DevelopmentService service, DevelopmentQaQuery developmentQaQuery) {
+    public DevelopmentController(DevelopmentService service, DevelopmentQaQuery developmentQaQuery,
+            OrganizationAccessService organizations) {
         this.service = service;
         this.developmentQaQuery = developmentQaQuery;
+        this.organizations = organizations;
     }
 
     @PostMapping("/requirements/{requirementId}/tasks")
@@ -48,8 +53,7 @@ public class DevelopmentController {
             @PathVariable long requirementId,
             @Valid @RequestBody CreateDevTaskRequest body,
             HttpServletRequest request) {
-        WorkItem item = service.createDevTask(AuthController.requireContext(request).userId(), body.workspaceId(),
-                body.projectId(), requirementId, body.title(), body.description(), body.assigneeUserId());
+        WorkItem item = service.createDevTask(AuthController.requireContext(request).userId(), organizationId(request), requirementId, body.title(), body.description(), body.assigneeUserId());
         return ResponseEntity.created(URI.create("/api/v1/work-items/" + item.id())).body(item);
     }
 
@@ -59,7 +63,7 @@ public class DevelopmentController {
             @PathVariable long taskId,
             @Valid @RequestBody StartDevelopmentRequest body,
             HttpServletRequest request) {
-        return service.start(AuthController.requireContext(request).userId(), body.workspaceId(), body.projectId(),
+        return service.start(AuthController.requireContext(request).userId(), organizationId(request),
                 taskId, body.targetBranch(), body.idempotencyKey());
     }
 
@@ -71,8 +75,7 @@ public class DevelopmentController {
             HttpServletRequest request) {
         return service.completeTask(
                 AuthController.requireContext(request).userId(),
-                body.workspaceId(),
-                body.projectId(),
+                organizationId(request),
                 taskId,
                 body.expectedVersion());
     }
@@ -80,32 +83,27 @@ public class DevelopmentController {
     @org.springframework.web.bind.annotation.GetMapping("/requirements/{requirementId}")
     @Operation(summary = "读取 Development 汇总", description = "返回 Dev Task、Branch、MR、Pipeline 与 CI 策略快照。")
     public DevelopmentQaSummary summary(
-            @PathVariable long requirementId,
-            @org.springframework.web.bind.annotation.RequestParam long workspaceId,
-            @org.springframework.web.bind.annotation.RequestParam long projectId,
-            HttpServletRequest request) {
+            @PathVariable long requirementId, HttpServletRequest request) {
         return developmentQaQuery.get(
                 AuthController.requireContext(request).userId(),
-                workspaceId,
-                projectId,
+                organizationId(request),
                 requirementId);
     }
 
     public record CreateDevTaskRequest(
-            /* Dev Task 所属工作区。 */ @Positive long workspaceId,
-            /* Dev Task 所属项目。 */ @Positive long projectId,
             /* 研发任务标题。 */ @NotBlank @Size(max = 255) String title,
             /* 研发任务实现说明；未填写时规范为空字符串。 */ @Size(max = 20000) String description,
-            /* 可选负责人，必须是项目有效成员。 */ @Positive Long assigneeUserId) {}
+            /* 可选负责人，必须是公司有效成员。 */ @Positive Long assigneeUserId) {}
 
     public record StartDevelopmentRequest(
-            /* Dev Task 所属工作区。 */ @Positive long workspaceId,
-            /* Dev Task 所属项目。 */ @Positive long projectId,
             /* 可选目标分支；为空时使用仓库默认分支。 */ @Size(max = 255) String targetBranch,
-            /* 项目范围内稳定的调用幂等键。 */ @NotBlank @Size(max = 128) String idempotencyKey) {}
+            /* 公司范围内稳定的调用幂等键。 */ @NotBlank @Size(max = 128) String idempotencyKey) {}
 
     public record CompleteDevTaskRequest(
-            /* Dev Task 所属工作区。 */ @Positive long workspaceId,
-            /* Dev Task 所属项目。 */ @Positive long projectId,
             /* 客户端读取到的 Dev Task 聚合版本。 */ @PositiveOrZero long expectedVersion) {}
+
+    private long organizationId(HttpServletRequest request) {
+        long userId = AuthController.requireContext(request).userId();
+        return organizations.requireContext(userId).organizationId();
+    }
 }

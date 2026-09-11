@@ -39,12 +39,10 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
     void resetFacts() {
         csrf = new CsrfTestClient(restTemplate, objectMapper);
         jdbcTemplate.update(
-                "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, "
-                        + "default_workspace_id = NULL, default_project_id = NULL, version = 0 WHERE id = 1");
+                "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
                 "requirement_participants", "work_item_events", "review_records", "requirement_details",
-                "work_items", "project_item_sequences", "project_members", "project_policies", "projects",
-                "audit_logs", "member_roles", "workspace_members", "workspaces", "organizations", "users")) {
+                "work_items", "organization_item_sequences", "organization_policies",                 "organization_policies", "audit_logs", "member_roles", "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
     }
@@ -58,17 +56,19 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
                         "adminDisplayName", "Owner",
                         "password", "correct-horse-42",
                         "organizationName", "独立开发者",
-                        "organizationSlug", "solo"),
+                        "organizationSlug", "solo",
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
                 null,
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         JsonNode body = objectMapper.readTree(response.getBody());
-        assertThat(body.has("workspaceId")).isFalse();
-        assertThat(body.has("projectId")).isFalse();
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM projects", Integer.class)).isOne();
+        assertThat(body.has("organizationId")).isTrue();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM organizations", Integer.class)).isOne();
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT default_workspace_id IS NOT NULL AND default_project_id IS NOT NULL FROM instance_settings WHERE id = 1",
+                "SELECT default_organization_id IS NOT NULL FROM instance_settings WHERE id = 1",
                 Boolean.class)).isTrue();
     }
 
@@ -79,6 +79,8 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
 
         JsonNode product = register("product@example.com", "产品同学", "member-password-42", "PRODUCT");
         JsonNode developer = register("dev@example.com", "开发同学", "member-password-84", "DEVELOPER");
+        approveMember(ownerCookie, product.get("userId").asLong(), "PRODUCT");
+        approveMember(ownerCookie, developer.get("userId").asLong(), "DEVELOPER");
         ResponseEntity<String> forbiddenOwner = csrf.post(
                 "/api/v1/auth/register",
                 Map.of("email", "other-owner@example.com", "displayName", "Other", "password", "member-password-21", "role", "OWNER"),
@@ -93,8 +95,8 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
                 String.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         JsonNode requirement = objectMapper.readTree(created.getBody());
-        assertThat(requirement.has("workspaceId")).isFalse();
-        assertThat(requirement.has("projectId")).isFalse();
+        assertThat(requirement.has("organizationId")).isFalse();
+        assertThat(requirement.has("organizationId")).isFalse();
 
         ResponseEntity<String> assigned = csrf.put(
                 "/api/v1/requirements/" + requirement.get("id").asLong() + "/participants",
@@ -125,7 +127,10 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
                         "adminDisplayName", "Owner",
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
-                        "organizationSlug", "forge"),
+                        "organizationSlug", "forge",
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
                 null,
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -139,6 +144,15 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return objectMapper.readTree(response.getBody());
+    }
+
+    private void approveMember(String ownerCookie, long userId, String role) {
+        ResponseEntity<String> response = csrf.patch(
+                "/api/v1/members/" + userId,
+                Map.of("status", "ACTIVE", "role", role, "expectedVersion", 0),
+                ownerCookie,
+                String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     private String login(String email, String password) {

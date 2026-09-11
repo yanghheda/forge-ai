@@ -8,24 +8,24 @@ import java.util.Optional;
 
 public interface QaStore {
 
-    TestCaseView createCase(long workspaceId, long projectId, long requirementId, long userId,
+    TestCaseView createCase(long organizationId, long requirementId, long userId,
             String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority);
 
-    List<TestCaseView> findCases(long workspaceId, long projectId, long requirementId);
+    List<TestCaseView> findCases(long organizationId, long requirementId);
 
-    TestRunView createRun(long workspaceId, long projectId, long requirementId, long userId, String environment);
+    TestRunView createRun(long organizationId, long requirementId, long userId, String environment);
 
-    Optional<TestRunView> findRun(long workspaceId, long projectId, long runId);
+    Optional<TestRunView> findRun(long organizationId, long runId);
 
-    Optional<TestRunView> findLatestRun(long workspaceId, long projectId, long requirementId);
+    Optional<TestRunView> findLatestRun(long organizationId, long requirementId);
 
-    TestResultView updateResult(long workspaceId, long projectId, long runId, long resultId, long userId,
+    TestResultView updateResult(long organizationId, long runId, long resultId, long userId,
             TestResultStatus status, String actualResult, List<String> evidence, long expectedVersion);
 
-    TestRunView completeRun(long workspaceId, long projectId, long runId, long userId, long expectedVersion);
+    TestRunView completeRun(long organizationId, long runId, long userId, long expectedVersion);
 
-    TestRunView reopenRun(long workspaceId, long projectId, long runId, long userId, long expectedVersion,
+    TestRunView reopenRun(long organizationId, long runId, long userId, long expectedVersion,
             String reason, String requestId);
 
-    Optional<TestRunSummary> findLatestCompletedSummary(long workspaceId, long projectId, long requirementId);
+    Optional<TestRunSummary> findLatestCompletedSummary(long organizationId, long requirementId);
 }

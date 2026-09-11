@@ -44,18 +44,17 @@ public class ApprovalResumeWorker {
         for (Map<String, Object> row : mapper.findPending(20)) {
             try {
                 JsonNode payload = objectMapper.readTree(row.get("payload").toString());
-                long workspaceId = payload.path("workspaceId").asLong();
-                long projectId = payload.path("projectId").asLong();
+                long organizationId = payload.path("organizationId").asLong();
                 String runId = payload.path("runId").asText();
-                var run = runStore.find(workspaceId, projectId, runId).orElseThrow();
-                AgentRunRequested requested = new AgentRunRequested(run.id(), workspaceId, projectId,
+                var run = runStore.find(organizationId, runId).orElseThrow();
+                AgentRunRequested requested = new AgentRunRequested(run.id(), organizationId,
                         run.workItemId(), run.userId(), run.skill().name(), run.mediumToolConfirmation(),
                         "resume approved checkpoint", "approval:" + payload.path("approvalId").asText());
                 AgentRuntimeGateway.RunResult result = runtimeGateway.start(requested);
                 if (!"SUCCEEDED".equals(result.status())) {
                     throw new IllegalStateException("Resumed Agent Run did not complete");
                 }
-                runStore.complete(workspaceId, projectId, runId, requested.requestId(), result.answer());
+                runStore.complete(organizationId, runId, requested.requestId(), result.answer());
                 if (mapper.markProcessed(((Number) row.get("id")).longValue()) == 1) {
                     completed++;
                 }

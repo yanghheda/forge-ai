@@ -52,11 +52,11 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     private WorkItemCommandService workItemCommandService;
 
     private long ownerId;
-    private long workspaceId;
-    private long projectId;
+    private long organizationId;
+
 
     @BeforeEach
-    void initializeWorkspaceAndProject() throws Exception {
+    void initializeCompanyAndOrganization() throws Exception {
         redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
@@ -64,10 +64,9 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         jdbcTemplate.update("UPDATE work_items SET parent_id = NULL");
         for (String table : List.of(
                 "outbox_events", "agent_tool_calls", "approvals", "agent_events", "agent_steps", "agent_runs", "comments",
-                "work_item_relations", "work_item_labels", "project_policies", "work_item_events",
-                "review_records", "requirement_details", "work_items", "project_item_sequences",
-                "project_members", "projects", "audit_logs", "member_roles", "workspace_members", "workspaces",
-                "organizations", "users")) {
+                "work_item_relations", "work_item_labels", "organization_policies", "work_item_events",
+                "review_records", "requirement_details", "work_items", "organization_item_sequences",
+                "organization_policies", "audit_logs", "member_roles", "organization_members",                 "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         ResponseEntity<String> initialized = csrf().post(
@@ -78,39 +77,28 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
-                        "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"),
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
                 null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         ownerId = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE normalized_email = 'owner@example.com'", Long.class);
-        workspaceId = jdbcTemplate.queryForObject(
-                "SELECT id FROM workspaces WHERE slug = 'engineering'", Long.class);
-        String ownerCookie = loginOwner();
-        ResponseEntity<String> project = csrf().post(
-                "/api/v1/projects",
-                Map.of(
-                        "workspaceId", workspaceId,
-                        "key", "FORGE",
-                        "name", "ForgeAI",
-                        "description", "会话 21"),
-                ownerCookie,
-                String.class);
-        assertThat(project.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        projectId = objectMapper.readTree(project.getBody()).get("id").asLong();
+        organizationId = jdbcTemplate.queryForObject(
+                "SELECT default_organization_id FROM instance_settings WHERE id = 1", Long.class);
     }
 
     @Test
     void missingBearerCredentialIsRejected() {
-        ResponseEntity<String> response = executeTool("get_project", null, "call-1", Map.of());
+        ResponseEntity<String> response = executeTool("get_organization", null, "call-1", Map.of());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void invalidBearerCredentialIsRejected() {
-        ResponseEntity<String> response = executeTool("get_project", "not-a-jwt", "call-1", Map.of());
+        ResponseEntity<String> response = executeTool("get_organization", "not-a-jwt", "call-1", Map.of());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
@@ -119,9 +107,9 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     void expiredRunCredentialIsRejected() {
         String runId = insertRunningRun("PRODUCT", "ASK");
         String expired = tokenProvider.createRunToken(
-                Instant.now().minus(Duration.ofMinutes(5)), runId, workspaceId, projectId);
+                Instant.now().minus(Duration.ofMinutes(5)), runId, organizationId);
 
-        ResponseEntity<String> response = executeTool("get_project", expired, "call-1", Map.of());
+        ResponseEntity<String> response = executeTool("get_organization", expired, "call-1", Map.of());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
@@ -140,15 +128,15 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     void runOutsideServerFactsIsHiddenAsNotFound() {
         String runId = insertRunningRun("PRODUCT", "ASK");
         String foreignToken = tokenProvider.createRunToken(
-                Instant.now(), "01234567890123456789012345", workspaceId, projectId);
-        String wrongProjectToken = tokenProvider.createRunToken(
-                Instant.now(), runId, workspaceId, projectId + 999);
+                Instant.now(), "01234567890123456789012345", organizationId);
+        String wrongOrganizationToken = tokenProvider.createRunToken(
+                Instant.now(), runId, organizationId + 999);
 
-        assertThat(executeTool("get_project", foreignToken, "call-1", Map.of()).getStatusCode())
+        assertThat(executeTool("get_organization", foreignToken, "call-1", Map.of()).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
-        ResponseEntity<String> wrongProject = executeTool("get_project", wrongProjectToken, "call-1", Map.of());
-        assertThat(wrongProject.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(wrongProject.getBody()).contains("RUN_NOT_FOUND");
+        ResponseEntity<String> wrongOrganization = executeTool("get_organization", wrongOrganizationToken, "call-1", Map.of());
+        assertThat(wrongOrganization.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(wrongOrganization.getBody()).contains("RUN_NOT_FOUND");
     }
 
     @Test
@@ -158,7 +146,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 "UPDATE agent_runs SET status = 'SUCCEEDED', finished_at = UTC_TIMESTAMP(6) WHERE id = ?",
                 runId);
 
-        ResponseEntity<String> response = executeTool("get_project", runToken(runId), "call-1", Map.of());
+        ResponseEntity<String> response = executeTool("get_organization", runToken(runId), "call-1", Map.of());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody()).contains("RUN_NOT_ACTIVE");
@@ -191,14 +179,14 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void callerCannotInjectWorkspaceOrProjectScopeArguments() {
+    void callerCannotInjectOrganizationScopeArguments() {
         String runId = insertRunningRun("PRODUCT", "ASK");
 
         ResponseEntity<String> response = executeTool(
-                "get_project",
+                "get_organization",
                 runToken(runId),
                 "call-1",
-                Map.of("workspaceId", workspaceId + 999, "projectId", projectId + 999));
+                Map.of("organizationId", organizationId + 999));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("SCHEMA_INVALID");
@@ -206,7 +194,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void permissionDeniedIsRejected() {
-        long developerId = insertProjectMemberWithRole("DEVELOPER");
+        long developerId = insertOrganizationMemberWithRole("DEVELOPER");
         String runId = insertRunningRunForUser(developerId, "PRODUCT", "ALLOW");
 
         ResponseEntity<String> response = executeTool(
@@ -223,12 +211,12 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void permissionIsRecheckedAfterRunCreation() {
-        long productUserId = insertProjectMemberWithRole("PRODUCT");
+        long productUserId = insertOrganizationMemberWithRole("PRODUCT");
         String runId = insertRunningRunForUser(productUserId, "PRODUCT", "ALLOW");
         jdbcTemplate.update(
-                "DELETE FROM member_roles WHERE workspace_member_id = "
-                        + "(SELECT id FROM workspace_members WHERE workspace_id = ? AND user_id = ?)",
-                workspaceId,
+                "DELETE FROM member_roles WHERE organization_member_id = "
+                        + "(SELECT id FROM organization_members WHERE organization_id = ? AND user_id = ?)",
+                organizationId,
                 productUserId);
 
         ResponseEntity<String> response = executeTool(
@@ -247,14 +235,14 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     void lowRiskToolExecutesWithoutToolCallRecord() throws Exception {
         String runId = insertRunningRun("PRODUCT", "ASK");
 
-        ResponseEntity<String> response = executeTool("get_project", runToken(runId), "call-1", Map.of());
+        ResponseEntity<String> response = executeTool("get_organization", runToken(runId), "call-1", Map.of());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode execution = objectMapper.readTree(response.getBody());
         assertThat(execution.get("status").asText()).isEqualTo("SUCCEEDED");
         assertThat(execution.get("replayed").asBoolean()).isFalse();
-        assertThat(execution.get("result").get("key").asText()).isEqualTo("FORGE");
-        assertThat(execution.get("result").get("name").asText()).isEqualTo("ForgeAI");
+        assertThat(execution.get("result").get("id").asLong()).isEqualTo(organizationId);
+        assertThat(execution.get("result").get("name").asText()).isEqualTo("Forge");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM agent_tool_calls", Long.class))
                 .isZero();
     }
@@ -346,7 +334,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void approvedCallRejectsChangedResourceVersion() throws Exception {
-        var requirement = workItemCommandService.create(ownerId, workspaceId, projectId,
+        var requirement = workItemCommandService.create(ownerId, organizationId,
                 WorkItemType.REQUIREMENT, "待设计需求", null, WorkItemPriority.MEDIUM, null, null);
         String runId = insertRunningRun("UX", "ASK");
         Map<String, Object> arguments = Map.of("requirementId", requirement.id(), "title", "UX 任务");
@@ -447,8 +435,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     void uxRunCreatesUxTaskUnderRequirement() throws Exception {
         var requirement = workItemCommandService.create(
                 ownerId,
-                workspaceId,
-                projectId,
+                organizationId,
                 WorkItemType.REQUIREMENT,
                 "UX 父需求",
                 null,
@@ -487,14 +474,13 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         String runId = ("00000000000000000000000000" + System.nanoTime());
         runId = runId.substring(runId.length() - 26);
         jdbcTemplate.update(
-                "INSERT INTO agent_runs (id, workspace_id, project_id, work_item_id, user_id, skill, "
+                "INSERT INTO agent_runs (id, organization_id, work_item_id, user_id, skill, "
                         + "medium_tool_confirmation, message_redacted, client_request_id, request_hash, status, "
                         + "prompt_version, last_sequence, version, created_at, updated_at) VALUES "
-                        + "(?, ?, ?, NULL, ?, ?, ?, ?, ?, SHA2('x', 256), 'RUNNING', 'fake-runner-v1', 0, 0, "
+                        + "(?, ?, NULL, ?, ?, ?, ?, ?, SHA2('x', 256), 'RUNNING', 'fake-runner-v1', 0, 0, "
                         + "UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))",
                 runId,
-                workspaceId,
-                projectId,
+                organizationId,
                 userId,
                 skill,
                 mediumToolConfirmation,
@@ -504,7 +490,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     private String runToken(String runId) {
-        return tokenProvider.createRunToken(Instant.now(), runId, workspaceId, projectId);
+        return tokenProvider.createRunToken(Instant.now(), runId, organizationId);
     }
 
     private ResponseEntity<String> executeTool(
@@ -523,7 +509,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 String.class);
     }
 
-    private long insertProjectMemberWithRole(String roleCode) {
+    private long insertOrganizationMemberWithRole(String roleCode) {
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password_hash FROM users WHERE normalized_email = 'owner@example.com'", String.class);
         jdbcTemplate.update(
@@ -535,22 +521,15 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         long developerId = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE normalized_email = 'developer@example.com'", Long.class);
         jdbcTemplate.update(
-                "INSERT INTO workspace_members (workspace_id, user_id, status, joined_at, created_at, updated_at, version) "
+                "INSERT INTO organization_members (organization_id, user_id, status, joined_at, created_at, updated_at, version) "
                         + "VALUES (?, ?, 'ACTIVE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)",
-                workspaceId,
+                organizationId,
                 developerId);
         jdbcTemplate.update(
-                "INSERT INTO project_members (workspace_id, project_id, user_id, status, created_at, updated_at) "
-                        + "VALUES (?, ?, ?, 'ACTIVE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))",
-                workspaceId,
-                projectId,
-                developerId);
-        jdbcTemplate.update(
-                "INSERT INTO member_roles (workspace_member_id, role_id, project_id, created_at) "
-                        + "SELECT wm.id, r.id, ?, UTC_TIMESTAMP(6) FROM workspace_members wm CROSS JOIN roles r "
-                        + "WHERE wm.workspace_id = ? AND wm.user_id = ? AND r.code = ?",
-                projectId,
-                workspaceId,
+                "INSERT INTO member_roles (organization_member_id, role_id, created_at) "
+                        + "SELECT wm.id, r.id, UTC_TIMESTAMP(6) FROM organization_members wm CROSS JOIN roles r "
+                        + "WHERE wm.organization_id = ? AND wm.user_id = ? AND r.code = ?",
+                organizationId,
                 developerId,
                 roleCode);
         return developerId;

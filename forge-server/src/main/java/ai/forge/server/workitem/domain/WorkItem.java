@@ -6,10 +6,8 @@ public record WorkItem(
         /* 工作项的稳定业务标识，必须结合租户和项目范围定位。 */
         long id,
         /* 所属工作区，用于服务端租户隔离查询。 */
-        long workspaceId,
-        /* 所属项目，用于授权、编号和列表范围。 */
-        long projectId,
-        /* 项目内单调分配且逻辑删除后不复用的数值编号。 */
+        long organizationId,
+        /* 公司内单调分配且逻辑删除后不复用的数值编号。 */
         long itemNumber,
         /* 由服务端项目短键和数值编号组成的展示标识。 */
         String itemKey,

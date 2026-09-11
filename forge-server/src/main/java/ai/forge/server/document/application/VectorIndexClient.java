@@ -27,8 +27,7 @@ public interface VectorIndexClient {
 
     /** 服务端构造的强制检索过滤器。 */
     record SearchFilter(
-            /* 工作区强制范围；来自服务端会话或 Run 上下文，不是 Agent 输入。 */ long workspaceId,
-            /* 授权项目集合；为空时实现必须返回空结果。 */ List<Long> projectIds,
+            /* 公司强制范围；来自服务端会话或 Run 上下文，不是 Agent 输入。 */ long organizationId,
             /* 可选文档类型收窄；Agent 允许提供的唯一过滤维度之一。 */ String documentType) {}
 
     /** 检索命中的切片及其相似度得分。 */

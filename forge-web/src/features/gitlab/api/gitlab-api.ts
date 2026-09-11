@@ -18,7 +18,7 @@ export interface PipelineRun {
 
 export interface GitLabConnection {
   id: number;
-  workspaceId: number;
+  organizationId: number;
   name: string;
   baseUrl: string;
   tokenFingerprint: string;
@@ -28,15 +28,12 @@ export interface GitLabConnection {
 }
 
 export interface CreateConnectionInput {
-  workspaceId: number;
   name: string;
   baseUrl: string;
   token: string;
 }
 
 export interface BindRepositoryInput {
-  workspaceId: number;
-  projectId: number;
   connectionId: number;
   remoteProjectId: string;
 }
@@ -56,15 +53,11 @@ export function createConnection(
   return client.request("/v1/gitlab/connections", jsonRequest("POST", input));
 }
 
-export function listConnections(
-  workspaceId: number,
-  client: RequestClient = apiClient,
-): Promise<GitLabConnection[]> {
-  return client.request(`/v1/gitlab/connections?workspaceId=${workspaceId}`);
+export function listConnections(client: RequestClient = apiClient): Promise<GitLabConnection[]> {
+  return client.request("/v1/gitlab/connections");
 }
 
 export function rotateToken(
-  workspaceId: number,
   connectionId: number,
   expectedVersion: number,
   token: string,
@@ -72,16 +65,15 @@ export function rotateToken(
 ): Promise<GitLabConnection> {
   return client.request(
     `/v1/gitlab/connections/${connectionId}/token`,
-    jsonRequest("PATCH", { workspaceId, expectedVersion, token }),
+    jsonRequest("PATCH", { expectedVersion, token }),
   );
 }
 
 export function testConnection(
-  workspaceId: number,
   connectionId: number,
   client: RequestClient = apiClient,
 ): Promise<{ externalUserId: string; username: string }> {
-  return client.request(`/v1/gitlab/connections/${connectionId}/test?workspaceId=${workspaceId}`, {
+  return client.request(`/v1/gitlab/connections/${connectionId}/test`, {
     method: "POST",
   });
 }
@@ -94,17 +86,13 @@ export function bindRepository(
 }
 
 export function listPipelines(
-  workspaceId: number,
-  projectId: number,
   client: RequestClient = apiClient,
 ): Promise<PipelineRun[]> {
-  return client.request(
-    `/v1/development/pipelines?workspaceId=${workspaceId}&projectId=${projectId}`,
-  );
+  return client.request("/v1/development/pipelines");
 }
 
 export function triggerPipeline(
-  input: { workspaceId: number; projectId: number; ref: string },
+  input: { ref: string },
   client: RequestClient = apiClient,
 ): Promise<PipelineRun> {
   return client.request(

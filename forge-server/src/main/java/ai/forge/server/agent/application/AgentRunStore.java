@@ -11,8 +11,7 @@ public interface AgentRunStore {
 
     CreateResult create(
             String runId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             Long workItemId,
             long userId,
             AgentSkill skill,
@@ -22,19 +21,19 @@ public interface AgentRunStore {
             String requestHash,
             String requestId);
 
-    Optional<AgentRun> find(long workspaceId, long projectId, String runId);
+    Optional<AgentRun> find(long organizationId, String runId);
 
     List<ai.forge.server.agent.domain.AgentStep> findSteps(
-            long workspaceId, long projectId, String runId);
+            long organizationId, String runId);
 
     List<AgentEvent> findEventsAfter(
-            long workspaceId, long projectId, String runId, long afterSequence, int limit);
+            long organizationId, String runId, long afterSequence, int limit);
 
-    void start(long workspaceId, long projectId, String runId, String requestId);
+    void start(long organizationId, String runId, String requestId);
 
-    void complete(long workspaceId, long projectId, String runId, String requestId, String summary);
+    void complete(long organizationId, String runId, String requestId, String summary);
 
-    void fail(long workspaceId, long projectId, String runId, String requestId, String errorCode);
+    void fail(long organizationId, String runId, String requestId, String errorCode);
 
     record CreateResult(
             /* 已创建或由幂等键命中的 Run。 */

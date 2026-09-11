@@ -32,7 +32,7 @@ public class MybatisDocumentIndexingStore implements DocumentIndexingStore {
 
     @Override
     public void createIndexJob(PublishedDocumentEvent event) {
-        mapper.insertIndexJob(event.workspaceId(), event.projectId(), event.documentId(),
+        mapper.insertIndexJob(event.organizationId(), event.documentId(),
                 event.versionId());
     }
 
@@ -52,8 +52,7 @@ public class MybatisDocumentIndexingStore implements DocumentIndexingStore {
         if (mapper.markIndexing(jobId, leaseSeconds) != 1) {
             return Optional.empty();
         }
-        return Optional.of(new DocumentIndexJob(jobId, number(row, "workspace_id"),
-                number(row, "project_id"), number(row, "document_id"), number(row, "version_id"),
+        return Optional.of(new DocumentIndexJob(jobId, number(row, "organization_id"), number(row, "document_id"), number(row, "version_id"),
                 (int) number(row, "attempts")));
     }
 
@@ -65,8 +64,7 @@ public class MybatisDocumentIndexingStore implements DocumentIndexingStore {
         }
         boolean retired = row.get("deleted_at") != null
                 || "ARCHIVED".equals(row.get("document_status").toString());
-        return Optional.of(new IndexingFact(retired, number(row, "workspace_id"),
-                number(row, "project_id"), nullable(row, "work_item_id"),
+        return Optional.of(new IndexingFact(retired, number(row, "organization_id"), nullable(row, "work_item_id"),
                 row.get("document_type").toString(), row.get("title").toString(),
                 row.get("visibility").toString(), row.get("plain_text").toString(),
                 row.get("content_hash").toString()));
@@ -88,8 +86,7 @@ public class MybatisDocumentIndexingStore implements DocumentIndexingStore {
     private PublishedDocumentEvent publishedEvent(Map<String, Object> row) {
         try {
             JsonNode payload = objectMapper.readTree(row.get("payload").toString());
-            return new PublishedDocumentEvent(number(row, "id"), payload.path("workspaceId").asLong(),
-                    payload.path("projectId").asLong(), payload.path("documentId").asLong(),
+            return new PublishedDocumentEvent(number(row, "id"), payload.path("organizationId").asLong(), payload.path("documentId").asLong(),
                     payload.path("versionId").asLong());
         } catch (Exception exception) {
             throw new IllegalStateException("published outbox payload is invalid", exception);

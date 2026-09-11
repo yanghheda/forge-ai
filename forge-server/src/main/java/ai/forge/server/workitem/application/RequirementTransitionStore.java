@@ -9,11 +9,10 @@ import java.util.Optional;
 public interface RequirementTransitionStore {
 
     Optional<TransitionResult> findResultByIdempotencyKey(
-            long workspaceId, long projectId, long workItemId, String idempotencyKey);
+            long organizationId, long workItemId, String idempotencyKey);
 
     TransitionResult transition(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long workItemId,
             long actorId,
             long expectedVersion,
@@ -22,7 +21,7 @@ public interface RequirementTransitionStore {
             TransitionDefinition definition,
             List<String> checklist);
 
-    List<WorkItemEvent> findEvents(long workspaceId, long projectId, long workItemId);
+    List<WorkItemEvent> findEvents(long organizationId, long workItemId);
 
     record TransitionResult(
             /* 成功执行或幂等重放的工作流动作。 */

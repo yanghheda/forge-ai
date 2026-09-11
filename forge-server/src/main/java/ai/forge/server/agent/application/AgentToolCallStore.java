@@ -4,12 +4,11 @@ public interface AgentToolCallStore {
 
     /* 按 runId 与 toolCallId 组成的幂等键查找已成功调用及其冻结输入。 */
     java.util.Optional<StoredToolCall> findSuccessful(
-            long workspaceId, long projectId, String runId, String idempotencyKey);
+            long organizationId, String runId, String idempotencyKey);
 
     /* 持久化一次成功执行的 MEDIUM 写操作；唯一键冲突表示重复副作用已被幂等键拦截。 */
     void record(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             String runId,
             String toolCallId,
             String toolName,

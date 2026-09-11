@@ -19,21 +19,20 @@ import {
   type ReleaseView,
 } from "../api/release-api";
 
-export function ReleasePanel({ workspaceId, projectId }: { workspaceId: number; projectId: number }) {
+export function ReleasePanel({ organizationId }: { organizationId: number; organizationId: number }) {
   const queryClient = useQueryClient();
-  const key = ["releases", workspaceId, projectId];
-  const releases = useQuery({ queryKey: key, queryFn: () => listReleases(workspaceId, projectId) });
+  const key = ["releases", organizationId];
+  const releases = useQuery({ queryKey: key, queryFn: () => listReleases(organizationId) });
   const requirements = useQuery({
-    queryKey: ["requirements", workspaceId, projectId],
-    queryFn: () => listRequirements(workspaceId, projectId),
+    queryKey: ["requirements", organizationId],
+    queryFn: () => listRequirements(organizationId),
   });
   const [versionName, setVersionName] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
   const refresh = () => queryClient.invalidateQueries({ queryKey: key });
   const create = useMutation({
     mutationFn: () => createRelease({
-      workspaceId,
-      projectId,
+      organizationId,
       versionName,
       environment: "production",
       itemIds: selected,
@@ -47,8 +46,7 @@ export function ReleasePanel({ workspaceId, projectId }: { workspaceId: number; 
   });
   const note = useMutation({
     mutationFn: ({ release, value }: { release: ReleaseView; value: string }) => updateReleaseNote({
-      workspaceId,
-      projectId,
+      organizationId,
       releaseId: release.id,
       note: value,
       expectedVersion: release.version,
@@ -56,7 +54,7 @@ export function ReleasePanel({ workspaceId, projectId }: { workspaceId: number; 
     onSuccess: refresh,
   });
   const precheck = useMutation({
-    mutationFn: (releaseId: number) => runPrecheck({ workspaceId, projectId, releaseId }),
+    mutationFn: (releaseId: number) => runPrecheck({ organizationId, releaseId }),
     onSuccess: refresh,
   });
 
@@ -83,8 +81,7 @@ export function ReleasePanel({ workspaceId, projectId }: { workspaceId: number; 
             release={release}
             onSaveNote={(value) => note.mutate({ release, value })}
             onPrecheck={() => precheck.mutate(release.id)}
-            workspaceId={workspaceId}
-            projectId={projectId}
+            organizationId={organizationId}
           />
         ))}
       </Space>
@@ -96,23 +93,21 @@ export function ReleaseCard({ release, onSaveNote, onPrecheck }: {
   release: ReleaseView;
   onSaveNote: (value: string) => void;
   onPrecheck: () => void;
-  workspaceId?: number;
-  projectId?: number;
+  organizationId?: number;
+  organizationId?: number;
 }) {
   const [draft, setDraft] = useState(release.releaseNote);
-  const workspaceId = release.workspaceId;
-  const projectId = release.projectId;
+  const organizationId = release.organizationId;
   const queryClient = useQueryClient();
-  const deploymentKey = ["deployments", workspaceId, projectId, release.id];
+  const deploymentKey = ["deployments", organizationId, release.id];
   const deploymentQuery = useQuery({
     queryKey: deploymentKey,
-    queryFn: () => listDeployments(workspaceId, projectId, release.id),
+    queryFn: () => listDeployments(organizationId, release.id),
   });
   const refreshDeployments = () => queryClient.invalidateQueries({ queryKey: deploymentKey });
   const deploy = useMutation({
     mutationFn: () => requestDeployment({
-      workspaceId,
-      projectId,
+      organizationId,
       releaseId: release.id,
       simulateFailure: false,
       idempotencyKey: crypto.randomUUID(),
@@ -124,8 +119,7 @@ export function ReleaseCard({ release, onSaveNote, onPrecheck }: {
       deployment: DeploymentView;
       decision: "APPROVE" | "REJECT";
     }) => decideDeployment({
-      workspaceId,
-      projectId,
+      organizationId,
       deploymentId: deployment.id,
       decision,
       expectedVersion: deployment.version,

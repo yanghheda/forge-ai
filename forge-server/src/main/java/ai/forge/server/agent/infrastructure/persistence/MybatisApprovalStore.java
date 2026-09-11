@@ -17,53 +17,53 @@ public class MybatisApprovalStore implements ApprovalStore {
         this.mapper = mapper;
     }
 
-    public void insert(String id, long workspaceId, long projectId, String runId, String toolCallId,
+    public void insert(String id, long organizationId, String runId, String toolCallId,
             String riskLevel, long requestedBy, String toolName, int toolVersion, String argumentHash,
             String encryptedArguments, String resourceVersionsJson, String reason, LocalDateTime expiresAt) {
-        mapper.insert(id, workspaceId, projectId, runId, toolCallId, riskLevel, requestedBy, toolName,
+        mapper.insert(id, organizationId, runId, toolCallId, riskLevel, requestedBy, toolName,
                 toolVersion, argumentHash, encryptedArguments, resourceVersionsJson, reason, expiresAt);
     }
-    public List<Map<String, Object>> find(long workspaceId, long projectId, String approvalId) {
-        return mapper.find(workspaceId, projectId, approvalId);
+    public List<Map<String, Object>> find(long organizationId, String approvalId) {
+        return mapper.find(organizationId, approvalId);
     }
-    public List<Map<String, Object>> findByCall(long workspaceId, long projectId, String runId, String toolCallId) {
-        return mapper.findByCall(workspaceId, projectId, runId, toolCallId);
+    public List<Map<String, Object>> findByCall(long organizationId, String runId, String toolCallId) {
+        return mapper.findByCall(organizationId, runId, toolCallId);
     }
-    public List<Map<String, Object>> findByRun(long workspaceId, long projectId, String runId) {
-        return mapper.findByRun(workspaceId, projectId, runId);
+    public List<Map<String, Object>> findByRun(long organizationId, String runId) {
+        return mapper.findByRun(organizationId, runId);
     }
-    public void insertWaitingToolCall(long workspaceId, long projectId, String runId, String toolCallId,
+    public void insertWaitingToolCall(long organizationId, String runId, String toolCallId,
             String toolName, int toolVersion, String riskLevel, String argumentHash, String argumentsJson,
             String idempotencyKey, String approvalId) {
-        mapper.insertWaitingToolCall(workspaceId, projectId, runId, toolCallId, toolName, toolVersion,
+        mapper.insertWaitingToolCall(organizationId, runId, toolCallId, toolName, toolVersion,
                 riskLevel, argumentHash, argumentsJson, idempotencyKey, approvalId);
     }
-    public boolean markRunWaiting(long workspaceId, long projectId, String runId) {
-        return mapper.markRunWaiting(workspaceId, projectId, runId) == 1;
+    public boolean markRunWaiting(long organizationId, String runId) {
+        return mapper.markRunWaiting(organizationId, runId) == 1;
     }
-    public void insertRequiredEvent(long workspaceId, long projectId, String runId, String approvalId,
+    public void insertRequiredEvent(long organizationId, String runId, String approvalId,
             String toolName, String requestId) {
-        mapper.insertRequiredEvent(workspaceId, projectId, runId, approvalId, toolName, requestId);
+        mapper.insertRequiredEvent(organizationId, runId, approvalId, toolName, requestId);
     }
-    public void expire(long workspaceId, long projectId, String approvalId) {
-        mapper.expire(workspaceId, projectId, approvalId);
+    public void expire(long organizationId, String approvalId) {
+        mapper.expire(organizationId, approvalId);
     }
-    public boolean decide(long workspaceId, long projectId, String approvalId, long approverId,
+    public boolean decide(long organizationId, String approvalId, long approverId,
             String status, long expectedVersion) {
-        return mapper.decide(workspaceId, projectId, approvalId, approverId, status, expectedVersion) == 1;
+        return mapper.decide(organizationId, approvalId, approverId, status, expectedVersion) == 1;
     }
-    public void insertResumeOutbox(long workspaceId, long projectId, String runId, String approvalId) {
-        mapper.insertResumeOutbox(workspaceId, projectId, runId, approvalId);
+    public void insertResumeOutbox(long organizationId, String runId, String approvalId) {
+        mapper.insertResumeOutbox(organizationId, runId, approvalId);
     }
-    public void markRunResuming(long workspaceId, long projectId, String runId) {
-        mapper.markRunResuming(workspaceId, projectId, runId);
+    public void markRunResuming(long organizationId, String runId) {
+        mapper.markRunResuming(organizationId, runId);
     }
-    public void insertDecisionEvent(long workspaceId, long projectId, String runId, String approvalId,
+    public void insertDecisionEvent(long organizationId, String runId, String approvalId,
             String eventType, String status, String requestId) {
-        mapper.insertDecisionEvent(workspaceId, projectId, runId, approvalId, eventType, status, requestId);
+        mapper.insertDecisionEvent(organizationId, runId, approvalId, eventType, status, requestId);
     }
-    public void completeToolCall(long workspaceId, long projectId, String runId, String toolCallId,
+    public void completeToolCall(long organizationId, String runId, String toolCallId,
             String resultJson) {
-        mapper.completeToolCall(workspaceId, projectId, runId, toolCallId, resultJson);
+        mapper.completeToolCall(organizationId, runId, toolCallId, resultJson);
     }
 }

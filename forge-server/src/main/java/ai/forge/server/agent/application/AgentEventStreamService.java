@@ -45,8 +45,8 @@ public class AgentEventStreamService {
     }
 
     public SseEmitter stream(
-            long userId, long workspaceId, long projectId, String runId, long afterSequence) {
-        AgentRunSnapshot initial = runService.get(userId, workspaceId, projectId, runId);
+            long userId, long organizationId, String runId, long afterSequence) {
+        AgentRunSnapshot initial = runService.get(userId, organizationId, runId);
         if (afterSequence < 0 || afterSequence > initial.lastSequence()) {
             throw new IllegalArgumentException("afterSequence is outside the persisted Run sequence");
         }
@@ -56,7 +56,7 @@ public class AgentEventStreamService {
         emitter.onTimeout(() -> closed.set(true));
         emitter.onError(error -> closed.set(true));
         taskExecutor.execute(() -> pump(
-                emitter, closed, userId, workspaceId, projectId, runId, afterSequence));
+                emitter, closed, userId, organizationId, runId, afterSequence));
         return emitter;
     }
 
@@ -64,15 +64,14 @@ public class AgentEventStreamService {
             SseEmitter emitter,
             AtomicBoolean closed,
             long userId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             String runId,
             long afterSequence) {
         long cursor = afterSequence;
         try {
             while (!closed.get()) {
                 List<AgentEvent> events = runService.eventsAfter(
-                        userId, workspaceId, projectId, runId, cursor, REPLAY_BATCH_SIZE);
+                        userId, organizationId, runId, cursor, REPLAY_BATCH_SIZE);
                 for (AgentEvent event : events) {
                     emitter.send(SseEmitter.event()
                             .id(Long.toString(event.sequence()))
@@ -80,7 +79,7 @@ public class AgentEventStreamService {
                             .data(event));
                     cursor = event.sequence();
                 }
-                AgentRunSnapshot snapshot = runService.get(userId, workspaceId, projectId, runId);
+                AgentRunSnapshot snapshot = runService.get(userId, organizationId, runId);
                 if (snapshot.terminal() && cursor >= snapshot.lastSequence()) {
                     emitter.complete();
                     return;

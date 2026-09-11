@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Profile("!test-unit")
 public class RequirementTransitionService {
 
-    /* 读取带租户与项目范围的 Work Item 当前事实。 */
+    /* 读取带公司范围的 Work Item 当前事实。 */
     private final WorkItemStore workItemStore;
 
     /* 在资源加载后执行动作对应的最终权限检查。 */
@@ -50,8 +50,7 @@ public class RequirementTransitionService {
     @Transactional
     public RequirementTransitionStore.TransitionResult transition(
             long userId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long workItemId,
             WorkflowAction action,
             long expectedVersion,
@@ -59,8 +58,7 @@ public class RequirementTransitionService {
             String reason) {
         return transition(
                 userId,
-                workspaceId,
-                projectId,
+                organizationId,
                 workItemId,
                 action,
                 expectedVersion,
@@ -72,29 +70,28 @@ public class RequirementTransitionService {
     @Transactional
     public RequirementTransitionStore.TransitionResult transition(
             long userId,
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long workItemId,
             WorkflowAction action,
             long expectedVersion,
             String idempotencyKey,
             String reason,
             List<String> checklist) {
-        WorkItem current = workItemStore.findByIdAndScope(workspaceId, projectId, workItemId)
+        WorkItem current = workItemStore.findByIdAndScope(organizationId, workItemId)
                 .orElseThrow(ResourceNotFoundException::new);
         Optional<RequirementTransitionStore.TransitionResult> previous =
-                transitionStore.findResultByIdempotencyKey(workspaceId, projectId, workItemId, idempotencyKey);
+                transitionStore.findResultByIdempotencyKey(organizationId, workItemId, idempotencyKey);
         if (previous.isPresent()) {
             if (previous.get().action() != action) {
                 throw new IdempotencyConflictException();
             }
             TransitionDefinition replayDefinition = workflowRegistry.requireAction(current.type(), action);
-            permissionEvaluator.requireProject(
-                    userId, workspaceId, projectId, replayDefinition.requiredPermission());
+            permissionEvaluator.requireOrganization(
+                    userId, organizationId, replayDefinition.requiredPermission());
             return previous.get();
         }
         TransitionDefinition definition = workflowRegistry.require(current.type(), current.status(), action);
-        permissionEvaluator.requireProject(userId, workspaceId, projectId, definition.requiredPermission());
+        permissionEvaluator.requireOrganization(userId, organizationId, definition.requiredPermission());
         LinkedHashSet<String> missing = new LinkedHashSet<>();
         TransitionContext context = new TransitionContext(current, normalizeReason(reason), checklist);
         for (var guard : definition.guards()) {
@@ -105,8 +102,7 @@ public class RequirementTransitionService {
             throw new WorkflowGuardFailedException(List.copyOf(missing));
         }
         return transitionStore.transition(
-                workspaceId,
-                projectId,
+                organizationId,
                 workItemId,
                 userId,
                 expectedVersion,
@@ -117,12 +113,12 @@ public class RequirementTransitionService {
     }
 
     public List<WorkItemEvent> events(
-            long userId, long workspaceId, long projectId, long workItemId) {
-        WorkItem item = workItemStore.findByIdAndScope(workspaceId, projectId, workItemId)
+            long userId, long organizationId, long workItemId) {
+        WorkItem item = workItemStore.findByIdAndScope(organizationId, workItemId)
                 .orElseThrow(ResourceNotFoundException::new);
-        permissionEvaluator.requireProject(
-                userId, workspaceId, projectId, item.type().permissionResource() + ".read");
-        return transitionStore.findEvents(workspaceId, projectId, workItemId);
+        permissionEvaluator.requireOrganization(
+                userId, organizationId, item.type().permissionResource() + ".read");
+        return transitionStore.findEvents(organizationId, workItemId);
     }
 
     public ActionHints hints(long userId, WorkItem item) {
@@ -130,8 +126,8 @@ public class RequirementTransitionService {
         Map<WorkflowAction, List<String>> guardHints = new LinkedHashMap<>();
         for (TransitionDefinition definition : workflowRegistry.definitions()) {
             if (definition.type() != item.type() || definition.from() != item.status()
-                    || !permissionEvaluator.hasProjectPermission(
-                            userId, item.workspaceId(), item.projectId(), definition.requiredPermission())) {
+                    || !permissionEvaluator.hasOrganizationPermission(
+                            userId, item.organizationId(), definition.requiredPermission())) {
                 continue;
             }
             actions.add(definition.action());

@@ -38,36 +38,36 @@ public class BugService {
     }
 
     @Transactional
-    public BugView create(long userId, long workspaceId, long projectId, long requirementId, Long testRunId,
+    public BugView create(long userId, long organizationId, long requirementId, Long testRunId,
             Long testResultId, Long devTaskId, String title, BugSeverity severity,
             List<String> reproductionSteps, String expectedResult, String actualResult) {
-        permissions.requireProject(userId, workspaceId, projectId, "bug.create");
+        permissions.requireOrganization(userId, organizationId, "bug.create");
         List<String> steps = reproductionSteps.stream().map(String::trim).filter(step -> !step.isBlank()).toList();
         if (steps.isEmpty()) {
             throw new IllegalArgumentException("reproductionSteps must not be empty");
         }
-        WorkItem item = workItems.create(userId, workspaceId, projectId, WorkItemType.BUG, title,
+        WorkItem item = workItems.create(userId, organizationId, WorkItemType.BUG, title,
                 actualResult, WorkItemPriority.HIGH, null, null);
         return store.create(item, severity, requirementId, testRunId, testResultId, steps,
                 expectedResult.trim(), actualResult.trim(), devTaskId);
     }
 
-    public BugView get(long userId, long workspaceId, long projectId, long bugId) {
-        permissions.requireProject(userId, workspaceId, projectId, "bug.read");
-        return store.find(workspaceId, projectId, bugId).orElseThrow(ResourceNotFoundException::new);
+    public BugView get(long userId, long organizationId, long bugId) {
+        permissions.requireOrganization(userId, organizationId, "bug.read");
+        return store.find(organizationId, bugId).orElseThrow(ResourceNotFoundException::new);
     }
 
-    public List<BugView> list(long userId, long workspaceId, long projectId, long requirementId) {
-        permissions.requireProject(userId, workspaceId, projectId, "bug.read");
-        return store.findByRequirement(workspaceId, projectId, requirementId);
+    public List<BugView> list(long userId, long organizationId, long requirementId) {
+        permissions.requireOrganization(userId, organizationId, "bug.read");
+        return store.findByRequirement(organizationId, requirementId);
     }
 
     @Transactional
-    public BugView transition(long userId, long workspaceId, long projectId, long bugId, BugAction action,
+    public BugView transition(long userId, long organizationId, long bugId, BugAction action,
             long expectedVersion, String reason, List<String> fixEvidence, String idempotencyKey) {
-        BugView current = store.find(workspaceId, projectId, bugId).orElseThrow(ResourceNotFoundException::new);
+        BugView current = store.find(organizationId, bugId).orElseThrow(ResourceNotFoundException::new);
         BugTransition transition = workflow.require(current.status(), action);
-        permissions.requireProject(userId, workspaceId, projectId, transition.requiredPermission());
+        permissions.requireOrganization(userId, organizationId, transition.requiredPermission());
         String normalizedReason = reason == null ? "" : reason.trim();
         List<String> evidence = fixEvidence == null ? List.of() : fixEvidence.stream()
                 .map(String::trim).filter(value -> !value.isBlank()).toList();
@@ -77,7 +77,7 @@ public class BugService {
         if (action == BugAction.REOPEN && normalizedReason.isEmpty()) {
             throw new IllegalArgumentException("REOPEN requires a reason");
         }
-        return store.transition(workspaceId, projectId, bugId, userId, action,
+        return store.transition(organizationId, bugId, userId, action,
                 transition.to().name(), normalizedReason, evidence, expectedVersion, idempotencyKey);
     }
 }

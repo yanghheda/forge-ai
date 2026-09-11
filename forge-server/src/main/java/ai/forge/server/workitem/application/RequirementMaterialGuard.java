@@ -18,7 +18,7 @@ public final class RequirementMaterialGuard implements TransitionGuard {
     @Override
     public GuardResult evaluate(TransitionContext context) {
         RequirementMaterialStore.RequirementMaterial material = materialStore
-                .find(context.workItem().workspaceId(), context.workItem().projectId(), context.workItem().id())
+                .find(context.workItem().organizationId(), context.workItem().id())
                 .orElse(new RequirementMaterialStore.RequirementMaterial("", "", 0));
         List<String> missing = new ArrayList<>();
         if (material.goal() == null || material.goal().isBlank()) {

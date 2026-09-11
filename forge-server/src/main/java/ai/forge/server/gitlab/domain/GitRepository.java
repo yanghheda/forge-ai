@@ -4,8 +4,7 @@ import java.time.LocalDateTime;
 
 public record GitRepository(
         /* 仓库绑定的本地稳定标识。 */ long id,
-        /* 仓库所属工作区。 */ long workspaceId,
-        /* 仓库绑定的 ForgeAI 项目标识。 */ long projectId,
+        /* 仓库所属公司。 */ long organizationId,
         /* 使用的 GitLab 连接标识。 */ long connectionId,
         /* GitLab 项目的不可变标识。 */ String remoteProjectId,
         /* 含群组命名空间的仓库路径。 */ String pathWithNamespace,

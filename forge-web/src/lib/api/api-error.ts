@@ -28,7 +28,6 @@ export function isApiError(error: unknown): error is ApiError {
 
 const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   RESOURCE_NOT_FOUND: "请求的资源不存在或当前账户无权访问。",
-  PROJECT_KEY_CONFLICT: "项目 Key 已在当前工作空间中使用。",
   MEMBER_EMAIL_CONFLICT: "该邮箱已关联现有账号。",
   VERSION_CONFLICT: "数据已被其他操作更新，请刷新后重试。",
   INVALID_TRANSITION: "当前状态不允许执行此操作。",

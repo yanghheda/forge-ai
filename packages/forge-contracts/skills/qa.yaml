@@ -4,7 +4,7 @@ description: QA Skill：读取交付上下文并生成 Test Case 或 Bug 草稿�
 prompt_version: qa-system-v1
 context_template: qa-context-v1
 allowed_tools:
-  - get_project
+  - get_organization
   - get_work_item
   - get_delivery_graph
   - search_documents

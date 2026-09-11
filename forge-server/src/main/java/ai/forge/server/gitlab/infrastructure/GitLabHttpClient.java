@@ -157,7 +157,7 @@ public class GitLabHttpClient implements SourceControlProvider {
                 "ref=" + encode(ref));
         LocalDateTime updatedAt = date(response.path("updated_at").asText(
                 response.path("created_at").asText(null)));
-        return new PipelineRun(0L, context.workspaceId(), context.repositoryId(), null,
+        return new PipelineRun(0L, context.organizationId(), context.repositoryId(), null,
                 response.path("id").asLong(), required(response, "ref"), required(response, "sha"),
                 required(response, "status"), required(response, "web_url"),
                 nullableDate(response, "started_at"), nullableDate(response, "finished_at"),
@@ -254,14 +254,14 @@ public class GitLabHttpClient implements SourceControlProvider {
         String name = required(response, "name");
         String sha = required(response.path("commit"), "id");
         LocalDateTime observed = LocalDateTime.now(ZoneOffset.UTC);
-        return new Branch(0L, context.task().workspaceId(), context.repositoryId(), context.task().id(),
+        return new Branch(0L, context.task().organizationId(), context.repositoryId(), context.task().id(),
                 name, sha, "ACTIVE", observed, observed);
     }
 
     private static MergeRequest toMergeRequest(DevelopmentContext context, JsonNode response) {
         LocalDateTime updatedAt = date(response.path("updated_at").asText(null));
         JsonNode author = response.path("author");
-        return new MergeRequest(0L, context.task().workspaceId(), context.repositoryId(), context.task().id(),
+        return new MergeRequest(0L, context.task().organizationId(), context.repositoryId(), context.task().id(),
                 response.path("iid").asLong(), required(response, "title"), required(response, "source_branch"),
                 required(response, "target_branch"), required(response, "state"), required(response, "web_url"),
                 author.path("id").isNumber() ? author.path("id").asText() : null,

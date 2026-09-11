@@ -42,73 +42,53 @@ public interface InstanceBootstrapMapper extends BaseMapper<InstanceSettingsEnti
             @Param("ownerUserId") long ownerUserId);
 
     @Insert("""
-            INSERT INTO workspaces
-                (organization_id, name, slug, status, settings_json, created_at, updated_at)
+            INSERT INTO organization_members
+                (organization_id, user_id, status, joined_at, created_at, updated_at)
             VALUES
-                (#{organizationId}, #{name}, #{slug}, 'ACTIVE', JSON_OBJECT(), UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))
+                (#{organizationId}, #{userId}, 'ACTIVE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))
             """)
-    int insertWorkspace(
-            @Param("organizationId") long organizationId,
-            @Param("name") String name,
-            @Param("slug") String slug);
+    int insertOrganizationMember(@Param("organizationId") long organizationId, @Param("userId") long userId);
 
-    @Insert("""
-            INSERT INTO projects
-                (workspace_id, `key`, name, description, status, created_by, created_at, updated_at, version)
-            VALUES
-                (#{workspaceId}, 'REQ', #{name}, '单组织产品模型的内部默认需求范围', 'ACTIVE', #{createdBy},
-                 UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)
-            """)
-    int insertDefaultProject(
-            @Param("workspaceId") long workspaceId,
-            @Param("name") String name,
-            @Param("createdBy") long createdBy);
-
-    @Insert("INSERT INTO project_item_sequences (project_id, next_value, version) VALUES (#{projectId}, 1, 0)")
-    int insertProjectSequence(@Param("projectId") long projectId);
-
-    @Insert("""
-            INSERT INTO workspace_members
-                (workspace_id, user_id, status, joined_at, created_at, updated_at)
-            VALUES
-                (#{workspaceId}, #{userId}, 'ACTIVE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))
-            """)
-    int insertWorkspaceMember(@Param("workspaceId") long workspaceId, @Param("userId") long userId);
-
-    @Select("SELECT id FROM roles WHERE code = 'OWNER' AND system_role = TRUE AND workspace_id IS NULL")
+    @Select("SELECT id FROM roles WHERE code = 'OWNER' AND system_role = TRUE AND organization_id IS NULL")
     long findOwnerRoleId();
 
     @Insert("""
-            INSERT INTO member_roles (workspace_member_id, role_id, project_id, created_at)
-            VALUES (#{workspaceMemberId}, #{roleId}, NULL, UTC_TIMESTAMP(6))
+            INSERT INTO member_roles (organization_member_id, role_id, created_at)
+            VALUES (#{organizationMemberId}, #{roleId}, UTC_TIMESTAMP(6))
             """)
-    int insertMemberRole(@Param("workspaceMemberId") long workspaceMemberId, @Param("roleId") long roleId);
+    int insertMemberRole(@Param("organizationMemberId") long organizationMemberId, @Param("roleId") long roleId);
+
+    @Insert("INSERT INTO organization_item_sequences (organization_id, next_value, version) VALUES (#{organizationId}, 1, 0)")
+    int insertOrganizationSequence(@Param("organizationId") long organizationId);
+
+    @Insert("""
+            INSERT INTO organization_policies
+                (organization_id, allow_skip_ux, ci_required, updated_by, updated_at, version)
+            VALUES (#{organizationId}, FALSE, TRUE, #{userId}, UTC_TIMESTAMP(6), 0)
+            """)
+    int insertOrganizationPolicy(@Param("organizationId") long organizationId, @Param("userId") long userId);
 
     @Insert("""
             INSERT INTO audit_logs
-                (workspace_id, project_id, actor_type, actor_id, action, resource_type, resource_id,
+                (organization_id, actor_type, actor_id, action, resource_type, resource_id,
                  result, request_id, run_id, metadata_redacted_json, created_at)
             VALUES
-                (#{workspaceId}, NULL, 'USER', #{userId}, 'INSTANCE_INITIALIZED', 'INSTANCE', 1,
+                (#{organizationId}, 'USER', #{userId}, 'INSTANCE_INITIALIZED', 'INSTANCE', 1,
                  'SUCCESS', #{requestId}, NULL,
-                 JSON_OBJECT('organizationSlug', #{organizationSlug}, 'workspaceSlug', #{workspaceSlug}),
+                 JSON_OBJECT('organizationSlug', #{organizationSlug}),
                  UTC_TIMESTAMP(6))
             """)
     int insertBootstrapAudit(
-            @Param("workspaceId") long workspaceId,
+            @Param("organizationId") long organizationId,
             @Param("userId") long userId,
             @Param("requestId") String requestId,
-            @Param("organizationSlug") String organizationSlug,
-            @Param("workspaceSlug") String workspaceSlug);
+            @Param("organizationSlug") String organizationSlug);
 
     @Update("""
             UPDATE instance_settings
             SET initialized_at = UTC_TIMESTAMP(6), default_organization_id = #{organizationId},
-                default_workspace_id = #{workspaceId}, default_project_id = #{projectId}, version = version + 1
+                version = version + 1
             WHERE id = 1 AND initialized_at IS NULL
             """)
-    int markInitialized(
-            @Param("organizationId") long organizationId,
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId);
+    int markInitialized(@Param("organizationId") long organizationId);
 }

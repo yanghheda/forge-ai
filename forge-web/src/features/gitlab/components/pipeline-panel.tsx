@@ -10,25 +10,23 @@ import { formatRequestError } from "@/lib/api";
 import { listPipelines, triggerPipeline } from "../api/gitlab-api";
 
 export function PipelinePanel({
-  workspaceId,
-  projectId,
+  organizationId,
 }: {
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
 }) {
   const queryClient = useQueryClient();
   const [ref, setRef] = useState("main");
   const pipelines = useQuery({
-    queryKey: ["pipelines", workspaceId, projectId],
-    queryFn: () => listPipelines(workspaceId, projectId),
+    queryKey: ["pipelines", organizationId],
+    queryFn: () => listPipelines(organizationId),
     refetchInterval: 3_000,
   });
   const trigger = useMutation({
-    mutationFn: () => triggerPipeline({ workspaceId, projectId, ref }),
+    mutationFn: () => triggerPipeline({ organizationId, ref }),
     onSuccess: () => {
       Message.success("Pipeline 已触发。");
       return queryClient.invalidateQueries({
-        queryKey: ["pipelines", workspaceId, projectId],
+        queryKey: ["pipelines", organizationId],
       });
     },
     onError: (error) => Message.error(formatRequestError(error)),

@@ -25,17 +25,13 @@ class WebhookPersistenceIntegrationTest extends InfrastructureIntegrationTestBas
         jdbc.update("INSERT INTO users (id,email,normalized_email,display_name,password_hash,status,created_at,updated_at) "
                 + "VALUES (901,'hook@example.com','hook@example.com','Hook','$2a$10$placeholder','ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
         jdbc.update("INSERT INTO organizations (id,name,slug,owner_user_id,created_at,updated_at) "
-                + "VALUES (902,'Hook Org','hook-org',901,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
-        jdbc.update("INSERT INTO workspaces (id,organization_id,name,slug,status,settings_json,created_at,updated_at) "
-                + "VALUES (903,902,'Hook WS','hook-ws','ACTIVE',JSON_OBJECT(),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
-        jdbc.update("INSERT INTO projects (id,workspace_id,`key`,name,status,created_by,created_at,updated_at) "
-                + "VALUES (904,903,'HOOK','Hook Project','ACTIVE',901,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
-        jdbc.update("INSERT INTO secrets (id,workspace_id,type,ciphertext,iv,key_version,fingerprint,created_at) "
+                + "VALUES (903,'Hook Org','hook-org',901,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
+        jdbc.update("INSERT INTO secrets (id,organization_id,type,ciphertext,iv,key_version,fingerprint,created_at) "
                 + "VALUES (905,903,'GITLAB_TOKEN','unused','unused',1,'unused',UTC_TIMESTAMP(6))");
-        jdbc.update("INSERT INTO gitlab_connections (id,workspace_id,name,base_url,credential_secret_id,status,created_by,created_at,updated_at) "
+        jdbc.update("INSERT INTO gitlab_connections (id,organization_id,name,base_url,credential_secret_id,status,created_by,created_at,updated_at) "
                 + "VALUES (906,903,'Hook','https://gitlab.example',905,'ACTIVE',901,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
-        jdbc.update("INSERT INTO git_repositories (id,workspace_id,project_id,connection_id,remote_project_id,path_with_namespace,http_url,default_branch,status,last_synced_at,created_at,updated_at) "
-                + "VALUES (907,903,904,906,'123','org/repo','https://gitlab.example/org/repo','main','ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
+        jdbc.update("INSERT INTO git_repositories (id,organization_id,connection_id,remote_project_id,path_with_namespace,http_url,default_branch,status,last_synced_at,created_at,updated_at) "
+                + "VALUES (907,903,906,'123','org/repo','https://gitlab.example/org/repo','main','ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
     }
 
     @Test
@@ -60,7 +56,7 @@ class WebhookPersistenceIntegrationTest extends InfrastructureIntegrationTestBas
     }
 
     private void process(long deliveryId, String deliveryKey, String status, LocalDateTime updatedAt) {
-        jdbc.update("INSERT INTO webhook_deliveries (id,workspace_id,connection_id,delivery_key,event_type,payload_hash,"
+        jdbc.update("INSERT INTO webhook_deliveries (id,organization_id,connection_id,delivery_key,event_type,payload_hash,"
                         + "payload,status,attempts,next_attempt_at,received_at) VALUES (?,?,?,?,?,'hash',JSON_OBJECT(),"
                         + "'PROCESSING',0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))",
                 deliveryId, 903L, 906L, deliveryKey, "Pipeline Hook");

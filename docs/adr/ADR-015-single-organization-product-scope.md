@@ -1,6 +1,6 @@
 # ADR-015：单组织产品模型与内部兼容 Scope
 
-- 状态：Accepted
+- 状态：Superseded by ADR-016
 - 日期：2026-09-09
 
 ## 上下文

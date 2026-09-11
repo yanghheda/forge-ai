@@ -1,9 +1,8 @@
 package fixture.valid;
 
 public class ValidMembers {
-    /* 所属工作区，用于服务端租户范围校验。 */
-    @Deprecated
-    private long workspaceId;
+    /* 所属公司，用于服务端租户范围校验。 */
+    private long organizationId;
 }
 
 interface ValidContract {

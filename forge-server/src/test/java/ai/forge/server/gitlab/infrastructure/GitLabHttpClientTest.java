@@ -95,7 +95,7 @@ class GitLabHttpClientTest {
         });
         server.createContext("/api/v4/projects/123/jobs/99/trace", exchange ->
                 respond(exchange, 200, "0123456789"));
-        PipelineContext context = new PipelineContext(7L, 9L, 41L, 21L, baseUrl, "123", "glpat-sensitive");
+        PipelineContext context = new PipelineContext(7L, 41L, 21L, baseUrl, "123", "glpat-sensitive");
         GitLabHttpClient client = client(Duration.ofSeconds(1));
 
         assertThat(client.triggerPipeline(context, "main").remotePipelineId()).isEqualTo(81L);

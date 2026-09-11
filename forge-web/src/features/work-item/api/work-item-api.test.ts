@@ -9,13 +9,13 @@ import {
 } from "./work-item-api";
 
 describe("work item API", () => {
-  it("按 Workspace、Project 和 Requirement 范围读取 Delivery Graph", async () => {
+  it("按 Organization、Project 和 Requirement 范围读取 Delivery Graph", async () => {
     const graph = { nodes: [], edges: [], truncated: false, maxDepth: 8, maxNodes: 500 };
     const client = { request: vi.fn().mockResolvedValue(graph) };
 
     await expect(getDeliveryGraph(10, 20, 30, client)).resolves.toEqual(graph);
     expect(client.request).toHaveBeenCalledWith(
-      "/v1/work-items/30/delivery-graph?workspaceId=10&projectId=20",
+      "/v1/work-items/30/delivery-graph?organizationId=10&organizationId=20",
     );
   });
 
@@ -23,11 +23,11 @@ describe("work item API", () => {
     const client = { request: vi.fn().mockResolvedValue({ id: 40 }) };
 
     await createDevTask(
-      { workspaceId: 10, projectId: 20, requirementId: 30, title: "API", description: "实现" },
+      { organizationId: 10, requirementId: 30, title: "API", description: "实现" },
       client,
     );
     await startDevelopment(
-      { workspaceId: 10, projectId: 20, taskId: 40, idempotencyKey: "stable-1" },
+      { organizationId: 10, taskId: 40, idempotencyKey: "stable-1" },
       client,
     );
 
@@ -48,13 +48,13 @@ describe("work item API", () => {
 
     await getDevelopmentSummary(10, 20, 30, client);
     await completeDevTask(
-      { workspaceId: 10, projectId: 20, taskId: 40, expectedVersion: 3 },
+      { organizationId: 10, taskId: 40, expectedVersion: 3 },
       client,
     );
 
     expect(client.request).toHaveBeenNthCalledWith(
       1,
-      "/v1/development/requirements/30?workspaceId=10&projectId=20",
+      "/v1/development/requirements/30?organizationId=10&organizationId=20",
     );
     expect(client.request).toHaveBeenNthCalledWith(
       2,

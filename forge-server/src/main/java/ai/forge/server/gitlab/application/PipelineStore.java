@@ -6,11 +6,11 @@ import java.util.Optional;
 
 public interface PipelineStore {
 
-    PipelineContext loadContext(long workspaceId, long projectId);
+    PipelineContext loadContext(long organizationId);
 
     PipelineRun save(PipelineRun pipeline);
 
-    Optional<PipelineRun> find(long workspaceId, long projectId, long pipelineId);
+    Optional<PipelineRun> find(long organizationId, long pipelineId);
 
-    List<PipelineRun> list(long workspaceId, long projectId, int limit);
+    List<PipelineRun> list(long organizationId, int limit);
 }

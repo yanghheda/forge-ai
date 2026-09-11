@@ -39,7 +39,7 @@ def body() -> dict[str, object]:
         "manifest": {
             "runId": RUN_ID,
             "subject": {"userId": 12},
-            "scope": {"workspaceId": 2, "projectId": 10},
+            "scope": {"organizationId": 1},
             "skill": "PRODUCT",
             "effectiveToolNames": [],
             "policy": {"mediumConfirmation": "ASK", "maxToolCalls": 20, "tokenBudget": 50000},

@@ -11,9 +11,5 @@ public record BootstrapCommand(
         String organizationName,
         /* 初始化创建的默认组织稳定路由短名。 */
         String organizationSlug,
-        /* 初始化创建的默认工作区展示名称。 */
-        String workspaceName,
-        /* 初始化创建的默认工作区稳定路由短名。 */
-        String workspaceSlug,
         /* 贯穿初始化响应、服务日志与审计记录的请求标识。 */
         String requestId) {}

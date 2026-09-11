@@ -5,7 +5,7 @@ import java.time.Instant;
 
 public record DevelopmentQaTask(
         /* Dev Task 稳定标识。 */ long id,
-        /* 项目内可读任务编号。 */ String itemKey,
+        /* 公司内可读任务编号。 */ String itemKey,
         /* 开发页面展示的任务标题。 */ String title,
         /* Dev Task 当前状态。 */ WorkItemStatus status,
         /* 完成任务写入使用的乐观锁版本。 */ long version,

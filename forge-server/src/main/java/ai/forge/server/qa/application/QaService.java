@@ -23,57 +23,57 @@ public class QaService {
         this.store = store;
     }
 
-    public TestCaseView createCase(long userId, long workspaceId, long projectId, long requirementId,
+    public TestCaseView createCase(long userId, long organizationId, long requirementId,
             String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority) {
-        permissions.requireProject(userId, workspaceId, projectId, "qa.manage");
+        permissions.requireOrganization(userId, organizationId, "qa.manage");
         List<String> normalizedSteps = steps.stream().map(String::trim).filter(step -> !step.isBlank()).toList();
         if (normalizedSteps.isEmpty()) {
             throw new IllegalArgumentException("steps must not be empty");
         }
-        return store.createCase(workspaceId, projectId, requirementId, userId, title.trim(),
+        return store.createCase(organizationId, requirementId, userId, title.trim(),
                 normalize(preconditions), normalizedSteps, expectedResult.trim(), priority);
     }
 
-    public List<TestCaseView> cases(long userId, long workspaceId, long projectId, long requirementId) {
-        permissions.requireProject(userId, workspaceId, projectId, "qa.read");
-        return store.findCases(workspaceId, projectId, requirementId);
+    public List<TestCaseView> cases(long userId, long organizationId, long requirementId) {
+        permissions.requireOrganization(userId, organizationId, "qa.read");
+        return store.findCases(organizationId, requirementId);
     }
 
-    public TestRunView createRun(long userId, long workspaceId, long projectId, long requirementId,
+    public TestRunView createRun(long userId, long organizationId, long requirementId,
             String environment) {
-        permissions.requireProject(userId, workspaceId, projectId, "qa.manage");
-        return store.createRun(workspaceId, projectId, requirementId, userId, environment.trim());
+        permissions.requireOrganization(userId, organizationId, "qa.manage");
+        return store.createRun(organizationId, requirementId, userId, environment.trim());
     }
 
-    public TestRunView run(long userId, long workspaceId, long projectId, long runId) {
-        permissions.requireProject(userId, workspaceId, projectId, "qa.read");
-        return store.findRun(workspaceId, projectId, runId).orElseThrow(ResourceNotFoundException::new);
+    public TestRunView run(long userId, long organizationId, long runId) {
+        permissions.requireOrganization(userId, organizationId, "qa.read");
+        return store.findRun(organizationId, runId).orElseThrow(ResourceNotFoundException::new);
     }
 
-    public TestRunView latestRun(long userId, long workspaceId, long projectId, long requirementId) {
-        permissions.requireProject(userId, workspaceId, projectId, "qa.read");
-        return store.findLatestRun(workspaceId, projectId, requirementId)
+    public TestRunView latestRun(long userId, long organizationId, long requirementId) {
+        permissions.requireOrganization(userId, organizationId, "qa.read");
+        return store.findLatestRun(organizationId, requirementId)
                 .orElseThrow(ResourceNotFoundException::new);
     }
 
-    public TestResultView updateResult(long userId, long workspaceId, long projectId, long runId, long resultId,
+    public TestResultView updateResult(long userId, long organizationId, long runId, long resultId,
             TestResultStatus status, String actualResult, List<String> evidence, long expectedVersion) {
-        permissions.requireProject(userId, workspaceId, projectId, "qa.execute");
-        return store.updateResult(workspaceId, projectId, runId, resultId, userId, status,
+        permissions.requireOrganization(userId, organizationId, "qa.execute");
+        return store.updateResult(organizationId, runId, resultId, userId, status,
                 normalize(actualResult), evidence.stream().map(String::trim).filter(value -> !value.isBlank()).toList(),
                 expectedVersion);
     }
 
-    public TestRunView completeRun(long userId, long workspaceId, long projectId, long runId,
+    public TestRunView completeRun(long userId, long organizationId, long runId,
             long expectedVersion) {
-        permissions.requireProject(userId, workspaceId, projectId, "qa.execute");
-        return store.completeRun(workspaceId, projectId, runId, userId, expectedVersion);
+        permissions.requireOrganization(userId, organizationId, "qa.execute");
+        return store.completeRun(organizationId, runId, userId, expectedVersion);
     }
 
-    public TestRunView reopenRun(long userId, long workspaceId, long projectId, long runId, long expectedVersion,
+    public TestRunView reopenRun(long userId, long organizationId, long runId, long expectedVersion,
             String reason, String requestId) {
-        permissions.requireProject(userId, workspaceId, projectId, "qa.execute");
-        return store.reopenRun(workspaceId, projectId, runId, userId, expectedVersion, reason, requestId);
+        permissions.requireOrganization(userId, organizationId, "qa.execute");
+        return store.reopenRun(organizationId, runId, userId, expectedVersion, reason, requestId);
     }
 
     private static String normalize(String value) {

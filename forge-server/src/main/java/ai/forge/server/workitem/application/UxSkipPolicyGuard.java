@@ -19,12 +19,11 @@ public final class UxSkipPolicyGuard implements TransitionGuard {
     public GuardResult evaluate(TransitionContext context) {
         List<String> missing = new ArrayList<>();
         if (!materialStore.allowsSkipUx(
-                context.workItem().workspaceId(), context.workItem().projectId())) {
-            missing.add("projectPolicy.allowSkipUx");
+                context.workItem().organizationId())) {
+            missing.add("organizationPolicy.allowSkipUx");
         }
         if (!materialStore.hasEligibleSkipUxLabel(
-                context.workItem().workspaceId(),
-                context.workItem().projectId(),
+                context.workItem().organizationId(),
                 context.workItem().id())) {
             missing.add("eligibleSkipUxLabel");
         }

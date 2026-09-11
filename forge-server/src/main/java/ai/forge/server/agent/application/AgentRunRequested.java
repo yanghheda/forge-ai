@@ -5,11 +5,9 @@ import ai.forge.server.agent.domain.MediumToolConfirmation;
 public record AgentRunRequested(
         /* 等待 Agent Gateway 启动的 Run 标识。 */
         String runId,
-        /* Run 所属工作区，用于内部写入再次约束 scope。 */
-        long workspaceId,
-        /* Run 所属项目，用于内部写入再次约束 scope。 */
-        long projectId,
-        /* 可选工作项上下文；为空表示仅限定到项目。 */
+        /* Run 所属公司，用于内部写入再次约束作用域。 */
+        long organizationId,
+        /* 可选工作项上下文；为空表示仅限定到公司。 */
         Long workItemId,
         /* Backend 已认证且完成授权的发起用户。 */
         long userId,

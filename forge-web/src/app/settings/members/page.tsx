@@ -1,18 +1,43 @@
 "use client";
 
-import { Alert, Card, Spin, Table, Tag, Typography } from "@arco-design/web-react";
-import { useQuery } from "@tanstack/react-query";
+import { Alert, Button, Drawer, Input, Select, Spin, Table, Tag } from "@arco-design/web-react";
+import { IconEdit, IconSearch } from "@arco-design/web-react/icon";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { ProtectedApp } from "@/features/auth";
-import { listRequirementMembers } from "@/features/work-item";
+import { listCompanyMembers, updateCompanyMember, type CompanyMember } from "@/features/console";
 import { formatRequestError } from "@/lib/api";
 import { roleLabel } from "@/lib/labels";
+import styles from "../settings.module.css";
+
+const roles = ["PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER"];
 
 export default function MembersPage() {
   return <ProtectedApp><Members /></ProtectedApp>;
 }
 
 function Members() {
-  const members = useQuery({ queryKey: ["requirements", "members"], queryFn: () => listRequirementMembers() });
-  return <section><Typography.Title heading={2}>成员与角色</Typography.Title><Typography.Paragraph>除首个 Owner 外，团队成员从登录页自行注册产品、UX、开发或测试账号。</Typography.Paragraph>{members.isPending && <Spin tip="正在加载成员…" />}{members.isError && <Alert type="error" content={formatRequestError(members.error)} />}{members.data && <Card><Table pagination={false} rowKey="userId" data={members.data} columns={[{ title: "成员", dataIndex: "displayName" }, { title: "邮箱", dataIndex: "email" }, { title: "角色", render: (_, record) => record.roles.map((role) => <Tag key={role}>{roleLabel(role)}</Tag>) }]} /></Card>}</section>;
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState<CompanyMember | null>(null);
+  const [role, setRole] = useState("DEVELOPER");
+  const [status, setStatus] = useState<"ACTIVE" | "DISABLED">("ACTIVE");
+  const members = useQuery({ queryKey: ["company-members"], queryFn: () => listCompanyMembers() });
+  const save = useMutation({
+    mutationFn: () => updateCompanyMember(editing!.userId, { role, status, expectedVersion: editing!.version }),
+    onSuccess: async () => { setEditing(null); await queryClient.invalidateQueries({ queryKey: ["company-members"] }); },
+  });
+  const edit = (member: CompanyMember) => {
+    setEditing(member);
+    setRole(member.roles[0] ?? "DEVELOPER");
+    setStatus(member.status === "DISABLED" ? "DISABLED" : "ACTIVE");
+  };
+  const count = (value: CompanyMember["status"]) => members.data?.filter((member) => member.status === value).length ?? "—";
+
+  return <section className={styles.page}>
+    <header><div><h1>成员管理</h1><p>审核自主注册账号，管理岗位角色与启停状态</p></div></header>
+    <div className={styles.stats}><div><span>全部成员</span><strong>{members.data?.length ?? "—"}</strong></div><div><span>已启用</span><strong>{count("ACTIVE")}</strong></div><div><span>待审核</span><strong>{count("PENDING")}</strong></div><div><span>已停用</span><strong>{count("DISABLED")}</strong></div></div>
+    <article className={styles.card}><div className={styles.filters}><Input prefix={<IconSearch />} placeholder="搜索姓名或邮箱" /><Select defaultValue="全部角色" options={["全部角色", "产品", "UX", "开发", "测试"].map((value) => ({ label: value, value }))} /></div>{members.isPending && <Spin tip="正在加载成员…" />}{members.isError && <Alert type="error" content={formatRequestError(members.error)} />}{members.data && <Table pagination={{ pageSize: 8 }} rowKey="userId" data={members.data} columns={[{ title: "成员", render: (_, row) => <div className={styles.member}><span>{row.displayName.slice(0, 1)}</span><div><b>{row.displayName}</b><small>{row.email}</small></div></div> }, { title: "角色", render: (_, row) => row.roles.map((item) => <Tag key={item} color="arcoblue">{roleLabel(item)}</Tag>) }, { title: "账号状态", render: (_, row) => <Tag color={row.status === "ACTIVE" ? "green" : row.status === "PENDING" ? "orange" : "gray"}>{row.status === "ACTIVE" ? "● 已启用" : row.status === "PENDING" ? "待审核" : "已停用"}</Tag> }, { title: "最近登录", render: (_, row) => row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString("zh-CN") : "尚未登录" }, { title: "操作", render: (_, row) => <Button type="text" icon={<IconEdit />} onClick={() => edit(row)}>{row.status === "PENDING" ? "审核" : "编辑"}</Button> }]} />}</article>
+    <Drawer visible={!!editing} width={480} title={editing?.status === "PENDING" ? "审核成员" : "编辑成员"} onCancel={() => setEditing(null)} footer={<><Button onClick={() => setEditing(null)}>取消</Button><Button type="primary" loading={save.isPending} onClick={() => save.mutate()}>{editing?.status === "PENDING" ? "审核并启用" : "保存修改"}</Button></>}><div className={styles.form} role="dialog" aria-label="编辑成员"><label>姓名<Input value={editing?.displayName} readOnly /></label><label>邮箱<Input value={editing?.email} disabled /></label><label>岗位角色<Select value={role} onChange={setRole} options={roles.map((value) => ({ label: roleLabel(value), value }))} /></label><label>账号状态<Select value={status} onChange={setStatus} options={[{ label: "已启用", value: "ACTIVE" }, { label: "已停用", value: "DISABLED" }]} /></label>{save.isError && <Alert type="error" content={formatRequestError(save.error)} />}</div></Drawer>
+  </section>;
 }

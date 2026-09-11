@@ -9,7 +9,7 @@ input_schema:
   additionalProperties: false
 output_schema:
   type: object
-required_permission: project.read
+required_permission: requirement.read
 risk_level: LOW
 idempotency:
   required: false

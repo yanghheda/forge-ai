@@ -16,12 +16,12 @@ const emptyInitialization: InitializeInput = {
   adminEmail: "", adminDisplayName: "", password: "", organizationName: "", organizationSlug: "", logo: null,
 };
 
-export function AuthEntry() {
+export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "register" | "init" }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const status = useQuery({ queryKey: ["setup-status"], queryFn: () => getSetupStatus() });
   const [initializedLocally, setInitializedLocally] = useState(false);
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(initialMode === "register" ? "register" : "login");
   const [loginValues, setLoginValues] = useState({ email: "", password: "" });
   const [initializeValues, setInitializeValues] = useState(emptyInitialization);
   const [registerValues, setRegisterValues] = useState<RegisterInput>({ email: "", displayName: "", password: "", role: "PRODUCT" });
@@ -30,6 +30,10 @@ export function AuthEntry() {
   const initializeMutation = useMutation({
     mutationFn: (input: InitializeInput) => initializeInstance(input),
     onSuccess: () => {
+      if (initialMode === "init") {
+        router.replace("/login");
+        return;
+      }
       setInitializedLocally(true);
       setValidationError(undefined);
       void queryClient.invalidateQueries({ queryKey: ["setup-status"] });
@@ -76,13 +80,13 @@ export function AuthEntry() {
     registerMutation.mutate(parsed.data);
   }
 
-  if (!initialized) {
+  if (initialMode === "init" || !initialized) {
     const fields: Array<[Exclude<keyof InitializeInput, "logo">, string, string]> = [
       ["adminEmail", "管理员邮箱", "name@example.com"], ["adminDisplayName", "管理员名称", "Forge 所有者"],
       ["password", "密码", "至少 12 个字符，包含字母和数字"], ["organizationName", "公司名称", "Forge"],
       ["organizationSlug", "公司短名", "forge"],
     ];
-    return <AuthLayout title="初始化公司交付平台" description="创建公司与首个 Owner，随后即可直接管理需求。"><Card className={styles.card}>
+    return <AuthLayout title="让需求到发布\n由 AI 智能体协同完成" description="ForgeAI 以 PRD 为事实来源，编排产品、UX、开发、测试智能体在受控工具边界内协同交付。"><Card className={styles.card}>
       <div className={styles.formHeading}><span>01</span><div><Typography.Title heading={4}>初始化 ForgeAI</Typography.Title><Typography.Paragraph>一个实例服务一家公司</Typography.Paragraph></div></div>
       <form onSubmit={submitInitialization} className={styles.form}>
         {fields.map(([name, label, placeholder]) => <label key={name}>{label}{name === "password" ? <Input.Password
@@ -99,7 +103,7 @@ export function AuthEntry() {
     </Card></AuthLayout>;
   }
 
-  if (mode === "register") return <AuthLayout title="加入公司交付协作" description="注册岗位账号，等待在具体需求中承担对应职责。"><Card className={styles.card}>
+  if (mode === "register") return <AuthLayout title="加入交付团队" description="与 AI 智能体一起，让每个需求可追溯地走向发布。"><Card className={styles.card}>
     <div className={styles.formHeading}><span>02</span><div><Typography.Title heading={4}>注册团队账号</Typography.Title><Typography.Paragraph>选择你的主要岗位角色</Typography.Paragraph></div></div>
     <form onSubmit={submitRegistration} className={styles.form}>
       <label>姓名<Input value={registerValues.displayName} onChange={(displayName) => setRegisterValues((value) => ({ ...value, displayName }))} /></label>
@@ -113,10 +117,10 @@ export function AuthEntry() {
     </form>
   </Card></AuthLayout>;
 
-  return <AuthLayout title="欢迎回来" description="回到清晰、连续、可追溯的软件交付流程。"><Card className={styles.card}>
+  return <AuthLayout title="让需求到发布\n由 AI 智能体协同完成" description="ForgeAI 以 PRD 为事实来源，编排产品、UX、开发、测试智能体在受控工具边界内协同交付。"><Card className={styles.card}>
     <div className={styles.formHeading}><span><IconLock /></span><div><Typography.Title heading={4}>登录 ForgeAI</Typography.Title><Typography.Paragraph>使用你的工作账户进入</Typography.Paragraph></div></div>
     {initializedLocally && <Alert type="success" content="初始化完成，请使用所有者账户登录。" />}
-    {registered && <Alert type="success" content="注册完成，请使用新账号登录。" />}
+    {registered && <Alert type="success" content="注册申请已提交，请等待公司管理员审核后登录。" />}
     <form onSubmit={submitLogin} className={styles.form}>
       <label>邮箱<Input value={loginValues.email} autoComplete="email" onChange={(email) => setLoginValues((value) => ({ ...value, email }))} /></label>
       <label>密码<Input.Password value={loginValues.password} autoComplete="current-password" onChange={(password) => setLoginValues((value) => ({ ...value, password }))} /></label>
@@ -142,8 +146,8 @@ function AuthLayout({ children, title, description }: { children: React.ReactNod
   return <div className={styles.page}>
     <aside className={styles.story}>
       <Link href="/" className={styles.logo}><span>F</span> ForgeAI</Link>
-      <div className={styles.storyContent}><div className={styles.kicker}><IconRobot /> 智能交付</div><h1>{title}</h1><p>{description}</p><ul><li><IconCheckCircle /> 从需求到发布的统一上下文</li><li><IconCheckCircle /> 可审计的人机协作过程</li><li><IconCheckCircle /> 内建权限、策略与审批</li></ul></div>
-      <small>AI 原生软件交付工作台</small>
+      <div className={styles.storyContent}><h1>{title.split("\n").map((line) => <span key={line}>{line}</span>)}</h1><p>{description}</p><ul><li><IconRobot /> <span><b>多智能体交付流水线</b><small>PRD 生成、UX 设计、代码实现、QA 回归按状态机自动推进</small></span></li><li><IconLock /> <span><b>受控工具与权限边界</b><small>Agent 不持有部署凭据，所有写操作经 Server Tool API 鉴权</small></span></li><li><IconCheckCircle /> <span><b>执行轨迹全程可追溯</b><small>每次工具调用、人工确认与状态流转均有 Trace 记录</small></span></li></ul></div>
+      <small>私有化部署 · 数据不出企业内网</small>
     </aside>
     <main className={styles.formSide}>{children}<p className={styles.security}><IconLock /> 会话安全保护 · 所有操作可追踪</p></main>
   </div>;

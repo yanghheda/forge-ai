@@ -4,8 +4,7 @@ import java.time.Instant;
 
 public record DeploymentView(
         /* 部署记录标识。 */ long id,
-        /* 所属工作区。 */ long workspaceId,
-        /* 所属项目。 */ long projectId,
+        /* 所属工作区。 */ long organizationId,
         /* 被部署的 Release Candidate。 */ long releaseId,
         /* MVP 固定为 SIMULATED。 */ String mode,
         /* 审批与执行状态。 */ String status,

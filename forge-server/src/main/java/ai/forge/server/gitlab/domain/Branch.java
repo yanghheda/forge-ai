@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 public record Branch(
         /* 本地分支快照标识；远端 GitLab 不认识该值。 */ long id,
-        /* 分支所属工作区，用于所有持久化查询的租户范围。 */ long workspaceId,
+        /* 分支所属工作区，用于所有持久化查询的租户范围。 */ long organizationId,
         /* 分支所属本地仓库绑定标识。 */ long repositoryId,
         /* 关联的研发工作项；无关联远端分支时为空。 */ Long workItemId,
         /* GitLab 仓库内的完整分支名。 */ String name,

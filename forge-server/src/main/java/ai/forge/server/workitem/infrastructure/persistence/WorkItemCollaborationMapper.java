@@ -10,29 +10,26 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface WorkItemCollaborationMapper {
 
-    @Select("SELECT COUNT(*) FROM work_items WHERE id = #{workItemId} AND workspace_id = #{workspaceId} "
-            + "AND project_id = #{projectId} AND deleted_at IS NULL")
+    @Select("SELECT COUNT(*) FROM work_items WHERE id = #{workItemId} AND organization_id = #{organizationId} "
+            + "AND organization_id = #{organizationId} AND deleted_at IS NULL")
     int countScopedItem(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("workItemId") long workItemId);
 
-    @Select("SELECT COUNT(*) FROM work_item_relations WHERE workspace_id = #{workspaceId} "
-            + "AND project_id = #{projectId} AND source_id = #{sourceId} AND target_id = #{targetId} "
+    @Select("SELECT COUNT(*) FROM work_item_relations WHERE organization_id = #{organizationId} "
+            + "AND organization_id = #{organizationId} AND source_id = #{sourceId} AND target_id = #{targetId} "
             + "AND relation_type = #{relationType}")
     int countRelation(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("sourceId") long sourceId,
             @Param("targetId") long targetId,
             @Param("relationType") String relationType);
 
-    @Insert("INSERT INTO work_item_relations (workspace_id, project_id, source_id, target_id, relation_type, "
-            + "created_by, created_at) VALUES (#{workspaceId}, #{projectId}, #{sourceId}, #{targetId}, "
+    @Insert("INSERT INTO work_item_relations (organization_id, source_id, target_id, relation_type, "
+            + "created_by, created_at) VALUES (#{organizationId}, #{sourceId}, #{targetId}, "
             + "#{relationType}, #{createdBy}, UTC_TIMESTAMP(6))")
     int insertRelation(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("sourceId") long sourceId,
             @Param("targetId") long targetId,
             @Param("relationType") String relationType,
@@ -41,41 +38,37 @@ public interface WorkItemCollaborationMapper {
     @Select("SELECT LAST_INSERT_ID()")
     long lastInsertId();
 
-    @Insert("INSERT INTO work_item_labels (workspace_id, project_id, work_item_id, label, created_by, created_at) "
-            + "VALUES (#{workspaceId}, #{projectId}, #{workItemId}, #{label}, #{createdBy}, UTC_TIMESTAMP(6))")
+    @Insert("INSERT INTO work_item_labels (organization_id, work_item_id, label, created_by, created_at) "
+            + "VALUES (#{organizationId}, #{workItemId}, #{label}, #{createdBy}, UTC_TIMESTAMP(6))")
     int insertLabel(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("workItemId") long workItemId,
             @Param("label") String label,
             @Param("createdBy") long createdBy);
 
     @Select("SELECT id, source_id, target_id, relation_type, created_by, created_at "
-            + "FROM work_item_relations WHERE workspace_id = #{workspaceId} AND project_id = #{projectId} "
+            + "FROM work_item_relations WHERE organization_id = #{organizationId} "
             + "AND (source_id = #{workItemId} OR target_id = #{workItemId}) ORDER BY id")
     List<Map<String, Object>> findRelations(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("workItemId") long workItemId);
 
-    @Insert("INSERT INTO comments (workspace_id, project_id, work_item_id, author_user_id, body, created_at, "
-            + "updated_at, deleted_at, version) VALUES (#{workspaceId}, #{projectId}, #{workItemId}, "
+    @Insert("INSERT INTO comments (organization_id, work_item_id, author_user_id, body, created_at, "
+            + "updated_at, deleted_at, version) VALUES (#{organizationId}, #{workItemId}, "
             + "#{authorId}, #{body}, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), NULL, 0)")
     int insertComment(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("workItemId") long workItemId,
             @Param("authorId") long authorId,
             @Param("body") String body);
 
     @Select("SELECT id, actor_id, event_type, reason, NULL AS body, created_at, 'EVENT' AS kind "
-            + "FROM work_item_events WHERE workspace_id = #{workspaceId} AND project_id = #{projectId} "
+            + "FROM work_item_events WHERE organization_id = #{organizationId} "
             + "AND work_item_id = #{workItemId} UNION ALL "
             + "SELECT id, author_user_id AS actor_id, NULL AS event_type, NULL AS reason, body, created_at, "
-            + "'COMMENT' AS kind FROM comments WHERE workspace_id = #{workspaceId} AND project_id = #{projectId} "
+            + "'COMMENT' AS kind FROM comments WHERE organization_id = #{organizationId} "
             + "AND work_item_id = #{workItemId} AND deleted_at IS NULL ORDER BY created_at, kind, id")
     List<Map<String, Object>> findActivity(
-            @Param("workspaceId") long workspaceId,
-            @Param("projectId") long projectId,
+            @Param("organizationId") long organizationId,
             @Param("workItemId") long workItemId);
 }

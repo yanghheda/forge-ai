@@ -5,17 +5,15 @@ import { useQuery } from "@tanstack/react-query";
 import { getDeliveryGraph, type DeliveryGraph as Graph } from "../api/work-item-api";
 
 export function DeliveryGraphPanel({
-  workspaceId,
-  projectId,
+  organizationId,
   workItemId,
 }: {
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   workItemId: number;
 }) {
   const graph = useQuery({
     queryKey: ["delivery-graph", workItemId],
-    queryFn: () => getDeliveryGraph(workspaceId, projectId, workItemId),
+    queryFn: () => getDeliveryGraph(organizationId, workItemId),
   });
   if (graph.isPending) {
     return <Spin tip="正在加载交付关系图…" />;

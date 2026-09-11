@@ -4,7 +4,7 @@ description: Developer Skill：基于 Requirement、PRD 与 UX 交付生成技�
 prompt_version: developer-system-v1
 context_template: developer-context-v1
 allowed_tools:
-  - get_project
+  - get_organization
   - get_work_item
   - get_delivery_graph
   - search_documents

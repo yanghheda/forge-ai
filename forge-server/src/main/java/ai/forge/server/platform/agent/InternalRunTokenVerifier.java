@@ -54,12 +54,11 @@ public class InternalRunTokenVerifier {
                 throw new IllegalArgumentException("Run credential has unexpected issuer or audience");
             }
             String runId = jwt.getClaimAsString("run_id");
-            Long workspaceId = longClaim(jwt, "workspace_id");
-            Long projectId = longClaim(jwt, "project_id");
-            if (runId == null || runId.isBlank() || workspaceId == null || projectId == null) {
+            Long organizationId = longClaim(jwt, "organization_id");
+            if (runId == null || runId.isBlank() || organizationId == null) {
                 throw new IllegalArgumentException("Run credential lacks scope claims");
             }
-            return new RunCredential(runId, workspaceId, projectId);
+            return new RunCredential(runId, organizationId);
         } catch (JwtException | NumberFormatException exception) {
             throw new IllegalArgumentException("Run credential is invalid", exception);
         }
@@ -75,8 +74,6 @@ public class InternalRunTokenVerifier {
             /* 凭据绑定的 Run 标识。 */
             String runId,
             /* 凭据绑定的工作区标识。 */
-            long workspaceId,
-            /* 凭据绑定的项目标识。 */
-            long projectId) {
+            long organizationId) {
     }
 }

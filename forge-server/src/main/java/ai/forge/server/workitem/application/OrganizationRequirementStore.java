@@ -7,29 +7,27 @@ import java.util.List;
 public interface OrganizationRequirementStore {
 
     OrganizationRequirementPage findRequirements(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             Long participantUserId,
             String query,
             WorkItemStatus status,
             int page,
             int pageSize);
 
-    RequirementOverview overview(long workspaceId, long projectId);
+    RequirementOverview overview(long organizationId);
 
-    List<RequirementParticipantView> findParticipants(long workspaceId, long projectId, long requirementId);
+    List<RequirementParticipantView> findParticipants(long organizationId, long requirementId);
 
     List<RequirementParticipantView> replaceParticipants(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long requirementId,
             long actorUserId,
             List<ParticipantAssignment> assignments);
 
     boolean memberCanFillRole(
-            long workspaceId, long projectId, long userId, RequirementParticipantRole role);
+            long organizationId, long userId, RequirementParticipantRole role);
 
-    List<RequirementMemberView> findMembers(long workspaceId, long projectId);
+    List<RequirementMemberView> findMembers(long organizationId);
 
     record ParticipantAssignment(
             /* 被设置的固定需求角色。 */ RequirementParticipantRole role,

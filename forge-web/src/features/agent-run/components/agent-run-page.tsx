@@ -4,7 +4,6 @@ import { Alert, Button, Card, Space, Spin, Steps, Typography } from "@arco-desig
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { getCurrentUser } from "@/features/auth";
-import { listProjects } from "@/features/project";
 import {
   agentEventUrl,
   decideApproval,
@@ -43,8 +42,7 @@ const eventTypes = [
 ];
 
 function useRunTimeline(
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   snapshot: AgentRunSnapshot,
 ): RunTimelineState {
   const [state, setState] = useState<RunTimelineState>(() => ({
@@ -71,7 +69,7 @@ function useRunTimeline(
 
     const connect = () => {
       source = new EventSource(
-        agentEventUrl(workspaceId, projectId, snapshot.id, stateRef.current.lastSequence),
+        agentEventUrl(organizationId, snapshot.id, stateRef.current.lastSequence),
         { withCredentials: true },
       );
       source.onopen = () => setState((current) => ({ ...current, connectionState: "open" }));
@@ -106,39 +104,35 @@ function useRunTimeline(
       source?.close();
       if (retry) clearTimeout(retry);
     };
-  }, [workspaceId, projectId, snapshot.id, snapshot.terminal]);
+  }, [organizationId, snapshot.id, snapshot.terminal]);
 
   return state;
 }
 
 export function AgentRunPage({
-  workspaceId,
-  projectId,
+  organizationId,
   runId,
 }: {
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   runId: string;
 }) {
   const snapshot = useQuery({
     queryKey: ["agent-run", runId],
-    queryFn: () => getAgentRun(workspaceId, projectId, runId),
+    queryFn: () => getAgentRun(organizationId, runId),
   });
   if (snapshot.isPending) return <Spin tip="正在加载 Agent 运行…" />;
   if (!snapshot.data) return <Alert type="error" content="Agent 运行不存在或无权访问。" />;
-  return <AgentRunTimeline workspaceId={workspaceId} projectId={projectId} snapshot={snapshot.data} />;
+  return <AgentRunTimeline organizationId={organizationId} snapshot={snapshot.data} />;
 }
 
 function AgentRunTimeline({
-  workspaceId,
-  projectId,
+  organizationId,
   snapshot,
 }: {
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   snapshot: AgentRunSnapshot;
 }) {
-  const timeline = useRunTimeline(workspaceId, projectId, snapshot);
+  const timeline = useRunTimeline(organizationId, snapshot);
   const steps = Object.values(timeline.steps).sort((left, right) => left.stepNo - right.stepNo);
   return (
     <section className={ui.page}>
@@ -170,29 +164,27 @@ function AgentRunTimeline({
         </div>
       </Card>
       {snapshot.status === "WAITING_APPROVAL" && (
-        <ApprovalCard workspaceId={workspaceId} projectId={projectId} runId={snapshot.id} />
+        <ApprovalCard organizationId={organizationId} runId={snapshot.id} />
       )}
     </section>
   );
 }
 
 function ApprovalCard({
-  workspaceId,
-  projectId,
+  organizationId,
   runId,
 }: {
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   runId: string;
 }) {
   const queryClient = useQueryClient();
   const approval = useQuery({
     queryKey: ["agent-approval", runId],
-    queryFn: () => getRunApproval(workspaceId, projectId, runId),
+    queryFn: () => getRunApproval(organizationId, runId),
   });
   const decide = useMutation({
     mutationFn: ({ snapshot, decision }: { snapshot: ApprovalSnapshot; decision: "APPROVE" | "REJECT" }) =>
-      decideApproval(snapshot, workspaceId, projectId, decision),
+      decideApproval(snapshot, organizationId, decision),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["agent-approval", runId] });
       void queryClient.invalidateQueries({ queryKey: ["agent-run", runId] });
@@ -236,23 +228,13 @@ function ApprovalCard({
 }
 
 export function AgentRunRoute({
-  workspaceSlug,
-  projectKey,
   runId,
 }: {
-  workspaceSlug: string;
-  projectKey: string;
   runId: string;
 }) {
   const user = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
-  const workspace = user.data?.workspaces.find((item) => item.slug === workspaceSlug);
-  const projects = useQuery({
-    queryKey: ["projects", workspace?.id],
-    queryFn: () => listProjects(workspace!.id),
-    enabled: !!workspace,
-  });
-  const project = projects.data?.find((item) => item.key === projectKey);
-  if (user.isPending || projects.isPending) return <Spin />;
-  if (!workspace || !project) return <Alert type="error" content="项目不存在或当前账户无权访问。" />;
-  return <AgentRunPage workspaceId={workspace.id} projectId={project.id} runId={runId} />;
+  const organization = user.data?.organization;
+  if (user.isPending) return <Spin />;
+  if (!organization) return <Alert type="error" content="公司不存在或当前账户无权访问。" />;
+  return <AgentRunPage organizationId={organization.id} runId={runId} />;
 }

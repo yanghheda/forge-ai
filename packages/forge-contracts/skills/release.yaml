@@ -4,7 +4,7 @@ description: Release Skill：解释 Backend Precheck、编辑 Release Note，并
 prompt_version: release-system-v1
 context_template: release-context-v1
 allowed_tools:
-  - get_project
+  - get_organization
   - get_release_precheck
   - get_delivery_graph
   - update_release_note

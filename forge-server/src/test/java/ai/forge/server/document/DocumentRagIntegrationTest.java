@@ -40,7 +40,7 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
     @Autowired
     private ObjectMapper objectMapper;
 
-    /* 搭建跨工作区测试事实并检查索引任务表状态。 */
+    /* 搭建公司隔离测试事实并检查索引任务表状态。 */
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -70,12 +70,12 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
 
     private String ownerCookie;
     private long ownerId;
-    private long workspaceId;
-    private long projectId;
+    private long organizationId;
+
     private long requirementId;
 
     @BeforeEach
-    void initializeWorkspaceAndProject() throws Exception {
+    void initializeCompanyAndOrganization() throws Exception {
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of("document_index_jobs", "outbox_events")) {
@@ -86,10 +86,10 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         jdbcTemplate.update("DELETE FROM document_versions");
         jdbcTemplate.update("DELETE FROM documents");
         for (String table : List.of(
-                "comments", "work_item_relations", "work_item_labels", "project_policies", "work_item_events",
-                "review_records", "requirement_details", "work_items", "project_item_sequences",
-                "project_members", "projects", "audit_logs", "member_roles",
-                "workspace_members", "workspaces", "organizations", "users")) {
+                "comments", "work_item_relations", "work_item_labels", "organization_policies", "work_item_events",
+                "review_records", "requirement_details", "work_items", "organization_item_sequences",
+                "organization_policies", "audit_logs", "member_roles",
+                "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
         ResponseEntity<String> initialized = csrf().post(
@@ -100,28 +100,20 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
                         "organizationSlug", "forge",
-                        "workspaceName", "Engineering",
-                        "workspaceSlug", "engineering"),
+                        "logoFileName", "logo.webp",
+                        "logoMediaType", "image/webp",
+                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
                 null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         ownerCookie = login("owner@example.com");
         ownerId = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE normalized_email = 'owner@example.com'", Long.class);
-        workspaceId = jdbcTemplate.queryForObject(
-                "SELECT id FROM workspaces WHERE slug = 'engineering'", Long.class);
-        ResponseEntity<String> project = csrf().post(
-                "/api/v1/projects",
-                Map.of("workspaceId", workspaceId, "key", "FORGE", "name", "ForgeAI", "description", "会话 20"),
-                ownerCookie,
-                String.class);
-        assertThat(project.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        projectId = objectMapper.readTree(project.getBody()).get("id").asLong();
+        organizationId = jdbcTemplate.queryForObject(
+                "SELECT default_organization_id FROM instance_settings WHERE id = 1", Long.class);
         ResponseEntity<String> requirement = csrf().post(
                 "/api/v1/work-items",
                 Map.of(
-                        "workspaceId", workspaceId,
-                        "projectId", projectId,
                         "type", "REQUIREMENT",
                         "title", "RAG 基线",
                         "description", "document indexing baseline",
@@ -150,7 +142,7 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
                 Boolean.class, published.documentId())).isTrue();
 
         List<SearchChunk> hits = ragSearchService.search(
-                ownerId, workspaceId, "release pipeline retry", null, null);
+                ownerId, organizationId, "release pipeline retry", null, null);
         assertThat(hits).isNotEmpty();
         assertThat(hits.get(0).documentId()).isEqualTo(published.documentId());
         assertThat(hits.get(0).versionId()).isEqualTo(published.versionId());
@@ -159,7 +151,7 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(hits.get(0).documentType()).isEqualTo("PRD");
 
         assertThat(ragSearchService.search(
-                ownerId, workspaceId, "release pipeline retry", "UX_SPEC", null)).isEmpty();
+                ownerId, organizationId, "release pipeline retry", "UX_SPEC", null)).isEmpty();
     }
 
     @Test
@@ -175,9 +167,9 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         jdbcTemplate.update(
                 "INSERT INTO outbox_events (aggregate_type, aggregate_id, event_type, payload, created_at, processed_at) "
                         + "VALUES ('DOCUMENT', ?, 'DOCUMENT_VERSION_PUBLISHED', JSON_OBJECT("
-                        + "'workspaceId', ?, 'projectId', ?, 'documentId', ?, 'versionId', ?), "
+                        + "'organizationId', ?, 'organizationId', ?, 'documentId', ?, 'versionId', ?), "
                         + "UTC_TIMESTAMP(6), NULL)",
-                published.documentId(), workspaceId, projectId, published.documentId(), published.versionId());
+                published.documentId(), organizationId, organizationId, published.documentId(), published.versionId());
         assertThat(indexingWorker.dispatchOutbox()).isOne();
         assertThat(indexingWorker.processNextJob()).isFalse();
 
@@ -209,43 +201,35 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(vectorIndexClient.countVersionChunks(
                 collectionName(), first.documentId(), secondVersionId)).isEqualTo(1L);
         List<SearchChunk> hits = ragSearchService.search(
-                ownerId, workspaceId, "delta epsilon", null, null);
+                ownerId, organizationId, "delta epsilon", null, null);
         assertThat(hits).isNotEmpty();
         assertThat(hits.get(0).versionId()).isEqualTo(secondVersionId);
     }
 
     @Test
-    void crossWorkspaceQueriesAreBlockedByForcedFilter() throws Exception {
-        Published mine = publishDocument("本区文档", "quantum falcon workspace secret");
+    void crossOrganizationQueriesAreBlockedByForcedFilter() throws Exception {
+        Published mine = publishDocument("本公司文档", "quantum falcon company secret");
         assertThat(indexingWorker.dispatchOutbox()).isOne();
         assertThat(indexingWorker.processNextJob()).isTrue();
 
-        /* 直接构造第二个工作区的事实与发布事件，绕过 API 只为把数据写进同一索引。 */
+        /* 直接构造第二个公司的事实与发布事件，绕过 API 只为把数据写进同一索引。 */
         jdbcTemplate.update(
-                "INSERT INTO workspaces (organization_id, name, slug, status, settings_json, created_at, updated_at, version) "
-                        + "SELECT organization_id, 'Other', 'other', 'ACTIVE', JSON_OBJECT(), UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0 "
-                        + "FROM workspaces WHERE id = ?",
-                workspaceId);
-        long otherWorkspaceId = jdbcTemplate.queryForObject(
-                "SELECT id FROM workspaces WHERE slug = 'other'", Long.class);
+                "INSERT INTO organizations (name,slug,owner_user_id,created_at,updated_at,version) "
+                        + "VALUES ('Other Company','other-company',?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                ownerId);
+        long otherOrganizationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM organizations WHERE slug = 'other-company'", Long.class);
         jdbcTemplate.update(
-                "INSERT INTO projects (workspace_id, `key`, name, description, status, created_by, created_at, updated_at, version) "
-                        + "VALUES (?, 'OTHER', 'Other', '', 'ACTIVE', ?, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)",
-                otherWorkspaceId, ownerId);
-        long otherProjectId = jdbcTemplate.queryForObject(
-                "SELECT id FROM projects WHERE workspace_id = ? AND `key` = 'OTHER'",
-                Long.class, otherWorkspaceId);
-        jdbcTemplate.update(
-                "INSERT INTO documents (workspace_id, project_id, work_item_id, type, title, status, visibility, current_version_id, created_by, created_at, updated_at, deleted_at, version) "
-                        + "VALUES (?, ?, NULL, 'PRD', '他区文档', 'PUBLISHED', 'PROJECT', NULL, ?, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), NULL, 0)",
-                otherWorkspaceId, otherProjectId, ownerId);
+                "INSERT INTO documents (organization_id,work_item_id,type,title,status,visibility,current_version_id,created_by,created_at,updated_at,deleted_at,version) "
+                        + "VALUES (?,NULL,'PRD','其他公司文档','PUBLISHED','ORGANIZATION',NULL,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),NULL,0)",
+                otherOrganizationId, ownerId);
         long otherDocumentId = jdbcTemplate.queryForObject(
-                "SELECT id FROM documents WHERE workspace_id = ? AND title = '他区文档'",
-                Long.class, otherWorkspaceId);
+                "SELECT id FROM documents WHERE organization_id = ? AND title = '其他公司文档'",
+                Long.class, otherOrganizationId);
         jdbcTemplate.update(
-                "INSERT INTO document_versions (workspace_id, document_id, version_no, content_format, content, content_hash, plain_text, summary, created_by, created_at) "
-                        + "VALUES (?, ?, 1, 'PROSEMIRROR_JSON', CAST('{}' AS JSON), 'other-hash', 'quantum falcon workspace secret', NULL, ?, UTC_TIMESTAMP(6))",
-                otherWorkspaceId, otherDocumentId, ownerId);
+                "INSERT INTO document_versions (organization_id, document_id, version_no, content_format, content, content_hash, plain_text, summary, created_by, created_at) "
+                        + "VALUES (?, ?, 1, 'PROSEMIRROR_JSON', CAST('{}' AS JSON), 'other-hash', 'quantum falcon company secret', NULL, ?, UTC_TIMESTAMP(6))",
+                otherOrganizationId, otherDocumentId, ownerId);
         long otherVersionId = jdbcTemplate.queryForObject(
                 "SELECT id FROM document_versions WHERE document_id = ?", Long.class, otherDocumentId);
         jdbcTemplate.update(
@@ -253,24 +237,25 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         jdbcTemplate.update(
                 "INSERT INTO outbox_events (aggregate_type, aggregate_id, event_type, payload, created_at, processed_at) "
                         + "VALUES ('DOCUMENT', ?, 'DOCUMENT_VERSION_PUBLISHED', JSON_OBJECT("
-                        + "'workspaceId', ?, 'projectId', ?, 'documentId', ?, 'versionId', ?), UTC_TIMESTAMP(6), NULL)",
-                otherDocumentId, otherWorkspaceId, otherProjectId, otherDocumentId, otherVersionId);
+                        + "'organizationId', ?, 'documentId', ?, 'versionId', ?), UTC_TIMESTAMP(6), NULL)",
+                otherDocumentId, otherOrganizationId, otherDocumentId, otherVersionId);
 
         assertThat(indexingWorker.dispatchOutbox()).isOne();
         assertThat(indexingWorker.processNextJob()).isTrue();
 
-        /* 他区切片确实已写入同一 Collection；隔离只能来自强制过滤器。 */
+        /* 其他公司切片确实已写入同一 Collection；隔离只能来自强制过滤器。 */
         assertThat(vectorIndexClient.countVersionChunks(
                 collectionName(), otherDocumentId, otherVersionId)).isEqualTo(1L);
 
         List<SearchChunk> hits = ragSearchService.search(
-                ownerId, workspaceId, "quantum falcon workspace secret", null, null);
+                ownerId, organizationId, "quantum falcon company secret", null, null);
         assertThat(hits).isNotEmpty();
         assertThat(hits).allSatisfy(hit -> assertThat(hit.documentId()).isEqualTo(mine.documentId()));
 
-        /* Owner 不属于第二个工作区，即使显式指定他区范围也拿不到任何结果。 */
-        assertThat(ragSearchService.search(
-                ownerId, otherWorkspaceId, "quantum falcon workspace secret", null, null)).isEmpty();
+        /* Owner 不属于第二个公司，即使内部调用显式指定其范围也拿不到任何结果。 */
+        assertThatThrownBy(() -> ragSearchService.search(
+                ownerId, otherOrganizationId, "quantum falcon company secret", null, null))
+                .isInstanceOf(ai.forge.server.common.domain.ResourceNotFoundException.class);
     }
 
     @Test
@@ -316,8 +301,8 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
 
         /* 索引故障不影响文档事实读取。 */
         ResponseEntity<String> readable = get(
-                "/api/v1/documents/" + published.documentId() + "?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId, ownerCookie);
+                "/api/v1/documents/" + published.documentId() + "?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId, ownerCookie);
         assertThat(readable.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
@@ -331,17 +316,17 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
                 new QdrantVectorIndexClient("http://127.0.0.1:1", Duration.ofMillis(500));
         RagSearchService degraded = new RagSearchService(permissions, embeddingClient, deadClient);
 
-        assertThatThrownBy(() -> degraded.search(ownerId, workspaceId, "degradation probe", null, null))
+        assertThatThrownBy(() -> degraded.search(ownerId, organizationId, "degradation probe", null, null))
                 .isInstanceOf(RagUnavailableException.class);
     }
 
     @Test
     void searchValidatesQueryAndTopKBounds() {
-        assertThatThrownBy(() -> ragSearchService.search(ownerId, workspaceId, "  ", null, null))
+        assertThatThrownBy(() -> ragSearchService.search(ownerId, organizationId, "  ", null, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ragSearchService.search(ownerId, workspaceId, "valid", null, 0))
+        assertThatThrownBy(() -> ragSearchService.search(ownerId, organizationId, "valid", null, 0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ragSearchService.search(ownerId, workspaceId, "valid", null, 31))
+        assertThatThrownBy(() -> ragSearchService.search(ownerId, organizationId, "valid", null, 31))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -355,8 +340,6 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         ResponseEntity<String> created = csrf().post(
                 "/api/v1/documents",
                 Map.of(
-                        "workspaceId", workspaceId,
-                        "projectId", projectId,
                         "workItemId", requirementId,
                         "type", "PRD",
                         "title", title),
@@ -378,8 +361,8 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         long expectedVersion = jdbcTemplate.queryForObject(
                 "SELECT version FROM documents WHERE id = ?", Long.class, documentId);
         ResponseEntity<String> response = csrf().post(
-                "/api/v1/documents/" + documentId + "/versions?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/documents/" + documentId + "/versions?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("expectedVersion", expectedVersion, "content", content),
                 ownerCookie,
                 String.class);
@@ -390,8 +373,8 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
 
     private void publish(long documentId, long versionId, long expectedVersion) {
         ResponseEntity<String> response = csrf().post(
-                "/api/v1/documents/" + documentId + "/publish?workspaceId=" + workspaceId
-                        + "&projectId=" + projectId,
+                "/api/v1/documents/" + documentId + "/publish?organizationId=" + organizationId
+                        + "&organizationId=" + organizationId,
                 Map.of("versionId", versionId, "expectedVersion", expectedVersion),
                 ownerCookie,
                 String.class);

@@ -4,15 +4,15 @@ import java.util.Optional;
 
 public interface RequirementMaterialStore {
 
-    Optional<RequirementMaterial> find(long workspaceId, long projectId, long workItemId);
+    Optional<RequirementMaterial> find(long organizationId, long workItemId);
 
-    boolean hasPublishedPrd(long workspaceId, long projectId, long workItemId);
+    boolean hasPublishedPrd(long organizationId, long workItemId);
 
-    boolean hasPublishedUxSpec(long workspaceId, long projectId, long workItemId);
+    boolean hasPublishedUxSpec(long organizationId, long workItemId);
 
-    boolean allowsSkipUx(long workspaceId, long projectId);
+    boolean allowsSkipUx(long organizationId);
 
-    boolean hasEligibleSkipUxLabel(long workspaceId, long projectId, long workItemId);
+    boolean hasEligibleSkipUxLabel(long organizationId, long workItemId);
 
     record RequirementMaterial(
             /* 非空业务目标。 */

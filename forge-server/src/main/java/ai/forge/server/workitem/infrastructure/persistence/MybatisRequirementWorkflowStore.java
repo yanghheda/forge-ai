@@ -24,7 +24,7 @@ import org.springframework.stereotype.Repository;
 @Profile("!test-unit")
 public class MybatisRequirementWorkflowStore implements RequirementMaterialStore, RequirementTransitionStore {
 
-    /* 执行带 Workspace/Project scope 的 Requirement 工作流 SQL。 */
+    /* 执行带公司 scope 的 Requirement 工作流 SQL。 */
     private final RequirementWorkflowMapper mapper;
 
     /* 解析事件元数据中的聚合版本，支持稳定幂等重放。 */
@@ -36,45 +36,44 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
     }
 
     @Override
-    public Optional<RequirementMaterial> find(long workspaceId, long projectId, long workItemId) {
-        return mapper.findMaterial(workspaceId, projectId, workItemId).stream()
+    public Optional<RequirementMaterial> find(long organizationId, long workItemId) {
+        return mapper.findMaterial(organizationId, workItemId).stream()
                 .findFirst()
                 .map(row -> new RequirementMaterial(
                         text(row, "goal"), text(row, "in_scope"), number(row, "acceptance_count").intValue()));
     }
 
     @Override
-    public boolean hasPublishedPrd(long workspaceId, long projectId, long workItemId) {
-        return mapper.countPublishedPrd(workspaceId, projectId, workItemId) > 0;
+    public boolean hasPublishedPrd(long organizationId, long workItemId) {
+        return mapper.countPublishedPrd(organizationId, workItemId) > 0;
     }
 
     @Override
-    public boolean hasPublishedUxSpec(long workspaceId, long projectId, long workItemId) {
-        return mapper.countPublishedUxSpec(workspaceId, projectId, workItemId) > 0;
+    public boolean hasPublishedUxSpec(long organizationId, long workItemId) {
+        return mapper.countPublishedUxSpec(organizationId, workItemId) > 0;
     }
 
     @Override
-    public boolean allowsSkipUx(long workspaceId, long projectId) {
-        return mapper.countSkipUxPolicy(workspaceId, projectId) > 0;
+    public boolean allowsSkipUx(long organizationId) {
+        return mapper.countSkipUxPolicy(organizationId) > 0;
     }
 
     @Override
-    public boolean hasEligibleSkipUxLabel(long workspaceId, long projectId, long workItemId) {
-        return mapper.countEligibleSkipUxLabel(workspaceId, projectId, workItemId) > 0;
+    public boolean hasEligibleSkipUxLabel(long organizationId, long workItemId) {
+        return mapper.countEligibleSkipUxLabel(organizationId, workItemId) > 0;
     }
 
     @Override
     public Optional<TransitionResult> findResultByIdempotencyKey(
-            long workspaceId, long projectId, long workItemId, String idempotencyKey) {
-        return mapper.findIdempotentEvent(workspaceId, projectId, workItemId, idempotencyKey).stream()
+            long organizationId, long workItemId, String idempotencyKey) {
+        return mapper.findIdempotentEvent(organizationId, workItemId, idempotencyKey).stream()
                 .findFirst()
                 .map(this::transitionResult);
     }
 
     @Override
     public TransitionResult transition(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long workItemId,
             long actorId,
             long expectedVersion,
@@ -83,8 +82,7 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
             TransitionDefinition definition,
             List<String> checklist) {
         if (mapper.updateStatus(
-                        workspaceId,
-                        projectId,
+                        organizationId,
                         workItemId,
                         definition.type().name(),
                         definition.from().name(),
@@ -92,7 +90,7 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
                         expectedVersion)
                 != 1) {
             Optional<TransitionResult> concurrentReplay =
-                    findResultByIdempotencyKey(workspaceId, projectId, workItemId, idempotencyKey);
+                    findResultByIdempotencyKey(organizationId, workItemId, idempotencyKey);
             if (concurrentReplay.isPresent()) {
                 if (concurrentReplay.get().action() != definition.action()) {
                     throw new IdempotencyConflictException();
@@ -107,34 +105,30 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
             boolean approval = definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW
                     || definition.action() == WorkflowAction.APPROVE_UX_REVIEW;
             mapper.insertReview(
-                    workspaceId,
-                    projectId,
+                    organizationId,
                     workItemId,
                     definition.action().name().contains("UX") ? "UX_REVIEW" : "PRODUCT_REVIEW",
                     rejection ? "REJECTED" : approval ? "APPROVED" : "SUBMITTED",
                     rejection || approval ? actorId : null,
                     rejection ? reason : null,
                     checklistJson(checklist),
-                    mapper.publishedArtifactVersions(workspaceId, projectId, workItemId));
+                    mapper.publishedArtifactVersions(organizationId, workItemId));
         }
         if (definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW
-                && mapper.countUxTaskForRequirement(workspaceId, projectId, workItemId) == 0) {
-            long itemNumber = mapper.lockNextItemNumber(projectId);
-            mapper.advanceItemNumber(projectId);
-            String projectKey = mapper.projectKey(workspaceId, projectId);
+                && mapper.countUxTaskForRequirement(organizationId, workItemId) == 0) {
+            long itemNumber = mapper.lockNextItemNumber(organizationId);
+            mapper.advanceItemNumber(organizationId);
             mapper.insertUxTask(
-                    workspaceId,
-                    projectId,
+                    organizationId,
                     workItemId,
                     actorId,
                     itemNumber,
-                    projectKey + "-" + itemNumber,
-                    "UX: " + mapper.requirementTitle(workspaceId, projectId, workItemId));
+                    "REQ-" + itemNumber,
+                    "UX: " + mapper.requirementTitle(organizationId, workItemId));
         }
         long nextVersion = expectedVersion + 1;
         mapper.insertEvent(
-                workspaceId,
-                projectId,
+                organizationId,
                 workItemId,
                 definition.action().name(),
                 definition.from().name(),
@@ -147,8 +141,8 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
     }
 
     @Override
-    public List<WorkItemEvent> findEvents(long workspaceId, long projectId, long workItemId) {
-        return mapper.findEvents(workspaceId, projectId, workItemId).stream().map(this::event).toList();
+    public List<WorkItemEvent> findEvents(long organizationId, long workItemId) {
+        return mapper.findEvents(organizationId, workItemId).stream().map(this::event).toList();
     }
 
     private TransitionResult transitionResult(Map<String, Object> row) {
@@ -167,8 +161,7 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
     private WorkItemEvent event(Map<String, Object> row) {
         return new WorkItemEvent(
                 number(row, "id").longValue(),
-                number(row, "workspace_id").longValue(),
-                number(row, "project_id").longValue(),
+                number(row, "organization_id").longValue(),
                 number(row, "work_item_id").longValue(),
                 WorkflowAction.valueOf(text(row, "event_type")),
                 WorkItemStatus.valueOf(text(row, "from_status")),

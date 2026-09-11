@@ -7,22 +7,21 @@ import java.util.Optional;
 
 public interface DevelopmentStore {
 
-    Optional<WorkItem> findWorkItem(long workspaceId, long projectId, long workItemId);
+    Optional<WorkItem> findWorkItem(long organizationId, long workItemId);
 
-    boolean hasActiveProjectMember(long workspaceId, long projectId, long userId);
+    boolean hasActiveOrganizationMember(long organizationId, long userId);
 
-    WorkItem createDevTask(long workspaceId, long projectId, long actorId, long requirementId,
+    WorkItem createDevTask(long organizationId, long actorId, long requirementId,
             String title, String description, Long assigneeUserId);
 
-    DevelopmentContext begin(long workspaceId, long projectId, long devTaskId, String targetBranch,
+    DevelopmentContext begin(long organizationId, long devTaskId, String targetBranch,
             String idempotencyKey);
 
     DevelopmentResult complete(
             DevelopmentContext context, Branch branch, MergeRequest mergeRequest, boolean reconciled);
 
     WorkItem completeTask(
-            long workspaceId,
-            long projectId,
+            long organizationId,
             long taskId,
             long expectedVersion);
 

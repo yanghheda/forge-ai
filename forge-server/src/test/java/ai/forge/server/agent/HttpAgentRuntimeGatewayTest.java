@@ -44,7 +44,7 @@ class HttpAgentRuntimeGatewayTest {
                             "runId": "01JTEST0000000000000000000",
                             "skill": "UX",
                             "effectiveToolNames": [
-                                "get_project", "get_work_item", "get_delivery_graph", "search_documents",
+                                "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
                                 "create_ux_task", "create_ux_document"
                             ],
                             "policy": {"mediumConfirmation": "ASK", "maxToolCalls": 15}
@@ -58,7 +58,6 @@ class HttpAgentRuntimeGatewayTest {
         var result = gateway.start(new AgentRunRequested(
                 "01JTEST0000000000000000000",
                 2,
-                10,
                 1024L,
                 12,
                 "UX",

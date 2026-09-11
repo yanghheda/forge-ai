@@ -19,12 +19,12 @@ public class MybatisDeliveryGraphStore implements DeliveryGraphStore {
     }
 
     @Override
-    public Snapshot load(long workspaceId, long projectId) {
+    public Snapshot load(long organizationId) {
         return new Snapshot(
-                mapper.findItems(workspaceId, projectId).stream().map(this::item).toList(),
-                mapper.findRelations(workspaceId, projectId).stream().map(this::relation).toList(),
-                mapper.findDocuments(workspaceId, projectId).stream().map(this::document).toList(),
-                mapper.findArtifacts(workspaceId, projectId).stream().map(this::artifact).toList());
+                mapper.findItems(organizationId).stream().map(this::item).toList(),
+                mapper.findRelations(organizationId).stream().map(this::relation).toList(),
+                mapper.findDocuments(organizationId).stream().map(this::document).toList(),
+                mapper.findArtifacts(organizationId).stream().map(this::artifact).toList());
     }
 
     private Item item(Map<String, Object> row) {

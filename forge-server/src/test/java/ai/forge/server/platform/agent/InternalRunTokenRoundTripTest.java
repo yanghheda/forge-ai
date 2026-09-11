@@ -18,12 +18,11 @@ class InternalRunTokenRoundTripTest {
         InternalRunTokenVerifier verifier = new InternalRunTokenVerifier(SECRET);
         Instant now = Instant.now();
 
-        String token = provider.createRunToken(now, "01ARZ3NDEKTSV4RRFFQ69G5FAV", 7L, 11L);
+        String token = provider.createRunToken(now, "01ARZ3NDEKTSV4RRFFQ69G5FAV", 7L);
         InternalRunTokenVerifier.RunCredential credential = verifier.verify(token);
 
         assertThat(credential.runId()).isEqualTo("01ARZ3NDEKTSV4RRFFQ69G5FAV");
-        assertThat(credential.workspaceId()).isEqualTo(7L);
-        assertThat(credential.projectId()).isEqualTo(11L);
+        assertThat(credential.organizationId()).isEqualTo(7L);
     }
 
     @Test
@@ -32,7 +31,7 @@ class InternalRunTokenRoundTripTest {
         InternalRunTokenVerifier verifier = new InternalRunTokenVerifier(
                 SECRET, Clock.fixed(Instant.now().plus(Duration.ofMinutes(5)), ZoneOffset.UTC));
 
-        String token = provider.createRunToken(Instant.now(), "01ARZ3NDEKTSV4RRFFQ69G5FAV", 7L, 11L);
+        String token = provider.createRunToken(Instant.now(), "01ARZ3NDEKTSV4RRFFQ69G5FAV", 7L);
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> verifier.verify(token))
                 .isInstanceOf(IllegalArgumentException.class);

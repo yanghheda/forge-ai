@@ -23,8 +23,7 @@ export interface PrecheckSnapshot {
 
 export interface ReleaseView {
   id: number;
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   versionName: string;
   environment: string;
   status: "DRAFT" | "PRECHECKED" | "READY_FOR_APPROVAL" | "APPROVED" | "DEPLOYING" | "RELEASED" | "FAILED";
@@ -54,15 +53,13 @@ const json = (method: string, body: unknown): RequestInit => ({
 });
 
 export const listReleases = (
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   client: RequestClient = apiClient,
-) => client.request<ReleaseView[]>(`/v1/releases?workspaceId=${workspaceId}&projectId=${projectId}`);
+) => client.request<ReleaseView[]>(`/v1/releases?organizationId=${organizationId}`);
 
 export const createRelease = (
   input: {
-    workspaceId: number;
-    projectId: number;
+    organizationId: number;
     versionName: string;
     environment: string;
     itemIds: number[];
@@ -72,17 +69,17 @@ export const createRelease = (
 ) => client.request<ReleaseView>("/v1/releases", json("POST", input));
 
 export const updateReleaseNote = (
-  input: { workspaceId: number; projectId: number; releaseId: number; note: string; expectedVersion: number },
+  input: { organizationId: number; organizationId: number; releaseId: number; note: string; expectedVersion: number },
   client: RequestClient = apiClient,
 ) => client.request<ReleaseView>(`/v1/releases/${input.releaseId}/note`, json("PUT", input));
 
 export const runPrecheck = (
-  input: { workspaceId: number; projectId: number; releaseId: number },
+  input: { organizationId: number; organizationId: number; releaseId: number },
   client: RequestClient = apiClient,
 ) => client.request<PrecheckSnapshot>(`/v1/releases/${input.releaseId}/prechecks`, json("POST", input));
 
 export const requestDeployment = (
-  input: { workspaceId: number; projectId: number; releaseId: number; simulateFailure: boolean; idempotencyKey: string },
+  input: { organizationId: number; organizationId: number; releaseId: number; simulateFailure: boolean; idempotencyKey: string },
   client: RequestClient = apiClient,
 ) => client.request<DeploymentView>(
   `/v1/releases/${input.releaseId}/deployments`,
@@ -90,18 +87,16 @@ export const requestDeployment = (
 );
 
 export const listDeployments = (
-  workspaceId: number,
-  projectId: number,
+  organizationId: number,
   releaseId: number,
   client: RequestClient = apiClient,
 ) => client.request<DeploymentView[]>(
-  `/v1/releases/${releaseId}/deployments?workspaceId=${workspaceId}&projectId=${projectId}`,
+  `/v1/releases/${releaseId}/deployments?organizationId=${organizationId}`,
 );
 
 export const decideDeployment = (
   input: {
-    workspaceId: number;
-    projectId: number;
+    organizationId: number;
     deploymentId: number;
     decision: "APPROVE" | "REJECT";
     expectedVersion: number;

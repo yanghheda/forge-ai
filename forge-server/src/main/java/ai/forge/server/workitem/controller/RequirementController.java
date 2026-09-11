@@ -41,7 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @Profile("!test-unit")
 @RequestMapping("/api/v1/requirements")
-@Tag(name = "需求", description = "单公司实例中不暴露 Workspace 与 Project 的需求入口")
+@Tag(name = "需求", description = "实例唯一公司的需求创建、查询与协作入口")
 public class RequirementController {
 
     /* 解析当前公司 scope，并复用既有需求权限、状态与编号规则。 */

@@ -36,15 +36,14 @@ public class AgentDispatcher {
     public void dispatch(AgentRunRequested requested) {
         try {
             runStore.start(
-                    requested.workspaceId(), requested.projectId(), requested.runId(), requested.requestId());
+                    requested.organizationId(), requested.runId(), requested.requestId());
             AgentRuntimeGateway.RunResult result = runtimeGateway.start(requested);
             if ("WAITING_APPROVAL".equals(result.status())) {
                 LOGGER.info("Agent Run paused for approval: runId={}", requested.runId());
                 return;
             }
             runStore.complete(
-                    requested.workspaceId(),
-                    requested.projectId(),
+                    requested.organizationId(),
                     requested.runId(),
                     requested.requestId(),
                     result.answer());
@@ -55,8 +54,7 @@ public class AgentDispatcher {
         } catch (RuntimeException exception) {
             LOGGER.error("Agent Run dispatch failed: runId={}", requested.runId(), exception);
             runStore.fail(
-                    requested.workspaceId(),
-                    requested.projectId(),
+                    requested.organizationId(),
                     requested.runId(),
                     requested.requestId(),
                     "AGENT_GATEWAY_FAILED");

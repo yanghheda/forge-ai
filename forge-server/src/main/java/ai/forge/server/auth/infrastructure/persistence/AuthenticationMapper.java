@@ -23,9 +23,13 @@ public interface AuthenticationMapper {
     @Select("SELECT id, email, display_name FROM users WHERE id = #{userId} AND status = 'ACTIVE'")
     List<Map<String, Object>> findCurrentUser(@Param("userId") long userId);
 
-    @Select("SELECT w.id, w.slug, w.name, r.code FROM workspace_members wm JOIN workspaces w ON w.id = wm.workspace_id AND w.status = 'ACTIVE' LEFT JOIN member_roles mr ON mr.workspace_member_id = wm.id AND mr.project_id IS NULL LEFT JOIN roles r ON r.id = mr.role_id WHERE wm.user_id = #{userId} AND wm.status = 'ACTIVE' ORDER BY w.id, r.code")
-    List<Map<String, Object>> findWorkspaceAccess(@Param("userId") long userId);
+    @Select("SELECT o.id, o.slug, o.name, r.code FROM organization_members om "
+            + "JOIN organizations o ON o.id = om.organization_id "
+            + "LEFT JOIN member_roles mr ON mr.organization_member_id = om.id "
+            + "LEFT JOIN roles r ON r.id = mr.role_id "
+            + "WHERE om.user_id = #{userId} AND om.status = 'ACTIVE' ORDER BY r.code")
+    List<Map<String, Object>> findOrganizationAccess(@Param("userId") long userId);
 
-    @Insert("INSERT INTO audit_logs (workspace_id, project_id, actor_type, actor_id, action, resource_type, resource_id, result, request_id, run_id, metadata_redacted_json, created_at) VALUES (NULL, NULL, #{actorType}, #{userId}, #{action}, 'SESSION', #{resourceId}, #{result}, #{requestId}, NULL, JSON_OBJECT(), UTC_TIMESTAMP(6))")
+    @Insert("INSERT INTO audit_logs (organization_id, actor_type, actor_id, action, resource_type, resource_id, result, request_id, run_id, metadata_redacted_json, created_at) VALUES (NULL, #{actorType}, #{userId}, #{action}, 'SESSION', #{resourceId}, #{result}, #{requestId}, NULL, JSON_OBJECT(), UTC_TIMESTAMP(6))")
     int insertAudit(@Param("userId") Long userId, @Param("actorType") String actorType, @Param("action") String action, @Param("resourceId") long resourceId, @Param("result") String result, @Param("requestId") String requestId);
 }

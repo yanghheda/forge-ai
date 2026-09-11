@@ -30,39 +30,39 @@ public class MybatisPipelineStore implements PipelineStore {
     }
 
     @Override
-    public PipelineContext loadContext(long workspaceId, long projectId) {
-        Map<String, Object> row = mapper.findContext(workspaceId, projectId).stream()
+    public PipelineContext loadContext(long organizationId) {
+        Map<String, Object> row = mapper.findContext(organizationId).stream()
                 .findFirst().orElseThrow(ResourceNotFoundException::new);
-        String token = secrets.decrypt(workspaceId, text(row, "type"), new EncryptedSecret(
+        String token = secrets.decrypt(organizationId, text(row, "type"), new EncryptedSecret(
                 text(row, "ciphertext"), text(row, "iv"), ((Number) row.get("key_version")).intValue(),
                 text(row, "fingerprint")));
-        return new PipelineContext(workspaceId, projectId, number(row, "repository_id"),
+        return new PipelineContext(organizationId, number(row, "repository_id"),
                 number(row, "connection_id"), text(row, "base_url"), text(row, "remote_project_id"), token);
     }
 
     @Override
     @Transactional
     public PipelineRun save(PipelineRun pipeline) {
-        mapper.upsert(pipeline.workspaceId(), pipeline.repositoryId(), pipeline.mergeRequestId(),
+        mapper.upsert(pipeline.organizationId(), pipeline.repositoryId(), pipeline.mergeRequestId(),
                 pipeline.remotePipelineId(), pipeline.ref(), pipeline.commitSha(), pipeline.status(),
                 pipeline.webUrl(), pipeline.startedAt(), pipeline.finishedAt(), pipeline.remoteUpdatedAt(),
                 pipeline.summaryJson());
-        return mapper.findByRemoteId(pipeline.workspaceId(), pipeline.repositoryId(), pipeline.remotePipelineId())
+        return mapper.findByRemoteId(pipeline.organizationId(), pipeline.repositoryId(), pipeline.remotePipelineId())
                 .stream().findFirst().map(this::pipeline).orElseThrow();
     }
 
     @Override
-    public Optional<PipelineRun> find(long workspaceId, long projectId, long pipelineId) {
-        return mapper.find(workspaceId, projectId, pipelineId).stream().findFirst().map(this::pipeline);
+    public Optional<PipelineRun> find(long organizationId, long pipelineId) {
+        return mapper.find(organizationId, pipelineId).stream().findFirst().map(this::pipeline);
     }
 
     @Override
-    public List<PipelineRun> list(long workspaceId, long projectId, int limit) {
-        return mapper.list(workspaceId, projectId, limit).stream().map(this::pipeline).toList();
+    public List<PipelineRun> list(long organizationId, int limit) {
+        return mapper.list(organizationId, limit).stream().map(this::pipeline).toList();
     }
 
     private PipelineRun pipeline(Map<String, Object> row) {
-        return new PipelineRun(number(row, "id"), number(row, "workspace_id"), number(row, "repository_id"),
+        return new PipelineRun(number(row, "id"), number(row, "organization_id"), number(row, "repository_id"),
                 nullableNumber(row, "merge_request_id"), number(row, "remote_pipeline_id"), text(row, "ref"),
                 text(row, "commit_sha"), text(row, "status"), text(row, "web_url"),
                 (LocalDateTime) row.get("started_at"), (LocalDateTime) row.get("finished_at"),

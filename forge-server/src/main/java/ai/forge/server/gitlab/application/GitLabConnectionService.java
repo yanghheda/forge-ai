@@ -41,63 +41,63 @@ public class GitLabConnectionService {
         this.sourceControl = sourceControl;
     }
 
-    public GitLabConnection create(long userId, long workspaceId, String name, String baseUrl, String token) {
-        permissions.requireWorkspace(userId, workspaceId, "integration.manage");
+    public GitLabConnection create(long userId, long organizationId, String name, String baseUrl, String token) {
+        permissions.requireOrganization(userId, organizationId, "integration.manage");
         String normalizedBaseUrl = urlPolicy.validate(baseUrl).toString();
-        EncryptedSecret encrypted = secrets.encrypt(workspaceId, "GITLAB_TOKEN", token);
-        return store.create(workspaceId, userId, name.trim(), normalizedBaseUrl, encrypted);
+        EncryptedSecret encrypted = secrets.encrypt(organizationId, "GITLAB_TOKEN", token);
+        return store.create(organizationId, userId, name.trim(), normalizedBaseUrl, encrypted);
     }
 
-    public List<GitLabConnection> list(long userId, long workspaceId) {
-        permissions.requireWorkspace(userId, workspaceId, "integration.manage");
-        return store.findConnections(workspaceId);
+    public List<GitLabConnection> list(long userId, long organizationId) {
+        permissions.requireOrganization(userId, organizationId, "integration.manage");
+        return store.findConnections(organizationId);
     }
 
     public GitLabConnection rotate(
-            long userId, long workspaceId, long connectionId, long expectedVersion, String token) {
-        permissions.requireWorkspace(userId, workspaceId, "integration.manage");
-        store.findConnection(workspaceId, connectionId).orElseThrow(ResourceNotFoundException::new);
-        EncryptedSecret encrypted = secrets.encrypt(workspaceId, "GITLAB_TOKEN", token);
-        return store.rotateCredential(workspaceId, connectionId, expectedVersion, encrypted)
+            long userId, long organizationId, long connectionId, long expectedVersion, String token) {
+        permissions.requireOrganization(userId, organizationId, "integration.manage");
+        store.findConnection(organizationId, connectionId).orElseThrow(ResourceNotFoundException::new);
+        EncryptedSecret encrypted = secrets.encrypt(organizationId, "GITLAB_TOKEN", token);
+        return store.rotateCredential(organizationId, connectionId, expectedVersion, encrypted)
                 .orElseThrow(VersionConflictException::new);
     }
 
-    public ConnectionTestResult test(long userId, long workspaceId, long connectionId) {
-        permissions.requireWorkspace(userId, workspaceId, "integration.manage");
-        GitLabConnection connection = store.findConnection(workspaceId, connectionId)
+    public ConnectionTestResult test(long userId, long organizationId, long connectionId) {
+        permissions.requireOrganization(userId, organizationId, "integration.manage");
+        GitLabConnection connection = store.findConnection(organizationId, connectionId)
                 .orElseThrow(ResourceNotFoundException::new);
-        String token = decryptCredential(workspaceId, connectionId);
+        String token = decryptCredential(organizationId, connectionId);
         try {
             ConnectionTestResult result = sourceControl.test(connection.baseUrl(), token);
-            store.recordTest(workspaceId, connectionId, true);
+            store.recordTest(organizationId, connectionId, true);
             return result;
         } catch (RuntimeException exception) {
-            store.recordTest(workspaceId, connectionId, false);
+            store.recordTest(organizationId, connectionId, false);
             throw exception;
         }
     }
 
-    public void configureWebhookSecret(long userId, long workspaceId, long connectionId, String secret) {
-        permissions.requireWorkspace(userId, workspaceId, "integration.manage");
-        store.findConnection(workspaceId, connectionId).orElseThrow(ResourceNotFoundException::new);
-        EncryptedSecret encrypted = secrets.encrypt(workspaceId, "GITLAB_WEBHOOK_SECRET", secret);
-        store.configureWebhookSecret(workspaceId, connectionId, encrypted);
+    public void configureWebhookSecret(long userId, long organizationId, long connectionId, String secret) {
+        permissions.requireOrganization(userId, organizationId, "integration.manage");
+        store.findConnection(organizationId, connectionId).orElseThrow(ResourceNotFoundException::new);
+        EncryptedSecret encrypted = secrets.encrypt(organizationId, "GITLAB_WEBHOOK_SECRET", secret);
+        store.configureWebhookSecret(organizationId, connectionId, encrypted);
     }
 
     public GitRepository bindRepository(
-            long userId, long workspaceId, long projectId, long connectionId, String remoteProjectId) {
-        permissions.requireProject(userId, workspaceId, projectId, "project.manage");
-        permissions.requireProject(userId, workspaceId, projectId, "repo.read");
-        GitLabConnection connection = store.findConnection(workspaceId, connectionId)
+            long userId, long organizationId, long connectionId, String remoteProjectId) {
+        permissions.requireOrganization(userId, organizationId, "integration.manage");
+        permissions.requireOrganization(userId, organizationId, "repo.read");
+        GitLabConnection connection = store.findConnection(organizationId, connectionId)
                 .orElseThrow(ResourceNotFoundException::new);
-        String token = decryptCredential(workspaceId, connectionId);
+        String token = decryptCredential(organizationId, connectionId);
         RepositoryDto remote = sourceControl.getRepository(connection.baseUrl(), token, remoteProjectId);
-        return store.bindRepository(workspaceId, projectId, connectionId, remote);
+        return store.bindRepository(organizationId, connectionId, remote);
     }
 
-    private String decryptCredential(long workspaceId, long connectionId) {
-        StoredSecret credential = store.findCredential(workspaceId, connectionId)
+    private String decryptCredential(long organizationId, long connectionId) {
+        StoredSecret credential = store.findCredential(organizationId, connectionId)
                 .orElseThrow(ResourceNotFoundException::new);
-        return secrets.decrypt(workspaceId, credential.type(), credential.encrypted());
+        return secrets.decrypt(organizationId, credential.type(), credential.encrypted());
     }
 }

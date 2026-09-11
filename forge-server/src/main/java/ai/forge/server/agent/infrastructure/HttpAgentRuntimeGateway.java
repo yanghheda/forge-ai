@@ -51,8 +51,7 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
                 .headers(headers -> headers.setBearerAuth(tokenProvider.createRunToken(
                         issuedAt,
                         requested.runId(),
-                        requested.workspaceId(),
-                        requested.projectId())))
+                        requested.organizationId())))
                 .body(new StartRequest(manifest(requested, issuedAt), requested.message()))
                 .retrieve()
                 .body(StartResponse.class);
@@ -64,7 +63,7 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
     }
 
     private ContextManifest manifest(AgentRunRequested requested, Instant issuedAt) {
-        Scope scope = new Scope(requested.workspaceId(), requested.projectId(), requested.workItemId());
+        Scope scope = new Scope(requested.organizationId(), requested.workItemId());
         List<ResourceRef> refs = requested.workItemId() == null
                 ? List.of()
                 : List.of(new ResourceRef("WORK_ITEM", requested.workItemId().toString(), 0));
@@ -124,9 +123,7 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
 
     private record Scope(
             /* Run 所属工作区。 */
-            long workspaceId,
-            /* Run 所属项目。 */
-            long projectId,
+            long organizationId,
             /* 可选工作项。 */
             Long workItemId) {
     }

@@ -27,45 +27,45 @@ public class MybatisDocumentStore implements DocumentStore {
         this.objectMapper = objectMapper;
     }
 
-    public boolean requirementExists(long workspaceId, long projectId, long workItemId) {
-        return mapper.countRequirement(workspaceId, projectId, workItemId) == 1;
+    public boolean requirementExists(long organizationId, long workItemId) {
+        return mapper.countRequirement(organizationId, workItemId) == 1;
     }
 
-    public Document create(long workspaceId, long projectId, long workItemId, long userId, String type, String title) {
-        mapper.insertDocument(workspaceId, projectId, workItemId, userId, type, title);
-        return get(workspaceId, projectId, mapper.lastInsertId());
+    public Document create(long organizationId, long workItemId, long userId, String type, String title) {
+        mapper.insertDocument(organizationId, workItemId, userId, type, title);
+        return get(organizationId, mapper.lastInsertId());
     }
 
-    public Document get(long workspaceId, long projectId, long documentId) {
-        return mapper.findDocument(workspaceId, projectId, documentId).stream().findFirst().map(this::document).orElseThrow(ResourceNotFoundException::new);
+    public Document get(long organizationId, long documentId) {
+        return mapper.findDocument(organizationId, documentId).stream().findFirst().map(this::document).orElseThrow(ResourceNotFoundException::new);
     }
 
-    public List<Document> listByWorkItem(long workspaceId, long projectId, long workItemId) {
-        return mapper.findByWorkItem(workspaceId, projectId, workItemId).stream().map(this::document).toList();
+    public List<Document> listByWorkItem(long organizationId, long workItemId) {
+        return mapper.findByWorkItem(organizationId, workItemId).stream().map(this::document).toList();
     }
 
-    public List<DocumentVersion> history(long workspaceId, long documentId) {
-        return mapper.findVersions(workspaceId, documentId).stream().map(this::version).toList();
+    public List<DocumentVersion> history(long organizationId, long documentId) {
+        return mapper.findVersions(organizationId, documentId).stream().map(this::version).toList();
     }
 
-    public Document save(long workspaceId, long projectId, long documentId, long userId, long expectedVersion, String content, String plainText, String hash) {
+    public Document save(long organizationId, long documentId, long userId, long expectedVersion, String content, String plainText, String hash) {
         long no = mapper.nextVersionNo(documentId);
-        mapper.insertVersion(workspaceId, documentId, no, content, plainText, hash, userId);
+        mapper.insertVersion(organizationId, documentId, no, content, plainText, hash, userId);
         long versionId = mapper.lastInsertId();
-        if (mapper.setCurrentVersion(workspaceId, projectId, documentId, versionId, expectedVersion) != 1)
+        if (mapper.setCurrentVersion(organizationId, documentId, versionId, expectedVersion) != 1)
             throw new VersionConflictException();
-        return get(workspaceId, projectId, documentId);
+        return get(organizationId, documentId);
     }
 
-    public Document publish(long workspaceId, long projectId, long documentId, long versionId, long expectedVersion) {
-        if (mapper.publish(workspaceId, projectId, documentId, versionId, expectedVersion) != 1)
+    public Document publish(long organizationId, long documentId, long versionId, long expectedVersion) {
+        if (mapper.publish(organizationId, documentId, versionId, expectedVersion) != 1)
             throw new VersionConflictException();
-        mapper.insertPublishedEvent(workspaceId, projectId, documentId, versionId);
-        return get(workspaceId, projectId, documentId);
+        mapper.insertPublishedEvent(organizationId, documentId, versionId);
+        return get(organizationId, documentId);
     }
 
     private Document document(Map<String, Object> row) {
-        return new Document(number(row, "id"), number(row, "workspace_id"), number(row, "project_id"), nullable(row, "work_item_id"), row.get("type").toString(), row.get("title").toString(), row.get("status").toString(), nullable(row, "current_version_id"), number(row, "version"), instant(row.get("created_at")), instant(row.get("updated_at")));
+        return new Document(number(row, "id"), number(row, "organization_id"), nullable(row, "work_item_id"), row.get("type").toString(), row.get("title").toString(), row.get("status").toString(), nullable(row, "current_version_id"), number(row, "version"), instant(row.get("created_at")), instant(row.get("updated_at")));
     }
 
     private DocumentVersion version(Map<String, Object> row) {

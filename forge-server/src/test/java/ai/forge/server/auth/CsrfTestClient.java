@@ -39,6 +39,14 @@ public final class CsrfTestClient {
         return exchange(HttpMethod.PUT, path, body, existingCookie, responseType);
     }
 
+    public <T> ResponseEntity<T> get(String path, String existingCookie, Class<T> responseType) {
+        HttpHeaders headers = new HttpHeaders();
+        if (existingCookie != null) {
+            headers.set(HttpHeaders.COOKIE, existingCookie);
+        }
+        return unwrapSuccess(restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), responseType), responseType);
+    }
+
     public <T> ResponseEntity<T> delete(String path, String existingCookie, Class<T> responseType) {
         return exchange(HttpMethod.DELETE, path, null, existingCookie, responseType);
     }

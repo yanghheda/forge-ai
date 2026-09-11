@@ -5,7 +5,6 @@ import ai.forge.server.auth.domain.CurrentUser;
 import ai.forge.server.auth.domain.LoginAccount;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,21 +64,26 @@ public class MybatisAuthenticationStore implements AuthenticationStore {
         if (users.isEmpty()) {
             return Optional.empty();
         }
-        Map<Long, WorkspaceBuilder> workspaces = new LinkedHashMap<>();
-        for (Map<String, Object> row : authenticationMapper.findWorkspaceAccess(userId)) {
-            long workspaceId = number(row, "id");
-            WorkspaceBuilder builder = workspaces.computeIfAbsent(
-                    workspaceId, ignored -> new WorkspaceBuilder(workspaceId, text(row, "slug"), text(row, "name")));
+        List<Map<String, Object>> organizationRows = authenticationMapper.findOrganizationAccess(userId);
+        if (organizationRows.isEmpty()) {
+            return Optional.empty();
+        }
+        Map<String, Object> organization = organizationRows.getFirst();
+        List<String> roles = new ArrayList<>();
+        for (Map<String, Object> row : organizationRows) {
             String role = nullableText(row, "code");
             if (role != null) {
-                builder.roles().add(role);
+                roles.add(role);
             }
         }
         Map<String, Object> user = users.getFirst();
-        List<CurrentUser.WorkspaceAccess> access = workspaces.values().stream()
-                .map(value -> new CurrentUser.WorkspaceAccess(value.id(), value.slug(), value.name(), List.copyOf(value.roles())))
-                .toList();
-        return Optional.of(new CurrentUser(number(user, "id"), text(user, "email"), text(user, "display_name"), access));
+        CurrentUser.OrganizationAccess access = new CurrentUser.OrganizationAccess(
+                number(organization, "id"),
+                text(organization, "slug"),
+                text(organization, "name"),
+                List.copyOf(roles));
+        return Optional.of(new CurrentUser(
+                number(user, "id"), text(user, "email"), text(user, "display_name"), access));
     }
 
     private void insertAudit(Long userId, String action, String result, String requestId) {
@@ -104,13 +108,4 @@ public class MybatisAuthenticationStore implements AuthenticationStore {
         return value == null ? null : value.toString();
     }
 
-    private record WorkspaceBuilder(
-            /* 正在聚合角色的 Workspace 标识。 */ long id,
-            /* 正在聚合角色的 Workspace 路由短名。 */ String slug,
-            /* 正在聚合角色的 Workspace 展示名称。 */ String name,
-            /* 从关联结果收集的 Workspace 级角色代码。 */ List<String> roles) {
-        private WorkspaceBuilder(long id, String slug, String name) {
-            this(id, slug, name, new ArrayList<>());
-        }
-    }
 }

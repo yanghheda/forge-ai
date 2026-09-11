@@ -13,21 +13,19 @@ import {
 } from "../api/work-item-api";
 
 export function DevelopmentPanel({
-  workspaceId,
-  projectId,
+  organizationId,
   requirementId,
   onChanged,
 }: {
-  workspaceId: number;
-  projectId: number;
+  organizationId: number;
   requirementId: number;
   onChanged: () => Promise<unknown>;
 }) {
   const queryClient = useQueryClient();
-  const queryKey = ["development-summary", workspaceId, projectId, requirementId];
+  const queryKey = ["development-summary", organizationId, requirementId];
   const summary = useQuery({
     queryKey,
-    queryFn: () => getDevelopmentSummary(workspaceId, projectId, requirementId),
+    queryFn: () => getDevelopmentSummary(organizationId, requirementId),
     refetchInterval: 3_000,
   });
   const refresh = async () => {
@@ -39,8 +37,7 @@ export function DevelopmentPanel({
   const start = useMutation({
     mutationFn: (taskId: number) =>
       startDevelopment({
-        workspaceId,
-        projectId,
+        organizationId,
         taskId,
         idempotencyKey: crypto.randomUUID(),
       }),
@@ -48,7 +45,7 @@ export function DevelopmentPanel({
   });
   const complete = useMutation({
     mutationFn: ({ taskId, expectedVersion }: { taskId: number; expectedVersion: number }) =>
-      completeDevTask({ workspaceId, projectId, taskId, expectedVersion }),
+      completeDevTask({ organizationId, taskId, expectedVersion }),
     onSuccess: refresh,
   });
   if (summary.isPending) return <Card title="开发交付">正在加载开发交付状态…</Card>;

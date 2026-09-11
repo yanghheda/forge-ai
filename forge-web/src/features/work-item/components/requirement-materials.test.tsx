@@ -13,12 +13,11 @@ describe("RequirementMaterials", () => {
   it("默认展示已保存材料，点击编辑后才显示输入框", () => {
     render(
       <RequirementMaterials
-        workspaceId={1}
-        projectId={2}
+        organizationId={1}
         workItemId={3}
         details={{
           workItemId: 3,
-          workspaceId: 1,
+          organizationId: 1,
           goal: "让团队清晰查看需求",
           inScope: "Requirement、PRD 和 UX Spec",
           outOfScope: "技术方案",

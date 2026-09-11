@@ -15,9 +15,8 @@ import ai.forge.server.gitlab.application.DevelopmentStateException;
 import ai.forge.server.gitlab.application.RemoteResourceConflictException;
 import ai.forge.server.gitlab.application.WebhookRejectedException;
 import ai.forge.server.gitlab.infrastructure.UnsafeGitLabUrlException;
-import ai.forge.server.project.domain.ProjectKeyConflictException;
 import ai.forge.server.qa.application.QaStateException;
-import ai.forge.server.workspace.domain.MemberEmailConflictException;
+import ai.forge.server.organization.domain.MemberEmailConflictException;
 import ai.forge.server.workitem.domain.IdempotencyConflictException;
 import ai.forge.server.workitem.domain.InvalidTransitionException;
 import ai.forge.server.workitem.domain.RelationConflictException;
@@ -60,13 +59,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleScopedResourceNotFound(
             ResourceNotFoundException exception, HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND, "Resource not found", Map.of(), request);
-    }
-
-    @ExceptionHandler(ProjectKeyConflictException.class)
-    public ResponseEntity<ApiError> handleProjectKeyConflict(
-            ProjectKeyConflictException exception, HttpServletRequest request) {
-        return error(HttpStatus.CONFLICT, ErrorCode.PROJECT_KEY_CONFLICT,
-                "Project key already exists in this workspace", Map.of(), request);
     }
 
     @ExceptionHandler(MemberEmailConflictException.class)
