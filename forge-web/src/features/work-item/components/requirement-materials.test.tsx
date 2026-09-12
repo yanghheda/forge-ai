@@ -13,7 +13,6 @@ describe("RequirementMaterials", () => {
   it("默认展示已保存材料，点击编辑后才显示输入框", () => {
     render(
       <RequirementMaterials
-        organizationId={1}
         workItemId={3}
         details={{
           workItemId: 3,

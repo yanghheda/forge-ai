@@ -410,7 +410,7 @@ RELEASE 类型 Work Item 若保留，仅作为 Release 聚合的看板代理，�
 
 | Action | From → To | 权限 | Guard/副作用 |
 |---|---|---|---|
-| `SUBMIT_PRODUCT_REVIEW` | DRAFT → PRODUCT_REVIEW | `requirement.edit` | `requirement_details` 的目标、范围、验收标准存在；写评审记录 |
+| `SUBMIT_PRODUCT_REVIEW` | DRAFT → PRODUCT_REVIEW | `requirement.edit` | 需求描述非空且已有已发布 PRD；写评审记录 |
 | `APPROVE_PRODUCT_REVIEW` | PRODUCT_REVIEW → UX_IN_PROGRESS | `requirement.review` | 已发布 PRD；创建/确认 UX Task |
 | `REJECT_PRODUCT_REVIEW` | PRODUCT_REVIEW → DRAFT | `requirement.review` | reason 必填 |
 | `SUBMIT_UX_REVIEW` | UX_IN_PROGRESS → UX_REVIEW | `ux.edit` | 已发布 UX Spec；提交的 checklist 中用户流、页面清单、关键交互、异常态均确认并固化 |

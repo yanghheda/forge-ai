@@ -89,6 +89,26 @@
   color: var(--forge-text-2);
   font-size: 13px;
 }
+.reviewDetails {
+  display: grid;
+  margin: 0 0 20px;
+  gap: 20px;
+}
+.reviewDetails > div {
+  min-width: 0;
+}
+.reviewDetails dt {
+  margin-bottom: 8px;
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+.reviewDetails dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--forge-text-1);
+  font-size: 15px;
+  line-height: 1.5;
+}
 .switchLabel {
   display: flex !important;
   align-items: center;

@@ -7,8 +7,14 @@ const chain = {
   setParagraph: () => chain,
   toggleHeading: () => chain,
   toggleBold: () => chain,
+  toggleItalic: () => chain,
+  toggleStrike: () => chain,
+  toggleBlockquote: () => chain,
+  toggleCodeBlock: () => chain,
   toggleBulletList: () => chain,
   toggleOrderedList: () => chain,
+  undo: () => chain,
+  redo: () => chain,
   run,
 };
 const editor = {
@@ -18,10 +24,14 @@ const editor = {
   isActive: () => false,
   setEditable: vi.fn(),
 };
+let editorOptions: { onUpdate?: (event: { editor: typeof editor }) => void } = {};
 
 vi.mock("@tiptap/react", () => ({
   EditorContent: () => <div data-testid="editor-content" />,
-  useEditor: () => editor,
+  useEditor: (options: typeof editorOptions) => {
+    editorOptions = options;
+    return editor;
+  },
 }));
 
 import { DocumentEditor } from "./document-editor";
@@ -30,20 +40,26 @@ describe("DocumentEditor", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    editorOptions = {};
   });
 
-  it("默认以只读方式展示内容，点击编辑后才显示格式工具栏和保存入口", async () => {
+  it("进入页面即可编辑，并能把内容保存为新版本", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(<DocumentEditor userId={1} documentId={2} baseVersion={3} serverContent={{ type: "doc" }} onSave={onSave} />);
 
     expect(screen.getByTestId("editor-content")).toBeInTheDocument();
-    expect(screen.queryByLabelText("文档格式工具栏")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "保存为新版本" })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "编辑文档" }));
     expect(screen.getByLabelText("文档格式工具栏")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "保存为新版本" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(editor.getJSON()));
-    expect(screen.getByRole("button", { name: "编辑文档" })).toBeInTheDocument();
+    expect(screen.getByText(/已保存于/)).toBeInTheDocument();
+  });
+
+  it("输入内容时不会把草稿重新灌入编辑器导致光标跳动", () => {
+    render(<DocumentEditor userId={1} documentId={2} baseVersion={3} serverContent={{ type: "doc" }} onSave={vi.fn()} />);
+
+    editorOptions.onUpdate?.({ editor });
+
+    expect(editor.commands.setContent).not.toHaveBeenCalled();
+    expect(localStorage.getItem("forge:document-draft:1:2:3")).toBe(JSON.stringify(editor.getJSON()));
   });
 });

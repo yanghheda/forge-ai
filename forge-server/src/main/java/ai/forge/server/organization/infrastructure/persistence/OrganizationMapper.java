@@ -72,14 +72,17 @@ public interface OrganizationMapper {
             @Param("status") String status,
             @Param("expectedVersion") long expectedVersion);
 
-    @Update("UPDATE users SET status=#{status},updated_at=UTC_TIMESTAMP(6),version=version+1 WHERE id=#{userId}")
-    int updateUserStatus(@Param("userId") long userId, @Param("status") String status);
+    @Update("UPDATE users SET display_name=#{displayName},status=#{status},updated_at=UTC_TIMESTAMP(6),version=version+1 WHERE id=#{userId}")
+    int updateUser(
+            @Param("userId") long userId,
+            @Param("displayName") String displayName,
+            @Param("status") String status);
 
     @Select("SELECT id FROM organization_members WHERE organization_id=#{organizationId} AND user_id=#{userId}")
     List<Long> findMemberId(@Param("organizationId") long organizationId, @Param("userId") long userId);
 
     @Delete("DELETE mr FROM member_roles mr JOIN roles r ON r.id=mr.role_id "
-            + "WHERE mr.organization_member_id=#{memberId} AND r.code NOT IN ('OWNER','ADMIN')")
-    int deleteBusinessRoles(@Param("memberId") long memberId);
+            + "WHERE mr.organization_member_id=#{memberId} AND r.code <> 'OWNER'")
+    int deleteAssignableRoles(@Param("memberId") long memberId);
 
 }

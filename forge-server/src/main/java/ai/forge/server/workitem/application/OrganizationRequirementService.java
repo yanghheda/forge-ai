@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Profile("!test-unit")
@@ -45,6 +46,7 @@ public class OrganizationRequirementService {
         this.store = store;
     }
 
+    @Transactional
     public OrganizationRequirementView create(
             long userId, String title, String description, WorkItemPriority priority) {
         OrganizationContext scope = accessService.requireContext(userId);
@@ -57,12 +59,22 @@ public class OrganizationRequirementService {
                 priority,
                 null,
                 null);
-        return view(item);
+        if (store.memberHasRole(
+                scope.organizationId(), userId, RequirementParticipantRole.PRODUCT)) {
+            store.replaceParticipants(
+                    scope.organizationId(),
+                    item.id(),
+                    userId,
+                    List.of(new OrganizationRequirementStore.ParticipantAssignment(
+                            RequirementParticipantRole.PRODUCT, userId)));
+        }
+        return store.findRequirement(scope.organizationId(), item.id()).orElseThrow();
     }
 
     public OrganizationRequirementView get(long userId, long requirementId) {
         OrganizationContext scope = accessService.requireContext(userId);
-        return view(queryService.get(userId, scope.organizationId(), requirementId));
+        WorkItem item = queryService.get(userId, scope.organizationId(), requirementId);
+        return store.findRequirement(scope.organizationId(), item.id()).orElseThrow();
     }
 
     public OrganizationRequirementPage list(
@@ -130,16 +142,4 @@ public class OrganizationRequirementService {
         }
     }
 
-    private OrganizationRequirementView view(WorkItem item) {
-        return new OrganizationRequirementView(
-                item.id(),
-                item.itemKey(),
-                item.title(),
-                item.description(),
-                item.status(),
-                item.priority(),
-                item.version(),
-                item.createdAt(),
-                item.updatedAt());
-    }
 }

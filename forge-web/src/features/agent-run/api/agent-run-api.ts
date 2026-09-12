@@ -42,6 +42,14 @@ export interface ApprovalSnapshot {
   version: number;
 }
 
+export function createAgentRun(input: { workItemId: number; skill: "PRODUCT" | "UX"; message: string }, client: RequestClient = apiClient): Promise<AgentRunSnapshot> {
+  return client.request("/v1/agent-runs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, mediumToolConfirmation: "ASK", clientRequestId: crypto.randomUUID() }),
+  });
+}
+
 export function getAgentRun(organizationId: number, runId: string, client: RequestClient = apiClient): Promise<AgentRunSnapshot> {
   return client.request(`/v1/agent-runs/${runId}?organizationId=${organizationId}`);
 }

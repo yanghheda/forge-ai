@@ -22,6 +22,13 @@ const emptyInitialization: InitializeInput = {
   organizationSlug: "",
   logo: null,
 };
+const emptyLogin = { email: "", password: "" };
+const emptyRegistration: RegisterInput = {
+  email: "",
+  displayName: "",
+  password: "",
+  role: "PRODUCT",
+};
 
 export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "register" | "init" }) {
   const router = useRouter();
@@ -32,17 +39,14 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
   });
   const [initializedLocally, setInitializedLocally] = useState(false);
   const [mode, setMode] = useState<"login" | "register">(initialMode === "register" ? "register" : "login");
-  const [loginValues, setLoginValues] = useState({ email: "", password: "" });
+  const [loginValues, setLoginValues] = useState(emptyLogin);
   const [initializeValues, setInitializeValues] = useState(emptyInitialization);
-  const [registerValues, setRegisterValues] = useState<RegisterInput>({
-    email: "",
-    displayName: "",
-    password: "",
-    role: "PRODUCT",
-  });
+  const [registerValues, setRegisterValues] = useState<RegisterInput>(emptyRegistration);
   const [registered, setRegistered] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [initializeForm] = Form.useForm<InitializeInput>();
+  const [loginForm] = Form.useForm<typeof emptyLogin>();
+  const [registerForm] = Form.useForm<RegisterInput>();
   const initializeMutation = useMutation({
     mutationFn: (input: InitializeInput) => initializeInstance(input),
     onSuccess: () => {
@@ -57,11 +61,18 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
   });
   const loginMutation = useMutation({
     mutationFn: (input: { email: string; password: string }) => login(input),
-    onSuccess: () => router.replace("/overview"),
+    onSuccess: () => {
+      setLoginValues(emptyLogin);
+      loginForm.resetFields();
+      setFieldErrors({});
+      router.replace("/overview");
+    },
   });
   const registerMutation = useMutation({
     mutationFn: (input: RegisterInput) => register(input),
     onSuccess: () => {
+      setRegisterValues(emptyRegistration);
+      registerForm.resetFields();
       setRegistered(true);
       setMode("login");
       setFieldErrors({});
@@ -210,7 +221,7 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
               <Typography.Paragraph>选择你的主要岗位角色</Typography.Paragraph>
             </div>
           </div>
-          <Form layout="vertical" wrapperProps={{ noValidate: true }} initialValues={registerValues} onSubmit={submitRegistration} className={styles.form}>
+          <Form form={registerForm} layout="vertical" wrapperProps={{ noValidate: true }} initialValues={registerValues} onSubmit={submitRegistration} className={styles.form}>
             <Form.Item field="displayName" label="姓名" required rules={[schemaRule(registerSchema.shape.displayName, "请输入姓名")]} validateStatus={fieldErrors.displayName ? "error" : undefined} help={fieldErrors.displayName}>
               <Input
                 aria-label="姓名"
@@ -259,7 +270,7 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
                 ]}
               />
             </Form.Item>
-            <AuthErrorAlert error={registerMutation.error} />
+            <AuthErrorAlert error={registerMutation.error} style={{ marginBottom: "12px" }} />
             <Button htmlType="submit" type="primary" long size="large" loading={registerMutation.isPending}>
               完成注册
             </Button>
@@ -283,9 +294,9 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
             <Typography.Paragraph>使用你的工作账户进入</Typography.Paragraph>
           </div>
         </div>
-        {initializedLocally && <Alert type="success" content="初始化完成，请使用所有者账户登录。" />}
-        {registered && <Alert type="success" content="注册申请已提交，请等待公司管理员审核后登录。" />}
-        <Form layout="vertical" wrapperProps={{ noValidate: true }} initialValues={loginValues} onSubmit={submitLogin} className={styles.form}>
+        {initializedLocally && <Alert type="success" content="初始化完成，请使用所有者账户登录。" style={{ marginBottom: "12px" }} />}
+        {registered && <Alert type="success" content="注册申请已提交，请等待公司管理员审核后登录。" style={{ marginBottom: "12px" }} />}
+        <Form form={loginForm} layout="vertical" wrapperProps={{ noValidate: true }} initialValues={loginValues} onSubmit={submitLogin} className={styles.form}>
           <Form.Item field="email" label="邮箱" required rules={[schemaRule(loginSchema.shape.email, "请输入有效邮箱")]} validateStatus={fieldErrors.email ? "error" : undefined} help={fieldErrors.email}>
             <Input
               aria-label="邮箱"
@@ -310,7 +321,7 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
               }}
             />
           </Form.Item>
-          <AuthErrorAlert error={loginMutation.error} login />
+          <AuthErrorAlert error={loginMutation.error} login style={{ marginBottom: "12px" }} />
           <Button htmlType="submit" type="primary" long size="large" loading={loginMutation.isPending}>
             登录
           </Button>

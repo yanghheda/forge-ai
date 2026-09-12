@@ -3,12 +3,11 @@ package ai.forge.server.workitem.application;
 import ai.forge.server.workitem.domain.GuardResult;
 import ai.forge.server.workitem.domain.TransitionContext;
 import ai.forge.server.workitem.domain.TransitionGuard;
-import java.util.ArrayList;
 import java.util.List;
 
 public final class RequirementMaterialGuard implements TransitionGuard {
 
-    /* 只读查询 Requirement 结构化材料，不在 Guard 中产生副作用。 */
+    /* 查询与 Requirement 关联的已发布 PRD，不在 Guard 中产生副作用。 */
     private final RequirementMaterialStore materialStore;
 
     public RequirementMaterialGuard(RequirementMaterialStore materialStore) {
@@ -17,18 +16,13 @@ public final class RequirementMaterialGuard implements TransitionGuard {
 
     @Override
     public GuardResult evaluate(TransitionContext context) {
-        RequirementMaterialStore.RequirementMaterial material = materialStore
-                .find(context.workItem().organizationId(), context.workItem().id())
-                .orElse(new RequirementMaterialStore.RequirementMaterial("", "", 0));
-        List<String> missing = new ArrayList<>();
-        if (material.goal() == null || material.goal().isBlank()) {
-            missing.add("goal");
+        List<String> missing = new java.util.ArrayList<>();
+        if (context.workItem().description() == null || context.workItem().description().isBlank()) {
+            missing.add("description");
         }
-        if (material.inScope() == null || material.inScope().isBlank()) {
-            missing.add("inScope");
-        }
-        if (material.acceptanceCriteriaCount() == 0) {
-            missing.add("acceptanceCriteria");
+        if (!materialStore.hasPublishedPrd(
+                context.workItem().organizationId(), context.workItem().id())) {
+            missing.add("publishedPrd");
         }
         return new GuardResult(missing);
     }

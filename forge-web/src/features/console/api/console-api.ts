@@ -74,7 +74,7 @@ const json = (method: string, body: unknown): RequestInit => ({
 
 export const listCompanyMembers = (client: RequestClient = apiClient) => client.request<CompanyMember[]>("/v1/members");
 
-export const updateCompanyMember = (userId: number, input: { status: "ACTIVE" | "DISABLED"; role: string; expectedVersion: number }, client: RequestClient = apiClient) => client.request<CompanyMember>(`/v1/members/${userId}`, json("PATCH", input));
+export const updateCompanyMember = (userId: number, input: { displayName: string; status: "ACTIVE" | "DISABLED"; roles: string[]; expectedVersion: number }, client: RequestClient = apiClient) => client.request<CompanyMember>(`/v1/members/${userId}`, json("PATCH", input));
 
 export const listBoardItems = (client: RequestClient = apiClient) => client.request<BoardItem[]>("/v1/task-board");
 

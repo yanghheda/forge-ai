@@ -64,15 +64,17 @@ public class MybatisOrganizationStore implements OrganizationStore {
 
     @Override
     @Transactional
-    public void updateMember(long organizationId, long userId, String status, long roleId, long expectedVersion) {
+    public void updateMember(
+            long organizationId, long userId, String displayName, String status, List<Long> roleIds,
+            long expectedVersion) {
         if (mapper.updateMember(organizationId, userId, status, expectedVersion) != 1) {
             throw new VersionConflictException();
         }
-        mapper.updateUserStatus(userId, status);
+        mapper.updateUser(userId, displayName, status);
         long memberId = mapper.findMemberId(organizationId, userId).stream()
                 .findFirst().orElseThrow(ResourceNotFoundException::new);
-        mapper.deleteBusinessRoles(memberId);
-        mapper.insertRole(memberId, roleId);
+        mapper.deleteAssignableRoles(memberId);
+        roleIds.forEach(roleId -> mapper.insertRole(memberId, roleId));
     }
 
 

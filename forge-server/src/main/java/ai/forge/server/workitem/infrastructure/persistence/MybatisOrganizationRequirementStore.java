@@ -9,12 +9,15 @@ import ai.forge.server.workitem.application.RequirementParticipantView;
 import ai.forge.server.workitem.domain.RequirementParticipantRole;
 import ai.forge.server.workitem.domain.WorkItemPriority;
 import ai.forge.server.workitem.domain.WorkItemStatus;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +29,12 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
     /* 执行只包含服务端解析 scope 的需求检索、统计和参与人 SQL。 */
     private final OrganizationRequirementMapper mapper;
 
-    public MybatisOrganizationRequirementStore(OrganizationRequirementMapper mapper) {
+    /* 将数据库 JSON 验收标准还原为稳定响应结构。 */
+    private final ObjectMapper objectMapper;
+
+    public MybatisOrganizationRequirementStore(OrganizationRequirementMapper mapper, ObjectMapper objectMapper) {
         this.mapper = mapper;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -52,6 +59,11 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
     public RequirementOverview overview(long organizationId) {
         Map<String, Object> row = mapper.overview(organizationId);
         return new RequirementOverview(number(row, "total"), number(row, "in_progress"), number(row, "completed"));
+    }
+
+    @Override
+    public Optional<OrganizationRequirementView> findRequirement(long organizationId, long requirementId) {
+        return mapper.findRequirement(organizationId, requirementId).stream().findFirst().map(this::requirement);
     }
 
     @Override
@@ -92,6 +104,12 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
     }
 
     @Override
+    public boolean memberHasRole(
+            long organizationId, long userId, RequirementParticipantRole role) {
+        return mapper.memberHasRole(organizationId, userId, role.name());
+    }
+
+    @Override
     public List<RequirementMemberView> findMembers(long organizationId) {
         return mapper.findMembers(organizationId).stream()
                 .map(row -> new RequirementMemberView(
@@ -110,6 +128,14 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
                 text(row, "description"),
                 WorkItemStatus.valueOf(text(row, "status")),
                 WorkItemPriority.valueOf(text(row, "priority")),
+                text(row, "organization_name"),
+                text(row, "reporter_name"),
+                nullableInstant(row, "due_at"),
+                nullableText(row, "goal"),
+                nullableText(row, "in_scope"),
+                nullableText(row, "out_of_scope"),
+                acceptanceCriteria(row.get("acceptance_criteria_json")),
+                nullableText(row, "business_value"),
                 number(row, "version"),
                 instant(row, "created_at"),
                 instant(row, "updated_at"));
@@ -124,7 +150,24 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
         return row.get(key).toString();
     }
 
+    private String nullableText(Map<String, Object> row, String key) {
+        return row.get(key) == null ? "" : text(row, key);
+    }
+
+    private List<String> acceptanceCriteria(Object value) {
+        if (value == null) return List.of();
+        try {
+            return objectMapper.readValue(value.toString(), new TypeReference<>() {});
+        } catch (Exception exception) {
+            throw new IllegalStateException("Invalid requirement acceptance criteria", exception);
+        }
+    }
+
     private Instant instant(Map<String, Object> row, String key) {
         return ((LocalDateTime) row.get(key)).toInstant(ZoneOffset.UTC);
+    }
+
+    private Instant nullableInstant(Map<String, Object> row, String key) {
+        return row.get(key) == null ? null : instant(row, key);
     }
 }

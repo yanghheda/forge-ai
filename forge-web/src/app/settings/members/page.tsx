@@ -1,17 +1,18 @@
 "use client";
 
-import { Alert, Button, Drawer, Form, Input, Select, Spin, Table, Tag } from "@arco-design/web-react";
+import { Alert, Button, Drawer, Form, Input, Message, Modal, Select, Spin, Table, Tag } from "@arco-design/web-react";
 import { IconEdit, IconSearch } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { ProtectedApp } from "@/features/auth";
+import { getCurrentUser, ProtectedApp } from "@/features/auth";
 import { listCompanyMembers, updateCompanyMember, type CompanyMember } from "@/features/console";
 import { formatRequestError } from "@/lib/api";
 import { roleLabel } from "@/lib/labels";
 import styles from "../settings.module.css";
 
-const roles = ["PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER"];
+const roles = ["ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER"];
+const assignableRoles = (member: CompanyMember) => member.roles.filter((role) => roles.includes(role));
 
 export default function MembersPage() {
   return (
@@ -24,21 +25,50 @@ export default function MembersPage() {
 function Members() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<CompanyMember | null>(null);
-  const [form] = Form.useForm<{ role: string; status: "ACTIVE" | "DISABLED" }>();
+  const [reviewing, setReviewing] = useState<CompanyMember | null>(null);
+  const [form] = Form.useForm<{ displayName: string; roles: string[]; status: "ACTIVE" | "DISABLED" }>();
   const members = useQuery({ queryKey: ["company-members"], queryFn: () => listCompanyMembers() });
+  const currentUser = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
   const save = useMutation({
-    mutationFn: (values: { role: string; status: "ACTIVE" | "DISABLED" }) => updateCompanyMember(editing!.userId, { ...values, expectedVersion: editing!.version }),
+    mutationFn: (values: { displayName: string; roles: string[]; status: "ACTIVE" | "DISABLED" }) => updateCompanyMember(editing!.userId, { ...values, expectedVersion: editing!.version }),
     onSuccess: async () => {
       setEditing(null);
       await queryClient.invalidateQueries({ queryKey: ["company-members"] });
+      Message.success("编辑成功");
     },
   });
-  const edit = (member: CompanyMember) => {
-    setEditing(member);
+  const review = useMutation({
+    mutationFn: (status: "ACTIVE" | "DISABLED") =>
+      updateCompanyMember(reviewing!.userId, {
+        displayName: reviewing!.displayName,
+        roles: assignableRoles(reviewing!),
+        status,
+        expectedVersion: reviewing!.version,
+      }),
+    onSuccess: async (_, status) => {
+      setReviewing(null);
+      await queryClient.invalidateQueries({ queryKey: ["company-members"] });
+      if (status === "ACTIVE") {
+        Message.success("审核成功");
+      }
+    },
+  });
+  useEffect(() => {
+    if (!editing) {
+      return;
+    }
     form.setFieldsValue({
-      role: member.roles[0] ?? "DEVELOPER",
-      status: member.status === "DISABLED" ? "DISABLED" : "ACTIVE",
+      displayName: editing.displayName,
+      roles: assignableRoles(editing),
+      status: editing.status === "DISABLED" ? "DISABLED" : "ACTIVE",
     });
+  }, [editing, form]);
+  const edit = (member: CompanyMember) => {
+    if (member.status === "PENDING") {
+      setReviewing(member);
+      return;
+    }
+    setEditing(member);
   };
   const count = (value: CompanyMember["status"]) => members.data?.filter((member) => member.status === value).length ?? "—";
 
@@ -119,7 +149,7 @@ function Members() {
               {
                 title: "操作",
                 render: (_, row) => (
-                  <Button type="text" icon={<IconEdit />} onClick={() => edit(row)}>
+                  <Button type="text" icon={<IconEdit />} disabled={row.userId === currentUser.data?.id} onClick={() => edit(row)}>
                     {row.status === "PENDING" ? "审核" : "编辑"}
                   </Button>
                 ),
@@ -128,29 +158,71 @@ function Members() {
           />
         )}
       </article>
+      <Modal
+        visible={!!reviewing}
+        title="审核成员"
+        unmountOnExit
+        maskClosable={false}
+        onCancel={() => setReviewing(null)}
+        footer={
+          <>
+            <Button disabled={review.isPending} onClick={() => setReviewing(null)}>
+              取消
+            </Button>
+            <Button status="danger" loading={review.isPending && review.variables === "DISABLED"} disabled={review.isPending} onClick={() => review.mutate("DISABLED")}>
+              拒绝
+            </Button>
+            <Button type="primary" loading={review.isPending && review.variables === "ACTIVE"} disabled={review.isPending} onClick={() => review.mutate("ACTIVE")}>
+              通过
+            </Button>
+          </>
+        }
+      >
+        <dl className={styles.reviewDetails}>
+          <div>
+            <dt>姓名</dt>
+            <dd>{reviewing?.displayName}</dd>
+          </div>
+          <div>
+            <dt>邮箱</dt>
+            <dd>{reviewing?.email}</dd>
+          </div>
+          <div>
+            <dt>岗位角色</dt>
+            <dd>{reviewing?.roles.map(roleLabel).join("、") || "开发"}</dd>
+          </div>
+          <div>
+            <dt>账号状态</dt>
+            <dd>
+              <Tag color="orange">待审核</Tag>
+            </dd>
+          </div>
+        </dl>
+        {review.isError && <Alert type="error" content={formatRequestError(review.error)} />}
+      </Modal>
       <Drawer
         visible={!!editing}
         width={480}
-        title={editing?.status === "PENDING" ? "审核成员" : "编辑成员"}
+        title="编辑成员"
         onCancel={() => setEditing(null)}
         footer={
           <>
             <Button onClick={() => setEditing(null)}>取消</Button>
             <Button type="primary" loading={save.isPending} onClick={() => form.submit()}>
-              {editing?.status === "PENDING" ? "审核并启用" : "保存修改"}
+              保存修改
             </Button>
           </>
         }
       >
         <Form form={form} className={styles.form} layout="vertical" aria-label="编辑成员" onSubmit={(values) => save.mutate(values)}>
-          <Form.Item label="姓名">
-            <Input value={editing?.displayName} readOnly />
+          <Form.Item field="displayName" label="姓名" required rules={[{ required: true, message: "请输入姓名" }]}>
+            <Input maxLength={120} />
           </Form.Item>
           <Form.Item label="邮箱">
             <Input value={editing?.email} disabled />
           </Form.Item>
-          <Form.Item field="role" label="岗位角色" required rules={[{ required: true, message: "请选择岗位角色" }]}>
-            <Select options={roles.map((value) => ({ label: roleLabel(value), value }))} />
+          <Form.Item field="roles" label="岗位角色" required rules={[{ required: true, message: "请至少选择一个岗位角色" }]}>
+            <Select mode="multiple" aria-label="岗位角色" options={roles.map((value) => ({ label: roleLabel(value), value }))} />
           </Form.Item>
           <Form.Item field="status" label="账号状态" required rules={[{ required: true, message: "请选择账号状态" }]}>
             <Select

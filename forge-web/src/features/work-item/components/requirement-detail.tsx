@@ -26,7 +26,7 @@ export function RequirementDetail({ organizationId, workItemId, userId }: { orga
   });
   const materials = useQuery({
     queryKey: ["requirement-details", workItemId],
-    queryFn: () => getRequirementDetails(organizationId, workItemId),
+    queryFn: () => getRequirementDetails(workItemId),
   });
   const documents = useQuery({
     queryKey: ["documents", workItemId],
@@ -105,7 +105,7 @@ export function RequirementDetail({ organizationId, workItemId, userId }: { orga
       {error && <Alert className={styles.pageAlert} type="error" content={formatRequestError(error)} />}
       <Tabs defaultActiveTab="details" className={styles.tabs}>
         <Tabs.TabPane key="details" title="需求">
-          <RequirementMaterials key={materials.data.version} organizationId={organizationId} workItemId={workItemId} details={materials.data} onChanged={invalidate} />
+          <RequirementMaterials key={materials.data.version} workItemId={workItemId} details={materials.data} onChanged={invalidate} />
         </Tabs.TabPane>
         <Tabs.TabPane key="prd" title="PRD">
           <PrdPanel documentType="PRD" userId={userId} organizationId={organizationId} workItemId={workItemId} document={prd} onChanged={invalidate} create={() => createPrd.mutate()} />

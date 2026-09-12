@@ -27,8 +27,9 @@ const bugActionLabels: Record<string, string> = {
 
 /* 流程 Guard 缺失项的中文提示文案。 */
 const guardHintLabels: Record<string, string> = {
+  description: "需求描述",
   goal: "业务目标",
-  inScope: "范围",
+  inScope: "纳入范围",
   acceptanceCriteria: "验收标准",
   publishedPrd: "已发布 PRD",
   publishedUxSpec: "已发布 UX Spec",

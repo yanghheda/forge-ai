@@ -1,0 +1,289 @@
+.workspace {
+  display: grid;
+  gap: 16px;
+}
+.documentHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 20px;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 6px;
+  background: #fff;
+}
+.documentHead p {
+  margin: 0 0 5px;
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+.documentHead h1 {
+  margin: 0;
+  color: var(--forge-text-1);
+  font-size: 22px;
+  font-weight: 650;
+}
+.meta,
+.headActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.meta {
+  margin-top: 10px;
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.draft,
+.published {
+  padding: 2px 8px;
+  border-radius: 3px;
+  color: #175cd3;
+  background: #eff8ff;
+}
+.published {
+  color: #067647;
+  background: #ecfdf3;
+}
+.columns {
+  display: grid;
+  grid-template-columns: 220px minmax(520px, 1fr) 290px;
+  gap: 16px;
+  align-items: start;
+}
+.outlineCard,
+.infoCard,
+.progressCard,
+.agentCard {
+  overflow: hidden;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: var(--forge-shadow-1);
+}
+.outlineCard > header,
+.infoCard > header,
+.progressCard > header,
+.agentCard > header {
+  display: flex;
+  align-items: center;
+  min-height: 50px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--forge-border-1);
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.outlineCard nav {
+  display: grid;
+  padding: 10px;
+  gap: 3px;
+}
+.outlineCard a,
+.outlineCard nav span {
+  padding: 9px 10px;
+  border-radius: 4px;
+  color: var(--forge-text-2);
+  font-size: 13px;
+  text-decoration: none;
+}
+.outlineCard a:first-child {
+  color: var(--forge-primary-6);
+  background: var(--forge-primary-1);
+}
+.outlineCard nav span {
+  color: var(--forge-text-3);
+  line-height: 1.6;
+}
+.editorColumn {
+  min-width: 0;
+}
+.emptyEditor {
+  display: grid;
+  min-height: 620px;
+  place-items: center;
+  align-content: center;
+  padding: 48px;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 6px;
+  background: #fff;
+  text-align: center;
+}
+.emptyEditor > div {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  place-items: center;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--forge-primary-6);
+  font-weight: 700;
+}
+.emptyEditor h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.emptyEditor p {
+  max-width: 420px;
+  margin: 0 0 24px;
+  color: var(--forge-text-3);
+  line-height: 1.7;
+}
+.sideColumn {
+  display: grid;
+  gap: 16px;
+}
+.infoCard dl {
+  margin: 0;
+  padding: 4px 16px 12px;
+}
+.infoCard dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--forge-border-1);
+}
+.infoCard dl div:last-child {
+  border: 0;
+}
+.infoCard dt {
+  color: var(--forge-text-3);
+}
+.infoCard dd {
+  margin: 0;
+  color: var(--forge-text-1);
+  font-weight: 550;
+  text-align: right;
+}
+.infoCard .successText {
+  color: #067647;
+}
+.progressBody {
+  padding: 16px;
+}
+.step {
+  display: flex;
+  position: relative;
+  gap: 10px;
+  padding: 0 0 20px;
+  color: var(--forge-primary-6);
+}
+.step:not(:last-of-type)::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 2px;
+  left: 7px;
+  width: 1px;
+  background: #d0d5dd;
+}
+.step span {
+  display: grid;
+  gap: 3px;
+}
+.step b {
+  color: var(--forge-text-1);
+  font-size: 13px;
+}
+.step small {
+  color: var(--forge-text-3);
+  line-height: 1.45;
+}
+.hint {
+  margin: 10px 0 0;
+  color: #b54708;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.agentCard > header i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #12b76a;
+}
+.agentAvatar {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #7f56d9;
+}
+.activityList {
+  display: grid;
+  min-height: 170px;
+  max-height: 300px;
+  padding: 14px;
+  gap: 12px;
+  overflow: auto;
+  background: #fcfcfd;
+}
+.agentMessage,
+.ownMessage {
+  display: grid;
+  justify-items: start;
+}
+.ownMessage {
+  justify-items: end;
+}
+.agentMessage p,
+.ownMessage p {
+  max-width: 92%;
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 6px;
+  background: #f2f4f7;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ownMessage p {
+  border: 1px solid #b2ddff;
+  background: #eff8ff;
+}
+.activityList time {
+  margin-top: 3px;
+  color: var(--forge-text-3);
+  font-size: 11px;
+}
+.emptyActivity {
+  margin: 0;
+  color: var(--forge-text-3);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.commentBox {
+  display: grid;
+  padding: 12px;
+  gap: 8px;
+}
+.commentBox button {
+  justify-self: end;
+}
+@media (max-width: 1180px) {
+  .columns {
+    grid-template-columns: 190px minmax(480px, 1fr);
+  }
+  .sideColumn {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .documentHead {
+    flex-direction: column;
+  }
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  .outlineCard {
+    display: none;
+  }
+  .sideColumn {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+}

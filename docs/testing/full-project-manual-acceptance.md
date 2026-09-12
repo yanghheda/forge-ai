@@ -129,7 +129,7 @@ make test-apps-ready
 
 实际/证据：
 
-### ORG-02 [P0] 注册与待审核 [ ]
+### ORG-02 [P0] 注册与待审核 [✅]
 
 步骤：分别申请 PRODUCT、UX、DEVELOPER、QA、RELEASE_APPROVER，注册后立即登录。
 
@@ -137,7 +137,7 @@ make test-apps-ready
 
 实际/证据：
 
-### ORG-03 [P0] 注册输入与提权边界 [ ]
+### ORG-03 [P0] 注册输入与提权边界 [✅]
 
 步骤：测试重复邮箱、弱密码、非法邮箱、空/未知角色，并尝试 OWNER、ADMIN。
 
@@ -145,7 +145,7 @@ make test-apps-ready
 
 实际/证据：
 
-### ORG-04 [P0] 审核、角色修改与启停 [ ]
+### ORG-04 [P0] 审核、角色修改与启停 [✅]
 
 步骤：Owner 审核申请、修改角色、停用并启用成员；普通成员尝试相同操作。
 
@@ -153,7 +153,7 @@ make test-apps-ready
 
 实际/证据：
 
-### ORG-05 [P0] 成员并发更新 [ ]
+### ORG-05 [P0] 成员并发更新 [✅]
 
 步骤：两个窗口读取同一成员，A 更新后 B 用旧 `expectedVersion` 更新。
 
@@ -161,7 +161,7 @@ make test-apps-ready
 
 实际/证据：
 
-### ORG-06 [P0] 公司作用域不可注入 [ ]
+### ORG-06 [P0] 公司作用域不可注入 [✅]
 
 步骤：向公开 API 追加当前/伪造 `organizationId`，读取不存在或其他公司测试夹具资源；执行 `make hardening-test`。
 
@@ -169,7 +169,7 @@ make test-apps-ready
 
 实际/证据：
 
-### ORG-07 [P0] 旧模型物理缺席 [ ]
+### ORG-07 [P0] 旧模型物理缺席 [✅]
 
 步骤：检查 OpenAPI、浏览器请求和 V1 数据库基线；请求旧资源路由。
 
@@ -203,7 +203,7 @@ make test-apps-ready
 
 实际/证据：
 
-### REQ-01 [P0] 创建权限与公司级编号 [ ]
+### REQ-01 [P0] 创建权限与公司级编号 [✅]
 
 步骤：Owner、PRODUCT 创建需求；其他角色直接请求创建；提交非法字段。
 

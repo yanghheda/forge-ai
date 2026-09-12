@@ -12,7 +12,10 @@ import org.apache.ibatis.annotations.Select;
 public interface OrganizationRequirementMapper {
 
     @Select("<script>SELECT wi.id, wi.item_key, wi.title, wi.description, wi.status, wi.priority, "
+            + "o.name AS organization_name, reporter.display_name AS reporter_name, wi.due_at, "
             + "wi.version, wi.created_at, wi.updated_at FROM work_items wi "
+            + "JOIN organizations o ON o.id = wi.organization_id "
+            + "JOIN users reporter ON reporter.id = wi.reporter_user_id "
             + "WHERE wi.organization_id = #{organizationId} "
             + "AND wi.type = 'REQUIREMENT' AND wi.deleted_at IS NULL "
             + "<if test='participantUserId != null'>AND EXISTS (SELECT 1 FROM requirement_participants rp "
@@ -29,6 +32,19 @@ public interface OrganizationRequirementMapper {
             @Param("status") String status,
             @Param("limit") int limit,
             @Param("offset") int offset);
+
+    @Select("SELECT wi.id, wi.item_key, wi.title, wi.description, wi.status, wi.priority, "
+            + "o.name AS organization_name, reporter.display_name AS reporter_name, wi.due_at, "
+            + "rd.goal, rd.in_scope, rd.out_of_scope, rd.acceptance_criteria_json, rd.business_value, "
+            + "wi.version, wi.created_at, wi.updated_at FROM work_items wi "
+            + "JOIN organizations o ON o.id = wi.organization_id "
+            + "JOIN users reporter ON reporter.id = wi.reporter_user_id "
+            + "LEFT JOIN requirement_details rd ON rd.work_item_id = wi.id AND rd.organization_id = #{organizationId} "
+            + "WHERE wi.organization_id = #{organizationId} AND wi.id = #{requirementId} "
+            + "AND wi.type = 'REQUIREMENT' AND wi.deleted_at IS NULL")
+    List<Map<String, Object>> findRequirement(
+            @Param("organizationId") long organizationId,
+            @Param("requirementId") long requirementId);
 
     @Select("<script>SELECT COUNT(*) FROM work_items wi "
             + "WHERE wi.organization_id = #{organizationId} "
@@ -66,6 +82,16 @@ public interface OrganizationRequirementMapper {
             + "WHERE om.organization_id = #{organizationId} AND om.user_id = #{userId} AND om.status = 'ACTIVE' "
             + "AND r.code IN (#{role}, 'OWNER'))")
     boolean memberCanFillRole(
+            @Param("organizationId") long organizationId,
+            @Param("userId") long userId,
+            @Param("role") String role);
+
+    @Select("SELECT EXISTS(SELECT 1 FROM organization_members om "
+            + "JOIN member_roles mr ON mr.organization_member_id = om.id "
+            + "JOIN roles r ON r.id = mr.role_id "
+            + "WHERE om.organization_id = #{organizationId} AND om.user_id = #{userId} AND om.status = 'ACTIVE' "
+            + "AND r.code = #{role})")
+    boolean memberHasRole(
             @Param("organizationId") long organizationId,
             @Param("userId") long userId,
             @Param("role") String role);

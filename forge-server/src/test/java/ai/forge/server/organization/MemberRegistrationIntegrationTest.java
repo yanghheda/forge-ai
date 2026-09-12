@@ -80,8 +80,15 @@ class MemberRegistrationIntegrationTest extends InfrastructureIntegrationTestBas
         long userId = objectMapper.readTree(created.getBody()).get("userId").asLong();
         ResponseEntity<String> approved = csrf().patch(
                 "/api/v1/members/" + userId,
-                Map.of("status", "ACTIVE", "role", "DEVELOPER", "expectedVersion", 0), ownerCookie, String.class);
+                Map.of(
+                        "displayName", "Dev Member",
+                        "status", "ACTIVE",
+                        "roles", List.of("DEVELOPER", "ADMIN", "RELEASE_APPROVER"),
+                        "expectedVersion", 0),
+                ownerCookie,
+                String.class);
         assertThat(approved.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(approved.getBody()).contains("\"roles\":[\"ADMIN\",\"DEVELOPER\",\"RELEASE_APPROVER\"]");
         ResponseEntity<String> login = csrf().post(
                 "/api/v1/auth/login",
                 Map.of("email", "dev@example.com", "password", "dev-password-42"), null, String.class);
@@ -109,6 +116,27 @@ class MemberRegistrationIntegrationTest extends InfrastructureIntegrationTestBas
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("VALIDATION_FAILED");
         assertThat(count("users")).isOne();
+    }
+
+    @Test
+    void ownerCannotEditOwnAccount() {
+        String ownerCookie = login("owner@example.com", "correct-horse-42");
+        long ownerUserId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE normalized_email = 'owner@example.com'", Long.class);
+
+        ResponseEntity<String> response = csrf().patch(
+                "/api/v1/members/" + ownerUserId,
+                Map.of(
+                        "displayName", "Changed Owner",
+                        "status", "ACTIVE",
+                        "roles", List.of("ADMIN"),
+                        "expectedVersion", 0),
+                ownerCookie,
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT display_name FROM users WHERE id = ?", String.class, ownerUserId)).isEqualTo("Forge Owner");
     }
 
     private CsrfTestClient csrf() {

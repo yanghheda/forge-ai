@@ -14,5 +14,7 @@ public interface OrganizationStore {
     List<OrganizationMember> findMembers(long organizationId);
     Optional<OrganizationMember> findMember(long organizationId, long userId);
     boolean hasActiveMember(long organizationId, long userId);
-    void updateMember(long organizationId, long userId, String status, long roleId, long expectedVersion);
+    void updateMember(
+            long organizationId, long userId, String displayName, String status, List<Long> roleIds,
+            long expectedVersion);
 }

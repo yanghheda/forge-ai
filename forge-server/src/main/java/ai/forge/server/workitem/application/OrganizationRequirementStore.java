@@ -3,6 +3,7 @@ package ai.forge.server.workitem.application;
 import ai.forge.server.workitem.domain.RequirementParticipantRole;
 import ai.forge.server.workitem.domain.WorkItemStatus;
 import java.util.List;
+import java.util.Optional;
 
 public interface OrganizationRequirementStore {
 
@@ -16,6 +17,8 @@ public interface OrganizationRequirementStore {
 
     RequirementOverview overview(long organizationId);
 
+    Optional<OrganizationRequirementView> findRequirement(long organizationId, long requirementId);
+
     List<RequirementParticipantView> findParticipants(long organizationId, long requirementId);
 
     List<RequirementParticipantView> replaceParticipants(
@@ -25,6 +28,9 @@ public interface OrganizationRequirementStore {
             List<ParticipantAssignment> assignments);
 
     boolean memberCanFillRole(
+            long organizationId, long userId, RequirementParticipantRole role);
+
+    boolean memberHasRole(
             long organizationId, long userId, RequirementParticipantRole role);
 
     List<RequirementMemberView> findMembers(long organizationId);

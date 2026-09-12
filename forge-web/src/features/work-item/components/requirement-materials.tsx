@@ -25,7 +25,7 @@ function MaterialField({ label, hint, placeholder, minRows, maxRows, value, onCh
   );
 }
 
-export function RequirementMaterials({ organizationId, workItemId, details, onChanged }: { organizationId: number; workItemId: number; details: RequirementDetails; onChanged: () => Promise<unknown> }) {
+export function RequirementMaterials({ workItemId, details, onChanged }: { workItemId: number; details: RequirementDetails; onChanged: () => Promise<unknown> }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     goal: details.goal,
@@ -36,7 +36,7 @@ export function RequirementMaterials({ organizationId, workItemId, details, onCh
   });
   const save = useMutation({
     mutationFn: () =>
-      saveRequirementDetails(organizationId, workItemId, {
+      saveRequirementDetails(workItemId, {
         ...form,
         acceptanceCriteria: form.acceptanceCriteria.split("\n").filter(Boolean),
         version: details.version,

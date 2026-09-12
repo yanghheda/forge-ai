@@ -103,7 +103,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     }
 
     @Test
-    void missingMaterialsReturnMachineReadableGuardFailureWithoutAnyWrite() throws Exception {
+    void missingPublishedPrdReturnsMachineReadableGuardFailureWithoutAnyWrite() throws Exception {
         ResponseEntity<String> response = transition(
                 WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "submit-missing", null);
 
@@ -111,13 +111,13 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         JsonNode error = objectMapper.readTree(response.getBody());
         assertThat(error.get("code").asText()).isEqualTo("WORKFLOW_GUARD_FAILED");
         assertThat(error.at("/details/missing")).extracting(JsonNode::asText)
-                .containsExactly("goal", "inScope", "acceptanceCriteria");
+                .containsExactly("publishedPrd");
         assertUnchangedDraft();
     }
 
     @Test
     void submitAndRejectWriteStateReviewAndEventsInTheSameTransactions() throws Exception {
-        completeMaterials();
+        completeProductReviewPrerequisites();
         JsonNode submitted = objectMapper.readTree(transition(
                         WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "submit-1", null)
                 .getBody());
@@ -151,7 +151,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     @Test
     void missingRejectReasonDoesNotIncrementVersionOrAppendHistory() throws Exception {
-        completeMaterials();
+        completeProductReviewPrerequisites();
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "submit-before-reject", null);
 
         ResponseEntity<String> response = transition(
@@ -171,7 +171,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     @Test
     void retryWithTheSameKeyReturnsTheOriginalResultWithoutDuplicateWrites() throws Exception {
-        completeMaterials();
+        completeProductReviewPrerequisites();
         ResponseEntity<String> first = transition(
                 WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "stable-retry", null);
         ResponseEntity<String> retry = transition(
@@ -189,7 +189,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     @Test
     void reusingAnIdempotencyKeyForAnotherActionIsRejected() {
-        completeMaterials();
+        completeProductReviewPrerequisites();
         transitionService.transition(
                 ownerId,
                 organizationId,
@@ -212,7 +212,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     @Test
     void failedReviewOrEventWriteRollsBackTheStatusAndVersion() {
-        completeMaterials();
+        completeProductReviewPrerequisites();
         transitionService.transition(
                 ownerId,
                 organizationId,
@@ -247,7 +247,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     @Test
     void concurrentTransitionsWithOneVersionHaveExactlyOneWinner() throws Exception {
-        completeMaterials();
+        completeProductReviewPrerequisites();
         CountDownLatch start = new CountDownLatch(1);
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             List<Future<?>> futures = List.of(
@@ -306,14 +306,6 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         assertThat(details.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(objectMapper.readTree(details.getBody()).get("version").asLong()).isOne();
 
-        assertThat(transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "product-submit", null).getStatusCode())
-                .isEqualTo(HttpStatus.OK);
-        ResponseEntity<String> missingPrd = transition(
-                WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "approve-without-prd", null);
-        assertThat(missingPrd.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(objectMapper.readTree(missingPrd.getBody()).at("/details/missing/0").asText())
-                .isEqualTo("publishedPrd");
-
         JsonNode document = objectMapper.readTree(csrf().post(
                 "/api/v1/documents",
                 Map.of("workItemId", requirementId,
@@ -338,6 +330,9 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         String.class).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
 
+        assertThat(transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "product-submit", null).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
         JsonNode approved = objectMapper.readTree(transition(
                 WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "product-approve", null).getBody());
         assertThat(approved.get("status").asText()).isEqualTo("UX_IN_PROGRESS");
@@ -353,7 +348,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     @Test
     void uxReviewFreezesPublishedSpecAndDoesNotLetUxTaskCompletionBypassRequirementReview() throws Exception {
-        completeMaterials();
+        completeProductReviewPrerequisites();
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "ux-product-submit", null);
         publishDocument("PRD", "Login PRD", "Product delivery");
         transition(WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "ux-product-approve", null);
@@ -405,7 +400,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
 
     @Test
     void skipUxRequiresEnabledPolicyEligibleLabelAndAuditReason() throws Exception {
-        completeMaterials();
+        completeProductReviewPrerequisites();
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "skip-submit", null);
         publishDocument("PRD", "Backend PRD", "Internal API only");
 
@@ -577,7 +572,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 String.class);
         assertThat(duplicate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
-        completeMaterials();
+        completeProductReviewPrerequisites();
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "activity-event", null);
         ResponseEntity<String> comment = csrf().post(
                 "/api/v1/work-items/" + requirementId + "/comments?organizationId=" + organizationId
@@ -650,13 +645,14 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 null);
     }
 
-    private void completeMaterials() {
+    private void completeProductReviewPrerequisites() {
         jdbcTemplate.update(
-                "INSERT INTO requirement_details (work_item_id, organization_id, goal, in_scope, out_of_scope, "
-                        + "acceptance_criteria_json, business_value, updated_at, version) VALUES "
-                        + "(?, ?, 'Ship safely', 'Transition API', '', JSON_ARRAY('State changes'), '', UTC_TIMESTAMP(6), 0)",
+                "INSERT INTO documents (organization_id, work_item_id, type, title, status, visibility, created_by, "
+                        + "created_at, updated_at, version) VALUES (?, ?, 'PRD', 'Review PRD', 'PUBLISHED', "
+                        + "'ORGANIZATION', ?, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)",
+                organizationId,
                 requirementId,
-                organizationId);
+                ownerId);
     }
 
     private long prepareDevelopmentRequirement(String taskStatus) {

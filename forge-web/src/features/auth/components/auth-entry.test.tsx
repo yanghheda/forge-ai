@@ -136,6 +136,10 @@ describe("AuthEntry", () => {
     await user.click(screen.getByRole("button", { name: "登录" }));
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/overview"));
+    await waitFor(() => {
+      expect(screen.getByLabelText("邮箱")).toHaveValue("");
+      expect(screen.getByLabelText("密码")).toHaveValue("");
+    });
   });
 
   it("初始化后提供团队成员自助注册入口", async () => {
@@ -178,6 +182,12 @@ describe("AuthEntry", () => {
 
     expect(await screen.findByText("注册申请已提交，请等待公司管理员审核后登录。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "登录" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "注册账号" }));
+    expect(screen.getByLabelText("姓名")).toHaveValue("");
+    expect(screen.getByLabelText("邮箱")).toHaveValue("");
+    expect(screen.getByLabelText("密码")).toHaveValue("");
+    expect(screen.getByLabelText("岗位角色")).toHaveTextContent("产品");
   });
 
   it("表单校验失败展示提示", async () => {
@@ -210,6 +220,8 @@ describe("AuthEntry", () => {
     await user.click(screen.getByRole("button", { name: "登录" }));
 
     expect(await screen.findByText("账号不存在或密码错误，请重新输入。")).toBeInTheDocument();
+    expect(screen.getByLabelText("邮箱")).toHaveValue("missing@example.com");
+    expect(screen.getByLabelText("密码")).toHaveValue("incorrect-password-42");
     expect(screen.queryByText(/请求编号/)).not.toBeInTheDocument();
     expect(screen.queryByText(/request-123/)).not.toBeInTheDocument();
   });
@@ -233,6 +245,9 @@ describe("AuthEntry", () => {
     await user.click(screen.getByRole("button", { name: "完成注册" }));
 
     expect(await screen.findByText("数据状态发生冲突，请刷新后重试。")).toBeInTheDocument();
+    expect(screen.getByLabelText("姓名")).toHaveValue("Developer");
+    expect(screen.getByLabelText("邮箱")).toHaveValue("developer@example.com");
+    expect(screen.getByLabelText("密码")).toHaveValue("correct-horse-42");
     expect(screen.getByRole("button", { name: "完成注册" })).toBeInTheDocument();
   });
 });

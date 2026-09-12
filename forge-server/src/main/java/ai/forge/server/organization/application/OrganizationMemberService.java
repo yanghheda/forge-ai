@@ -17,7 +17,8 @@ import org.springframework.stereotype.Service;
 @Profile("!test-unit")
 public class OrganizationMemberService {
     /* 自助注册和管理员可分配的业务角色白名单。 */
-    private static final Set<String> BUSINESS_ROLES = Set.of("PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER");
+    private static final Set<String> ASSIGNABLE_ROLES = Set.of(
+            "ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER");
     /* 读取当前会话所属公司的服务。 */
     private final OrganizationAccessService accessService;
     /* 持久化公司成员、状态和角色的端口。 */
@@ -57,21 +58,34 @@ public class OrganizationMemberService {
     }
 
     public OrganizationMember update(
-            long actorUserId, long memberUserId, String status, String roleCode, long expectedVersion) {
+            long actorUserId, long memberUserId, String displayName, String status, List<String> roleCodes,
+            long expectedVersion) {
         OrganizationContext context = accessService.requireContext(actorUserId);
         permissionEvaluator.requireOrganization(actorUserId, context.organizationId(), "member.manage");
-        if (actorUserId == memberUserId && !"ACTIVE".equals(status)) {
-            throw new IllegalArgumentException("Owner cannot disable their own membership");
+        if (actorUserId == memberUserId) {
+            throw new IllegalArgumentException("Members cannot edit their own account");
         }
-        String role = normalizeRole(roleCode);
-        long roleId = store.findSystemRoleId(role).orElseThrow(() -> new IllegalArgumentException("Unsupported role"));
-        store.updateMember(context.organizationId(), memberUserId, status, roleId, expectedVersion);
+        List<Long> roleIds = roleCodes.stream()
+                .map(this::normalizeAssignableRole)
+                .distinct()
+                .map(role -> store.findSystemRoleId(role)
+                        .orElseThrow(() -> new IllegalArgumentException("Unsupported role")))
+                .toList();
+        store.updateMember(context.organizationId(), memberUserId, displayName.trim(), status, roleIds, expectedVersion);
         return store.findMember(context.organizationId(), memberUserId).orElseThrow(ResourceNotFoundException::new);
     }
 
     private String normalizeRole(String roleCode) {
         String role = roleCode == null ? "" : roleCode.trim().toUpperCase(Locale.ROOT);
-        if (!BUSINESS_ROLES.contains(role)) {
+        if (!Set.of("PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER").contains(role)) {
+            throw new IllegalArgumentException("Unsupported role");
+        }
+        return role;
+    }
+
+    private String normalizeAssignableRole(String roleCode) {
+        String role = roleCode == null ? "" : roleCode.trim().toUpperCase(Locale.ROOT);
+        if (!ASSIGNABLE_ROLES.contains(role)) {
             throw new IllegalArgumentException("Unsupported role");
         }
         return role;

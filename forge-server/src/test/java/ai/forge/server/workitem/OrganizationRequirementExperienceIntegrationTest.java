@@ -73,14 +73,38 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
     }
 
     @Test
+    void productCreatorIsAutomaticallyAssignedAsProductParticipant() throws Exception {
+        initializeCompany();
+        String ownerCookie = login("owner@example.com", "correct-horse-42");
+        JsonNode product = register("product@example.com", "产品同学", "member-password-42", "PRODUCT");
+        long productUserId = product.get("userId").asLong();
+        approveMember(ownerCookie, productUserId, "产品同学", "PRODUCT");
+
+        ResponseEntity<String> created = csrf.post(
+                "/api/v1/requirements",
+                Map.of("title", "产品创建的需求", "priority", "MEDIUM"),
+                login("product@example.com", "member-password-42"),
+                String.class);
+
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        long requirementId = objectMapper.readTree(created.getBody()).get("id").asLong();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM requirement_participants "
+                        + "WHERE requirement_id = ? AND role_code = 'PRODUCT' AND user_id = ?",
+                Integer.class,
+                requirementId,
+                productUserId)).isOne();
+    }
+
+    @Test
     void membersSelfRegisterAndRequirementSupportsRoleParticipantsAndMyList() throws Exception {
         initializeCompany();
         String ownerCookie = login("owner@example.com", "correct-horse-42");
 
         JsonNode product = register("product@example.com", "产品同学", "member-password-42", "PRODUCT");
         JsonNode developer = register("dev@example.com", "开发同学", "member-password-84", "DEVELOPER");
-        approveMember(ownerCookie, product.get("userId").asLong(), "PRODUCT");
-        approveMember(ownerCookie, developer.get("userId").asLong(), "DEVELOPER");
+        approveMember(ownerCookie, product.get("userId").asLong(), "产品同学", "PRODUCT");
+        approveMember(ownerCookie, developer.get("userId").asLong(), "开发同学", "DEVELOPER");
         ResponseEntity<String> forbiddenOwner = csrf.post(
                 "/api/v1/auth/register",
                 Map.of("email", "other-owner@example.com", "displayName", "Other", "password", "member-password-21", "role", "OWNER"),
@@ -96,7 +120,10 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         JsonNode requirement = objectMapper.readTree(created.getBody());
         assertThat(requirement.has("organizationId")).isFalse();
-        assertThat(requirement.has("organizationId")).isFalse();
+        assertThat(requirement.get("organizationName").asText()).isEqualTo("Forge");
+        assertThat(requirement.get("reporterName").asText()).isEqualTo("Owner");
+        assertThat(requirement.get("dueAt").isNull()).isTrue();
+        assertThat(requirement.get("acceptanceCriteria").isArray()).isTrue();
 
         ResponseEntity<String> assigned = csrf.put(
                 "/api/v1/requirements/" + requirement.get("id").asLong() + "/participants",
@@ -146,10 +173,14 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
         return objectMapper.readTree(response.getBody());
     }
 
-    private void approveMember(String ownerCookie, long userId, String role) {
+    private void approveMember(String ownerCookie, long userId, String displayName, String role) {
         ResponseEntity<String> response = csrf.patch(
                 "/api/v1/members/" + userId,
-                Map.of("status", "ACTIVE", "role", role, "expectedVersion", 0),
+                Map.of(
+                        "displayName", displayName,
+                        "status", "ACTIVE",
+                        "roles", List.of(role),
+                        "expectedVersion", 0),
                 ownerCookie,
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

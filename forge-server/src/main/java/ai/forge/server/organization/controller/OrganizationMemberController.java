@@ -9,7 +9,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,15 +48,17 @@ public class OrganizationMemberController {
         return memberService.update(
                 AuthController.requireContext(request).userId(),
                 userId,
+                body.displayName(),
                 body.status(),
-                body.role(),
+                body.roles(),
                 body.expectedVersion());
     }
 
     public record UpdateMemberRequest(
+            /* 成员在协作界面中展示的名称。 */ @NotBlank @Size(max = 120) String displayName,
             /* 审核后的成员状态。 */ @NotBlank @Pattern(regexp = "ACTIVE|DISABLED") String status,
-            /* 成员承担的业务角色。 */
-            @NotBlank @Pattern(regexp = "PRODUCT|UX|DEVELOPER|QA|RELEASE_APPROVER") String role,
+            /* 成员承担的管理与业务角色，不允许分配 Owner。 */
+            @NotEmpty List<@Pattern(regexp = "ADMIN|PRODUCT|UX|DEVELOPER|QA|RELEASE_APPROVER") String> roles,
             /* 客户端读取成员时获得的版本。 */ @Min(0) long expectedVersion) {}
 
 }
