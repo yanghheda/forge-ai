@@ -54,8 +54,12 @@ public interface BugMapper {
 
     @Select("SELECT item.id,item.item_key,item.title,item.status,item.severity,item.version,details.requirement_id,"
             + "details.test_run_id,details.test_result_id,details.reproduction_steps_json,details.expected_result,"
-            + "details.actual_result,details.fix_note,details.fix_evidence_json FROM work_items item "
+            + "details.actual_result,details.fix_note,details.fix_evidence_json,dev.id dev_task_id,dev.item_key dev_task_key,"
+            + "dev.assignee_user_id,assignee.display_name assignee_name FROM work_items item "
             + "JOIN bug_details details ON details.work_item_id=item.id AND details.organization_id=item.organization_id "
+            + "LEFT JOIN work_item_relations relation ON relation.organization_id=item.organization_id AND relation.source_id=item.id AND relation.relation_type='FIXED_BY' "
+            + "LEFT JOIN work_items dev ON dev.organization_id=item.organization_id AND dev.id=relation.target_id AND dev.type='DEV_TASK' "
+            + "LEFT JOIN users assignee ON assignee.id=dev.assignee_user_id "
             + "WHERE item.id=#{bugId} AND item.organization_id=#{organizationId} "
             + "AND item.type='BUG' AND item.deleted_at IS NULL")
     List<Map<String, Object>> find(@Param("organizationId") long organizationId,
@@ -63,8 +67,12 @@ public interface BugMapper {
 
     @Select("SELECT item.id,item.item_key,item.title,item.status,item.severity,item.version,details.requirement_id,"
             + "details.test_run_id,details.test_result_id,details.reproduction_steps_json,details.expected_result,"
-            + "details.actual_result,details.fix_note,details.fix_evidence_json FROM work_items item "
+            + "details.actual_result,details.fix_note,details.fix_evidence_json,dev.id dev_task_id,dev.item_key dev_task_key,"
+            + "dev.assignee_user_id,assignee.display_name assignee_name FROM work_items item "
             + "JOIN bug_details details ON details.work_item_id=item.id AND details.organization_id=item.organization_id "
+            + "LEFT JOIN work_item_relations relation ON relation.organization_id=item.organization_id AND relation.source_id=item.id AND relation.relation_type='FIXED_BY' "
+            + "LEFT JOIN work_items dev ON dev.organization_id=item.organization_id AND dev.id=relation.target_id AND dev.type='DEV_TASK' "
+            + "LEFT JOIN users assignee ON assignee.id=dev.assignee_user_id "
             + "WHERE item.organization_id=#{organizationId} "
             + "AND details.requirement_id=#{requirementId} AND item.deleted_at IS NULL ORDER BY item.id")
     List<Map<String, Object>> findByRequirement(@Param("organizationId") long organizationId, @Param("requirementId") long requirementId);

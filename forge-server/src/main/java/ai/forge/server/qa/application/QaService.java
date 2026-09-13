@@ -3,6 +3,7 @@ package ai.forge.server.qa.application;
 import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.qa.domain.TestCasePriority;
+import ai.forge.server.qa.domain.TestCaseType;
 import ai.forge.server.qa.domain.TestResultStatus;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
@@ -24,14 +25,15 @@ public class QaService {
     }
 
     public TestCaseView createCase(long userId, long organizationId, long requirementId,
-            String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority) {
+            String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority,
+            TestCaseType caseType) {
         permissions.requireOrganization(userId, organizationId, "qa.manage");
         List<String> normalizedSteps = steps.stream().map(String::trim).filter(step -> !step.isBlank()).toList();
         if (normalizedSteps.isEmpty()) {
             throw new IllegalArgumentException("steps must not be empty");
         }
         return store.createCase(organizationId, requirementId, userId, title.trim(),
-                normalize(preconditions), normalizedSteps, expectedResult.trim(), priority);
+                normalize(preconditions), normalizedSteps, expectedResult.trim(), priority, caseType);
     }
 
     public List<TestCaseView> cases(long userId, long organizationId, long requirementId) {

@@ -1,14 +1,18 @@
 "use client";
 
 import { Alert, Button, Drawer, Form, Input, Message, Select, Spin } from "@arco-design/web-react";
-import { IconBranch, IconCheck, IconPlus, IconRobot, IconSafe, IconThunderbolt } from "@arco-design/web-react/icon";
+import { IconPlus } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { formatRequestError } from "@/lib/api";
+import { QaPanel } from "@/features/work-item";
 import { listBoardItems, moveBoardItem } from "../api/console-api";
 import { RequirementContext } from "./requirement-context";
 import styles from "./console.module.css";
+import { UxDelivery } from "./ux-delivery";
+import { DevelopmentWorkspace } from "./development-workspace";
+import { ReleaseWorkspace } from "./release-workspace";
 
 type DeliveryKind = "document" | "ux" | "tasks" | "development" | "qa" | "release";
 
@@ -23,11 +27,11 @@ export function DeliveryScreen({ kind, requirementId }: { kind: DeliveryKind; re
     <section className={styles.page} data-page={kind}>
       {requirementId && <RequirementContext active={kind === "tasks" ? "development" : kind} requirementId={requirementId} />}
       {kind === "document" && <Document />}
-      {kind === "ux" && <Ux />}
+      {kind === "ux" && requirementId && <UxDelivery requirementId={Number(requirementId)} />}
       {kind === "tasks" && <Tasks open={() => setDrawer(true)} />}
-      {kind === "development" && <Development />}
-      {kind === "qa" && <Qa open={() => setDrawer(true)} />}
-      {kind === "release" && <Release />}
+      {kind === "development" && requirementId && <DevelopmentWorkspace requirementId={Number(requirementId)} />}
+      {kind === "qa" && requirementId && <Qa requirementId={Number(requirementId)} />}
+      {kind === "release" && requirementId && <ReleaseWorkspace requirementId={Number(requirementId)} />}
       <Drawer
         width={520}
         visible={drawer}
@@ -135,41 +139,6 @@ function Document() {
     </>
   );
 }
-function Ux() {
-  return (
-    <>
-      <Head
-        title="UX 工作区"
-        description="设计任务、Spec 版本与评审状态"
-        action={
-          <Button type="primary">
-            <IconRobot />
-            生成 UX Spec
-          </Button>
-        }
-      />
-      <div className={styles.stats}>
-        <Stat label="待设计" value="2" />
-        <Stat label="评审中" value="1" />
-        <Stat label="已通过" value="6" />
-        <Stat label="当前版本" value="v2" />
-      </div>
-      <div className={styles.twoCol}>
-        <Card title="UX 任务队列">
-          <List items={["手机号验证码登录交互 · 评审中", "初始化向导 Logo 上传 · 已通过", "Agent 审批抽屉 · 已通过", "异常恢复状态说明 · 待设计"]} />
-        </Card>
-        <Card title="设计评审">
-          <div className={styles.review}>
-            <span className={styles.orangeTag}>待产品确认</span>
-            <h3>UX Spec v2</h3>
-            <p>包含登录、验证码发送、重试和异常恢复 4 条流程，共 12 个页面状态。</p>
-            <Button type="primary">通过评审</Button> <Button>退回修改</Button>
-          </div>
-        </Card>
-      </div>
-    </>
-  );
-}
 function Tasks({ open }: { open: () => void }) {
   const queryClient = useQueryClient();
   const board = useQuery({ queryKey: ["task-board"], queryFn: () => listBoardItems() });
@@ -233,142 +202,11 @@ function Tasks({ open }: { open: () => void }) {
     </>
   );
 }
-function Development() {
+function Qa({ requirementId }: { requirementId: number }) {
   return (
     <>
-      <Head
-        title="开发"
-        description="分支、Merge Request 与 CI Pipeline"
-        action={
-          <Button type="primary">
-            <IconBranch />
-            创建开发分支
-          </Button>
-        }
-      />
-      <div className={styles.stats}>
-        <Stat label="开发任务" value="8 / 12" />
-        <Stat label="Merge Request" value="3" />
-        <Stat label="CI 通过率" value="96%" />
-        <Stat label="代码覆盖率" value="87.4%" />
-      </div>
-      <div className={styles.twoCol}>
-        <Card title="开发任务">
-          <List items={["DEV-101 登录页与验证码表单 · 进行中", "DEV-102 验证码发送与频控 · 代码评审", "DEV-103 Session 登录闭环 · 已完成", "DEV-104 安全审计事件 · 待处理"]} />
-        </Card>
-        <Card title="Merge Request">
-          <div className={styles.pipeline}>
-            <span className={styles.greenTag}>
-              <IconCheck />
-              Pipeline passed
-            </span>
-            <h3>!128 feat: 手机号验证码登录</h3>
-            <code>feature/DEMO-1-sms-login → main</code>
-            <div>
-              <b>lint</b>
-              <b>unit-test</b>
-              <b>build</b>
-              <b>e2e</b>
-            </div>
-            <Button type="primary">审批并合并</Button>
-          </div>
-        </Card>
-      </div>
-    </>
-  );
-}
-function Qa({ open }: { open: () => void }) {
-  return (
-    <>
-      <Head
-        title="QA 测试"
-        description="测试用例、执行结果与质量门禁"
-        action={
-          <Button type="primary" onClick={open}>
-            <IconPlus />
-            新建测试用例
-          </Button>
-        }
-      />
-      <div className={styles.stats}>
-        <Stat label="测试用例" value="48" />
-        <Stat label="通过" value="41" />
-        <Stat label="失败" value="2" />
-        <Stat label="覆盖率" value="85%" />
-      </div>
-      <div className={styles.twoCol}>
-        <Card title="测试用例">
-          <List items={["TC-101 正确验证码登录 · 通过", "TC-102 错误验证码提示 · 通过", "TC-103 验证码频控 · 失败", "TC-104 会话过期重登 · 阻塞"]} />
-        </Card>
-        <Card title="READY_FOR_RELEASE 门禁">
-          <div className={styles.guard}>
-            <p>
-              <IconCheck /> P0 遗留缺陷 = 0 <b>0</b>
-            </p>
-            <p className={styles.fail}>
-              × P1 遗留缺陷 = 0 <b>1 · BUG-007</b>
-            </p>
-            <p className={styles.fail}>
-              × 回归集全绿 <b>2 失败 / 1 阻塞</b>
-            </p>
-            <Button disabled long>
-              推进到待发布
-            </Button>
-          </div>
-        </Card>
-      </div>
-    </>
-  );
-}
-function Release() {
-  return (
-    <>
-      <Head
-        title="发布管理"
-        description="发布候选、预检、审批与模拟部署"
-        action={
-          <Button type="primary">
-            <IconThunderbolt />
-            执行发布预检
-          </Button>
-        }
-      />
-      <div className={styles.stats}>
-        <Stat label="候选版本" value="v0.2.0-rc1" />
-        <Stat label="预检通过" value="7 / 9" />
-        <Stat label="待审批" value="2" />
-        <Stat label="部署环境" value="SIMULATED" />
-      </div>
-      <div className={styles.twoCol}>
-        <Card title="发布预检">
-          <div className={styles.guard}>
-            <p>
-              <IconCheck /> PRD / UX 评审版本已冻结 <b>通过</b>
-            </p>
-            <p>
-              <IconCheck /> Merge Request 已合并 <b>通过</b>
-            </p>
-            <p className={styles.fail}>
-              × P1 遗留缺陷清零 <b>未通过</b>
-            </p>
-            <p className={styles.fail}>
-              × 回归测试集全绿 <b>未通过</b>
-            </p>
-          </div>
-        </Card>
-        <Card title="发布说明 · v0.2.0-rc1">
-          <div className={styles.prose}>
-            <h3>新增</h3>
-            <p>手机号验证码登录、会话安全策略与审计轨迹。</p>
-            <h3>修复</h3>
-            <p>Agent 审批恢复时重复创建分支的问题。</p>
-            <Button type="primary" disabled>
-              <IconSafe />
-              审批并模拟部署
-            </Button>
-          </div>
-        </Card>
-      </div>
+      <Head title="QA 测试" description="测试用例、执行结果与质量门禁" />
+      <QaPanel organizationId={0} requirementId={requirementId} onChanged={async () => undefined} />
     </>
   );
 }
@@ -377,19 +215,6 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className={styles.stat}>
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
-  );
-}
-function List({ items }: { items: string[] }) {
-  return (
-    <div className={styles.list}>
-      {items.map((item, i) => (
-        <div key={item}>
-          <span className={i === 2 ? styles.orangeTag : styles.blueTag}>{i === 2 ? "需关注" : "进行中"}</span>
-          <strong>{item}</strong>
-          <small>更新于 {i * 8 + 5} 分钟前</small>
-        </div>
-      ))}
     </div>
   );
 }

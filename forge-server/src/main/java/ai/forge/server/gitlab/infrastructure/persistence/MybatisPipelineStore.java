@@ -41,6 +41,12 @@ public class MybatisPipelineStore implements PipelineStore {
     }
 
     @Override
+    public Optional<Long> findMergeRequestId(
+            long organizationId, long repositoryId, long devTaskId, String ref) {
+        return mapper.findMergeRequestId(organizationId, repositoryId, devTaskId, ref).stream().findFirst();
+    }
+
+    @Override
     @Transactional
     public PipelineRun save(PipelineRun pipeline) {
         mapper.upsert(pipeline.organizationId(), pipeline.repositoryId(), pipeline.mergeRequestId(),

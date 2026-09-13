@@ -31,6 +31,8 @@ export interface ReleaseView {
   itemIds: number[];
   latestPrecheck: PrecheckSnapshot | null;
   version: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DeploymentView {
@@ -68,7 +70,6 @@ export const createRelease = (
 export const updateReleaseNote = (
   input: {
     organizationId: number;
-    organizationId: number;
     releaseId: number;
     note: string;
     expectedVersion: number;
@@ -76,11 +77,10 @@ export const updateReleaseNote = (
   client: RequestClient = apiClient,
 ) => client.request<ReleaseView>(`/v1/releases/${input.releaseId}/note`, json("PUT", input));
 
-export const runPrecheck = (input: { organizationId: number; organizationId: number; releaseId: number }, client: RequestClient = apiClient) => client.request<PrecheckSnapshot>(`/v1/releases/${input.releaseId}/prechecks`, json("POST", input));
+export const runPrecheck = (input: { organizationId: number; releaseId: number }, client: RequestClient = apiClient) => client.request<PrecheckSnapshot>(`/v1/releases/${input.releaseId}/prechecks`, { method: "POST" });
 
 export const requestDeployment = (
   input: {
-    organizationId: number;
     organizationId: number;
     releaseId: number;
     simulateFailure: boolean;

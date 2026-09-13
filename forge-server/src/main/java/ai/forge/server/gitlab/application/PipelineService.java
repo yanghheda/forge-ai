@@ -42,9 +42,23 @@ public class PipelineService {
     }
 
     public PipelineRun trigger(long userId, long organizationId, String ref) {
+        return trigger(userId, organizationId, ref, null);
+    }
+
+    public PipelineRun trigger(long userId, long organizationId, String ref, Long devTaskId) {
         permissions.requireOrganization(userId, organizationId, "repo.write");
         PipelineContext context = store.loadContext(organizationId);
-        PipelineRun remote = sourceControl.triggerPipeline(context, requireRef(ref));
+        String normalizedRef = requireRef(ref);
+        PipelineRun remote = sourceControl.triggerPipeline(context, normalizedRef);
+        if (devTaskId != null) {
+            Long mergeRequestId = store.findMergeRequestId(
+                    organizationId, context.repositoryId(), devTaskId, normalizedRef)
+                    .orElseThrow(ResourceNotFoundException::new);
+            remote = new PipelineRun(remote.id(), remote.organizationId(), remote.repositoryId(), mergeRequestId,
+                    remote.remotePipelineId(), remote.ref(), remote.commitSha(), remote.status(), remote.webUrl(),
+                    remote.startedAt(), remote.finishedAt(), remote.remoteUpdatedAt(), remote.lastSyncedAt(),
+                    remote.summaryJson());
+        }
         return store.save(remote);
     }
 

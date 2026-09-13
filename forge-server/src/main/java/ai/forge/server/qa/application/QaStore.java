@@ -1,6 +1,7 @@
 package ai.forge.server.qa.application;
 
 import ai.forge.server.qa.domain.TestCasePriority;
+import ai.forge.server.qa.domain.TestCaseType;
 import ai.forge.server.qa.domain.TestResultStatus;
 import ai.forge.server.qa.domain.TestRunSummary;
 import java.util.List;
@@ -9,7 +10,8 @@ import java.util.Optional;
 public interface QaStore {
 
     TestCaseView createCase(long organizationId, long requirementId, long userId,
-            String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority);
+            String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority,
+            TestCaseType caseType);
 
     List<TestCaseView> findCases(long organizationId, long requirementId);
 

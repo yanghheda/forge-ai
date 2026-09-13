@@ -48,10 +48,10 @@ class BugPersistenceIntegrationTest extends InfrastructureIntegrationTestBase {
                 + "VALUES (2903,'Bug Org','bug-org',2901,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
         jdbc.update("INSERT INTO organization_item_sequences (organization_id,next_value,version) VALUES (2903,3,0)");
         jdbc.update("INSERT INTO work_items (id,organization_id,item_number,item_key,type,title,description,"
-                + "status,priority,reporter_user_id,created_at,updated_at,version) VALUES "
-                + "(2905,2903,1,'BUG-1','REQUIREMENT','Checkout','','IN_QA','HIGH',2901,"
+                + "status,priority,reporter_user_id,assignee_user_id,created_at,updated_at,version) VALUES "
+                + "(2905,2903,1,'BUG-1','REQUIREMENT','Checkout','','IN_QA','HIGH',2901,NULL,"
                 + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),"
-                + "(2906,2903,2,'BUG-2','DEV_TASK','Fix checkout','','IN_PROGRESS','HIGH',2901,"
+                + "(2906,2903,2,'BUG-2','DEV_TASK','Fix checkout','','IN_PROGRESS','HIGH',2901,2901,"
                 + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)");
     }
 
@@ -64,6 +64,9 @@ class BugPersistenceIntegrationTest extends InfrastructureIntegrationTestBase {
 
         assertThat(created.status()).isEqualTo(WorkItemStatus.OPEN);
         assertThat(created.severity()).isEqualTo(BugSeverity.BLOCKER);
+        assertThat(created.devTaskId()).isEqualTo(2906);
+        assertThat(created.devTaskKey()).isEqualTo("BUG-2");
+        assertThat(created.assigneeName()).isEqualTo("Bug QA");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM work_item_relations WHERE source_id=?",
                 Integer.class, created.id())).isEqualTo(2);
 

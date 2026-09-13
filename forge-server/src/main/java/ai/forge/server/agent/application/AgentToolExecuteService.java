@@ -592,7 +592,8 @@ public class AgentToolExecuteService {
         var created = qaService.createCase(run.userId(), organizationId,
                 arguments.path("requirementId").asLong(), arguments.path("title").asText(),
                 textOrNull(arguments, "preconditions"), steps, arguments.path("expectedResult").asText(),
-                ai.forge.server.qa.domain.TestCasePriority.valueOf(arguments.path("priority").asText()));
+                ai.forge.server.qa.domain.TestCasePriority.valueOf(arguments.path("priority").asText()),
+                ai.forge.server.qa.domain.TestCaseType.FUNCTIONAL);
         ObjectNode result = objectMapper.createObjectNode();
         result.put("id", created.id());
         result.put("requirementId", created.requirementId());

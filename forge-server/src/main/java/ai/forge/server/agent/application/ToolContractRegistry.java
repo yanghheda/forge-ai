@@ -41,6 +41,11 @@ public class ToolContractRegistry {
         return findSkill(skill.name()).map(SkillContract::allowedTools).orElse(List.of());
     }
 
+    /* 返回仅含模型生成调用所需字段的裁剪契约；执行权限仍由服务端逐次校验。 */
+    public List<ToolContract> effectiveTools(AgentSkill skill) {
+        return effectiveToolNames(skill).stream().map(name -> findTool(name).orElseThrow()).toList();
+    }
+
     private Map<String, ToolContract> loadTools() {
         Map<String, ToolContract> result = new LinkedHashMap<>();
         for (Map<String, Object> document : yamlDocuments("classpath*:tools/*.yaml")) {

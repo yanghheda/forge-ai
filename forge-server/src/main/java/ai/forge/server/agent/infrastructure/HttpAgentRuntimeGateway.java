@@ -78,6 +78,9 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
                 contract.promptVersion(),
                 contract.contextTemplate(),
                 toolContractRegistry.effectiveToolNames(skill),
+                toolContractRegistry.effectiveTools(skill).stream()
+                        .map(tool -> new ToolDefinition(tool.name(), tool.description(), tool.inputSchema()))
+                        .toList(),
                 new Policy(
                         requested.mediumToolConfirmation().name(),
                         contract.maxToolCalls(),
@@ -108,12 +111,20 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
             String contextTemplate,
             /* Skill 白名单与运行时策略共同裁剪后的 Tool 名称。 */
             List<String> effectiveToolNames,
+            /* 模型生成结构化参数所需的裁剪 Tool 契约，不承载权限。 */
+            List<ToolDefinition> toolDefinitions,
             /* 图执行预算，不代表 Backend 业务授权。 */
             Policy policy,
             /* 可回溯但不包含正文的资源引用。 */
             List<ResourceRef> resourceRefs,
             /* Manifest 的短时失效时间。 */
             Instant expiresAt) {
+    }
+
+    private record ToolDefinition(
+            /* Tool 稳定名称。 */ String name,
+            /* Tool 用途说明。 */ String description,
+            /* Tool 输入 JSON Schema。 */ java.util.Map<String, Object> inputSchema) {
     }
 
     private record Subject(

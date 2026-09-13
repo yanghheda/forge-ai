@@ -27,6 +27,18 @@ class PipelineServiceTest {
     }
 
     @Test
+    void associatesTaskPipelineWithItsMergeRequest() {
+        FakeStore store = new FakeStore();
+        FakeProvider provider = new FakeProvider();
+
+        PipelineRun result = service(store, provider, 8).trigger(1L, 7L, "feature/demo-2", 40L);
+
+        assertThat(store.requestedTaskId).isEqualTo(40L);
+        assertThat(store.requestedRef).isEqualTo("feature/demo-2");
+        assertThat(result.mergeRequestId()).isEqualTo(51L);
+    }
+
+    @Test
     void returnsOnlyBoundedLogTailAndMarksTruncation() {
         FakeStore store = new FakeStore();
         FakeProvider provider = new FakeProvider();
@@ -74,6 +86,8 @@ class PipelineServiceTest {
 
     private static final class FakeStore implements PipelineStore {
         private PipelineRun saved;
+        private Long requestedTaskId;
+        private String requestedRef;
 
         @Override
         public PipelineContext loadContext(long organizationId) {
@@ -89,6 +103,13 @@ class PipelineServiceTest {
                     pipeline.lastSyncedAt(),
                     pipeline.summaryJson());
             return saved;
+        }
+
+        @Override
+        public Optional<Long> findMergeRequestId(long organizationId, long repositoryId, long devTaskId, String ref) {
+            requestedTaskId = devTaskId;
+            requestedRef = ref;
+            return Optional.of(51L);
         }
 
         @Override

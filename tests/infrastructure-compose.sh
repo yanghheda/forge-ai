@@ -4,11 +4,13 @@ set -eu
 compose_file='deploy/compose.yml'
 test_compose_file='deploy/compose-test.yml'
 host_dev_compose_file='deploy/compose.host-dev.yml.example'
+gitlab_compose_file='deploy/compose.gitlab.yml'
 environment_file='deploy/.env.example'
 
 docker compose --profile applications --env-file "$environment_file" -f "$compose_file" config --quiet
 docker compose --profile applications --env-file "$environment_file" -f "$compose_file" -f "$test_compose_file" config --quiet
 docker compose --env-file "$environment_file" -f "$compose_file" -f "$host_dev_compose_file" config --quiet
+docker compose --env-file "$environment_file" -f "$gitlab_compose_file" config --quiet
 
 for variable in FORGE_MYSQL_URL FORGE_MYSQL_USERNAME \
   FORGE_REDIS_HOST FORGE_REDIS_PORT FORGE_QDRANT_BASE_URL FORGE_AGENT_BASE_URL; do
@@ -123,3 +125,22 @@ for name, target in expected_ports.items():
 '
 
 echo '宿主机开发 Compose 契约检查通过'
+
+gitlab_configuration=$(docker compose --env-file "$environment_file" -f "$gitlab_compose_file" config --format json)
+GITLAB_CONFIGURATION="$gitlab_configuration" python3 -c '
+import json
+import os
+
+config = json.loads(os.environ["GITLAB_CONFIGURATION"])
+assert config.get("name") == "forge-gitlab", "GitLab 必须使用独立 Compose project"
+assert set(config["services"]) == {"gitlab"}, "GitLab Compose 只能包含 GitLab 服务"
+service = config["services"]["gitlab"]
+assert service.get("healthcheck"), "GitLab 必须声明 healthcheck"
+assert service.get("restart") == "unless-stopped", "GitLab 必须配置自动重启策略"
+assert len(service.get("volumes", [])) == 3, "GitLab 配置、日志与数据必须分别持久化"
+ports = service.get("ports", [])
+assert {port.get("target") for port in ports} == {22, 8929}, "GitLab HTTP/SSH 端口映射不完整"
+assert all(port.get("host_ip") == "127.0.0.1" for port in ports), "GitLab 只能绑定本机回环地址"
+'
+
+echo '独立 GitLab Compose 契约检查通过'

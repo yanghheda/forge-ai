@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -66,7 +67,21 @@ public class WebhookParser {
                 required(value, "url"),
                 nullableDate(value, "started_at"),
                 nullableDate(value, "finished_at"),
-                date(required(value, "updated_at")));
+                pipelineObservedAt(value));
+    }
+
+    private static LocalDateTime pipelineObservedAt(JsonNode value) {
+        String observedAt = nullable(value, "updated_at");
+        if (observedAt == null) {
+            observedAt = nullable(value, "finished_at");
+        }
+        if (observedAt == null) {
+            observedAt = nullable(value, "started_at");
+        }
+        if (observedAt == null) {
+            observedAt = required(value, "created_at");
+        }
+        return date(observedAt);
     }
 
     private JsonNode json(String payload) {
@@ -106,7 +121,11 @@ public class WebhookParser {
         try {
             return OffsetDateTime.parse(value).withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
         } catch (DateTimeParseException exception) {
-            throw new IllegalArgumentException("invalid webhook timestamp", exception);
+            try {
+                return LocalDateTime.parse(value, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'"));
+            } catch (DateTimeParseException fallbackException) {
+                throw new IllegalArgumentException("invalid webhook timestamp", fallbackException);
+            }
         }
     }
 }

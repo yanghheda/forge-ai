@@ -14,5 +14,6 @@ public record TestResultView(
         /* 实际观察结果。 */ String actualResult,
         /* 脱敏证据引用。 */ List<String> evidence,
         /* 最近执行用户；未执行时为空。 */ Long executedBy,
+        /* 最近执行人的界面展示名称；未执行时为空。 */ String executedByName,
         /* 最近执行时间；未执行时为空。 */ LocalDateTime executedAt,
         /* 结果乐观锁版本。 */ long version) {}

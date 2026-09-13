@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help format format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down host-infra-up host-infra-ready host-infra-down test-apps-up test-apps-ready test-apps-down apps-up apps-ready apps-down hardening-test hardening-performance hardening-faults smoke ci
+.PHONY: help format format-check lint test build contracts-check agent-test infra-check infra-up infra-ready infra-down gitlab-up gitlab-ready gitlab-runner-up gitlab-runner-logs gitlab-down host-infra-up host-infra-ready host-infra-down test-apps-up test-apps-ready test-apps-down apps-up apps-ready apps-down hardening-test hardening-performance hardening-faults smoke ci
 
 help: ## 显示公开开发命令
 	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-16s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -44,6 +44,21 @@ infra-ready: ## 查看本机基础设施容器健康状态
 
 infra-down: ## 停止基础设施并保留 MySQL/Qdrant 数据卷
 	@docker compose --env-file deploy/.env -f deploy/compose.yml down
+
+gitlab-up: ## 单独启动本机 GitLab CE
+	@docker compose --env-file deploy/.env -f deploy/compose.gitlab.yml up -d --wait
+
+gitlab-ready: ## 查看独立 GitLab CE 健康状态与端口
+	@docker compose --env-file deploy/.env -f deploy/compose.gitlab.yml ps
+
+gitlab-runner-up: ## 注册并启动本机 GitLab Runner（需要 deploy/.env 中的 Runner Token）
+	@docker compose --env-file deploy/.env -f deploy/compose.gitlab.yml --profile runner up -d runner
+
+gitlab-runner-logs: ## 查看本机 GitLab Runner 注册与执行日志
+	@docker compose --env-file deploy/.env -f deploy/compose.gitlab.yml logs --tail=100 runner
+
+gitlab-down: ## 停止独立 GitLab CE 并保留配置、日志和数据卷
+	@docker compose --env-file deploy/.env -f deploy/compose.gitlab.yml down
 
 host-infra-up: ## 为宿主机应用启动并暴露本机基础设施
 	@docker compose --env-file deploy/.env -f deploy/compose.yml -f deploy/compose.host-dev.yml up -d --wait

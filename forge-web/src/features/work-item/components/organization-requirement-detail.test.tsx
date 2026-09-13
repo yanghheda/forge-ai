@@ -64,4 +64,30 @@ describe("OrganizationRequirementDetail", () => {
     expect(screen.getByText("张产品")).toBeInTheDocument();
     expect(screen.getByText("王开发")).toBeInTheDocument();
   });
+
+  it("需求完成后将发布阶段标记为已完成且进度为百分之百", async () => {
+    api.getOrganizationRequirement.mockResolvedValue({
+      id: 1,
+      itemKey: "DEMO-1",
+      title: "黄金 Demo：AI 需求交付全流程演示",
+      description: "完整交付链路说明",
+      status: "DONE",
+      priority: "HIGH",
+      version: 5,
+      organizationName: "黄金 Demo 项目",
+      reporterName: "张产品",
+      dueAt: null,
+      createdAt: "2026-09-01T10:24:00Z",
+      updatedAt: "2026-09-12T02:07:00Z",
+    });
+    api.getRequirementWorkflow.mockResolvedValue({ version: 5, availableActions: [], guardHints: {} });
+
+    render(<OrganizationRequirementDetail requirementId={1} />, { wrapper });
+
+    expect(await screen.findByText("黄金 Demo：AI 需求交付全流程演示")).toBeInTheDocument();
+    const stages = screen.getByRole("list", { name: "需求交付阶段" });
+    expect(stages.querySelectorAll("li")[5]).toHaveTextContent("发布已完成");
+    expect(screen.queryByText("已完成 · 进行中")).not.toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+  });
 });

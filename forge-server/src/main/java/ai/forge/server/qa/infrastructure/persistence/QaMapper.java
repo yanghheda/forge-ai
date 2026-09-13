@@ -19,18 +19,19 @@ public interface QaMapper {
             @Param("requirementId") long requirementId);
 
     @Insert("INSERT INTO test_cases (organization_id,work_item_id,title,preconditions,steps_json,"
-            + "expected_result,priority,status,created_by,version,created_at,updated_at) VALUES "
+            + "expected_result,priority,case_type,status,created_by,version,created_at,updated_at) VALUES "
             + "(#{organizationId},#{requirementId},#{title},#{preconditions},CAST(#{stepsJson} AS JSON),"
-            + "#{expectedResult},#{priority},'ACTIVE',#{userId},0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))")
+            + "#{expectedResult},#{priority},#{caseType},'ACTIVE',#{userId},0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))")
     @Options(useGeneratedKeys = true, keyProperty = "row.id")
     int insertCase(@Param("row") Map<String, Object> row, @Param("organizationId") long organizationId, @Param("requirementId") long requirementId,
             @Param("title") String title, @Param("preconditions") String preconditions,
             @Param("stepsJson") String stepsJson, @Param("expectedResult") String expectedResult,
-            @Param("priority") String priority, @Param("userId") long userId);
+            @Param("priority") String priority, @Param("caseType") String caseType, @Param("userId") long userId);
 
-    @Select("SELECT id,work_item_id,title,preconditions,steps_json,expected_result,priority,version "
-            + "FROM test_cases WHERE organization_id = #{organizationId} "
-            + "AND work_item_id=#{requirementId} AND status='ACTIVE' ORDER BY id")
+    @Select("SELECT tc.id,tc.work_item_id,tc.title,tc.preconditions,tc.steps_json,tc.expected_result,"
+            + "tc.priority,tc.case_type,tc.created_by,creator.display_name created_by_name,tc.version "
+            + "FROM test_cases tc JOIN users creator ON creator.id=tc.created_by WHERE tc.organization_id = #{organizationId} "
+            + "AND tc.work_item_id=#{requirementId} AND tc.status='ACTIVE' ORDER BY tc.id")
     List<Map<String, Object>> findCases(@Param("organizationId") long organizationId, @Param("requirementId") long requirementId);
 
     @Insert("INSERT INTO test_runs (organization_id,requirement_id,environment,status,started_by,"
@@ -47,19 +48,21 @@ public interface QaMapper {
     int snapshotResults(@Param("organizationId") long organizationId,
             @Param("requirementId") long requirementId, @Param("runId") long runId);
 
-    @Select("SELECT id,requirement_id,environment,status,summary_json,started_at,finished_at,version "
-            + "FROM test_runs WHERE id=#{runId} AND organization_id = #{organizationId}")
+    @Select("SELECT run.id,run.requirement_id,run.environment,run.started_by,starter.display_name started_by_name,"
+            + "run.status,run.summary_json,run.started_at,run.finished_at,run.version FROM test_runs run "
+            + "JOIN users starter ON starter.id=run.started_by WHERE run.id=#{runId} AND run.organization_id = #{organizationId}")
     List<Map<String, Object>> findRun(@Param("organizationId") long organizationId, @Param("runId") long runId);
 
-    @Select("SELECT id,requirement_id,environment,status,summary_json,started_at,finished_at,version "
-            + "FROM test_runs WHERE organization_id = #{organizationId} "
-            + "AND requirement_id=#{requirementId} ORDER BY id DESC LIMIT 1")
+    @Select("SELECT run.id,run.requirement_id,run.environment,run.started_by,starter.display_name started_by_name,"
+            + "run.status,run.summary_json,run.started_at,run.finished_at,run.version FROM test_runs run "
+            + "JOIN users starter ON starter.id=run.started_by WHERE run.organization_id = #{organizationId} "
+            + "AND run.requirement_id=#{requirementId} ORDER BY run.id DESC LIMIT 1")
     List<Map<String, Object>> findLatestRun(@Param("organizationId") long organizationId, @Param("requirementId") long requirementId);
 
     @Select("SELECT tr.id,tr.test_case_id,tc.title,tc.priority,tr.status,tr.actual_result,tr.evidence_json,"
-            + "tr.executed_by,tr.executed_at,tr.version FROM test_results tr JOIN test_cases tc "
+            + "tr.executed_by,executor.display_name executed_by_name,tr.executed_at,tr.version FROM test_results tr JOIN test_cases tc "
             + "ON tc.id=tr.test_case_id AND tc.organization_id=tr.organization_id JOIN test_runs run "
-            + "ON run.id=tr.test_run_id AND run.organization_id=tr.organization_id "
+            + "ON run.id=tr.test_run_id AND run.organization_id=tr.organization_id LEFT JOIN users executor ON executor.id=tr.executed_by "
             + "WHERE tr.organization_id=#{organizationId} AND run.organization_id=#{organizationId} AND tr.test_run_id=#{runId} "
             + "ORDER BY tr.id")
     List<Map<String, Object>> findResults(@Param("organizationId") long organizationId, @Param("runId") long runId);

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,3 +24,21 @@ class AgentSettings(BaseSettings):
     checkpoint_path: Path = Path("data/checkpoints.sqlite")
     server_base_url: str = Field(default="http://forge-server:8080", min_length=1)
     contracts_root: Path = Path("packages/forge-contracts")
+    model_provider: Literal["fake", "qwen"] = "fake"
+    qwen_api_key: SecretStr | None = Field(default=None, repr=False)
+    qwen_base_url: str = Field(
+        default="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        min_length=1,
+    )
+    qwen_model: str = Field(default="qwen-plus", min_length=1)
+    qwen_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+
+    @model_validator(mode="after")
+    def require_provider_credentials(self) -> AgentSettings:
+        """启用真实模型时强制提供密钥，避免启动后才静默回退到 Fake。"""
+
+        if self.model_provider == "qwen" and (
+            self.qwen_api_key is None or not self.qwen_api_key.get_secret_value()
+        ):
+            raise ValueError("qwen_api_key is required when model_provider is qwen")
+        return self

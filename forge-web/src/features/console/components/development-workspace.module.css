@@ -1,0 +1,415 @@
+.workspace {
+  color: var(--forge-text-1);
+}
+.loading {
+  display: grid;
+  min-height: 360px;
+  place-items: center;
+}
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+.head h1 {
+  margin: 0 0 5px;
+  font-size: 22px;
+  line-height: 1.3;
+}
+.head p,
+.role,
+.policy {
+  margin: 0;
+  color: var(--forge-text-3);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.stat,
+.panel {
+  border: 1px solid var(--forge-border-2);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: var(--forge-shadow-1);
+}
+.stat {
+  min-width: 0;
+  padding: 16px 20px;
+}
+.stat > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+.stat > strong {
+  display: block;
+  margin: 10px 0 4px;
+  overflow: hidden;
+  font-size: 23px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stat > p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--forge-text-3);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.statIcon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 3px;
+  color: var(--forge-primary-6);
+  background: var(--forge-primary-1);
+}
+.statIcon svg {
+  width: 15px;
+  height: 15px;
+}
+.statIcon.blue {
+  color: var(--forge-primary-6);
+  background: var(--forge-primary-1);
+}
+.statIcon.orange {
+  color: var(--forge-warning);
+  background: var(--forge-warning-bg);
+}
+.statIcon.gray {
+  color: var(--forge-text-3);
+  background: var(--forge-fill-2);
+}
+.statIcon.red {
+  color: var(--forge-error);
+  background: var(--forge-error-bg);
+}
+.statIcon.green {
+  color: var(--forge-success);
+  background: var(--forge-success-bg);
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+.stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+.panel {
+  min-width: 0;
+  overflow: hidden;
+}
+.panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 50px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--forge-border-1);
+  gap: 12px;
+}
+.panel > header > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.panel > header svg {
+  color: var(--forge-primary-6);
+}
+.body {
+  padding: 16px 20px;
+}
+.branchFlow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 4px;
+  background: var(--forge-fill-1);
+  gap: 12px;
+}
+.branch {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 42%;
+  padding: 8px 12px;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 3px;
+  background: #fff;
+  gap: 9px;
+}
+.branch > svg {
+  flex: 0 0 auto;
+  color: var(--forge-primary-6);
+}
+.branch div {
+  min-width: 0;
+}
+.branch code {
+  display: block;
+  overflow: hidden;
+  color: var(--forge-text-1);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.branch small {
+  display: block;
+  margin-top: 2px;
+  color: var(--forge-text-3);
+}
+.line {
+  min-width: 12px;
+  height: 1px;
+  flex: 1;
+  background: var(--forge-border-2);
+}
+.merge {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--forge-primary-6);
+  background: var(--forge-primary-1);
+}
+.facts {
+  margin: 16px 0 0;
+}
+.facts > div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  align-items: center;
+  min-height: 42px;
+  border-bottom: 1px solid var(--forge-border-1);
+  font-size: 13px;
+}
+.facts dt {
+  color: var(--forge-text-3);
+}
+.facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.mono {
+  font-family: var(--forge-font-mono);
+}
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pipeline p {
+  margin: 4px 0 0;
+  color: var(--forge-text-3);
+  font: 12px var(--forge-font-mono);
+}
+.okDot,
+.runDot {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--forge-success);
+}
+.runDot {
+  color: var(--forge-primary-6);
+  background: var(--forge-primary-1);
+}
+.tasks {
+  display: grid;
+}
+.fieldLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--forge-text-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+.task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  min-height: 66px;
+  border-bottom: 1px solid var(--forge-border-1);
+  gap: 10px;
+}
+.task:last-child {
+  border-bottom: 0;
+}
+.task > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  gap: 4px 10px;
+}
+.task > .taskActions {
+  display: flex;
+  grid-template-columns: none;
+  flex-wrap: wrap;
+}
+.task code {
+  color: var(--forge-primary-6);
+  font-size: 12px;
+}
+.task strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task div span {
+  grid-column: 1 / -1;
+  color: var(--forge-text-3);
+  font: 11px var(--forge-font-mono);
+}
+.guardRow {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  border-bottom: 1px solid var(--forge-border-1);
+  gap: 12px;
+  font-size: 13px;
+}
+.guardRow > strong {
+  flex: 1;
+  font-weight: 500;
+}
+.guardRow > span:last-child {
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.guardOk,
+.guardFail {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--forge-success);
+  background: var(--forge-success-bg);
+}
+.guardFail {
+  color: var(--forge-error);
+  background: var(--forge-error-bg);
+  font-weight: 700;
+}
+.missing {
+  display: inline-block;
+  margin: 3px 6px 0 0;
+}
+.guardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  gap: 16px;
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.metrics > div {
+  padding: 12px;
+  border-radius: 4px;
+  background: var(--forge-fill-1);
+}
+.metrics strong,
+.metrics span {
+  display: block;
+}
+.metrics strong {
+  font-size: 18px;
+}
+.metrics span {
+  margin-top: 3px;
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.muted,
+.empty {
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.empty {
+  margin: 8px 0;
+  text-align: center;
+}
+@media (max-width: 1050px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 680px) {
+  .head {
+    flex-direction: column;
+  }
+  .actions {
+    justify-content: flex-start;
+  }
+  .stats {
+    grid-template-columns: 1fr;
+  }
+  .branchFlow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .branch {
+    max-width: none;
+  }
+  .line,
+  .merge {
+    display: none;
+  }
+  .task {
+    grid-template-columns: 1fr auto;
+  }
+  .task > button {
+    grid-column: 1 / -1;
+  }
+}

@@ -1,0 +1,330 @@
+.workspace {
+  display: grid;
+  gap: 16px;
+}
+.loading {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: -60px;
+  min-height: 44px;
+  align-items: flex-start;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+.metric {
+  display: flex;
+  min-height: 120px;
+  padding: 18px;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: var(--forge-shadow-1);
+  flex-direction: column;
+}
+.metric > span,
+.metric small {
+  color: var(--forge-text-3);
+}
+.metric strong {
+  margin: 12px 0 8px;
+  font-size: 28px;
+  line-height: 1;
+}
+.metric small {
+  margin-top: auto;
+  font-size: 12px;
+}
+.blue {
+  color: var(--forge-primary-6) !important;
+}
+.green {
+  color: var(--forge-success) !important;
+}
+.red {
+  color: var(--forge-error) !important;
+}
+.orange {
+  color: var(--forge-warning) !important;
+}
+.progress,
+.runProgress {
+  height: 4px;
+  margin-top: 12px;
+  border-radius: 3px;
+  background: var(--forge-fill-3);
+  overflow: hidden;
+}
+.progress i,
+.runProgress i {
+  display: block;
+  height: 100%;
+  background: var(--forge-primary-6);
+}
+.tabs {
+  display: flex;
+  height: 46px;
+  align-items: stretch;
+  padding: 0 20px;
+  gap: 32px;
+  border: 1px solid var(--forge-border-2);
+  background: #fff;
+}
+.tabs button {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  appearance: none;
+  background: transparent;
+  color: var(--forge-text-2);
+  cursor: pointer;
+  font: inherit;
+}
+.tabs button[aria-selected="true"] {
+  border-bottom: 2px solid var(--forge-primary-6);
+  color: var(--forge-primary-6);
+  font-weight: 600;
+}
+.tabs button:focus-visible {
+  outline: 2px solid var(--forge-primary-6);
+  outline-offset: 3px;
+}
+.mainGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(330px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.panel,
+.gate,
+.runPanel,
+.emptyRun {
+  border: 1px solid var(--forge-border-2);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: var(--forge-shadow-1);
+  overflow: hidden;
+}
+.toolbar {
+  display: flex;
+  min-height: 54px;
+  padding: 10px 16px;
+  align-items: center;
+  gap: 10px;
+}
+.toolbar span {
+  padding: 7px 12px;
+  border: 1px solid var(--forge-border-2);
+  color: var(--forge-text-2);
+  font-size: 12px;
+}
+.toolbar .search {
+  margin-left: auto;
+  min-width: 220px;
+  color: var(--forge-text-4);
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.panel table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.panel th {
+  padding: 12px 14px;
+  background: var(--forge-fill-1);
+  color: var(--forge-text-2);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.panel td {
+  padding: 14px;
+  border-top: 1px solid var(--forge-border-1);
+  color: var(--forge-text-2);
+  font-size: 13px;
+  vertical-align: middle;
+}
+.panel td code {
+  color: var(--forge-text-3);
+  white-space: nowrap;
+}
+.panel > footer {
+  padding: 13px 16px;
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.status {
+  display: inline-flex;
+  padding: 2px 8px;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 2px;
+  background: var(--forge-fill-1);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.result {
+  white-space: nowrap;
+}
+.pass {
+  color: var(--forge-success);
+}
+.fail {
+  color: var(--forge-error);
+}
+.blocked {
+  color: var(--forge-warning);
+}
+.not_run,
+.skipped {
+  color: var(--forge-text-3);
+}
+.gate > header,
+.runPanel > header,
+.sectionHead {
+  display: flex;
+  min-height: 54px;
+  padding: 0 18px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--forge-border-1);
+}
+.gateRow {
+  display: grid;
+  min-height: 54px;
+  margin: 0 18px;
+  align-items: center;
+  grid-template-columns: 24px 1fr auto;
+  border-bottom: 1px solid var(--forge-border-1);
+  gap: 8px;
+}
+.gateRow b {
+  font-size: 12px;
+  font-weight: 500;
+}
+.gate :global(.arco-alert) {
+  margin: 16px;
+}
+.gate > button {
+  margin: 0 16px 16px;
+  width: calc(100% - 32px);
+}
+.runBody {
+  padding: 20px;
+}
+.runProgress {
+  height: 8px;
+}
+.runBody dl {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 16px 0;
+}
+.runBody dl div {
+  padding: 0 14px;
+  border-right: 1px solid var(--forge-border-1);
+}
+.runBody dt {
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.runBody dd {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+.executionLog {
+  padding: 16px;
+  border-radius: 4px;
+  background: #232323;
+  color: #d8d8d8;
+  font:
+    12px/1.8 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+.executionLog p {
+  display: flex;
+  margin: 0;
+  gap: 12px;
+}
+.executionLog time {
+  color: #87909e;
+}
+.executionLog b {
+  min-width: 58px;
+}
+.executionLog em {
+  color: #a9aeb8;
+  font-style: normal;
+}
+.executionLog button {
+  margin-left: auto;
+  border: 0;
+  color: #69a9ff;
+  background: transparent;
+  cursor: pointer;
+}
+.runFooter {
+  display: flex;
+  margin-top: 14px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.runActions {
+  display: flex;
+  gap: 8px;
+}
+.sectionHead span {
+  color: var(--forge-text-3);
+  font-size: 12px;
+  font-weight: 400;
+}
+.bugTitle {
+  display: block;
+  margin-top: 5px;
+  color: var(--forge-text-1);
+  font-weight: 500;
+}
+.fixInputs {
+  display: grid;
+  min-width: 190px;
+  gap: 6px;
+}
+.empty,
+.emptyRun {
+  padding: 30px;
+  color: var(--forge-text-3);
+  text-align: center;
+}
+.emptyRun p {
+  margin: 8px 0 16px;
+}
+@media (max-width: 1100px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+  .actions {
+    margin-top: 0;
+  }
+  .runBody dl {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}

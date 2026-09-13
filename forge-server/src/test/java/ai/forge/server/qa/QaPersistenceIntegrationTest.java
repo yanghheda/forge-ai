@@ -9,6 +9,7 @@ import ai.forge.server.qa.application.QaStore;
 import ai.forge.server.qa.application.TestCaseView;
 import ai.forge.server.qa.application.TestRunView;
 import ai.forge.server.qa.domain.TestCasePriority;
+import ai.forge.server.qa.domain.TestCaseType;
 import ai.forge.server.qa.domain.TestResultStatus;
 import ai.forge.server.qa.domain.TestRunStatus;
 import java.util.List;
@@ -51,12 +52,21 @@ class QaPersistenceIntegrationTest extends InfrastructureIntegrationTestBase {
         TestCaseView optional = createCase("Minor path", TestCasePriority.P2);
         TestRunView run = store.createRun(2803, 2805, 2801, "staging");
 
+        assertThat(mandatory.caseKey()).isEqualTo("QA-CASE-001");
+        assertThat(mandatory.caseType()).isEqualTo(TestCaseType.FUNCTIONAL);
+        assertThat(mandatory.createdByName()).isEqualTo("QA");
+        assertThat(run.startedBy()).isEqualTo(2801);
+        assertThat(run.startedByName()).isEqualTo("QA");
+        assertThat(run.triggerSource()).isEqualTo("USER");
+
         createCase("Added later", TestCasePriority.P0);
         assertThat(run.results()).hasSize(2);
         var first = run.results().get(0);
         var second = run.results().get(1);
         store.updateResult(2803, run.id(), first.id(), 2801, TestResultStatus.PASS,
                 "works", List.of("evidence://first"), first.version());
+        assertThat(store.findRun(2803, run.id()).orElseThrow().results().get(0).executedByName())
+                .isEqualTo("QA");
         store.updateResult(2803, run.id(), second.id(), 2801, TestResultStatus.SKIPPED,
                 "low priority", List.of(), second.version());
 
@@ -97,6 +107,7 @@ class QaPersistenceIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     private TestCaseView createCase(String title, TestCasePriority priority) {
-        return store.createCase(2803, 2805, 2801, title, "", List.of("Execute"), "Expected", priority);
+        return store.createCase(2803, 2805, 2801, title, "", List.of("Execute"), "Expected", priority,
+                TestCaseType.FUNCTIONAL);
     }
 }

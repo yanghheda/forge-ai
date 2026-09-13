@@ -64,6 +64,10 @@ export function testConnection(connectionId: number, client: RequestClient = api
   });
 }
 
+export function configureWebhookSecret(connectionId: number, secret: string, client: RequestClient = apiClient): Promise<void> {
+  return client.request(`/v1/gitlab/connections/${connectionId}/webhook-secret`, jsonRequest("POST", { secret }));
+}
+
 export function bindRepository(input: BindRepositoryInput, client: RequestClient = apiClient): Promise<unknown> {
   return client.request("/v1/gitlab/repositories/bind", jsonRequest("POST", input));
 }
@@ -72,6 +76,6 @@ export function listPipelines(client: RequestClient = apiClient): Promise<Pipeli
   return client.request("/v1/development/pipelines");
 }
 
-export function triggerPipeline(input: { ref: string }, client: RequestClient = apiClient): Promise<PipelineRun> {
+export function triggerPipeline(input: { ref: string; devTaskId?: number }, client: RequestClient = apiClient): Promise<PipelineRun> {
   return client.request("/v1/development/pipelines", jsonRequest("POST", input));
 }

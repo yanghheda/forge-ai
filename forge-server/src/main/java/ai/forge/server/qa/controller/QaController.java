@@ -7,6 +7,7 @@ import ai.forge.server.qa.application.TestCaseView;
 import ai.forge.server.qa.application.TestResultView;
 import ai.forge.server.qa.application.TestRunView;
 import ai.forge.server.qa.domain.TestCasePriority;
+import ai.forge.server.qa.domain.TestCaseType;
 import ai.forge.server.qa.domain.TestResultStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -55,7 +56,7 @@ public class QaController {
     public ResponseEntity<TestCaseView> createCase(@PathVariable long requirementId,
             @Valid @RequestBody CreateCaseRequest body, HttpServletRequest request) {
         TestCaseView created = service.createCase(AuthController.requireContext(request).userId(), organizationId(request), requirementId, body.title(), body.preconditions(), body.steps(),
-                body.expectedResult(), body.priority());
+                body.expectedResult(), body.priority(), body.caseType());
         return ResponseEntity.created(URI.create("/api/v1/qa/cases/" + created.id())).body(created);
     }
 
@@ -114,7 +115,8 @@ public class QaController {
             /* 执行前置条件。 */ @Size(max = 20000) String preconditions,
             /* 按顺序执行的步骤。 */ @NotEmpty List<@NotBlank @Size(max = 2000) String> steps,
             /* 预期结果。 */ @NotBlank @Size(max = 20000) String expectedResult,
-            /* QA 执行优先级。 */ @NotNull TestCasePriority priority) {}
+            /* QA 执行优先级。 */ @NotNull TestCasePriority priority,
+            /* 用例覆盖范围类型。 */ @NotNull TestCaseType caseType) {}
 
     public record CreateRunRequest(
             /* 可审计执行环境。 */ @NotBlank @Size(max = 255) String environment) {}

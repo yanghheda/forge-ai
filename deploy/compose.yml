@@ -72,6 +72,10 @@ services:
       FORGE_AGENT_CHECKPOINT_PATH: /app/data/checkpoints.sqlite
       FORGE_AGENT_CONTRACTS_ROOT: /app/contracts
       FORGE_AGENT_SERVER_BASE_URL: http://forge-server:8080
+      FORGE_AGENT_MODEL_PROVIDER: ${FORGE_AGENT_MODEL_PROVIDER:-fake}
+      FORGE_AGENT_QWEN_API_KEY: ${DASHSCOPE_API_KEY:-}
+      FORGE_AGENT_QWEN_BASE_URL: ${FORGE_AGENT_QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      FORGE_AGENT_QWEN_MODEL: ${FORGE_AGENT_QWEN_MODEL:-qwen-plus}
     volumes:
       - agent-checkpoints:/app/data
       - ../packages/forge-contracts:/app/contracts:ro

@@ -174,6 +174,10 @@
   color: var(--forge-text-2);
   font-size: 12px;
 }
+.connectionConfiguration {
+  display: grid;
+  gap: 20px;
+}
 @media (max-width: 800px) {
   .page {
     padding: 16px;

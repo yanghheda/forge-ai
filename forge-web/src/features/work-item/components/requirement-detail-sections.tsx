@@ -7,14 +7,15 @@ import styles from "./organization-requirement-detail.module.css";
 
 export function RequirementSteps({ item }: { item: OrganizationRequirement }) {
   const current = stageIndex(item.status);
+  const completed = item.status === "RELEASED" || item.status === "DONE";
   return (
     <Card className={styles.stepsCard} bordered>
       <ol className={styles.steps} aria-label="需求交付阶段">
         {stages.map((stage, index) => (
-          <li key={stage.title} className={index < current ? styles.finished : index === current ? styles.current : ""}>
-            <span className={styles.stepDot}>{index < current ? <IconCheck /> : index + 1}</span>
+          <li key={stage.title} className={index < current || (completed && index === current) ? styles.finished : index === current ? styles.current : ""}>
+            <span className={styles.stepDot}>{index < current || (completed && index === current) ? <IconCheck /> : index + 1}</span>
             <strong>{stage.title}</strong>
-            <small>{index < current ? "已完成" : index === current ? `${statusLabel[item.status] ?? item.status} · 进行中` : "待开始"}</small>
+            <small>{index < current || (completed && index === current) ? "已完成" : index === current ? `${statusLabel[item.status] ?? item.status} · 进行中` : "待开始"}</small>
           </li>
         ))}
       </ol>
@@ -114,7 +115,8 @@ export function DescriptionCard({ item }: { item: OrganizationRequirement }) {
 
 export function StageCard({ item, workflow }: { item: OrganizationRequirement; workflow?: RequirementWorkflow }) {
   const current = stageIndex(item.status);
-  const progress = Math.round(((current + (item.status.startsWith("READY_FOR_") ? 0.2 : 0.62)) / stages.length) * 100);
+  const completed = item.status === "RELEASED" || item.status === "DONE";
+  const progress = completed ? 100 : Math.round(((current + (item.status.startsWith("READY_FOR_") ? 0.2 : 0.62)) / stages.length) * 100);
   const missing = workflow?.availableActions.flatMap((action) => workflow.guardHints[action] ?? []) ?? [];
   return (
     <Card title={`阶段 · ${statusLabel[item.status] ?? item.status}`} extra={<Tag color="arcoblue">{item.status}</Tag>}>
@@ -134,7 +136,7 @@ export function StageCard({ item, workflow }: { item: OrganizationRequirement; w
           </Tag>
         </dd>
         <dt>下一步</dt>
-        <dd>{workflow?.availableActions.length ? "完成当前阶段准入条件并推进流程" : "当前暂无可执行动作"}</dd>
+        <dd>{completed ? "交付流程已完成" : workflow?.availableActions.length ? "完成当前阶段准入条件并推进流程" : "当前暂无可执行动作"}</dd>
       </dl>
       {missing.length > 0 && <Alert type="warning" title="当前阶段仍有未满足条件" content={missing.join("、")} />}
     </Card>

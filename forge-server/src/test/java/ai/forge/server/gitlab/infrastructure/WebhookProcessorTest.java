@@ -30,6 +30,23 @@ class WebhookProcessorTest {
     }
 
     @Test
+    void acceptsGitLabPipelineTimestampWithoutUpdatedAt() {
+        String payload = "{\"project\":{\"id\":1},\"object_attributes\":{"
+                + "\"id\":6,\"ref\":\"feature/req-5-1\",\"sha\":\"6cff46dc\",\"status\":\"success\","
+                + "\"url\":\"http://localhost:8929/root/demo/-/pipelines/6\","
+                + "\"created_at\":\"2026-09-12 17:58:35 UTC\","
+                + "\"started_at\":\"2026-09-12 17:58:37 UTC\","
+                + "\"finished_at\":\"2026-09-12 17:58:44 UTC\"}}";
+        FakeStore store = new FakeStore(delivery("Pipeline Hook", payload));
+
+        processor(store).processNext();
+
+        WebhookChange.PipelineChanged changed = (WebhookChange.PipelineChanged) store.change;
+        assertThat(changed.status()).isEqualTo("success");
+        assertThat(changed.remoteUpdatedAt()).isEqualTo(LocalDateTime.of(2026, 9, 12, 17, 58, 44));
+    }
+
+    @Test
     void safelyAcknowledgesUnknownEventWithoutDomainChange() {
         FakeStore store = new FakeStore(delivery("Wiki Page Hook", "{}"));
 

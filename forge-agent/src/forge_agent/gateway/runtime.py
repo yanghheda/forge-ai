@@ -53,6 +53,15 @@ class ResourceReference(BaseModel):
     version: int = Field(ge=0)
 
 
+class ManifestToolDefinition(BaseModel):
+    """Backend 按 Skill 裁剪后提供给模型的 Tool 生成契约。"""
+
+    model_config = ConfigDict(alias_generator=_camel, populate_by_name=True)
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    input_schema: dict[str, Any]
+
+
 class ContextManifest(BaseModel):
     """Backend 生成的最小运行上下文清单。"""
 
@@ -62,6 +71,7 @@ class ContextManifest(BaseModel):
     scope: ManifestScope
     skill: Literal["PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE"]
     effective_tool_names: list[str]
+    tool_definitions: list[ManifestToolDefinition] = Field(default_factory=list)
     policy: ManifestPolicy
     resource_refs: list[ResourceReference]
     expires_at: datetime
@@ -107,10 +117,20 @@ class LanguageModel(Protocol):
     def create_plan(self, skill: str, message: str) -> list[str]: ...
 
     def select_tool(
-        self, skill: str, message: str, executed_tool_names: list[str]
+        self,
+        skill: str,
+        message: str,
+        tool_definitions: list[dict[str, Any]],
+        executed_tool_names: list[str],
     ) -> ToolSelection | None: ...
 
-    def finalize(self, skill: str, resource_count: int, tool_call_count: int) -> str: ...
+    def finalize(
+        self,
+        skill: str,
+        message: str,
+        resource_count: int,
+        tool_calls: list[dict[str, Any]],
+    ) -> str: ...
 
 
 class FakeLanguageModel:
@@ -127,7 +147,11 @@ class FakeLanguageModel:
         return [f"理解 {skill} 请求", "整理受控上下文", "形成可回溯结果"]
 
     def select_tool(
-        self, skill: str, message: str, executed_tool_names: list[str]
+        self,
+        skill: str,
+        message: str,
+        tool_definitions: list[dict[str, Any]],
+        executed_tool_names: list[str],
     ) -> ToolSelection | None:
         """消息含“创建需求”且尚未执行过时选择 create_requirement，否则结束。"""
 
@@ -136,14 +160,20 @@ class FakeLanguageModel:
             return ToolSelection(tool_name="create_requirement", arguments={"title": "Fake 需求"})
         return None
 
-    def finalize(self, skill: str, resource_count: int, tool_call_count: int) -> str:
+    def finalize(
+        self,
+        skill: str,
+        message: str,
+        resource_count: int,
+        tool_calls: list[dict[str, Any]],
+    ) -> str:
         self.finalize_calls += 1
         if self._fail_finalize_once:
             self._fail_finalize_once = False
             raise RuntimeError("injected finalize failure")
         return (
             f"Fake LLM completed {skill} plan with {resource_count} resource reference(s) "
-            f"and {tool_call_count} tool call(s)."
+            f"and {len(tool_calls)} tool call(s)."
         )
 
 
@@ -154,6 +184,7 @@ class AgentState(TypedDict, total=False):
     skill: str
     message: str
     effective_tools: list[str]
+    tool_definitions: list[dict[str, Any]]
     max_tool_calls: int
     resource_count: int
     plan: list[str]
@@ -237,6 +268,10 @@ class LangGraphRuntimeGateway:
                         "skill": request.manifest.skill,
                         "message": request.message,
                         "effective_tools": list(request.manifest.effective_tool_names),
+                        "tool_definitions": [
+                            definition.model_dump(by_alias=True)
+                            for definition in request.manifest.tool_definitions
+                        ],
                         "max_tool_calls": request.manifest.policy.max_tool_calls,
                         "resource_count": len(request.manifest.resource_refs),
                         "tool_calls": [],
@@ -259,7 +294,9 @@ class LangGraphRuntimeGateway:
         """模型依据消息与已执行观察选择下一个 Tool；无选择则进入收尾。"""
 
         executed = [str(call.get("toolName", "")) for call in state.get("tool_calls", [])]
-        selection = self._model.select_tool(state["skill"], state["message"], executed)
+        selection = self._model.select_tool(
+            state["skill"], state["message"], state.get("tool_definitions", []), executed
+        )
         if selection is None:
             return {"pending_selection": None, "state_version": state["state_version"] + 1}
         return {
@@ -356,7 +393,10 @@ class LangGraphRuntimeGateway:
     def _finalize(self, state: AgentState) -> AgentState:
         return {
             "answer": self._model.finalize(
-                state["skill"], state["resource_count"], len(state.get("tool_calls", []))
+                state["skill"],
+                state["message"],
+                state["resource_count"],
+                state.get("tool_calls", []),
             ),
             "status": "SUCCEEDED",
             "state_version": state["state_version"] + 1,

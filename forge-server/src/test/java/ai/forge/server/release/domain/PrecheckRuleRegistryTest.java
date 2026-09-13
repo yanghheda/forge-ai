@@ -37,6 +37,14 @@ class PrecheckRuleRegistryTest {
     }
 
     @Test
+    void acceptsGitLabLowercaseSuccessStatusWhenPipelineMatchesMergeRequestHead() {
+        PrecheckDecision decision = registry.evaluate(passingFacts().withPipelines(List.of(
+                new PrecheckFacts.Pipeline("REL-1", "mr://12", "head-sha", "head-sha", "success", 8))));
+
+        assertThat(decision.result(PrecheckRule.PIPELINE_GREEN).passed()).isTrue();
+    }
+
+    @Test
     void qaRequiresLatestCompletedPassingRun() {
         PrecheckDecision decision = registry.evaluate(passingFacts().withQaRuns(List.of(
                 new PrecheckFacts.QaRun("REL-1", 42, "COMPLETED", 3, 1, 0, 9))));

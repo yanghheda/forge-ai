@@ -1,0 +1,2 @@
+ALTER TABLE `test_cases`
+  ADD COLUMN `case_type` varchar(16) NOT NULL DEFAULT 'FUNCTIONAL' COMMENT '测试用例类型：FUNCTIONAL、REGRESSION 或 E2E' AFTER `priority`;

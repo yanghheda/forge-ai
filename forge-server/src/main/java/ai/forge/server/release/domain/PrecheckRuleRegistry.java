@@ -26,7 +26,7 @@ public final class PrecheckRuleRegistry {
 
     private PrecheckResult pipelineGreen(PrecheckFacts facts) {
         return result(PrecheckRule.PIPELINE_GREEN, facts.pipelines().stream()
-                .filter(pipeline -> !"SUCCESS".equals(pipeline.status())
+                .filter(pipeline -> !"SUCCESS".equalsIgnoreCase(pipeline.status())
                         || !pipeline.headSha().equals(pipeline.pipelineSha()))
                 .map(pipeline -> pipeline.itemKey() + ":" + pipeline.mergeRequestRef() + ":" + pipeline.headSha())
                 .toList());

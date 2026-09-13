@@ -17,11 +17,19 @@ public interface PipelineMapper {
             + "WHERE r.organization_id=#{organizationId} AND r.status='ACTIVE'")
     List<Map<String, Object>> findContext(@Param("organizationId") long organizationId);
 
+    @Select("SELECT mr.id FROM merge_requests mr WHERE mr.organization_id=#{organizationId} "
+            + "AND mr.repository_id=#{repositoryId} AND mr.work_item_id=#{devTaskId} "
+            + "AND mr.source_branch=#{ref} AND mr.state='opened' ORDER BY mr.id DESC LIMIT 1")
+    List<Long> findMergeRequestId(@Param("organizationId") long organizationId,
+            @Param("repositoryId") long repositoryId, @Param("devTaskId") long devTaskId,
+            @Param("ref") String ref);
+
     @Insert("INSERT INTO pipeline_runs (organization_id,repository_id,merge_request_id,remote_pipeline_id,ref,commit_sha,"
             + "status,web_url,started_at,finished_at,remote_updated_at,last_synced_at,summary_json) "
             + "VALUES (#{organizationId},#{repositoryId},#{mergeRequestId},#{remoteId},#{ref},#{sha},#{status},#{webUrl},"
             + "#{startedAt},#{finishedAt},#{remoteUpdatedAt},UTC_TIMESTAMP(6),CAST(#{summaryJson} AS JSON)) "
-            + "ON DUPLICATE KEY UPDATE status=VALUES(status),web_url=VALUES(web_url),started_at=VALUES(started_at),"
+            + "ON DUPLICATE KEY UPDATE merge_request_id=COALESCE(VALUES(merge_request_id),merge_request_id),"
+            + "status=VALUES(status),web_url=VALUES(web_url),started_at=VALUES(started_at),"
             + "finished_at=VALUES(finished_at),remote_updated_at=VALUES(remote_updated_at),last_synced_at=UTC_TIMESTAMP(6),"
             + "summary_json=VALUES(summary_json)")
     int upsert(@Param("organizationId") long organizationId, @Param("repositoryId") long repositoryId,

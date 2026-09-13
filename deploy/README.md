@@ -79,6 +79,46 @@ FORGE_AGENT_INTERNAL_JWT_SECRET=<与 forge-agent 相同的本机随机密钥>
 `forge-agent` 在宿主机启动时使用同一个 `FORGE_AGENT_INTERNAL_JWT_SECRET`。
 停止基础设施使用 `make host-infra-down`，该命令保留 MySQL/Qdrant 数据卷。
 
+## 独立 GitLab CE
+
+本机真实 GitLab 集成测试使用独立的 `compose.gitlab.yml`，不加入 ForgeAI 主 Compose project，
+因此可以按需单独启动和停止：
+
+```bash
+make gitlab-up
+make gitlab-ready
+```
+
+GitLab Web 默认地址为 `http://localhost:8929`，SSH 默认端口为 `2224`。首次启动通常较慢；
+初始 `root` 密码可通过以下命令读取：
+
+```bash
+docker compose --env-file deploy/.env -f deploy/compose.gitlab.yml exec gitlab \
+  grep 'Password:' /etc/gitlab/initial_root_password
+```
+
+项目 Pipeline 需要独立 Runner。先在 GitLab 项目的 `Settings → CI/CD → Runners` 创建
+Project Runner，启用 `Run untagged jobs`，然后把新生成的认证 Token 只写入未提交的
+`deploy/.env`：
+
+```text
+FORGE_GITLAB_RUNNER_TOKEN=<新生成的 glrt- Token>
+```
+
+注册并启动 Runner：
+
+```bash
+make gitlab-runner-up
+make gitlab-runner-logs
+```
+
+Runner 使用独立配置卷保存注册结果，并通过 GitLab Compose 网络克隆仓库。Token 泄露后应先在
+GitLab 删除旧 Runner、创建新 Runner，再更新 `deploy/.env`；不得把真实 Token 写入示例文件或提交。
+
+端口冲突时可在 `deploy/.env` 中修改 `FORGE_GITLAB_HTTP_HOST_PORT` 和
+`FORGE_GITLAB_SSH_HOST_PORT`。`make gitlab-down` 会保留 GitLab 的配置、日志和数据卷；
+只有显式执行带 `--volumes` 的 Compose down 才会删除这些数据。
+
 三个应用在宿主机运行时，Server 使用 `dev,local` profiles。Compose Smoke 显式使用
 `test` profile，容器服务名来自 `application-test.yml` 或 Compose 环境变量，不会加载
 个人的 `application-local.yml`。生产 `prod` profile 留待部署阶段配置。

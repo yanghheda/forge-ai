@@ -40,7 +40,8 @@ public class PipelineController {
     @PostMapping
     @Operation(summary = "触发 Pipeline", description = "权限：repo.write；远端调用不在数据库事务中。")
     public PipelineRun trigger(@Valid @RequestBody TriggerPipelineRequest body, HttpServletRequest request) {
-        return service.trigger(AuthController.requireContext(request).userId(), organizationId(request), body.ref());
+        return service.trigger(AuthController.requireContext(request).userId(), organizationId(request), body.ref(),
+                body.devTaskId());
     }
 
     @GetMapping
@@ -59,7 +60,8 @@ public class PipelineController {
     }
 
     public record TriggerPipelineRequest(
-            /* 触发 Pipeline 的分支或标签。 */ @NotBlank @Size(max = 255) String ref) {}
+            /* 触发 Pipeline 的分支或标签。 */ @NotBlank @Size(max = 255) String ref,
+            /* 可选关联 Dev Task；提供时必须能解析到同分支的 MR。 */ @Positive Long devTaskId) {}
 
     private long organizationId(HttpServletRequest request) {
         long userId = AuthController.requireContext(request).userId();

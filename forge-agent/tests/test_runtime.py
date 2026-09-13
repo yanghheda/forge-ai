@@ -146,7 +146,7 @@ def test_selected_tool_is_executed_and_observed_with_run_token(tmp_path) -> None
 
 def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:
     class TwoToolModel(FakeLanguageModel):
-        def select_tool(self, skill, message, executed_tool_names):
+        def select_tool(self, skill, message, tool_definitions, executed_tool_names):
             self.select_calls += 1
             if "get_organization" not in executed_tool_names:
                 return ToolSelection(tool_name="get_organization")

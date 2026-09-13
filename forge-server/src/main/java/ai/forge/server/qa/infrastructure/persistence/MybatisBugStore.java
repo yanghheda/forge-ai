@@ -97,7 +97,9 @@ public class MybatisBugStore implements BugStore {
         return new BugView(number(row.get("id")), text(row.get("item_key")), text(row.get("title")),
                 WorkItemStatus.valueOf(text(row.get("status"))), BugSeverity.valueOf(text(row.get("severity"))),
                 number(row.get("requirement_id")), nullableNumber(row.get("test_run_id")),
-                nullableNumber(row.get("test_result_id")), readList(row.get("reproduction_steps_json")),
+                nullableNumber(row.get("test_result_id")), nullableNumber(row.get("dev_task_id")),
+                nullableText(row.get("dev_task_key")), nullableNumber(row.get("assignee_user_id")),
+                nullableText(row.get("assignee_name")), readList(row.get("reproduction_steps_json")),
                 text(row.get("expected_result")), text(row.get("actual_result")),
                 nullableText(row.get("fix_note")), readList(row.get("fix_evidence_json")),
                 number(row.get("version")));

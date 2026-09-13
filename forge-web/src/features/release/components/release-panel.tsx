@@ -4,18 +4,18 @@ import { Alert, Button, Card, Checkbox, Input, Space, Tag, Typography } from "@a
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { listRequirements } from "@/features/work-item";
+import { listOrganizationRequirements } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
 
 import { createRelease, decideDeployment, listDeployments, listReleases, requestDeployment, runPrecheck, updateReleaseNote, type DeploymentView, type ReleaseView } from "../api/release-api";
 
-export function ReleasePanel({ organizationId }: { organizationId: number; organizationId: number }) {
+export function ReleasePanel({ organizationId }: { organizationId: number }) {
   const queryClient = useQueryClient();
   const key = ["releases", organizationId];
   const releases = useQuery({ queryKey: key, queryFn: () => listReleases(organizationId) });
   const requirements = useQuery({
     queryKey: ["requirements", organizationId],
-    queryFn: () => listRequirements(organizationId),
+    queryFn: () => listOrganizationRequirements(),
   });
   const [versionName, setVersionName] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
@@ -73,7 +73,7 @@ export function ReleasePanel({ organizationId }: { organizationId: number; organ
   );
 }
 
-export function ReleaseCard({ release, onSaveNote, onPrecheck }: { release: ReleaseView; onSaveNote: (value: string) => void; onPrecheck: () => void; organizationId?: number; organizationId?: number }) {
+export function ReleaseCard({ release, onSaveNote, onPrecheck }: { release: ReleaseView; onSaveNote: (value: string) => void; onPrecheck: () => void; organizationId?: number }) {
   const [draft, setDraft] = useState(release.releaseNote);
   const organizationId = release.organizationId;
   const queryClient = useQueryClient();

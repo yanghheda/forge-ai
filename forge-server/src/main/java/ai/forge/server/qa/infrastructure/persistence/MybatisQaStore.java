@@ -9,6 +9,7 @@ import ai.forge.server.qa.application.TestResultView;
 import ai.forge.server.qa.application.TestRunView;
 import ai.forge.server.qa.domain.QaGuardDecision;
 import ai.forge.server.qa.domain.TestCasePriority;
+import ai.forge.server.qa.domain.TestCaseType;
 import ai.forge.server.qa.domain.TestResultStatus;
 import ai.forge.server.qa.domain.TestRunStatus;
 import ai.forge.server.qa.domain.TestRunSummary;
@@ -41,15 +42,16 @@ public class MybatisQaStore implements QaStore {
 
     @Override
     public TestCaseView createCase(long organizationId, long requirementId, long userId,
-            String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority) {
+            String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority,
+            TestCaseType caseType) {
         if (mapper.countQaRequirement(organizationId, requirementId) == 0) {
             throw new ResourceNotFoundException();
         }
         Map<String, Object> generated = new LinkedHashMap<>();
         mapper.insertCase(generated, organizationId, requirementId, title, preconditions,
-                write(steps), expectedResult, priority.name(), userId);
-        return new TestCaseView(number(generated.get("id")), requirementId, title, preconditions,
-                List.copyOf(steps), expectedResult, priority, 0L);
+                write(steps), expectedResult, priority.name(), caseType.name(), userId);
+        long caseId = number(generated.get("id"));
+        return findCases(organizationId, requirementId).stream().filter(item -> item.id() == caseId).findFirst().orElseThrow();
     }
 
     @Override
@@ -141,10 +143,12 @@ public class MybatisQaStore implements QaStore {
     }
 
     private TestCaseView caseView(Map<String, Object> row) {
-        return new TestCaseView(number(row.get("id")), number(row.get("work_item_id")),
+        long id = number(row.get("id"));
+        return new TestCaseView(id, "QA-CASE-" + String.format("%03d", id), number(row.get("work_item_id")),
                 text(row.get("title")), text(row.get("preconditions")),
                 read(text(row.get("steps_json")), new TypeReference<>() {}), text(row.get("expected_result")),
-                TestCasePriority.valueOf(text(row.get("priority"))), number(row.get("version")));
+                TestCasePriority.valueOf(text(row.get("priority"))), TestCaseType.valueOf(text(row.get("case_type"))),
+                number(row.get("created_by")), text(row.get("created_by_name")), number(row.get("version")));
     }
 
     private TestResultView resultView(Map<String, Object> row) {
@@ -152,7 +156,7 @@ public class MybatisQaStore implements QaStore {
                 TestCasePriority.valueOf(text(row.get("priority"))),
                 TestResultStatus.valueOf(text(row.get("status"))), text(row.get("actual_result")),
                 read(text(row.get("evidence_json")), new TypeReference<>() {}), nullableNumber(row.get("executed_by")),
-                (LocalDateTime) row.get("executed_at"), number(row.get("version")));
+                nullableText(row.get("executed_by_name")), (LocalDateTime) row.get("executed_at"), number(row.get("version")));
     }
 
     private TestRunView runView(Map<String, Object> row, List<Map<String, Object>> resultRows) {
@@ -164,7 +168,8 @@ public class MybatisQaStore implements QaStore {
                 ? QaGuardDecision.from(storedSummary)
                 : QaGuardDecision.noCompletedRun();
         return new TestRunView(number(row.get("id")), number(row.get("requirement_id")),
-                text(row.get("environment")), status, storedSummary, decision,
+                text(row.get("environment")), number(row.get("started_by")), text(row.get("started_by_name")), "USER",
+                status, storedSummary, decision,
                 resultRows.stream().map(this::resultView).toList(), (LocalDateTime) row.get("started_at"),
                 (LocalDateTime) row.get("finished_at"), number(row.get("version")));
     }
@@ -213,5 +218,9 @@ public class MybatisQaStore implements QaStore {
 
     private static String text(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private static String nullableText(Object value) {
+        return value == null ? null : value.toString();
     }
 }

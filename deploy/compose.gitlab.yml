@@ -1,0 +1,61 @@
+# 本机集成测试用的独立 GitLab CE；不加入 ForgeAI 主 Compose 网络。
+name: forge-gitlab
+
+services:
+  gitlab:
+    image: ${FORGE_GITLAB_IMAGE:-gitlab/gitlab-ce:18.4.0-ce.0}
+    hostname: forge-gitlab
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:${FORGE_GITLAB_HTTP_HOST_PORT:-8929}'
+        nginx['listen_port'] = 8929
+        gitlab_rails['gitlab_shell_ssh_port'] = ${FORGE_GITLAB_SSH_HOST_PORT:-2224}
+    ports:
+      - "127.0.0.1:${FORGE_GITLAB_HTTP_HOST_PORT:-8929}:8929"
+      - "127.0.0.1:${FORGE_GITLAB_SSH_HOST_PORT:-2224}:22"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8929/-/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 5m
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+    shm_size: "256m"
+    restart: unless-stopped
+
+  runner:
+    image: ${FORGE_GITLAB_RUNNER_IMAGE:-gitlab/gitlab-runner:alpine-v18.4.0}
+    profiles: ["runner"]
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    environment:
+      FORGE_GITLAB_RUNNER_TOKEN: ${FORGE_GITLAB_RUNNER_TOKEN:-}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        test -n "$$FORGE_GITLAB_RUNNER_TOKEN" || { echo "FORGE_GITLAB_RUNNER_TOKEN is required" >&2; exit 1; }
+        if [ ! -s /etc/gitlab-runner/config.toml ]; then
+          gitlab-runner register --non-interactive \
+            --url http://gitlab:8929 \
+            --clone-url http://gitlab:8929 \
+            --token "$$FORGE_GITLAB_RUNNER_TOKEN" \
+            --executor docker \
+            --docker-image alpine:3.20 \
+            --docker-network-mode forge-gitlab_default \
+            --description forge-local-runner
+        fi
+        exec gitlab-runner run --user=gitlab-runner --working-directory=/home/gitlab-runner
+    volumes:
+      - gitlab-runner-config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  gitlab-config:
+  gitlab-logs:
+  gitlab-data:
+  gitlab-runner-config:
