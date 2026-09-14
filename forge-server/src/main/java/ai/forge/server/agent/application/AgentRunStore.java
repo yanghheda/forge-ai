@@ -31,7 +31,8 @@ public interface AgentRunStore {
 
     void start(long organizationId, String runId, String requestId);
 
-    void complete(long organizationId, String runId, String requestId, String summary);
+    void complete(long organizationId, String runId, String requestId, String summary,
+            List<String> plan, List<AgentRuntimeGateway.ToolCallResult> toolCalls);
 
     void fail(long organizationId, String runId, String requestId, String errorCode);
 

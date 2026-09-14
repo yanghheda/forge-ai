@@ -1,11 +1,11 @@
 import { ProtectedApp } from "@/features/auth";
-import { AgentTraceScreen } from "@/features/console";
+import { AgentRunRoute } from "@/features/agent-run";
 
 export default async function AgentTracePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return (
     <ProtectedApp>
-      <AgentTraceScreen runId={id} />
+      <AgentRunRoute runId={id} />
     </ProtectedApp>
   );
 }

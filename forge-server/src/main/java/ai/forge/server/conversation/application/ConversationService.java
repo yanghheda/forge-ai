@@ -6,6 +6,7 @@ import ai.forge.server.agent.domain.AgentSkill;
 import ai.forge.server.agent.domain.MediumToolConfirmation;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.organization.application.OrganizationAccessService;
+import ai.forge.server.workitem.application.WorkItemStore;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.Instant;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,14 +24,21 @@ public class ConversationService {
     /* 解析当前公司上下文。 */ private final OrganizationAccessService access;
     /* 持久化会话与可见消息。 */ private final ConversationStore mapper;
     /* 复用权威 Agent Run 创建与调度链路。 */ private final AgentRunService runs;
-    public ConversationService(OrganizationAccessService access,ConversationStore mapper,AgentRunService runs){this.access=access;this.mapper=mapper;this.runs=runs;}
+    /* 根据 Requirement 当前事实确定本轮角色 Skill。 */ private final WorkItemStore workItems;
+    /* 会话入口采用的 MEDIUM Tool 策略；生产缺省 ASK，本机可显式设为 ALLOW。 */ private final MediumToolConfirmation mediumToolConfirmation;
+    public ConversationService(OrganizationAccessService access,ConversationStore mapper,
+            AgentRunService runs,WorkItemStore workItems,
+            @Value("${forge.infrastructure.agent.conversation-medium-confirmation:ASK}")
+            MediumToolConfirmation mediumToolConfirmation){this.access=access;this.mapper=mapper;
+        this.runs=runs;this.workItems=workItems;this.mediumToolConfirmation=mediumToolConfirmation;}
 
     @Transactional
     public Conversation create(long userId,String title){long organizationId=organization(userId);String value=normalizeTitle(title);mapper.insertConversation(organizationId,userId,value);long id=mapper.lastInsertId();return new Conversation(id,value,Instant.now(),Instant.now(),0);}
     public List<Conversation> list(long userId){long organizationId=organization(userId);return mapper.conversations(organizationId,userId).stream().map(this::conversation).toList();}
     public List<Message> messages(long userId,long id){requireOwner(userId,id);return mapper.messages(id).stream().map(row->new Message(text(row,"sender"),text(row,"body"),nullable(row,"run_id"),instant(row.get("created_at")))).toList();}
     @Transactional
-    public AgentRunSnapshot send(long userId,long id,String body,AgentSkill skill,Long workItemId){long organizationId=requireOwner(userId,id);String message=body==null?"":body.trim();if(message.isEmpty()||message.length()>10000)throw new IllegalArgumentException("message length must be 1..10000");AgentRunSnapshot run=runs.create(userId,organizationId,workItemId,skill==null?AgentSkill.PRODUCT:skill,MediumToolConfirmation.ASK,message,"conversation-"+id+"-"+UUID.randomUUID(),UUID.randomUUID().toString());mapper.insertUserMessage(id,message,run.id());mapper.touch(id);return run;}
+    public AgentRunSnapshot send(long userId,long id,String body,AgentSkill requestedSkill,Long workItemId){long organizationId=requireOwner(userId,id);String message=body==null?"":body.trim();if(message.isEmpty()||message.length()>10000)throw new IllegalArgumentException("message length must be 1..10000");Long bound=mapper.requirementId(organizationId,userId,id);if(bound!=null&&workItemId!=null&&!bound.equals(workItemId))throw new IllegalArgumentException("conversation is already bound to another requirement");Long effectiveWorkItemId=bound==null?workItemId:bound;AgentSkill skill=stageSkill(organizationId,effectiveWorkItemId);if(requestedSkill!=null&&requestedSkill!=skill)throw new IllegalArgumentException("skill does not match requirement stage");AgentRunSnapshot run=runs.create(userId,organizationId,effectiveWorkItemId,skill,mediumToolConfirmation,message,"conversation-"+id+"-"+UUID.randomUUID(),UUID.randomUUID().toString());mapper.insertUserMessage(id,message,run.id());mapper.touch(id);return run;}
+    private AgentSkill stageSkill(long organizationId,Long workItemId){if(workItemId==null)return AgentSkill.PRODUCT;return StageSkillRouter.route(workItems.findByIdAndScope(organizationId,workItemId).orElseThrow(ResourceNotFoundException::new).status());}
     private long requireOwner(long userId,long id){long organizationId=organization(userId);if(mapper.owns(organizationId,userId,id)!=1)throw new ResourceNotFoundException();return organizationId;}
     private long organization(long userId){return access.requireContext(userId).organizationId();}
     private String normalizeTitle(String title){String value=title==null?"New conversation":title.trim();if(value.isEmpty())value="New conversation";return value.length()>255?value.substring(0,255):value;}

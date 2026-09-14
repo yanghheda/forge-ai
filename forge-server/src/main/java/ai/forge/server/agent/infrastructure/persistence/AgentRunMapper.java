@@ -107,6 +107,23 @@ public interface AgentRunMapper {
             @Param("runId") String runId,
             @Param("summary") String summary);
 
+    @Insert("INSERT INTO agent_steps (run_id,step_no,type,name,status,input_summary,output_summary," +
+            "error_code,started_at,finished_at) SELECT r.id,#{stepNo},'TOOL',#{name},#{status}," +
+            "'Structured arguments redacted',#{summary},#{errorCode},UTC_TIMESTAMP(6),UTC_TIMESTAMP(6) " +
+            "FROM agent_runs r WHERE r.id=#{runId} AND r.organization_id=#{organizationId}")
+    int insertCompletedToolStep(@Param("organizationId") long organizationId,
+            @Param("runId") String runId,@Param("stepNo") int stepNo,@Param("name") String name,
+            @Param("status") String status,@Param("summary") String summary,
+            @Param("errorCode") String errorCode);
+
+    @Insert("INSERT INTO agent_steps (run_id,step_no,type,name,status,input_summary,output_summary," +
+            "error_code,started_at,finished_at) SELECT r.id,#{stepNo},'FINAL','Final response'," +
+            "'SUCCEEDED','Structured trace summarized',#{summary},NULL,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6) " +
+            "FROM agent_runs r WHERE r.id=#{runId} AND r.organization_id=#{organizationId}")
+    int insertCompletedFinalStep(@Param("organizationId") long organizationId,
+            @Param("runId") String runId,@Param("stepNo") int stepNo,
+            @Param("summary") String summary);
+
     @Update("UPDATE agent_runs SET status = 'SUCCEEDED', finished_at = UTC_TIMESTAMP(6), "
             + "last_sequence = #{lastSequence}, updated_at = UTC_TIMESTAMP(6), version = version + 1 "
             + "WHERE id = #{runId} AND organization_id = #{organizationId} "

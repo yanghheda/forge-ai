@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   getRequirementWorkflow: vi.fn(),
   getRequirementDetails: vi.fn(),
   getRequirementActivity: vi.fn(),
+  transitionRequirementWorkflow: vi.fn(),
 }));
 
 vi.mock("../api/work-item-api", async () => ({
@@ -46,6 +47,35 @@ describe("OrganizationRequirementDetail", () => {
     api.getRequirementWorkflow.mockResolvedValue({ version: 3, availableActions: ["SUBMIT_FOR_QA"], guardHints: { SUBMIT_FOR_QA: ["completedDevTasks"] } });
     api.getRequirementDetails.mockResolvedValue({ goal: "可重复演示", inScope: "全流程", outOfScope: "真实部署", acceptanceCriteria: ["固定状态机推进"], businessValue: "售前演示", version: 1 });
     api.getRequirementActivity.mockResolvedValue([]);
+  });
+
+  it("产品评审中展示通过与退回入口并携带退回原因", async () => {
+    api.getOrganizationRequirement.mockResolvedValue({
+      ...(await api.getOrganizationRequirement()),
+      status: "PRODUCT_REVIEW",
+    });
+    api.getRequirementWorkflow.mockResolvedValue({
+      version: 4,
+      availableActions: ["APPROVE_PRODUCT_REVIEW", "REJECT_PRODUCT_REVIEW"],
+      guardHints: {},
+    });
+    api.transitionRequirementWorkflow.mockResolvedValue({});
+
+    render(<OrganizationRequirementDetail requirementId={1} />, { wrapper });
+
+    expect(await screen.findByText("产品评审决策")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "通过产品评审" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("退回原因"), { target: { value: "补充异常场景" } });
+    fireEvent.click(screen.getByRole("button", { name: "退回修改" }));
+
+    await waitFor(() =>
+      expect(api.transitionRequirementWorkflow).toHaveBeenCalledWith(
+        1,
+        "REJECT_PRODUCT_REVIEW",
+        4,
+        { reason: "补充异常场景" },
+      ),
+    );
   });
 
   it("按照设计稿展示标题、六阶段、基本信息、描述和右侧阶段信息", async () => {

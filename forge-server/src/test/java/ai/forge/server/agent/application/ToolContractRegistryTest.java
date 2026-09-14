@@ -48,22 +48,22 @@ class ToolContractRegistryTest {
 
         assertThat(product).containsExactly(
                 "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
-                "create_requirement", "create_prd_document");
+                "create_requirement", "create_prd_document", "advance_requirement");
         assertThat(ux).containsExactly(
                 "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
-                "create_ux_task", "create_ux_document");
+                "create_ux_task", "create_ux_document", "advance_requirement");
         assertThat(developer).containsExactly(
                 "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
-                "create_tech_design", "create_dev_task", "start_development", "get_pipeline_log")
+                "create_tech_design", "create_dev_task", "start_development", "get_pipeline_log",
+                "advance_requirement")
                 .doesNotContain("deploy_release", "create_test_case");
         assertThat(qa).containsExactly(
                 "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
-                "create_test_case", "create_bug")
+                "create_test_case", "create_bug", "advance_requirement")
                 .doesNotContain("update_test_result", "deploy_release");
         assertThat(release).containsExactly(
-                "get_organization", "get_release_precheck", "get_delivery_graph", "update_release_note",
-                "deploy_release")
-                .doesNotContain("run_release_precheck");
+                "get_organization", "create_release", "run_release_precheck", "get_release_precheck",
+                "get_delivery_graph", "update_release_note", "deploy_release");
     }
 
     @Test

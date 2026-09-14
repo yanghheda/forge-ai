@@ -1,0 +1,28 @@
+name: advance_requirement
+version: 1
+description: 发起当前角色允许的 Requirement 阶段动作；目标状态、权限和准入条件全部由 forge-server 固定状态机决定。
+input_schema:
+  type: object
+  required: [requirementId, action, expectedVersion]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    action:
+      type: string
+      enum: [SUBMIT_PRODUCT_REVIEW, APPROVE_PRODUCT_REVIEW, REJECT_PRODUCT_REVIEW, SUBMIT_UX_REVIEW, APPROVE_UX_REVIEW, REJECT_UX_REVIEW, SUBMIT_FOR_QA, START_QA, QA_PASS, QA_FAIL]
+    expectedVersion: { type: integer, minimum: 0 }
+    reason: { type: [string, "null"], maxLength: 2000 }
+    checklist:
+      type: array
+      maxItems: 10
+      items: { type: string, minLength: 1, maxLength: 100 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: agent.run
+risk_level: MEDIUM
+idempotency: { required: true }
+timeout_ms: 5000
+retry: { max_attempts: 1 }
+backend_mapping: { method: POST, path: /internal/v1/tools/advance_requirement:execute }
+sensitive_fields: []
+requirement_ids: [WI-004, AGENT-003]

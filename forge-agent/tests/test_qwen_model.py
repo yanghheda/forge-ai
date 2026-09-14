@@ -57,8 +57,8 @@ def test_qwen_selects_tool_or_finishes() -> None:
             "inputSchema": {"type": "object"},
         }
     ]
-    selection = model.select_tool("PRODUCT", "读取需求", tools, [])
-    finished = model.select_tool("PRODUCT", "读取需求", tools, ["get_work_item"])
+    selection = model.select_tool("PRODUCT", "读取需求", 42, tools, [])
+    finished = model.select_tool("PRODUCT", "读取需求", 42, tools, [{"toolName": "get_work_item"}])
 
     assert selection is not None
     assert selection.tool_name == "get_work_item"
@@ -77,6 +77,7 @@ def test_qwen_prompt_contains_only_manifest_tools_and_structured_observations() 
     model.select_tool(
         "PRODUCT",
         "读取需求",
+        42,
         [
             {
                 "name": "get_work_item",
@@ -95,6 +96,7 @@ def test_qwen_prompt_contains_only_manifest_tools_and_structured_observations() 
 
     assert "get_work_item" in requests[0]["messages"][1]["content"]
     assert "inputSchema" in requests[0]["messages"][1]["content"]
+    assert "Requirement ID: 42" in requests[0]["messages"][1]["content"]
     assert "读取需求" in requests[1]["messages"][1]["content"]
     assert '"id": 42' in requests[1]["messages"][1]["content"]
     assert answer == "需求读取完成"

@@ -104,11 +104,17 @@ public class ApprovalService {
     @Transactional
     public ApprovalSnapshot decide(long userId, long organizationId, String approvalId,
             boolean approve, long expectedVersion, String requestId) {
-        permissionEvaluator.requireOrganization(userId, organizationId, "approval.decide");
         ApprovalSnapshot current = find(organizationId, approvalId);
-        if (current.requestedBy() == userId) {
+        boolean requesterConfirmation = "MEDIUM".equals(current.riskLevel())
+                && current.requestedBy() == userId;
+        if ("HIGH".equals(current.riskLevel()) && current.requestedBy() == userId) {
             throw new ToolExecutionRejectedException(HttpStatus.FORBIDDEN.value(),
-                    "SELF_APPROVAL_FORBIDDEN", "Requester cannot approve their own tool call");
+                    "SELF_APPROVAL_FORBIDDEN", "Requester cannot approve their own HIGH risk tool call");
+        }
+        if (requesterConfirmation) {
+            permissionEvaluator.requireOrganization(userId, organizationId, "agent.run");
+        } else {
+            permissionEvaluator.requireOrganization(userId, organizationId, "approval.decide");
         }
         store.expire(organizationId, approvalId);
         current = find(organizationId, approvalId);
@@ -211,7 +217,8 @@ public class ApprovalService {
 
     private List<ApprovalSnapshot.ResourceVersion> resourceVersions(
             AgentRun run, String toolName, JsonNode arguments) {
-        if (List.of("create_ux_task", "create_prd_document", "create_ux_document").contains(toolName)) {
+        if (List.of("create_ux_task", "create_prd_document", "create_ux_document",
+                "advance_requirement").contains(toolName)) {
             long id = arguments.path("requirementId").asLong();
             var item = workItemStore.findByIdAndScope(run.organizationId(), id)
                     .orElseThrow(ResourceNotFoundException::new);

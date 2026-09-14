@@ -54,7 +54,8 @@ public class ApprovalResumeWorker {
                 if (!"SUCCEEDED".equals(result.status())) {
                     throw new IllegalStateException("Resumed Agent Run did not complete");
                 }
-                runStore.complete(organizationId, runId, requested.requestId(), result.answer());
+                runStore.complete(organizationId, runId, requested.requestId(), result.answer(),
+                        result.plan(), result.toolCalls());
                 if (mapper.markProcessed(((Number) row.get("id")).longValue()) == 1) {
                     completed++;
                 }

@@ -98,6 +98,8 @@ public class AgentRunService {
         AgentRun run = runStore.find(organizationId, runId).orElseThrow(ResourceNotFoundException::new);
         return new AgentRunSnapshot(
                 run.id(),
+                run.skill(),
+                run.workItemId(),
                 run.status(),
                 run.lastSequence(),
                 run.terminal(),

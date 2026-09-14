@@ -89,19 +89,7 @@ describe("DevelopmentWorkspaceView", () => {
 
   it("从 Dev Task 卡片打开抽屉并创建研发任务", async () => {
     const create = vi.fn().mockResolvedValue(undefined);
-    render(
-      <DevelopmentWorkspaceView
-        summary={{ ...summary, tasks: [] }}
-        workflow={{ version: 5, availableActions: [], guardHints: {} }}
-        busy={false}
-        onCreate={create}
-        onStart={vi.fn()}
-        onTriggerPipeline={vi.fn()}
-        onComplete={vi.fn()}
-        onRefresh={vi.fn()}
-        onSubmitQa={vi.fn()}
-      />,
-    );
+    render(<DevelopmentWorkspaceView summary={{ ...summary, tasks: [] }} workflow={{ version: 5, availableActions: [], guardHints: {} }} busy={false} onCreate={create} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} onSubmitQa={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "新建 Dev Task" }));
     expect(screen.getByLabelText("Dev Task 标题")).toBeInTheDocument();

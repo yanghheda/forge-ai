@@ -2,6 +2,10 @@ package ai.forge.server.agent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ai.forge.server.agent.application.AgentRunStore;
+import ai.forge.server.agent.application.AgentRuntimeGateway;
+import ai.forge.server.agent.domain.AgentSkill;
+import ai.forge.server.agent.domain.MediumToolConfirmation;
 import ai.forge.server.auth.CsrfTestClient;
 import ai.forge.server.infrastructure.InfrastructureIntegrationTestBase;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,6 +38,10 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    /* 直接验证 Runtime 结构化结果到 MySQL Trace 的事务投影。 */
+    @Autowired
+    private AgentRunStore agentRunStore;
+
     private String ownerCookie;
     private long organizationId;
 
@@ -43,7 +51,8 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "outbox_events", "agent_tool_calls", "approvals", "agent_events", "agent_steps", "agent_runs", "comments", "work_item_relations",
+                "outbox_events", "agent_messages", "agent_conversations", "agent_tool_calls",
+                "approvals", "agent_events", "agent_steps", "agent_runs", "comments", "work_item_relations",
                 "work_item_labels", "organization_policies", "work_item_events", "review_records",
                 "requirement_details", "work_items", "organization_item_sequences",                 "organization_policies", "audit_logs", "member_roles", "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
@@ -89,8 +98,8 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
 
         JsonNode terminal = awaitTerminal(runId);
         assertThat(terminal.get("status").asText()).isEqualTo("SUCCEEDED");
-        assertThat(terminal.get("lastSequence").asLong()).isEqualTo(5);
-        assertThat(terminal.get("steps")).hasSize(1);
+        assertThat(terminal.get("lastSequence").asLong()).isEqualTo(6);
+        assertThat(terminal.get("steps")).hasSize(2);
         assertThat(terminal.get("steps").get(0).get("status").asText()).isEqualTo("SUCCEEDED");
 
         assertThat(jdbcTemplate.queryForObject(
@@ -99,10 +108,32 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
                 .contains("chars");
         assertThat(jdbcTemplate.queryForList(
                         "SELECT sequence FROM agent_events WHERE run_id = ? ORDER BY sequence", Long.class, runId))
-                .containsExactly(1L, 2L, 3L, 4L, 5L);
+                .containsExactly(1L, 2L, 3L, 4L, 5L, 6L);
         assertThat(jdbcTemplate.queryForList(
                         "SELECT event_type FROM agent_events WHERE run_id = ? ORDER BY sequence", String.class, runId))
-                .containsExactly("agent.queued", "agent.started", "step.started", "step.completed", "agent.completed");
+                .containsExactly("agent.queued", "agent.started", "step.started", "step.completed",
+                        "step.completed", "agent.completed");
+    }
+
+    @Test
+    void failedToolObservationCanStillCompleteRunTrace() {
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0XY";
+        long userId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE email='owner@example.com'", Long.class);
+        agentRunStore.create(runId, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ASK, "User request (24 chars, content redacted)",
+                "failed-tool-trace", "request-hash", "request-create");
+        agentRunStore.start(organizationId, runId, "request-start");
+
+        agentRunStore.complete(organizationId, runId, "request-complete",
+                "需求创建失败，服务器返回 501 错误。",
+                List.of("定义测试需求名称", "编写测试需求内容", "创建需求对象", "保存需求记录"),
+                List.of(new AgentRuntimeGateway.ToolCallResult(
+                        "create_requirement", "call-1", "FAILED", "SERVER_ERROR")));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM agent_runs WHERE id=?", String.class, runId))
+                .isEqualTo("SUCCEEDED");
     }
 
     @Test
@@ -167,10 +198,59 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void requirementConversationStaysBoundAndRoutesEachMessageByCurrentStage() throws Exception {
+        JsonNode requirement = data(csrf().post(
+                "/api/v1/work-items",
+                Map.of("type", "REQUIREMENT", "title", "连续 Agent 需求",
+                        "description", "对话推动流程", "priority", "HIGH"),
+                ownerCookie,
+                String.class));
+        long requirementId = requirement.get("id").asLong();
+        JsonNode conversation = data(csrf().post(
+                "/api/v1/agent-conversations",
+                Map.of("title", "需求全流程"), ownerCookie, String.class));
+        long conversationId = conversation.get("id").asLong();
+
+        JsonNode productRun = data(csrf().post(
+                "/api/v1/agent-conversations/" + conversationId + "/messages",
+                Map.of("message", "整理并推进产品阶段", "workItemId", requirementId),
+                ownerCookie,
+                String.class));
+        assertThat(productRun.get("skill").asText()).isEqualTo("PRODUCT");
+        assertThat(productRun.get("workItemId").asLong()).isEqualTo(requirementId);
+
+        jdbcTemplate.update("UPDATE work_items SET status='UX_IN_PROGRESS', version=version+1 WHERE id=?",
+                requirementId);
+        JsonNode uxRun = data(csrf().post(
+                "/api/v1/agent-conversations/" + conversationId + "/messages",
+                Map.of("message", "继续完成当前阶段"), ownerCookie, String.class));
+
+        assertThat(uxRun.get("skill").asText()).isEqualTo("UX");
+        assertThat(uxRun.get("workItemId").asLong()).isEqualTo(requirementId);
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT skill FROM agent_runs WHERE work_item_id=? ORDER BY created_at",
+                        String.class, requirementId))
+                .containsExactly("PRODUCT", "UX");
+
+        JsonNode otherRequirement = data(csrf().post(
+                "/api/v1/work-items",
+                Map.of("type", "REQUIREMENT", "title", "另一需求", "description", "隔离",
+                        "priority", "MEDIUM"),
+                ownerCookie,
+                String.class));
+        ResponseEntity<String> rebound = csrf().post(
+                "/api/v1/agent-conversations/" + conversationId + "/messages",
+                Map.of("message", "切换需求", "workItemId", otherRequirement.get("id").asLong()),
+                ownerCookie,
+                String.class);
+        assertThat(rebound.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     void terminalStreamReplaysAfterLastEventIdAndThenCloses() throws Exception {
         String runId = data(createRun("stream", "stream-request")).get("id").asText();
         JsonNode terminal = awaitTerminal(runId);
-        assertThat(terminal.get("lastSequence").asLong()).isEqualTo(5);
+        assertThat(terminal.get("lastSequence").asLong()).isEqualTo(6);
 
         org.springframework.http.HttpHeaders headers = headers(ownerCookie);
         headers.setAccept(List.of(MediaType.TEXT_EVENT_STREAM));
@@ -184,7 +264,8 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.TEXT_EVENT_STREAM);
         assertThat(response.getBody())
-                .contains("id:3", "event:step.started", "id:4", "event:step.completed", "id:5", "event:agent.completed")
+                .contains("id:3", "event:step.started", "id:4", "event:step.completed",
+                        "id:5", "event:step.completed", "id:6", "event:agent.completed")
                 .doesNotContain("id:1", "id:2")
                 .doesNotContain("should-not-be-persisted");
 

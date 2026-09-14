@@ -45,14 +45,17 @@ class HttpAgentRuntimeGatewayTest {
                             "skill": "UX",
                             "effectiveToolNames": [
                                 "get_organization", "get_work_item", "get_delivery_graph", "search_documents",
-                                "create_ux_task", "create_ux_document"
+                                "create_ux_task", "create_ux_document", "advance_requirement"
                             ],
                             "policy": {"mediumConfirmation": "ASK", "maxToolCalls": 15}
                           }
                         }
                         """, false))
                 .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess(
-                        "{\"status\":\"SUCCEEDED\",\"plan\":[\"plan\"],\"answer\":\"done\",\"state_version\":3}",
+                        "{\"status\":\"SUCCEEDED\",\"plan\":[\"plan\"],\"answer\":\"done\"," +
+                                "\"tool_calls\":[{\"tool_name\":\"get_work_item\"," +
+                                "\"tool_call_id\":\"call-1\",\"status\":\"SUCCEEDED\"," +
+                                "\"error_code\":null}],\"state_version\":3}",
                         MediaType.APPLICATION_JSON));
 
         var result = gateway.start(new AgentRunRequested(
@@ -67,6 +70,10 @@ class HttpAgentRuntimeGatewayTest {
 
         assertThat(result.status()).isEqualTo("SUCCEEDED");
         assertThat(result.answer()).isEqualTo("done");
+        assertThat(result.toolCalls()).singleElement().satisfies(call -> {
+            assertThat(call.toolName()).isEqualTo("get_work_item");
+            assertThat(call.status()).isEqualTo("SUCCEEDED");
+        });
         server.verify();
     }
 }

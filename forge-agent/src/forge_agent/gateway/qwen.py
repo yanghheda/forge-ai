@@ -61,17 +61,20 @@ class QwenLanguageModel:
         self,
         skill: str,
         message: str,
+        work_item_id: int | None,
         tool_definitions: list[dict[str, Any]],
-        executed_tool_names: list[str],
+        tool_calls: list[dict[str, Any]],
     ) -> ToolSelection | None:
         payload = self._complete_json(
             "你是 ForgeAI 的 Tool 选择节点。只返回 JSON："
             '{"toolName":"工具名或 null","arguments":{}}。'
-            "不要把自然语言结果伪装成 Tool 执行结果；没有必要调用时返回 null。",
+            "不要把自然语言结果伪装成 Tool 执行结果；不得猜测资源 ID 或 expectedVersion，"
+            "缺少时先调用读取 Tool；必须依据结构化观察决定下一步；没有必要调用时返回 null。",
             (
                 f"Skill: {skill}\n用户指令: {message}\n"
+                f"当前 Requirement ID: {work_item_id}\n"
                 f"允许 Tool 契约: {json.dumps(tool_definitions, ensure_ascii=False)}\n"
-                f"已执行 Tool: {json.dumps(executed_tool_names, ensure_ascii=False)}"
+                f"结构化 Tool 观察: {json.dumps(tool_calls, ensure_ascii=False)}"
             ),
         )
         parsed = _ToolResponse.model_validate(payload)

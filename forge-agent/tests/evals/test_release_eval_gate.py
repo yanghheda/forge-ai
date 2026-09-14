@@ -30,7 +30,8 @@ def test_release_agent_can_only_deploy_through_high_approval() -> None:
         )
         assert case["approvalExpected"] is expected_approval
 
-    assert "run_release_precheck" not in allowed
+    assert "run_release_precheck" in allowed
+    assert "create_release" in allowed
     deploy = registry.find_tool("deploy_release")
     assert deploy is not None
     assert deploy.risk_level == "HIGH"

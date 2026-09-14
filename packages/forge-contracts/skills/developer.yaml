@@ -12,5 +12,6 @@ allowed_tools:
   - create_dev_task
   - start_development
   - get_pipeline_log
+  - advance_requirement
 limits:
   max_tool_calls: 15

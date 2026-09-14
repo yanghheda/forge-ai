@@ -36,7 +36,8 @@ public class FakeAgentDispatcher {
                     requested.organizationId(),
                     requested.runId(),
                     requested.requestId(),
-                    "Fake runner completed without LLM");
+                    "Fake runner completed without LLM", java.util.List.of("Fake plan"),
+                    java.util.List.of());
         } catch (RuntimeException exception) {
             LOGGER.error("Fake Agent Run failed: runId={}", requested.runId(), exception);
             runStore.fail(

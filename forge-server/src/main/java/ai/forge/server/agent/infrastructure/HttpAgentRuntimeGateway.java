@@ -59,7 +59,11 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
                 && !"WAITING_APPROVAL".equals(response.status()))) {
             throw new IllegalStateException("Agent Runtime returned an unsupported result");
         }
-        return new RunResult(response.status(), response.plan(), response.answer(), response.stateVersion());
+        return new RunResult(response.status(), response.plan(), response.answer(),
+                response.toolCalls() == null ? List.of() : response.toolCalls().stream()
+                        .map(call -> new ToolCallResult(call.toolName(), call.toolCallId(),
+                                call.status(), call.errorCode()))
+                        .toList(), response.stateVersion());
     }
 
     private ContextManifest manifest(AgentRunRequested requested, Instant issuedAt) {
@@ -164,7 +168,20 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
             List<String> plan,
             /* 图生成的完成摘要。 */
             String answer,
+            /* Runtime 的结构化 Tool Trace。 */
+            @JsonProperty("tool_calls") List<ToolCallResponse> toolCalls,
             /* Checkpoint 中的状态版本。 */
             @JsonProperty("state_version") int stateVersion) {
+    }
+
+    private record ToolCallResponse(
+            /* Tool 稳定名称。 */
+            @JsonProperty("tool_name") String toolName,
+            /* Run 内调用标识。 */
+            @JsonProperty("tool_call_id") String toolCallId,
+            /* Runtime 观察到的执行状态。 */
+            String status,
+            /* 失败时的稳定错误码。 */
+            @JsonProperty("error_code") String errorCode) {
     }
 }

@@ -46,7 +46,7 @@ public class AgentDispatcher {
                     requested.organizationId(),
                     requested.runId(),
                     requested.requestId(),
-                    result.answer());
+                    result.answer(), result.plan(), result.toolCalls());
             LOGGER.info(
                     "Agent Run completed: runId={}, checkpointVersion={}",
                     requested.runId(),

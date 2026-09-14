@@ -64,6 +64,8 @@ export interface DashboardOverview {
 export interface AgentRunCreated {
   id: string;
   status: string;
+  skill: "PRODUCT" | "UX" | "DEVELOPER" | "QA" | "RELEASE";
+  workItemId: number | null;
 }
 
 const json = (method: string, body: unknown): RequestInit => ({
@@ -96,6 +98,6 @@ export const createAgentConversation = (title: string, client: RequestClient = a
 
 export const listAgentMessages = (id: number, client: RequestClient = apiClient) => client.request<AgentMessage[]>(`/v1/agent-conversations/${id}/messages`);
 
-export const sendAgentMessage = (id: number, message: string, client: RequestClient = apiClient) => client.request<AgentRunCreated>(`/v1/agent-conversations/${id}/messages`, json("POST", { message, skill: "PRODUCT" }));
+export const sendAgentMessage = (id: number, message: string, workItemId?: number, client: RequestClient = apiClient) => client.request<AgentRunCreated>(`/v1/agent-conversations/${id}/messages`, json("POST", { message, workItemId }));
 
 export const traceExportUrl = (runId: string) => `/api/v1/agent-runs/${encodeURIComponent(runId)}/export`;

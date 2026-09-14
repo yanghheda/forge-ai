@@ -1,0 +1,18 @@
+name: run_release_precheck
+version: 1
+description: 执行 forge-server 固定的 Release Precheck 规则并返回不可变检查快照；模型不能决定 PASS。
+input_schema:
+  type: object
+  required: [releaseId]
+  properties:
+    releaseId: { type: integer, minimum: 1 }
+  additionalProperties: false
+output_schema: { type: object }
+required_permission: release.precheck
+risk_level: LOW
+idempotency: { required: false }
+timeout_ms: 5000
+retry: { max_attempts: 1 }
+backend_mapping: { method: POST, path: /internal/v1/tools/run_release_precheck:execute }
+sensitive_fields: []
+requirement_ids: [REL-002]

@@ -120,8 +120,9 @@ class LanguageModel(Protocol):
         self,
         skill: str,
         message: str,
+        work_item_id: int | None,
         tool_definitions: list[dict[str, Any]],
-        executed_tool_names: list[str],
+        tool_calls: list[dict[str, Any]],
     ) -> ToolSelection | None: ...
 
     def finalize(
@@ -150,15 +151,159 @@ class FakeLanguageModel:
         self,
         skill: str,
         message: str,
+        work_item_id: int | None,
         tool_definitions: list[dict[str, Any]],
-        executed_tool_names: list[str],
+        tool_calls: list[dict[str, Any]],
     ) -> ToolSelection | None:
-        """消息含“创建需求”且尚未执行过时选择 create_requirement，否则结束。"""
+        """消息同时含“创建”和“需求”且尚未执行过时选择 create_requirement。"""
 
         self.select_calls += 1
-        if "创建需求" in message and "create_requirement" not in executed_tool_names:
-            return ToolSelection(tool_name="create_requirement", arguments={"title": "Fake 需求"})
+        executed_tool_names = [str(call.get("toolName", "")) for call in tool_calls]
+        if any(call.get("status") != "SUCCEEDED" for call in tool_calls):
+            return None
+        creates_requirement = ("创建" in message and "需求" in message) or (
+            skill == "PRODUCT" and work_item_id is None and "新建" in message
+        )
+        if creates_requirement and "create_requirement" not in executed_tool_names:
+            return ToolSelection(
+                tool_name="create_requirement",
+                arguments={
+                    "title": "Fake 需求",
+                    "description": "用于验证 ForgeAI Fake Agent 黄金流程的确定性需求。",
+                },
+            )
+        if work_item_id is None:
+            return None
+        if skill == "RELEASE" and "创建" in message and "发布" in message:
+            release_call = next(
+                (call for call in tool_calls if call.get("toolName") == "create_release"), None
+            )
+            if release_call is None:
+                return self._asset_selection(skill, message, work_item_id)
+            if "预检" in message and "run_release_precheck" not in executed_tool_names:
+                release_result = release_call.get("result")
+                if isinstance(release_result, dict) and release_result.get("id") is not None:
+                    return ToolSelection(
+                        tool_name="run_release_precheck",
+                        arguments={"releaseId": int(release_result["id"])},
+                    )
+            return None
+        asset_selection = self._asset_selection(skill, message, work_item_id)
+        if asset_selection is not None:
+            if asset_selection.tool_name not in executed_tool_names:
+                return asset_selection
+            return None
+        if skill == "PRODUCT" and "PRD" in message.upper():
+            if "create_prd_document" not in executed_tool_names:
+                return ToolSelection(
+                    tool_name="create_prd_document",
+                    arguments={"requirementId": work_item_id, "title": "Fake PRD"},
+                )
+            return None
+        if skill == "UX" and "创建" in message and "任务" in message:
+            if "create_ux_task" not in executed_tool_names:
+                return ToolSelection(
+                    tool_name="create_ux_task",
+                    arguments={"requirementId": work_item_id, "title": "Fake UX Task"},
+                )
+            return None
+        if skill == "UX" and "创建" in message and ("文档" in message or "SPEC" in message.upper()):
+            if "create_ux_document" not in executed_tool_names:
+                return ToolSelection(
+                    tool_name="create_ux_document",
+                    arguments={"requirementId": work_item_id, "title": "Fake UX Spec"},
+                )
+            return None
+        if "推进" in message or "提交" in message or "评审" in message:
+            work_item_call = next(
+                (call for call in tool_calls if call.get("toolName") == "get_work_item"), None
+            )
+            if work_item_call is None:
+                return ToolSelection(
+                    tool_name="get_work_item", arguments={"workItemId": work_item_id}
+                )
+            if "advance_requirement" in executed_tool_names:
+                return None
+            result = work_item_call.get("result")
+            if not isinstance(result, dict):
+                return None
+            transition = self._transition_for(skill, str(result.get("status", "")))
+            if transition is None:
+                return None
+            arguments: dict[str, Any] = {
+                "requirementId": work_item_id,
+                "action": transition,
+                "expectedVersion": int(result["version"]),
+            }
+            if transition == "SUBMIT_UX_REVIEW":
+                arguments["checklist"] = [
+                    "userFlow",
+                    "pageList",
+                    "keyInteraction",
+                    "exceptionState",
+                ]
+            return ToolSelection(tool_name="advance_requirement", arguments=arguments)
         return None
+
+    @staticmethod
+    def _asset_selection(skill: str, message: str, requirement_id: int) -> ToolSelection | None:
+        if skill == "DEVELOPER" and "技术设计" in message:
+            return ToolSelection(
+                tool_name="create_tech_design",
+                arguments={"requirementId": requirement_id, "title": "Fake Tech Design"},
+            )
+        if skill == "DEVELOPER" and "开发任务" in message:
+            return ToolSelection(
+                tool_name="create_dev_task",
+                arguments={"requirementId": requirement_id, "title": "Fake Dev Task"},
+            )
+        if skill == "QA" and "测试用例" in message:
+            return ToolSelection(
+                tool_name="create_test_case",
+                arguments={
+                    "requirementId": requirement_id,
+                    "title": "Fake Test Case",
+                    "steps": ["执行黄金流程操作"],
+                    "expectedResult": "操作符合验收预期",
+                    "priority": "P1",
+                },
+            )
+        if skill == "QA" and ("缺陷" in message or "BUG" in message.upper()):
+            return ToolSelection(
+                tool_name="create_bug",
+                arguments={
+                    "requirementId": requirement_id,
+                    "title": "Fake Bug",
+                    "severity": "MAJOR",
+                    "reproductionSteps": ["执行黄金流程操作"],
+                    "expectedResult": "操作成功",
+                    "actualResult": "操作失败",
+                },
+            )
+        if skill == "RELEASE" and "创建" in message and "发布" in message:
+            return ToolSelection(
+                tool_name="create_release",
+                arguments={
+                    "versionName": "fake-golden-release",
+                    "environment": "staging-simulated",
+                    "requirementIds": [requirement_id],
+                    "approvalTtlMinutes": 60,
+                },
+            )
+        return None
+
+    @staticmethod
+    def _transition_for(skill: str, status: str) -> str | None:
+        transitions = {
+            ("PRODUCT", "DRAFT"): "SUBMIT_PRODUCT_REVIEW",
+            ("PRODUCT", "PRODUCT_REVIEW"): "APPROVE_PRODUCT_REVIEW",
+            ("UX", "UX_IN_PROGRESS"): "SUBMIT_UX_REVIEW",
+            ("UX", "UX_REVIEW"): "APPROVE_UX_REVIEW",
+            ("DEVELOPER", "IN_DEVELOPMENT"): "SUBMIT_FOR_QA",
+            ("QA", "READY_FOR_QA"): "START_QA",
+            ("QA", "IN_QA"): "QA_PASS",
+        }
+        return transitions.get((skill, status))
 
     def finalize(
         self,
@@ -171,6 +316,24 @@ class FakeLanguageModel:
         if self._fail_finalize_once:
             self._fail_finalize_once = False
             raise RuntimeError("injected finalize failure")
+        failed_call = next(
+            (call for call in reversed(tool_calls) if call.get("status") != "SUCCEEDED"),
+            None,
+        )
+        if failed_call is not None:
+            tool_name = str(failed_call.get("toolName", "unknown_tool"))
+            error_code = str(failed_call.get("errorCode") or failed_call.get("status") or "FAILED")
+            error_message = failed_call.get("errorMessage")
+            detail = f"：{error_message}" if error_message else ""
+            return (
+                f"工具 {tool_name} 执行失败（{error_code}）{detail}；"
+                "业务操作未完成，请查看 Tool Trace 并修复后重试。"
+            )
+        requests_requirement_creation = ("创建" in message and "需求" in message) or (
+            skill == "PRODUCT" and "新建" in message
+        )
+        if requests_requirement_creation and not tool_calls:
+            return "未执行 create_requirement Tool，需求尚未创建。"
         return (
             f"Fake LLM completed {skill} plan with {resource_count} resource reference(s) "
             f"and {len(tool_calls)} tool call(s)."
@@ -187,6 +350,7 @@ class AgentState(TypedDict, total=False):
     tool_definitions: list[dict[str, Any]]
     max_tool_calls: int
     resource_count: int
+    work_item_id: int | None
     plan: list[str]
     answer: str
     status: str
@@ -274,6 +438,7 @@ class LangGraphRuntimeGateway:
                         ],
                         "max_tool_calls": request.manifest.policy.max_tool_calls,
                         "resource_count": len(request.manifest.resource_refs),
+                        "work_item_id": request.manifest.scope.work_item_id,
                         "tool_calls": [],
                         "state_version": 0,
                     },
@@ -293,9 +458,12 @@ class LangGraphRuntimeGateway:
     def _select_tool(self, state: AgentState) -> AgentState:
         """模型依据消息与已执行观察选择下一个 Tool；无选择则进入收尾。"""
 
-        executed = [str(call.get("toolName", "")) for call in state.get("tool_calls", [])]
         selection = self._model.select_tool(
-            state["skill"], state["message"], state.get("tool_definitions", []), executed
+            state["skill"],
+            state["message"],
+            state.get("work_item_id"),
+            state.get("tool_definitions", []),
+            state.get("tool_calls", []),
         )
         if selection is None:
             return {"pending_selection": None, "state_version": state["state_version"] + 1}

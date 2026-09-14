@@ -8,6 +8,7 @@ public interface ConversationStore {
     long lastInsertId();
     List<Map<String, Object>> conversations(long organizationId, long userId);
     int owns(long organizationId, long userId, long id);
+    Long requirementId(long organizationId, long userId, long id);
     int insertUserMessage(long conversationId, String body, String runId);
     int touch(long id);
     List<Map<String, Object>> messages(long id);

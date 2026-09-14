@@ -41,7 +41,11 @@ class ServerToolTransport:
     """httpx 实现；只访问契约 backend_mapping 声明的内部端点。"""
 
     def __init__(self, base_url: str, timeout_seconds: float = 10.0) -> None:
-        self._client = httpx.Client(base_url=base_url.rstrip("/"), timeout=timeout_seconds)
+        # Tool API 是受控的服务间直连，不能继承宿主机 HTTP(S)_PROXY，
+        # 否则 localhost 或 Compose 服务名可能被错误发送到外部代理。
+        self._client = httpx.Client(
+            base_url=base_url.rstrip("/"), timeout=timeout_seconds, trust_env=False
+        )
 
     def execute(
         self,
@@ -63,12 +67,18 @@ class ServerToolTransport:
         if response.status_code == httpx.codes.UNAUTHORIZED:
             raise ToolTransportFailure(f"run credential rejected by server: {tool_name}")
         if response.status_code != httpx.codes.OK:
+            try:
+                error = response.json()
+            except ValueError:
+                error = {}
+            code = error.get("code") if isinstance(error, dict) else None
+            message = error.get("message") if isinstance(error, dict) else None
             return ToolExecution(
                 status="FAILED",
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
-                error_code="SERVER_ERROR",
-                error_message=f"unexpected server status {response.status_code}",
+                error_code=str(code or "SERVER_ERROR"),
+                error_message=str(message or f"unexpected server status {response.status_code}"),
             )
         try:
             return _snake_execution(response.json(), tool_name, tool_call_id)

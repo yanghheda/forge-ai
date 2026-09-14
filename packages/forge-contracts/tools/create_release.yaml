@@ -1,0 +1,26 @@
+name: create_release
+version: 1
+description: 为一个或多个已进入发布准备阶段的 Requirement 创建 Release Candidate。
+input_schema:
+  type: object
+  required: [versionName, environment, requirementIds]
+  properties:
+    versionName: { type: string, minLength: 1, maxLength: 100 }
+    environment: { type: string, minLength: 1, maxLength: 100 }
+    requirementIds:
+      type: array
+      minItems: 1
+      maxItems: 100
+      uniqueItems: true
+      items: { type: integer, minimum: 1 }
+    approvalTtlMinutes: { type: integer, minimum: 5, maximum: 1440 }
+  additionalProperties: false
+output_schema: { type: object }
+required_permission: release.manage
+risk_level: MEDIUM
+idempotency: { required: true }
+timeout_ms: 5000
+retry: { max_attempts: 1 }
+backend_mapping: { method: POST, path: /internal/v1/tools/create_release:execute }
+sensitive_fields: []
+requirement_ids: [REL-001]

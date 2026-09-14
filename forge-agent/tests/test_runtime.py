@@ -57,6 +57,196 @@ def test_fake_llm_graph_produces_plan_and_completion(tmp_path) -> None:
     assert result.tool_calls == []
 
 
+def test_fake_model_recognizes_natural_create_requirement_phrase() -> None:
+    model = FakeLanguageModel()
+
+    selection = model.select_tool("PRODUCT", "创建一个新的需求，名称随意", None, [], [])
+
+    assert selection is not None
+    assert selection.tool_name == "create_requirement"
+    assert (
+        selection.arguments["description"] == "用于验证 ForgeAI Fake Agent 黄金流程的确定性需求。"
+    )
+
+
+def test_fake_model_treats_unbound_product_new_command_as_requirement_creation() -> None:
+    model = FakeLanguageModel()
+
+    selection = model.select_tool("PRODUCT", "新建", None, [], [])
+
+    assert selection is not None
+    assert selection.tool_name == "create_requirement"
+
+
+def test_fake_product_creates_prd_for_bound_requirement() -> None:
+    selection = FakeLanguageModel().select_tool("PRODUCT", "创建 PRD", 42, [], [])
+
+    assert selection == ToolSelection(
+        tool_name="create_prd_document",
+        arguments={"requirementId": 42, "title": "Fake PRD"},
+    )
+
+
+def test_fake_stage_progress_reads_version_then_uses_authoritative_action() -> None:
+    model = FakeLanguageModel()
+    read = model.select_tool("PRODUCT", "推进当前阶段", 42, [], [])
+    advance = model.select_tool(
+        "PRODUCT",
+        "推进当前阶段",
+        42,
+        [],
+        [
+            {
+                "toolName": "get_work_item",
+                "status": "SUCCEEDED",
+                "result": {"id": 42, "status": "DRAFT", "version": 7},
+            }
+        ],
+    )
+
+    assert read == ToolSelection(tool_name="get_work_item", arguments={"workItemId": 42})
+    assert advance == ToolSelection(
+        tool_name="advance_requirement",
+        arguments={
+            "requirementId": 42,
+            "action": "SUBMIT_PRODUCT_REVIEW",
+            "expectedVersion": 7,
+        },
+    )
+
+
+def test_fake_ux_progress_uses_server_checklist_contract_keys() -> None:
+    selection = FakeLanguageModel().select_tool(
+        "UX",
+        "推进当前阶段",
+        42,
+        [],
+        [
+            {
+                "toolName": "get_work_item",
+                "status": "SUCCEEDED",
+                "result": {"id": 42, "status": "UX_IN_PROGRESS", "version": 3},
+            }
+        ],
+    )
+
+    assert selection == ToolSelection(
+        tool_name="advance_requirement",
+        arguments={
+            "requirementId": 42,
+            "action": "SUBMIT_UX_REVIEW",
+            "expectedVersion": 3,
+            "checklist": ["userFlow", "pageList", "keyInteraction", "exceptionState"],
+        },
+    )
+
+
+def test_fake_ux_creates_task_and_spec_from_explicit_commands() -> None:
+    model = FakeLanguageModel()
+
+    task = model.select_tool("UX", "创建 UX 任务", 42, [], [])
+    document = model.select_tool("UX", "创建 UX 文档", 42, [], [])
+
+    assert task == ToolSelection(
+        tool_name="create_ux_task",
+        arguments={"requirementId": 42, "title": "Fake UX Task"},
+    )
+    assert document == ToolSelection(
+        tool_name="create_ux_document",
+        arguments={"requirementId": 42, "title": "Fake UX Spec"},
+    )
+
+
+@pytest.mark.parametrize(
+    ("skill", "message", "tool_name", "arguments"),
+    [
+        (
+            "DEVELOPER",
+            "创建技术设计",
+            "create_tech_design",
+            {"requirementId": 42, "title": "Fake Tech Design"},
+        ),
+        (
+            "DEVELOPER",
+            "创建开发任务",
+            "create_dev_task",
+            {"requirementId": 42, "title": "Fake Dev Task"},
+        ),
+        (
+            "QA",
+            "创建测试用例",
+            "create_test_case",
+            {
+                "requirementId": 42,
+                "title": "Fake Test Case",
+                "steps": ["执行黄金流程操作"],
+                "expectedResult": "操作符合验收预期",
+                "priority": "P1",
+            },
+        ),
+        (
+            "QA",
+            "创建缺陷",
+            "create_bug",
+            {
+                "requirementId": 42,
+                "title": "Fake Bug",
+                "severity": "MAJOR",
+                "reproductionSteps": ["执行黄金流程操作"],
+                "expectedResult": "操作成功",
+                "actualResult": "操作失败",
+            },
+        ),
+        (
+            "RELEASE",
+            "创建发布",
+            "create_release",
+            {
+                "versionName": "fake-golden-release",
+                "environment": "staging-simulated",
+                "requirementIds": [42],
+                "approvalTtlMinutes": 60,
+            },
+        ),
+    ],
+)
+def test_fake_routes_explicit_golden_flow_asset_commands(
+    skill, message, tool_name, arguments
+) -> None:
+    selection = FakeLanguageModel().select_tool(skill, message, 42, [], [])
+
+    assert selection == ToolSelection(tool_name=tool_name, arguments=arguments)
+
+
+def test_fake_release_chains_creation_into_backend_precheck() -> None:
+    model = FakeLanguageModel()
+    create = model.select_tool("RELEASE", "创建发布并预检", 42, [], [])
+    precheck = model.select_tool(
+        "RELEASE",
+        "创建发布并预检",
+        42,
+        [],
+        [
+            {
+                "toolName": "create_release",
+                "status": "SUCCEEDED",
+                "result": {"id": 9, "version": 0},
+            }
+        ],
+    )
+
+    assert create is not None and create.tool_name == "create_release"
+    assert precheck == ToolSelection(tool_name="run_release_precheck", arguments={"releaseId": 9})
+
+
+def test_fake_model_does_not_claim_requirement_created_without_tool_result() -> None:
+    model = FakeLanguageModel()
+
+    answer = model.finalize("PRODUCT", "创建一个新需求", 0, [])
+
+    assert answer == "未执行 create_requirement Tool，需求尚未创建。"
+
+
 def test_duplicate_start_returns_single_completed_execution(tmp_path) -> None:
     model = FakeLanguageModel()
     transport = StaticToolTransport([])
@@ -132,7 +322,10 @@ def test_selected_tool_is_executed_and_observed_with_run_token(tmp_path) -> None
     request = transport.requests[0]
     assert request["tool_name"] == "create_requirement"
     assert request["tool_call_id"] == "call-1"
-    assert request["arguments"] == {"title": "Fake 需求"}
+    assert request["arguments"] == {
+        "title": "Fake 需求",
+        "description": "用于验证 ForgeAI Fake Agent 黄金流程的确定性需求。",
+    }
     assert request["run_token"] == "run-scoped-token"
 
     assert len(result.tool_calls) == 1
@@ -146,8 +339,9 @@ def test_selected_tool_is_executed_and_observed_with_run_token(tmp_path) -> None
 
 def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:
     class TwoToolModel(FakeLanguageModel):
-        def select_tool(self, skill, message, tool_definitions, executed_tool_names):
+        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
             self.select_calls += 1
+            executed_tool_names = [call.get("toolName") for call in tool_calls]
             if "get_organization" not in executed_tool_names:
                 return ToolSelection(tool_name="get_organization")
             if "get_work_item" not in executed_tool_names:
@@ -185,6 +379,57 @@ def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:
 
     assert [request["tool_call_id"] for request in transport.requests] == ["call-1", "call-2"]
     assert [call.tool_call_id for call in result.tool_calls] == ["call-1", "call-2"]
+
+
+def test_stage_agent_reads_authoritative_version_before_requesting_transition(tmp_path) -> None:
+    class StageProgressModel(FakeLanguageModel):
+        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+            if not tool_calls:
+                return ToolSelection(
+                    tool_name="get_work_item", arguments={"workItemId": work_item_id}
+                )
+            if len(tool_calls) == 1:
+                version = tool_calls[0]["result"]["version"]
+                return ToolSelection(
+                    tool_name="advance_requirement",
+                    arguments={
+                        "requirementId": work_item_id,
+                        "action": "SUBMIT_FOR_QA",
+                        "expectedVersion": version,
+                    },
+                )
+            return None
+
+    transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="get_work_item",
+                tool_call_id="call-1",
+                result={"id": 1024, "status": "IN_DEVELOPMENT", "version": 7},
+            ),
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="advance_requirement",
+                tool_call_id="call-2",
+                result={"status": "READY_FOR_QA", "version": 8},
+            ),
+        ]
+    )
+    request_manifest = manifest(
+        effective_tool_names=["get_work_item", "advance_requirement"], max_tool_calls=5
+    ).model_copy(update={"skill": "DEVELOPER"})
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", StageProgressModel(), transport
+    )
+
+    result = runtime.start(
+        RunStart(manifest=request_manifest, message="检查并提交 QA"), "run-token"
+    )
+
+    assert result.status == "SUCCEEDED"
+    assert transport.requests[1]["arguments"]["expectedVersion"] == 7
+    assert result.tool_calls[1].result == {"status": "READY_FOR_QA", "version": 8}
 
 
 def test_guard_rejects_tool_outside_manifest_allowlist_without_server_call(tmp_path) -> None:
@@ -294,6 +539,36 @@ def test_transport_failure_is_normalized_to_failed_observation(tmp_path) -> None
     assert failed.error_code == "TRANSPORT_ERROR"
     assert "connection refused" in (failed.error_message or "")
     assert result.status == "SUCCEEDED"
+    assert result.answer == (
+        "工具 create_requirement 执行失败（TRANSPORT_ERROR）：connection refused；"
+        "业务操作未完成，请查看 Tool Trace 并修复后重试。"
+    )
+
+
+def test_fake_model_reports_guard_rejection_instead_of_claiming_completion() -> None:
+    answer = FakeLanguageModel().finalize(
+        "PRODUCT",
+        "推进当前阶段",
+        1,
+        [
+            {
+                "toolName": "get_work_item",
+                "status": "SUCCEEDED",
+                "result": {"status": "DRAFT", "version": 2},
+            },
+            {
+                "toolName": "advance_requirement",
+                "status": "FAILED",
+                "errorCode": "WORKFLOW_GUARD_FAILED",
+                "errorMessage": "Published PRD is required",
+            },
+        ],
+    )
+
+    assert answer == (
+        "工具 advance_requirement 执行失败（WORKFLOW_GUARD_FAILED）：Published PRD is required；"
+        "业务操作未完成，请查看 Tool Trace 并修复后重试。"
+    )
 
 
 def test_tool_calls_are_not_replayed_after_completed_run(tmp_path) -> None:

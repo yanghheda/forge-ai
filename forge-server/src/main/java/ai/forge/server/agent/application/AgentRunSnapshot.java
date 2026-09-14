@@ -8,6 +8,10 @@ import java.util.List;
 public record AgentRunSnapshot(
         /* Run 的 ULID 标识。 */
         String id,
+        /* 本轮由服务端阶段路由确定的角色 Skill。 */
+        ai.forge.server.agent.domain.AgentSkill skill,
+        /* 本轮绑定的 Requirement；创建前的 Product 会话可为空。 */
+        Long workItemId,
         /* Run 权威状态。 */
         AgentRunStatus status,
         /* 已提交的最后事件序号。 */

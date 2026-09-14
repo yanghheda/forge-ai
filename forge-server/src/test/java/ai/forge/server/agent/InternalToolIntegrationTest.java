@@ -60,10 +60,13 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
+        /* documents 与 document_versions 存在相互外键，先解除当前版本指针。 */
+        jdbcTemplate.update("UPDATE documents SET current_version_id = NULL");
         /* work_items 存在 parent 自引用外键，先解除指针再清空。 */
         jdbcTemplate.update("UPDATE work_items SET parent_id = NULL");
         for (String table : List.of(
                 "outbox_events", "agent_tool_calls", "approvals", "agent_events", "agent_steps", "agent_runs", "comments",
+                "document_versions", "documents",
                 "work_item_relations", "work_item_labels", "organization_policies", "work_item_events",
                 "review_records", "requirement_details", "work_items", "organization_item_sequences",
                 "organization_policies", "audit_logs", "member_roles", "organization_members",                 "organizations", "users")) {
@@ -292,6 +295,24 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void mediumRequesterCanConfirmAgentExecution() throws Exception {
+        String runId = insertRunningRun("PRODUCT", "ASK");
+        JsonNode waiting = objectMapper.readTree(executeTool(
+                "create_requirement", runToken(runId), "call-1",
+                Map.of("title", "产品确认的需求")).getBody());
+
+        ResponseEntity<String> response = csrf().post(
+                "/api/v1/approvals/" + waiting.get("approvalId").asText() + ":decide",
+                Map.of("decision", "APPROVE", "expectedVersion", 0),
+                loginOwner(),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(objectMapper.readTree(response.getBody()).get("status").asText())
+                .isEqualTo("APPROVED");
+    }
+
+    @Test
     void approvedCallResumesWithFrozenInputAndReplaysOnlyOnce() throws Exception {
         String runId = insertRunningRun("PRODUCT", "ASK");
         Map<String, Object> arguments = Map.of("title", "审批后的需求");
@@ -409,6 +430,59 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void stageBoundRunsAdvanceProductToUxAndRejectCrossRoleOrCrossRequirementActions() throws Exception {
+        var requirement = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "Agent 推进需求", "已具备评审材料",
+                WorkItemPriority.HIGH, null, null);
+        var anotherRequirement = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "不可越权推进", null, WorkItemPriority.MEDIUM, null, null);
+        jdbcTemplate.update(
+                "INSERT INTO documents (organization_id, work_item_id, type, title, status, visibility, "
+                        + "created_by, created_at, updated_at, version) VALUES "
+                        + "(?, ?, 'PRD', 'Agent PRD', 'PUBLISHED', 'ORGANIZATION', ?, "
+                        + "UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)",
+                organizationId, requirement.id(), ownerId);
+        String productRunId = insertRunningRun(ownerId, "PRODUCT", "ALLOW", requirement.id());
+
+        JsonNode submitted = objectMapper.readTree(executeTool(
+                "advance_requirement", runToken(productRunId), "product-submit",
+                Map.of("requirementId", requirement.id(), "action", "SUBMIT_PRODUCT_REVIEW",
+                        "expectedVersion", 0)).getBody());
+        ResponseEntity<String> wrongRole = executeTool(
+                "advance_requirement", runToken(productRunId), "product-ux-action",
+                Map.of("requirementId", requirement.id(), "action", "SUBMIT_UX_REVIEW",
+                        "expectedVersion", 1));
+        ResponseEntity<String> wrongRequirement = executeTool(
+                "advance_requirement", runToken(productRunId), "product-other-requirement",
+                Map.of("requirementId", anotherRequirement.id(), "action", "SUBMIT_PRODUCT_REVIEW",
+                        "expectedVersion", 0));
+
+        assertThat(submitted.at("/result/status").asText()).isEqualTo("PRODUCT_REVIEW");
+        assertThat(wrongRole.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(wrongRole.getBody()).contains("ACTION_NOT_ALLOWED_FOR_SKILL");
+        assertThat(wrongRequirement.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(wrongRequirement.getBody()).contains("RUN_WORK_ITEM_MISMATCH");
+
+        JsonNode approved = objectMapper.readTree(executeTool(
+                "advance_requirement", runToken(productRunId), "product-approve",
+                Map.of("requirementId", requirement.id(), "action", "APPROVE_PRODUCT_REVIEW",
+                        "expectedVersion", 1)).getBody());
+
+        assertThat(approved.at("/result/status").asText()).isEqualTo("UX_IN_PROGRESS");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT status FROM work_items WHERE id = ?", String.class, requirement.id()))
+                .isEqualTo("UX_IN_PROGRESS");
+
+        String uxRunId = insertRunningRun(ownerId, "UX", "ALLOW", requirement.id());
+        ResponseEntity<String> uxCannotRepeatProductApproval = executeTool(
+                "advance_requirement", runToken(uxRunId), "ux-product-action",
+                Map.of("requirementId", requirement.id(), "action", "APPROVE_PRODUCT_REVIEW",
+                        "expectedVersion", 2));
+        assertThat(uxCannotRepeatProductApproval.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(uxCannotRepeatProductApproval.getBody()).contains("ACTION_NOT_ALLOWED_FOR_SKILL");
+    }
+
+    @Test
     void idempotencyKeyCannotBeReusedWithDifferentArguments() throws Exception {
         String runId = insertRunningRun("PRODUCT", "ALLOW");
 
@@ -471,16 +545,22 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     private String insertRunningRunForUser(long userId, String skill, String mediumToolConfirmation) {
+        return insertRunningRun(userId, skill, mediumToolConfirmation, null);
+    }
+
+    private String insertRunningRun(
+            long userId, String skill, String mediumToolConfirmation, Long workItemId) {
         String runId = ("00000000000000000000000000" + System.nanoTime());
         runId = runId.substring(runId.length() - 26);
         jdbcTemplate.update(
                 "INSERT INTO agent_runs (id, organization_id, work_item_id, user_id, skill, "
                         + "medium_tool_confirmation, message_redacted, client_request_id, request_hash, status, "
                         + "prompt_version, last_sequence, version, created_at, updated_at) VALUES "
-                        + "(?, ?, NULL, ?, ?, ?, ?, ?, SHA2('x', 256), 'RUNNING', 'fake-runner-v1', 0, 0, "
+                        + "(?, ?, ?, ?, ?, ?, ?, ?, SHA2('x', 256), 'RUNNING', 'fake-runner-v1', 0, 0, "
                         + "UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))",
                 runId,
                 organizationId,
+                workItemId,
                 userId,
                 skill,
                 mediumToolConfirmation,

@@ -290,7 +290,22 @@ function GatePanel({ run, blockingBugs }: { run?: TestRunView; blockingBugs: Bug
   );
 }
 
-export function QaRunView({ run, busy, onCreateBug, onComplete, onReopen, onCreateNewRun }: { run: TestRunView; busy: boolean; onResult: (id: number, status: ResultChoice, version: number) => void; onCreateBug?: (result: TestRunView["results"][number]) => void; onComplete: () => void; onReopen: () => void; onCreateNewRun?: () => void }) {
+export function QaRunView({
+  run,
+  busy,
+  onCreateBug,
+  onComplete,
+  onReopen,
+  onCreateNewRun,
+}: {
+  run: TestRunView;
+  busy: boolean;
+  onResult: (id: number, status: ResultChoice, version: number) => void;
+  onCreateBug?: (result: TestRunView["results"][number]) => void;
+  onComplete: () => void;
+  onReopen: () => void;
+  onCreateNewRun?: () => void;
+}) {
   const stats = runStats(run);
   return (
     <section className={styles.runPanel}>
@@ -347,8 +362,14 @@ export function QaRunView({ run, busy, onCreateBug, onComplete, onReopen, onCrea
           )}
           {run.status === "COMPLETED" ? (
             <div className={styles.runActions}>
-              <Button disabled={busy} onClick={onReopen}>重新打开测试执行</Button>
-              {onCreateNewRun && <Button type="primary" loading={busy} onClick={onCreateNewRun}>创建新测试执行</Button>}
+              <Button disabled={busy} onClick={onReopen}>
+                重新打开测试执行
+              </Button>
+              {onCreateNewRun && (
+                <Button type="primary" loading={busy} onClick={onCreateNewRun}>
+                  创建新测试执行
+                </Button>
+              )}
             </div>
           ) : (
             <Button type="primary" loading={busy} disabled={run.results.some((result) => result.status === "NOT_RUN")} onClick={onComplete}>

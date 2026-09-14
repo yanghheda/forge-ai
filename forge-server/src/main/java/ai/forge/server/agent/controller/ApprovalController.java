@@ -38,7 +38,7 @@ public class ApprovalController {
     }
 
     @GetMapping("/{approvalId}")
-    @Operation(summary = "读取审批卡片", description = "只返回参数摘要与资源版本，不返回加密前完整参数。")
+    @Operation(summary = "读取审批卡片", description = "MEDIUM 为发起人确认，HIGH 为他人审批；不返回加密前完整参数。")
     public ApprovalSnapshot get(@PathVariable String approvalId,
             HttpServletRequest request) {
         long userId = AuthController.requireContext(request).userId();
@@ -46,7 +46,7 @@ public class ApprovalController {
     }
 
     @PostMapping("/{approvalId}:decide")
-    @Operation(summary = "批准或拒绝审批", description = "决策使用 expectedVersion 乐观锁；发起人不得自批。")
+    @Operation(summary = "确认或决定审批", description = "MEDIUM 可由发起人确认；HIGH 必须由他人审批；使用 expectedVersion 乐观锁。")
     public ApprovalSnapshot decide(@PathVariable String approvalId, @Valid @RequestBody DecisionRequest body,
             HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);

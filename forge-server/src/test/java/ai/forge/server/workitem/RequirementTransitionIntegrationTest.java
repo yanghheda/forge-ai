@@ -350,7 +350,6 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     void uxReviewFreezesPublishedSpecAndDoesNotLetUxTaskCompletionBypassRequirementReview() throws Exception {
         completeProductReviewPrerequisites();
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "ux-product-submit", null);
-        publishDocument("PRD", "Login PRD", "Product delivery");
         transition(WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "ux-product-approve", null);
 
         long uxTaskId = jdbcTemplate.queryForObject(
@@ -402,7 +401,6 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     void skipUxRequiresEnabledPolicyEligibleLabelAndAuditReason() throws Exception {
         completeProductReviewPrerequisites();
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "skip-submit", null);
-        publishDocument("PRD", "Backend PRD", "Internal API only");
 
         ResponseEntity<String> disabled = transition(
                 WorkflowAction.SKIP_UX, 1, "skip-disabled", "No user interface");

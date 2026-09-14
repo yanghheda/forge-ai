@@ -20,6 +20,21 @@ def transport_with(handler) -> ServerToolTransport:
     return transport
 
 
+def test_internal_transport_does_not_inherit_environment_proxy(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class ClientSpy:
+        def __init__(self, **kwargs) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(httpx, "Client", ClientSpy)
+
+    ServerToolTransport("http://127.0.0.1:8080")
+
+    assert captured["base_url"] == "http://127.0.0.1:8080"
+    assert captured["trust_env"] is False
+
+
 def test_execute_posts_credential_and_parses_success_envelope() -> None:
     seen: dict[str, str] = {}
 
@@ -73,15 +88,15 @@ def test_execute_normalizes_pending_confirmation_and_rejected() -> None:
     assert execution.result is None
 
 
-def test_execute_maps_non_ok_status_to_failed_envelope() -> None:
+def test_execute_preserves_stable_server_error_for_agent_explanation() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(409, json={"code": "VALIDATION_FAILED", "message": "conflict"})
 
     execution = transport_with(handler).execute("get_organization", "call-3", {}, "token")
 
     assert execution.status == "FAILED"
-    assert execution.error_code == "SERVER_ERROR"
-    assert "409" in (execution.error_message or "")
+    assert execution.error_code == "VALIDATION_FAILED"
+    assert execution.error_message == "conflict"
 
 
 def test_execute_raises_on_unauthorized_credential() -> None:

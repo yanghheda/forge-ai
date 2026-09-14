@@ -1,12 +1,14 @@
 "use client";
 
-import { Alert, Button, Empty, Input, Message, Spin } from "@arco-design/web-react";
-import { IconCheck, IconClockCircle, IconHistory, IconRobot, IconSend, IconThunderbolt } from "@arco-design/web-react/icon";
+import { Alert, Button, Empty, Input, InputNumber, Message, Spin } from "@arco-design/web-react";
+import { IconHistory, IconRobot, IconSend } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { getCurrentUser } from "@/features/auth";
+import { cancelApproval, decideApproval, getAgentRun, getRunApproval, type ApprovalSnapshot } from "@/features/agent-run";
 import { formatRequestError } from "@/lib/api";
-import { createAgentConversation, listAgentConversations, listAgentMessages, sendAgentMessage, traceExportUrl } from "../api/console-api";
+import { createAgentConversation, listAgentConversations, listAgentMessages, sendAgentMessage } from "../api/console-api";
 import styles from "./console.module.css";
 
 export function AgentCommandScreen() {
@@ -14,11 +16,14 @@ export function AgentCommandScreen() {
   const [selectedId, setSelectedId] = useState<number>();
   const [draft, setDraft] = useState("");
   const [latestRunId, setLatestRunId] = useState<string>();
+  const [requirementId, setRequirementId] = useState<number>();
+  const [latestSkill, setLatestSkill] = useState<string>();
   const conversations = useQuery({
     queryKey: ["agent-conversations"],
     queryFn: () => listAgentConversations(),
   });
   const activeId = selectedId ?? conversations.data?.[0]?.id;
+  const currentUser = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
   const messages = useQuery({
     queryKey: ["agent-conversations", activeId, "messages"],
     queryFn: () => listAgentMessages(activeId!),
@@ -34,9 +39,10 @@ export function AgentCommandScreen() {
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const send = useMutation({
-    mutationFn: () => sendAgentMessage(activeId!, draft),
+    mutationFn: () => sendAgentMessage(activeId!, draft, requirementId),
     onSuccess: (run) => {
       setLatestRunId(run.id);
+      setLatestSkill(run.skill);
       setDraft("");
       void queryClient.invalidateQueries({
         queryKey: ["agent-conversations", activeId, "messages"],
@@ -45,6 +51,13 @@ export function AgentCommandScreen() {
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const active = conversations.data?.find((item) => item.id === activeId);
+  const effectiveRunId = latestRunId ?? messages.data?.slice().reverse().find((item) => Boolean(item.runId))?.runId ?? undefined;
+  const run = useQuery({
+    queryKey: ["agent-run", effectiveRunId],
+    queryFn: () => getAgentRun(currentUser.data!.organization.id, effectiveRunId!),
+    enabled: Boolean(effectiveRunId && currentUser.data),
+    refetchInterval: (query) => (query.state.data?.terminal || query.state.data?.status === "WAITING_APPROVAL" ? false : 1000),
+  });
   return (
     <section className={styles.agentPage}>
       <header className={styles.pageHead}>
@@ -95,8 +108,12 @@ export function AgentCommandScreen() {
                 </AgentMessage>
               ),
             )}
+            {run.data?.status === "WAITING_APPROVAL" && currentUser.data && (
+              <ConversationApproval organizationId={currentUser.data.organization.id} runId={run.data.id} currentUserId={currentUser.data.id} />
+            )}
           </div>
           <footer>
+            <InputNumber min={1} value={requirementId} onChange={(value) => setRequirementId(value ?? undefined)} placeholder="Requirement ID（创建新需求时留空）" />
             <Input.TextArea value={draft} onChange={setDraft} autoSize={{ minRows: 2, maxRows: 4 }} placeholder="输入指令，使用 @ 引用需求或文档…" />
             <Button type="primary" icon={<IconSend />} loading={send.isPending} disabled={!activeId || !draft.trim()} onClick={() => send.mutate()}>
               发送
@@ -108,29 +125,73 @@ export function AgentCommandScreen() {
           <dl>
             <dt>状态</dt>
             <dd>
-              <span className={styles.blueTag}>● {latestRunId ? "已提交" : "等待指令"}</span>
+              <span className={styles.blueTag}>● {run.data?.status ?? (effectiveRunId ? "已提交" : "等待指令")}</span>
             </dd>
             <dt>Run ID</dt>
             <dd>
-              <code>{latestRunId ?? "—"}</code>
+              <code>{effectiveRunId ?? "—"}</code>
             </dd>
             <dt>智能体</dt>
-            <dd>ProductAgent</dd>
+            <dd>{latestSkill ? `${latestSkill} Agent` : "按 Requirement 阶段自动选择"}</dd>
           </dl>
-          <h3>执行计划</h3>
-          {["读取公司交付上下文", "分析用户指令", "执行受控工具", "写入可见轨迹", "等待后续指令"].map((x, i) => (
-            <p className={styles.plan} key={x}>
-              <span className={i < 2 ? styles.doneDot : styles.waitDot}>{i < 2 ? <IconCheck /> : i + 1}</span>
-              {x}
-            </p>
-          ))}
-          <Button long disabled={!latestRunId} href={latestRunId ? `/agent/trace/${latestRunId}` : undefined}>
+          <Alert type="info" content="计划、Tool 调用、审批和结果以真实 Run 轨迹为准。" />
+          <Button long disabled={!effectiveRunId} href={effectiveRunId ? `/agent/trace/${effectiveRunId}` : undefined}>
             <IconHistory />
             查看完整轨迹
           </Button>
         </aside>
       </div>
     </section>
+  );
+}
+
+function ConversationApproval({ organizationId, runId, currentUserId }: { organizationId: number; runId: string; currentUserId: number }) {
+  const queryClient = useQueryClient();
+  const approval = useQuery({ queryKey: ["agent-approval", runId], queryFn: () => getRunApproval(organizationId, runId) });
+  const decide = useMutation({
+    mutationFn: ({ snapshot, decision }: { snapshot: ApprovalSnapshot; decision: "APPROVE" | "REJECT" }) => decideApproval(snapshot, organizationId, decision),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["agent-approval", runId] });
+      void queryClient.invalidateQueries({ queryKey: ["agent-run", runId] });
+    },
+    onError: (error) => Message.error(formatRequestError(error)),
+  });
+  const cancel = useMutation({
+    mutationFn: (snapshot: ApprovalSnapshot) => cancelApproval(snapshot, organizationId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["agent-approval", runId] });
+      void queryClient.invalidateQueries({ queryKey: ["agent-run", runId] });
+    },
+    onError: (error) => Message.error(formatRequestError(error)),
+  });
+  if (approval.isPending) return <Spin tip="加载待审批操作…" />;
+  if (!approval.data) return <Alert type="error" content="待审批操作不可访问。" />;
+  const snapshot = approval.data;
+  const isRequester = snapshot.requestedBy === currentUserId;
+  return (
+    <AgentMessage title={`待审批：${snapshot.toolName}`}>
+      <p>{snapshot.reason}</p>
+      <p>风险：{snapshot.riskLevel} · 状态：{snapshot.status}</p>
+      {snapshot.status === "PENDING" && isRequester && snapshot.riskLevel === "MEDIUM" && (
+        <>
+          <Alert type="warning" content="Agent 请求代你执行 MEDIUM 风险操作，请确认参数摘要后继续。" />
+          <Button type="primary" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "APPROVE" })}>确认执行</Button>
+          <Button status="danger" loading={cancel.isPending} onClick={() => cancel.mutate(snapshot)}>取消申请</Button>
+        </>
+      )}
+      {snapshot.status === "PENDING" && isRequester && snapshot.riskLevel === "HIGH" && (
+        <>
+          <Alert type="warning" content="HIGH 风险操作必须由另一名具有审批权限的成员处理。" />
+          <Button status="danger" loading={cancel.isPending} onClick={() => cancel.mutate(snapshot)}>取消申请</Button>
+        </>
+      )}
+      {snapshot.status === "PENDING" && !isRequester && (
+        <>
+          <Button type="primary" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "APPROVE" })}>批准并恢复</Button>
+          <Button status="danger" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "REJECT" })}>拒绝</Button>
+        </>
+      )}
+    </AgentMessage>
   );
 }
 
@@ -146,94 +207,5 @@ function AgentMessage({ title, children }: { title: string; children: React.Reac
         <small>OrchestratorAgent · 12:04</small>
       </div>
     </div>
-  );
-}
-
-export function AgentTraceScreen({ runId }: { runId: string }) {
-  const events = [
-    ["12:01:02", "Run 已创建", "OrchestratorAgent 接收用户指令"],
-    ["12:01:04", "读取需求上下文", "requirement.get · 成功"],
-    ["12:01:06", "检查阶段 Guard", "workflow.available_actions · 成功"],
-    ["12:01:11", "创建开发任务", "dev_task.create_batch · 4 项"],
-    ["12:01:18", "启动 DevAgent", "agent.run.start · 成功"],
-    ["12:03:43", "创建功能分支", "git.branch.create · 成功"],
-    ["12:04:12", "等待人工审批", "git.merge_request.merge · HIGH"],
-  ];
-  return (
-    <section className={styles.page}>
-      <header className={styles.pageHead}>
-        <div>
-          <h1>执行轨迹</h1>
-          <p>
-            Run <code>{runId}</code> · Agent 执行记录
-          </p>
-        </div>
-        <Button href={traceExportUrl(runId)} target="_blank">
-          <IconThunderbolt />
-          导出 Trace
-        </Button>
-      </header>
-      <div className={styles.stats}>
-        <div className={styles.stat}>
-          <span>执行状态</span>
-          <strong>等待审批</strong>
-        </div>
-        <div className={styles.stat}>
-          <span>总耗时</span>
-          <strong>03:12</strong>
-        </div>
-        <div className={styles.stat}>
-          <span>Tool 调用</span>
-          <strong>18</strong>
-        </div>
-        <div className={styles.stat}>
-          <span>Token 消耗</span>
-          <strong>12.8k</strong>
-        </div>
-      </div>
-      <div className={styles.traceGrid}>
-        <article className={styles.card}>
-          <header>
-            <strong>Trace 时间线</strong>
-            <span className={styles.orangeTag}>实时</span>
-          </header>
-          <div className={styles.timeline}>
-            {events.map(([time, title, desc], i) => (
-              <div key={time}>
-                <span className={i === events.length - 1 ? styles.warningDot : styles.doneDot}>{i === events.length - 1 ? <IconClockCircle /> : <IconCheck />}</span>
-                <time>{time}</time>
-                <section>
-                  <b>{title}</b>
-                  <p>{desc}</p>
-                </section>
-              </div>
-            ))}
-          </div>
-        </article>
-        <article className={styles.card}>
-          <header>
-            <strong>调用详情</strong>
-          </header>
-          <div className={styles.detail}>
-            <span className={styles.orangeTag}>HIGH 风险</span>
-            <h2>git.merge_request.merge</h2>
-            <p>合并主分支会改变共享代码状态，需要人工确认。</p>
-            <h3>输入摘要</h3>
-            <pre>{`{ "repository": "forge-ai", "mergeRequest": 128, "target": "main" }`}</pre>
-            <h3>审批状态</h3>
-            <div className={styles.approval}>
-              <IconClockCircle />
-              <span>
-                <b>等待授权成员审批</b>
-                <small>审批倒计时以服务端事实为准</small>
-              </span>
-            </div>
-            <Button type="primary" long>
-              批准执行
-            </Button>
-          </div>
-        </article>
-      </div>
-    </section>
   );
 }

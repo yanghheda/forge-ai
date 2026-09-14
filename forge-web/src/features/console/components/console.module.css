@@ -4,6 +4,12 @@
   margin: 0 auto;
   padding: 20px;
 }
+.agentPage {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
 .reqBar {
   display: flex;
   align-items: center;
@@ -327,8 +333,10 @@
 .commandGrid {
   display: grid;
   grid-template-columns: 240px minmax(420px, 1fr) 280px;
-  height: calc(100vh - 140px);
-  min-height: 650px;
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
+  height: auto;
+  min-height: 0;
   border: 1px solid var(--forge-border-2);
   border-radius: 4px;
   background: #fff;
@@ -336,6 +344,8 @@
 }
 .sessionList,
 .runPanel {
+  min-height: 0;
+  overflow-y: auto;
   border-right: 1px solid var(--forge-border-2);
   background: var(--forge-fill-1);
 }
@@ -384,8 +394,10 @@
 }
 .chatMain {
   display: flex;
+  min-height: 0;
   min-width: 0;
   flex-direction: column;
+  overflow: hidden;
 }
 .chatMain > header {
   display: flex;
@@ -404,6 +416,7 @@
 }
 .messages {
   flex: 1;
+  min-height: 0;
   padding: 22px;
   overflow: auto;
 }
@@ -458,9 +471,11 @@
 }
 .chatMain > footer {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-end;
   padding: 12px;
   border-top: 1px solid var(--forge-border-2);
+  background: #fff;
   gap: 8px;
 }
 .runPanel {

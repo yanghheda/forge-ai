@@ -137,36 +137,74 @@ public class MybatisAgentRunStore implements AgentRunStore {
             long organizationId,
             String runId,
             String requestId,
-            String summary) {
+            String summary,
+            List<String> plan,
+            List<ai.forge.server.agent.application.AgentRuntimeGateway.ToolCallResult> toolCalls) {
         Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
                 .findFirst()
                 .orElse(null);
         if (locked == null || !"RUNNING".equals(text(locked, "status"))) {
             return;
         }
-        long firstSequence = number(locked, "last_sequence") + 1;
-        if (mapper.completeAgentStep(organizationId, runId, summary) != 1
-                || mapper.markSucceeded(organizationId, runId, firstSequence + 1) != 1) {
+        long sequence = number(locked, "last_sequence") + 1;
+        String planSummary = summary(plan == null || plan.isEmpty()
+                ? "Plan completed" : String.join(" → ", plan));
+        if (mapper.completeAgentStep(organizationId, runId, planSummary) != 1) {
             throw new IllegalStateException("Fake run state changed unexpectedly");
         }
         mapper.insertEvent(
                 organizationId,
                 runId,
-                firstSequence,
+                sequence,
                 "step.completed",
                 requestId,
                 json(Map.of(
                         "stepNo", 1,
                         "name", "Create plan",
                         "status", "SUCCEEDED",
-                        "summary", summary)));
+                        "summary", planSummary)));
+        int stepNo = 2;
+        if (toolCalls != null) {
+            for (var call : toolCalls) {
+                String status = "SUCCEEDED".equals(call.status()) ? "SUCCEEDED" : "FAILED";
+                String toolSummary = summary(call.errorCode() == null ? call.status()
+                        : call.status() + " · " + call.errorCode());
+                if (mapper.insertCompletedToolStep(organizationId, runId, stepNo, call.toolName(),
+                        status, toolSummary, call.errorCode()) != 1) {
+                    throw new IllegalStateException("Agent tool trace could not be projected");
+                }
+                sequence++;
+                mapper.insertEvent(organizationId, runId, sequence,
+                        "SUCCEEDED".equals(call.status()) ? "tool.completed" : "tool.failed",
+                        requestId, json(Map.of("stepNo", stepNo, "name", call.toolName(),
+                                "status", call.status(), "summary", toolSummary)));
+                stepNo++;
+            }
+        }
+        sequence++;
+        String finalSummary = summary(summary);
+        if (mapper.insertCompletedFinalStep(organizationId, runId, stepNo, finalSummary) != 1) {
+            throw new IllegalStateException("Agent final trace could not be projected");
+        }
+        mapper.insertEvent(organizationId, runId, sequence, "step.completed", requestId,
+                json(Map.of("stepNo", stepNo, "name", "Final response", "status", "SUCCEEDED",
+                        "summary", finalSummary)));
+        sequence++;
+        if (mapper.markSucceeded(organizationId, runId, sequence) != 1) {
+            throw new IllegalStateException("Agent run state changed unexpectedly");
+        }
         mapper.insertEvent(
                 organizationId,
                 runId,
-                firstSequence + 1,
+                sequence,
                 "agent.completed",
                 requestId,
                 json(Map.of("status", "SUCCEEDED", "summary", summary)));
+    }
+
+    private String summary(String value) {
+        String normalized = value == null ? "" : value.trim();
+        return normalized.length() <= 500 ? normalized : normalized.substring(0, 500);
     }
 
     @Override

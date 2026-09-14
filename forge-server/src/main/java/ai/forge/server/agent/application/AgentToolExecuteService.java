@@ -19,6 +19,9 @@ import ai.forge.server.workitem.application.DeliveryGraph;
 import ai.forge.server.workitem.application.DeliveryGraphQuery;
 import ai.forge.server.workitem.application.WorkItemCommandService;
 import ai.forge.server.workitem.application.WorkItemQueryService;
+import ai.forge.server.workitem.application.RequirementTransitionService;
+import ai.forge.server.workitem.application.RequirementTransitionStore;
+import ai.forge.server.workitem.domain.WorkflowAction;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -59,6 +62,9 @@ public class AgentToolExecuteService {
 
     /* create_requirement 的后端应用服务。 */
     private final WorkItemCommandService workItemCommandService;
+
+    /* 阶段推进复用人工入口的固定状态机、权限、版本与 Guard。 */
+    private final RequirementTransitionService requirementTransitionService;
 
     /* get_delivery_graph 的后端应用服务。 */
     private final DeliveryGraphQuery deliveryGraphQuery;
@@ -101,6 +107,7 @@ public class AgentToolExecuteService {
             OrganizationAccessService organizationAccessService,
             WorkItemQueryService workItemQueryService,
             WorkItemCommandService workItemCommandService,
+            RequirementTransitionService requirementTransitionService,
             DeliveryGraphQuery deliveryGraphQuery,
             RagSearchService ragSearchService,
             DocumentService documentService,
@@ -120,6 +127,7 @@ public class AgentToolExecuteService {
         this.organizationAccessService = organizationAccessService;
         this.workItemQueryService = workItemQueryService;
         this.workItemCommandService = workItemCommandService;
+        this.requirementTransitionService = requirementTransitionService;
         this.deliveryGraphQuery = deliveryGraphQuery;
         this.ragSearchService = ragSearchService;
         this.documentService = documentService;
@@ -377,7 +385,10 @@ public class AgentToolExecuteService {
                 case "get_pipeline_log" -> pipelineLog(organizationId, run, arguments);
                 case "create_test_case" -> createTestCase(organizationId, run, arguments);
                 case "create_bug" -> createBug(organizationId, run, arguments);
+                case "advance_requirement" -> advanceRequirement(organizationId, run, arguments);
                 case "get_release_precheck" -> releasePrecheck(organizationId, run, arguments);
+                case "create_release" -> createRelease(organizationId, run, arguments);
+                case "run_release_precheck" -> runReleasePrecheck(organizationId, run, arguments);
                 case "update_release_note" -> updateReleaseNote(organizationId, run, arguments);
                 default -> throw new ToolExecutionRejectedException(
                         HttpStatus.NOT_FOUND.value(), "TOOL_NOT_FOUND", "Tool has no backend executor");
@@ -404,6 +415,20 @@ public class AgentToolExecuteService {
             result.set("precheck", objectMapper.valueToTree(release.latestPrecheck()));
         }
         return result;
+    }
+
+    private JsonNode createRelease(long organizationId, AgentRun run, JsonNode arguments) {
+        List<Long> requirementIds = new java.util.ArrayList<>();
+        arguments.path("requirementIds").forEach(item -> requirementIds.add(item.asLong()));
+        var release = releaseService.create(run.userId(), organizationId,
+                arguments.path("versionName").asText(), arguments.path("environment").asText(),
+                requirementIds, arguments.path("approvalTtlMinutes").asLong(60));
+        return objectMapper.valueToTree(release);
+    }
+
+    private JsonNode runReleasePrecheck(long organizationId, AgentRun run, JsonNode arguments) {
+        return objectMapper.valueToTree(releaseService.precheck(
+                run.userId(), organizationId, arguments.path("releaseId").asLong()));
     }
 
     private JsonNode updateReleaseNote(long organizationId, AgentRun run, JsonNode arguments) {
@@ -617,6 +642,39 @@ public class AgentToolExecuteService {
         result.put("status", created.status().name());
         result.put("version", created.version());
         return result;
+    }
+
+    private JsonNode advanceRequirement(long organizationId, AgentRun run, JsonNode arguments) {
+        long requirementId = arguments.path("requirementId").asLong();
+        if (run.workItemId() == null || run.workItemId() != requirementId) {
+            throw new ToolExecutionRejectedException(HttpStatus.FORBIDDEN.value(),
+                    "RUN_WORK_ITEM_MISMATCH", "Workflow action must target the requirement bound to the run");
+        }
+        WorkflowAction action = WorkflowAction.valueOf(arguments.path("action").asText());
+        requireSkillAction(run, action);
+        List<String> checklist = null;
+        if (arguments.path("checklist").isArray()) {
+            java.util.ArrayList<String> submittedChecklist = new java.util.ArrayList<>();
+            arguments.path("checklist").forEach(item -> submittedChecklist.add(item.asText()));
+            checklist = submittedChecklist;
+        }
+        RequirementTransitionStore.TransitionResult transition = requirementTransitionService.transition(
+                run.userId(), organizationId, requirementId, action,
+                arguments.path("expectedVersion").asLong(), run.id() + ":" + action.name(),
+                textOrNull(arguments, "reason"), checklist);
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("action", transition.action().name());
+        result.put("status", transition.status().name());
+        result.put("version", transition.version());
+        result.put("eventId", transition.eventId());
+        return result;
+    }
+
+    private void requireSkillAction(AgentRun run, WorkflowAction action) {
+        if (!AgentStageActionPolicy.allows(run.skill(), action)) {
+            throw new ToolExecutionRejectedException(HttpStatus.FORBIDDEN.value(),
+                    "ACTION_NOT_ALLOWED_FOR_SKILL", "Workflow action is not allowed for the run skill");
+        }
     }
 
     private JsonNode createDocument(

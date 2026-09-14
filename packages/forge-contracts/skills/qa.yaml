@@ -10,5 +10,6 @@ allowed_tools:
   - search_documents
   - create_test_case
   - create_bug
+  - advance_requirement
 limits:
   max_tool_calls: 15

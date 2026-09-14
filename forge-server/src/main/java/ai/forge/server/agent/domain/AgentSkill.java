@@ -2,13 +2,13 @@ package ai.forge.server.agent.domain;
 
 public enum AgentSkill {
     /* 使用 Requirement 与 PRD 范围执行产品工作。 */
-    PRODUCT("requirement.create"),
+    PRODUCT("requirement.read"),
     /* 使用 UX Task 与 UX 文档范围执行体验工作。 */
-    UX("ux.create"),
+    UX("ux.read"),
     /* 使用 Requirement、交付文档和 GitLab 受控能力执行开发规划与启动。 */
-    DEVELOPER("task.create"),
+    DEVELOPER("task.read"),
     /* 生成 Test Case 与 Bug 草稿，不写人工执行结果。 */
-    QA("qa.manage"),
+    QA("qa.read"),
     /* 解释后端 Precheck 并起草 Release Note，不决定 PASS。 */
     RELEASE("release.read");
 

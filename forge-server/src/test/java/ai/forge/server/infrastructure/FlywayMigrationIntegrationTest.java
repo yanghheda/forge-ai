@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("1");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -236,7 +236,8 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                         "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
                                 + "JOIN permissions p ON p.id = rp.permission_id WHERE p.code = 'agent.run' ORDER BY r.code",
                         String.class))
-                .containsExactly("ADMIN", "OWNER", "PRODUCT", "UX");
+                .containsExactly("ADMIN", "DEVELOPER", "OWNER", "PRODUCT", "QA",
+                        "RELEASE_APPROVER", "UX");
     }
 
     @Test

@@ -45,7 +45,7 @@ public class AgentRunController {
     }
 
     @PostMapping
-    @Operation(summary = "创建 Agent Run", description = "原始 message 不进入持久 Trace；本轮由 Fake Runner 异步执行。")
+    @Operation(summary = "创建 Agent Run", description = "原始 message 不进入持久 Trace；由内部 Agent Runtime 异步执行。")
     public ResponseEntity<AgentRunSnapshot> create(
             @Valid @RequestBody CreateAgentRunRequest body, HttpServletRequest request) {
         AuthContext context = AuthController.requireContext(request);
@@ -83,7 +83,7 @@ public class AgentRunController {
     public record CreateAgentRunRequest(
             /* 可选工作项上下文。 */
             @Positive Long workItemId,
-            /* 本轮允许的 Product 或 UX Skill。 */
+            /* 本轮固定的五角色 Skill；会话入口会按 Requirement 阶段自动选择。 */
             @NotNull AgentSkill skill,
             /* 本轮 MEDIUM 风险 Tool 的确认策略；缺省 ASK，非法取值由枚举反序列化拒绝。 */
             MediumToolConfirmation mediumToolConfirmation,

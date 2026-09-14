@@ -56,6 +56,7 @@ def test_developer_skill_excludes_qa_and_deployment_writes() -> None:
         "create_dev_task",
         "start_development",
         "get_pipeline_log",
+        "advance_requirement",
     ]
     assert "deploy_release" not in allowed
     assert "create_test_case" not in allowed
@@ -64,7 +65,7 @@ def test_developer_skill_excludes_qa_and_deployment_writes() -> None:
     assert developer.context_template == "developer-context-v1"
 
 
-def test_qa_skill_can_only_create_drafts() -> None:
+def test_qa_skill_cannot_write_test_results_but_can_request_guarded_transition() -> None:
     registry = ToolContractRegistry(REPO_CONTRACTS)
 
     allowed = registry.effective_tool_names("QA")
@@ -76,6 +77,7 @@ def test_qa_skill_can_only_create_drafts() -> None:
         "search_documents",
         "create_test_case",
         "create_bug",
+        "advance_requirement",
     ]
     assert "update_test_result" not in allowed
     assert registry.find_tool("create_test_case").medium_risk

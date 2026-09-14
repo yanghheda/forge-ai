@@ -1,14 +1,15 @@
 "use client";
 
-import { Alert, Button, Card, Form, Message, Select, Spin, Tag } from "@arco-design/web-react";
+import { Alert, Button, Card, Form, Input, Message, Select, Space, Spin, Tag } from "@arco-design/web-react";
 import { IconDown, IconPause, IconRight } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState, type Dispatch, type SetStateAction } from "react";
 
 import { formatRequestError } from "@/lib/api";
+import { RequirementAgentCard } from "@/features/agent-run";
 import { priorityLabel, roleLabel } from "@/lib/labels";
-import { getOrganizationRequirement, getRequirementActivity, getRequirementDetails, getRequirementParticipants, getRequirementWorkflow, listRequirementMembers, replaceRequirementParticipants, transitionRequirementWorkflow, type RequirementMember, type RequirementRole } from "../api/work-item-api";
+import { getOrganizationRequirement, getRequirementActivity, getRequirementDetails, getRequirementParticipants, getRequirementWorkflow, listRequirementMembers, replaceRequirementParticipants, transitionRequirementWorkflow, type RequirementMember, type RequirementRole, type RequirementWorkflowAction } from "../api/work-item-api";
 import { actionLabel, formatDate, statusLabel } from "../utils/requirement-detail-display";
 import { ActivityCard, BasicInfo, DescriptionCard, MembersCard, RequirementSteps, StageCard } from "./requirement-detail-sections";
 import { RequirementMaterials } from "./requirement-materials";
@@ -19,6 +20,7 @@ const roles: RequirementRole[] = ["PRODUCT", "UX", "DEVELOPER", "QA"];
 export function OrganizationRequirementDetail({ requirementId }: { requirementId: number }) {
   const queryClient = useQueryClient();
   const [managing, setManaging] = useState(false);
+  const [reviewReason, setReviewReason] = useState("");
   const [overrides, setOverrides] = useState<Partial<Record<RequirementRole, number | undefined>>>({});
   const requirement = useQuery({ queryKey: ["requirements", requirementId], queryFn: () => getOrganizationRequirement(requirementId) });
   const materials = useQuery({ queryKey: ["requirements", requirementId, "details"], queryFn: () => getRequirementDetails(requirementId) });
@@ -44,15 +46,19 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const transition = useMutation({
-    mutationFn: () => transitionRequirementWorkflow(requirementId, workflow.data!.availableActions[0], workflow.data!.version),
-    onSuccess: () => void invalidate(),
+    mutationFn: ({ action, reason }: { action: RequirementWorkflowAction; reason?: string }) =>
+      transitionRequirementWorkflow(requirementId, action, workflow.data!.version, reason ? { reason } : {}),
+    onSuccess: () => {
+      setReviewReason("");
+      void invalidate();
+    },
     onError: (error) => Message.error(formatRequestError(error)),
   });
 
   if (requirement.isPending || materials.isPending || participants.isPending) return <Spin tip="正在加载需求…" />;
   if (requirement.isError || materials.isError || !requirement.data || !materials.data) return <Alert type="error" content={formatRequestError(requirement.error ?? materials.error)} />;
   const item = requirement.data;
-  const nextAction = workflow.data?.availableActions[0];
+  const nextAction = item.status === "PRODUCT_REVIEW" ? undefined : workflow.data?.availableActions[0];
   return (
     <section className={styles.page}>
       <div className={styles.head}>
@@ -75,7 +81,7 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
             更多 <IconDown />
           </Button>
           <Button icon={<IconPause />}>暂停 Agent</Button>
-          <Button type="primary" icon={<IconRight />} disabled={!nextAction} loading={transition.isPending} onClick={() => transition.mutate()}>
+          <Button type="primary" icon={<IconRight />} disabled={!nextAction} loading={transition.isPending} onClick={() => nextAction && transition.mutate({ action: nextAction })}>
             {nextAction ? (actionLabel[nextAction] ?? "推进到下一阶段") : "推进到下一阶段"}
           </Button>
         </div>
@@ -89,6 +95,30 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
           <ActivityCard activity={activity.data ?? []} />
         </main>
         <aside className={styles.column}>
+          <RequirementAgentCard requirementId={requirementId} />
+          {item.status === "PRODUCT_REVIEW" && workflow.data && (
+            <Card title="产品评审决策">
+              <p>请核对需求描述与已发布 PRD，再决定通过或退回修改。</p>
+              {workflow.data.availableActions.includes("REJECT_PRODUCT_REVIEW") && (
+                <Input.TextArea aria-label="退回原因" value={reviewReason} onChange={setReviewReason} placeholder="退回时必须填写具体修改意见" />
+              )}
+              <Space style={{ marginTop: 12 }}>
+                {workflow.data.availableActions.includes("REJECT_PRODUCT_REVIEW") && (
+                  <Button status="danger" disabled={!reviewReason.trim()} loading={transition.isPending} onClick={() => transition.mutate({ action: "REJECT_PRODUCT_REVIEW", reason: reviewReason.trim() })}>
+                    退回修改
+                  </Button>
+                )}
+                {workflow.data.availableActions.includes("APPROVE_PRODUCT_REVIEW") && (
+                  <Button type="primary" loading={transition.isPending} onClick={() => transition.mutate({ action: "APPROVE_PRODUCT_REVIEW" })}>
+                    通过产品评审
+                  </Button>
+                )}
+              </Space>
+              {!workflow.data.availableActions.some((action) => action === "APPROVE_PRODUCT_REVIEW" || action === "REJECT_PRODUCT_REVIEW") && (
+                <Alert style={{ marginTop: 12 }} type="warning" content="当前账号没有产品评审权限，请由 Product Reviewer 或 Owner 操作。" />
+              )}
+            </Card>
+          )}
           <StageCard item={item} workflow={workflow.data} />
           <MembersCard item={item} participants={participants.data ?? []} onManage={() => setManaging((value) => !value)} />
           {managing && <MemberEditor assignments={assignments} members={members.data ?? []} setOverrides={setOverrides} saving={save.isPending} onSave={() => save.mutate()} />}

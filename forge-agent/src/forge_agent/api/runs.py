@@ -18,7 +18,7 @@ def get_runtime(request: Request) -> RuntimeGateway:
     return request.app.state.runtime
 
 
-@router.post("/{run_id}/start", response_model=RunResult)
+@router.post("/{run_id}/start", response_model=RunResult, response_model_by_alias=False)
 def start_run(
     run_id: str,
     body: RunStart,

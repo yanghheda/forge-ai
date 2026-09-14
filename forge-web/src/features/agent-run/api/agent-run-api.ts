@@ -4,6 +4,26 @@ interface RequestClient {
   request<T>(path: string, init?: RequestInit): Promise<T>;
 }
 
+export interface AgentConversationCreated {
+  id: number;
+}
+
+export function createRequirementConversation(title: string, client: RequestClient = apiClient): Promise<AgentConversationCreated> {
+  return client.request("/v1/agent-conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+}
+
+export function sendRequirementAgentMessage(conversationId: number, workItemId: number, message: string, client: RequestClient = apiClient): Promise<AgentRunSnapshot> {
+  return client.request(`/v1/agent-conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workItemId, message }),
+  });
+}
+
 export interface AgentStep {
   stepNo: number;
   type: string;
@@ -16,6 +36,8 @@ export interface AgentStep {
 
 export interface AgentRunSnapshot {
   id: string;
+  skill: "PRODUCT" | "UX" | "DEVELOPER" | "QA" | "RELEASE";
+  workItemId: number | null;
   status: string;
   lastSequence: number;
   terminal: boolean;
@@ -42,7 +64,7 @@ export interface ApprovalSnapshot {
   version: number;
 }
 
-export function createAgentRun(input: { workItemId: number; skill: "PRODUCT" | "UX"; message: string }, client: RequestClient = apiClient): Promise<AgentRunSnapshot> {
+export function createAgentRun(input: { workItemId: number; skill: "PRODUCT" | "UX" | "DEVELOPER" | "QA" | "RELEASE"; message: string }, client: RequestClient = apiClient): Promise<AgentRunSnapshot> {
   return client.request("/v1/agent-runs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -67,6 +89,14 @@ export function decideApproval(approval: ApprovalSnapshot, organizationId: numbe
       decision,
       expectedVersion: approval.version,
     }),
+  });
+}
+
+export function cancelApproval(approval: ApprovalSnapshot, organizationId: number, client: RequestClient = apiClient): Promise<ApprovalSnapshot> {
+  return client.request(`/v1/approvals/${approval.id}:cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ organizationId, expectedVersion: approval.version }),
   });
 }
 

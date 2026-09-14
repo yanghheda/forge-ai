@@ -47,6 +47,7 @@ forge:
   infrastructure:
     agent:
       base-url: ${FORGE_AGENT_BASE_URL}
+      conversation-medium-confirmation: ${FORGE_AGENT_CONVERSATION_MEDIUM_CONFIRMATION:ASK}
       health-timeout: 1s
       token-ttl: 30s
       jwt-secret: ${FORGE_AGENT_INTERNAL_JWT_SECRET}

@@ -23,6 +23,8 @@ ADR 用于记录影响多个模块、长期演进或安全边界的架构决策�
 | [ADR-013](ADR-013-springdoc-swagger-ui.md) | Accepted | 使用 springdoc-openapi 与 Swagger UI |
 | [ADR-015](ADR-015-single-organization-product-scope.md) | Superseded | 单组织产品模型与内部兼容 Scope |
 | [ADR-016](ADR-016-remove-workspace-project-scope.md) | Accepted | 公司直属资源并物理移除 Workspace/Project scope |
+| [ADR-017](ADR-017-stage-aware-conversational-agent.md) | Accepted | 阶段感知的角色会话驱动交付流程 |
+| [ADR-018](ADR-018-agent-confirmation-and-high-risk-approval.md) | Accepted | 区分 Agent 代执行确认与 HIGH 风险审批 |
 
 ## 何时新增 ADR
 
