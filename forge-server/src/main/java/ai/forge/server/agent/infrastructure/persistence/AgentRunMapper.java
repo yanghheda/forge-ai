@@ -90,6 +90,11 @@ public interface AgentRunMapper {
             @Param("runId") String runId,
             @Param("lastSequence") long lastSequence);
 
+    @Update("UPDATE agent_runs SET last_sequence=#{lastSequence},updated_at=UTC_TIMESTAMP(6),version=version+1 "
+            + "WHERE id=#{runId} AND organization_id=#{organizationId} AND status='RUNNING'")
+    int advanceRunningSequence(@Param("organizationId") long organizationId,
+            @Param("runId") String runId,@Param("lastSequence") long lastSequence);
+
     @Insert("INSERT INTO agent_steps (run_id, step_no, type, name, status, input_summary, output_summary, "
             + "error_code, started_at, finished_at) SELECT r.id, 1, 'PLAN', 'Create plan', "
             + "'RUNNING', 'Request content redacted', NULL, NULL, UTC_TIMESTAMP(6), NULL FROM agent_runs r "
@@ -124,6 +129,43 @@ public interface AgentRunMapper {
             @Param("runId") String runId,@Param("stepNo") int stepNo,
             @Param("summary") String summary);
 
+    @Insert("INSERT INTO agent_messages(conversation_id,sender,body,run_id,created_at) "
+            + "SELECT m.conversation_id,'AGENT',#{body},r.id,UTC_TIMESTAMP(6) "
+            + "FROM agent_runs r JOIN agent_messages m ON m.run_id=r.id AND m.sender='USER' "
+            + "WHERE r.id=#{runId} AND r.organization_id=#{organizationId} "
+            + "AND NOT EXISTS(SELECT 1 FROM agent_messages existing WHERE existing.run_id=r.id "
+            + "AND existing.sender='AGENT') LIMIT 1")
+    int insertAgentMessage(@Param("organizationId") long organizationId,
+            @Param("runId") String runId,@Param("body") String body);
+
+    @Update("UPDATE agent_conversations c JOIN agent_messages m ON m.conversation_id=c.id "
+            + "SET c.updated_at=UTC_TIMESTAMP(6),c.version=c.version+1 "
+            + "WHERE m.run_id=#{runId} AND c.organization_id=#{organizationId}")
+    int touchConversationForRun(@Param("organizationId") long organizationId,
+            @Param("runId") String runId);
+
+    @Update("UPDATE agent_conversations c JOIN agent_messages m ON m.conversation_id=c.id "
+            + "JOIN agent_runs r ON r.id=m.run_id AND r.organization_id=c.organization_id "
+            + "JOIN agent_tool_calls tc ON tc.run_id=r.id AND tc.organization_id=c.organization_id "
+            + "JOIN work_items wi ON wi.id=CAST(JSON_UNQUOTE(JSON_EXTRACT(tc.result_json,'$.id')) AS UNSIGNED) "
+            + "AND wi.organization_id=c.organization_id AND wi.type='REQUIREMENT' "
+            + "SET c.requirement_id=wi.id,c.updated_at=UTC_TIMESTAMP(6),c.version=c.version+1 "
+            + "WHERE r.id=#{runId} AND c.organization_id=#{organizationId} AND m.sender='USER' "
+            + "AND tc.tool_name='create_requirement' AND tc.status='SUCCEEDED' "
+            + "AND c.requirement_id IS NULL")
+    int bindConversationToCreatedRequirement(@Param("organizationId") long organizationId,
+            @Param("runId") String runId);
+
+    @Update("UPDATE agent_conversations c JOIN agent_messages m ON m.conversation_id=c.id "
+            + "JOIN agent_runs r ON r.id=m.run_id AND r.organization_id=c.organization_id "
+            + "JOIN work_items wi ON wi.id=#{requirementId} AND wi.organization_id=c.organization_id "
+            + "AND wi.type='REQUIREMENT' SET c.requirement_id=wi.id,"
+            + "c.updated_at=UTC_TIMESTAMP(6),c.version=c.version+1 "
+            + "WHERE r.id=#{runId} AND c.organization_id=#{organizationId} AND m.sender='USER' "
+            + "AND c.requirement_id IS NULL")
+    int bindConversationToRequirement(@Param("organizationId") long organizationId,
+            @Param("runId") String runId,@Param("requirementId") long requirementId);
+
     @Update("UPDATE agent_runs SET status = 'SUCCEEDED', finished_at = UTC_TIMESTAMP(6), "
             + "last_sequence = #{lastSequence}, updated_at = UTC_TIMESTAMP(6), version = version + 1 "
             + "WHERE id = #{runId} AND organization_id = #{organizationId} "
@@ -142,4 +184,13 @@ public interface AgentRunMapper {
             @Param("runId") String runId,
             @Param("lastSequence") long lastSequence,
             @Param("errorCode") String errorCode);
+
+    @Update("UPDATE agent_runs SET status = 'CANCELLED', finished_at = UTC_TIMESTAMP(6), "
+            + "last_sequence = #{lastSequence}, updated_at = UTC_TIMESTAMP(6), version = version + 1 "
+            + "WHERE id = #{runId} AND organization_id = #{organizationId} "
+            + "AND status IN ('QUEUED', 'RUNNING', 'WAITING_APPROVAL')")
+    int markCancelled(
+            @Param("organizationId") long organizationId,
+            @Param("runId") String runId,
+            @Param("lastSequence") long lastSequence);
 }

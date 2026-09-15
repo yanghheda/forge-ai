@@ -27,6 +27,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
 
+    private static final String GENERATED_REQUIREMENT_DESCRIPTION =
+            "用于验证 Agent 创建需求契约的完整业务描述。";
+
     /* 通过真实 HTTP 与真实 MySQL/Redis/Qdrant 验证内部 Tool 执行链。 */
     @Autowired
     private TestRestTemplate restTemplate;
@@ -204,7 +207,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 "create_requirement",
                 runToken(runId),
                 "call-1",
-                Map.of("title", "无权限需求"));
+                Map.of("title", "无权限需求", "description", GENERATED_REQUIREMENT_DESCRIPTION));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(response.getBody()).contains("PERMISSION_DENIED");
@@ -226,7 +229,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 "create_requirement",
                 runToken(runId),
                 "call-1",
-                Map.of("title", "撤权后不得创建"));
+                Map.of("title", "撤权后不得创建", "description", GENERATED_REQUIREMENT_DESCRIPTION));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(response.getBody()).contains("PERMISSION_DENIED");
@@ -255,7 +258,8 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         String runId = insertRunningRun("PRODUCT", "DENY");
 
         ResponseEntity<String> response = executeTool(
-                "create_requirement", runToken(runId), "call-1", Map.of("title", "被拒绝的需求"));
+                "create_requirement", runToken(runId), "call-1",
+                Map.of("title", "被拒绝的需求", "description", GENERATED_REQUIREMENT_DESCRIPTION));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode execution = objectMapper.readTree(response.getBody());
@@ -272,7 +276,8 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         String runId = insertRunningRun("PRODUCT", "ASK");
 
         ResponseEntity<String> response = executeTool(
-                "create_requirement", runToken(runId), "call-1", Map.of("title", "待确认需求"));
+                "create_requirement", runToken(runId), "call-1",
+                Map.of("title", "待确认需求", "description", GENERATED_REQUIREMENT_DESCRIPTION));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode execution = objectMapper.readTree(response.getBody());
@@ -299,7 +304,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         String runId = insertRunningRun("PRODUCT", "ASK");
         JsonNode waiting = objectMapper.readTree(executeTool(
                 "create_requirement", runToken(runId), "call-1",
-                Map.of("title", "产品确认的需求")).getBody());
+                Map.of("title", "产品确认的需求", "description", GENERATED_REQUIREMENT_DESCRIPTION)).getBody());
 
         ResponseEntity<String> response = csrf().post(
                 "/api/v1/approvals/" + waiting.get("approvalId").asText() + ":decide",
@@ -315,7 +320,9 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     @Test
     void approvedCallResumesWithFrozenInputAndReplaysOnlyOnce() throws Exception {
         String runId = insertRunningRun("PRODUCT", "ASK");
-        Map<String, Object> arguments = Map.of("title", "审批后的需求");
+        Map<String, Object> arguments = Map.of(
+                "title", "审批后的需求",
+                "description", GENERATED_REQUIREMENT_DESCRIPTION);
         JsonNode waiting = objectMapper.readTree(
                 executeTool("create_requirement", runToken(runId), "call-1", arguments).getBody());
         String approvalId = waiting.get("approvalId").asText();
@@ -340,13 +347,15 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     void approvedCallRejectsChangedArguments() throws Exception {
         String runId = insertRunningRun("PRODUCT", "ASK");
         JsonNode waiting = objectMapper.readTree(executeTool(
-                "create_requirement", runToken(runId), "call-1", Map.of("title", "冻结需求")).getBody());
+                "create_requirement", runToken(runId), "call-1",
+                Map.of("title", "冻结需求", "description", GENERATED_REQUIREMENT_DESCRIPTION)).getBody());
         jdbcTemplate.update("UPDATE approvals SET status = 'APPROVED' WHERE id = ?",
                 waiting.get("approvalId").asText());
         jdbcTemplate.update("UPDATE agent_runs SET status = 'RUNNING' WHERE id = ?", runId);
 
         ResponseEntity<String> changed = executeTool(
-                "create_requirement", runToken(runId), "call-1", Map.of("title", "篡改需求"));
+                "create_requirement", runToken(runId), "call-1",
+                Map.of("title", "篡改需求", "description", GENERATED_REQUIREMENT_DESCRIPTION));
 
         assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(changed.getBody()).contains("APPROVAL_INPUT_CHANGED");
@@ -383,19 +392,30 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 "create_requirement",
                 runToken(runId),
                 "call-1",
-                Map.of("title", "首个需求", "priority", "HIGH"));
+                Map.of(
+                        "title", "首个需求",
+                        "description", GENERATED_REQUIREMENT_DESCRIPTION,
+                        "priority", "HIGH"));
         assertThat(first.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode firstExecution = objectMapper.readTree(first.getBody());
         assertThat(firstExecution.get("status").asText()).isEqualTo("SUCCEEDED");
         assertThat(firstExecution.get("replayed").asBoolean()).isFalse();
         long createdItemId = firstExecution.get("result").get("id").asLong();
         assertThat(firstExecution.get("result").get("itemKey").asText()).isNotBlank();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT description FROM work_items WHERE id = ?",
+                        String.class,
+                        createdItemId))
+                .isEqualTo(GENERATED_REQUIREMENT_DESCRIPTION);
 
         ResponseEntity<String> replayed = executeTool(
                 "create_requirement",
                 runToken(runId),
                 "call-1",
-                Map.of("title", "首个需求", "priority", "HIGH"));
+                Map.of(
+                        "title", "首个需求",
+                        "description", GENERATED_REQUIREMENT_DESCRIPTION,
+                        "priority", "HIGH"));
         assertThat(replayed.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode replayExecution = objectMapper.readTree(replayed.getBody());
         assertThat(replayExecution.get("status").asText()).isEqualTo("SUCCEEDED");
@@ -419,7 +439,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 "create_requirement",
                 runToken(runId),
                 "call-2",
-                Map.of("title", "第二个需求"));
+                Map.of("title", "第二个需求", "description", GENERATED_REQUIREMENT_DESCRIPTION));
         assertThat(second.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(objectMapper.readTree(second.getBody()).get("replayed").asBoolean()).isFalse();
         assertThat(jdbcTemplate.queryForObject(
@@ -487,11 +507,13 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         String runId = insertRunningRun("PRODUCT", "ALLOW");
 
         ResponseEntity<String> first = executeTool(
-                "create_requirement", runToken(runId), "call-1", Map.of("title", "原始需求"));
+                "create_requirement", runToken(runId), "call-1",
+                Map.of("title", "原始需求", "description", GENERATED_REQUIREMENT_DESCRIPTION));
         assertThat(first.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         ResponseEntity<String> changed = executeTool(
-                "create_requirement", runToken(runId), "call-1", Map.of("title", "篡改后的需求"));
+                "create_requirement", runToken(runId), "call-1",
+                Map.of("title", "篡改后的需求", "description", GENERATED_REQUIREMENT_DESCRIPTION));
 
         assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(changed.getBody()).contains("IDEMPOTENCY_KEY_REUSED");
@@ -537,6 +559,117 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 .isEqualTo(requirement.id());
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM agent_tool_calls", Long.class))
                 .isEqualTo(1);
+    }
+
+    @Test
+    void productRunCreatesPrdWithGeneratedInitialVersion() throws Exception {
+        var requirement = workItemCommandService.create(
+                ownerId,
+                organizationId,
+                WorkItemType.REQUIREMENT,
+                "真实正文需求",
+                "PRD 页面必须展示 Agent 生成的正文",
+                WorkItemPriority.HIGH,
+                null,
+                null);
+        String runId = insertRunningRun(ownerId, "PRODUCT", "ALLOW", requirement.id());
+        String generatedMarkdown = """
+                # 1 背景与目标
+
+                PRD 页面展示 Agent 生成的真实正文，而不是固定模板。
+
+                ## 2 验收标准
+
+                - 新建后立即产生版本 1
+                - 页面刷新后正文保持不变
+                """;
+
+        ResponseEntity<String> response = executeTool(
+                "create_prd_document",
+                runToken(runId),
+                "prd-1",
+                Map.of(
+                        "requirementId", requirement.id(),
+                        "title", "真实正文 PRD",
+                        "contentMarkdown", generatedMarkdown));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode execution = objectMapper.readTree(response.getBody());
+        assertThat(execution.at("/result/version").asLong()).isEqualTo(1);
+        assertThat(execution.at("/result/currentVersionId").asLong()).isPositive();
+        assertThat(execution.at("/result/currentVersionNo").asLong()).isEqualTo(1);
+        Map<String, Object> storedVersion = jdbcTemplate.queryForMap(
+                "SELECT version_no, plain_text, content FROM document_versions WHERE document_id = ?",
+                execution.at("/result/id").asLong());
+        assertThat(((Number) storedVersion.get("version_no")).longValue()).isEqualTo(1);
+        assertThat(storedVersion.get("plain_text").toString())
+                .contains("PRD 页面展示 Agent 生成的真实正文", "页面刷新后正文保持不变");
+        assertThat(objectMapper.readTree(storedVersion.get("content").toString()).path("type").asText())
+                .isEqualTo("doc");
+    }
+
+    @Test
+    void productPrdCreationRejectsMissingGeneratedContent() {
+        var requirement = workItemCommandService.create(
+                ownerId,
+                organizationId,
+                WorkItemType.REQUIREMENT,
+                "缺少正文需求",
+                null,
+                WorkItemPriority.MEDIUM,
+                null,
+                null);
+        String runId = insertRunningRun(ownerId, "PRODUCT", "ALLOW", requirement.id());
+
+        ResponseEntity<String> response = executeTool(
+                "create_prd_document",
+                runToken(runId),
+                "prd-without-content",
+                Map.of("requirementId", requirement.id(), "title", "空 PRD"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("SCHEMA_INVALID");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM documents", Long.class)).isZero();
+    }
+
+    @Test
+    void productRunFillsLegacyEmptyPrdInsteadOfCreatingDuplicateDocument() throws Exception {
+        var requirement = workItemCommandService.create(
+                ownerId,
+                organizationId,
+                WorkItemType.REQUIREMENT,
+                "历史空 PRD 需求",
+                null,
+                WorkItemPriority.MEDIUM,
+                null,
+                null);
+        jdbcTemplate.update(
+                "INSERT INTO documents (organization_id, work_item_id, type, title, status, visibility, "
+                        + "current_version_id, created_by, created_at, updated_at, deleted_at, version) "
+                        + "VALUES (?, ?, 'PRD', '历史空 PRD', 'DRAFT', 'ORGANIZATION', NULL, ?, "
+                        + "UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), NULL, 0)",
+                organizationId,
+                requirement.id(),
+                ownerId);
+        long legacyDocumentId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        String runId = insertRunningRun(ownerId, "PRODUCT", "ALLOW", requirement.id());
+
+        JsonNode execution = objectMapper.readTree(executeTool(
+                "create_prd_document",
+                runToken(runId),
+                "fill-empty-prd",
+                Map.of(
+                        "requirementId", requirement.id(),
+                        "title", "不应重复创建",
+                        "contentMarkdown", "# 背景与目标\n\n修复历史版本 0 的空 PRD 文档。"))
+                .getBody());
+
+        assertThat(execution.at("/result/id").asLong()).isEqualTo(legacyDocumentId);
+        assertThat(execution.at("/result/currentVersionNo").asLong()).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM documents WHERE work_item_id=? AND type='PRD'",
+                Long.class,
+                requirement.id())).isEqualTo(1);
     }
 
     /* 插入一条 RUNNING 状态的 Run 事实；绕过 Fake Dispatcher 避免状态竞态。 */

@@ -9,7 +9,7 @@ from forge_agent.api.runs import router as runs_router
 from forge_agent.contracts.registry import ToolContractRegistry
 from forge_agent.gateway.qwen import QwenLanguageModel
 from forge_agent.gateway.runtime import FakeLanguageModel, LangGraphRuntimeGateway, RuntimeGateway
-from forge_agent.gateway.tool_transport import ServerToolTransport
+from forge_agent.gateway.tool_transport import ServerAnswerStream, ServerToolTransport
 from forge_agent.settings import AgentSettings
 
 
@@ -25,6 +25,11 @@ def create_app(
     app.state.settings = resolved_settings
     app.state.contracts = registry
     if runtime is None:
+        answer_stream = (
+            ServerAnswerStream(resolved_settings.server_base_url)
+            if resolved_settings.publish_answer_deltas
+            else None
+        )
         if resolved_settings.model_provider == "qwen":
             api_key = resolved_settings.qwen_api_key
             assert api_key is not None
@@ -40,6 +45,7 @@ def create_app(
             resolved_settings.checkpoint_path,
             model,
             ServerToolTransport(resolved_settings.server_base_url),
+            answer_stream,
         )
     app.state.runtime = runtime
     app.include_router(health_router)

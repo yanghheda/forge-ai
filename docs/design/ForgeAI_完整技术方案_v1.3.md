@@ -664,6 +664,9 @@ POST /api/v1/agent/runs
 - `tool.started`
 - `tool.completed`
 - `step.completed`
+- `message.delta`
+- `reasoning.delta`（可展示的计划/执行摘要，不是模型私有思维链）
+- `message.completed`
 - `agent.completed`
 - `agent.failed`
 - `agent.cancelled`
@@ -678,6 +681,8 @@ data: {"runId":"ar_01K...","sequence":18,"timestamp":"2026-08-21T12:00:00Z","pay
 ```
 
 `agent_events(run_id, sequence)` 持久化关键业务事件。客户端用 `Last-Event-ID` 重连；重复事件按 sequence 去重。心跳可不持久化。Run 最终状态以 Backend 数据库为准，SSE 断开不取消任务。
+
+最终回答由模型 Provider 流式产生。`forge-agent` 使用 run-scoped credential 将正文片段回传 Backend；Backend 分配 sequence 并持久化 `message.delta`，完成时写入 `message.completed` 和完整 `agent_messages` 正文。浏览器只订阅 Backend SSE，不直连 Agent Runtime。
 
 ---
 
@@ -825,15 +830,15 @@ backend:
 | 等级 | 默认策略 | 示例 |
 |---|---|---|
 | LOW | 有权限直接执行 | 读 Work Item、文档检索、查看 Pipeline |
-| MEDIUM | Workspace 可配置自动/确认 | 创建任务、文档、分支、MR、触发 Pipeline |
-| HIGH | 永远人工审批 | 合并受保护分支、生产部署、回滚、删除 |
+| MEDIUM | 默认直接执行，可显式禁止；`ASK` 仅兼容旧调用方 | 创建任务、文档、阶段评审、分支、MR、触发 Pipeline |
+| HIGH | 永远人工审批 | 最终发布、生产部署、回滚、删除 |
 
 ### 13.4 执行生命周期
 
 1. Runtime 选择 Tool 并生成结构化参数。
 2. Agent Registry 校验 Tool 是否属于当前 Skill、Schema 是否有效。
 3. Backend 根据 Run、当前用户、资源范围和最新权限重新校验。
-4. 风险策略要求审批时冻结 Tool 名称、版本、参数摘要和资源版本。
+4. 仅最终发布等 HIGH 风险策略要求审批时冻结 Tool 名称、版本、参数摘要和资源版本；MEDIUM 过程动作默认继续执行。
 5. 审批通过后再次校验权限、资源版本和过期时间。
 6. Executor 使用 `Idempotency-Key = runId + toolCallId` 调用应用服务。
 7. 写入 Tool Call、业务事件和审计日志，返回结构化结果。

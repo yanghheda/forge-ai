@@ -9,7 +9,20 @@ import { useState, type Dispatch, type SetStateAction } from "react";
 import { formatRequestError } from "@/lib/api";
 import { RequirementAgentCard } from "@/features/agent-run";
 import { priorityLabel, roleLabel } from "@/lib/labels";
-import { getOrganizationRequirement, getRequirementActivity, getRequirementDetails, getRequirementParticipants, getRequirementWorkflow, listRequirementMembers, replaceRequirementParticipants, transitionRequirementWorkflow, type RequirementMember, type RequirementRole, type RequirementWorkflowAction } from "../api/work-item-api";
+import {
+  getOrganizationRequirement,
+  getRequirementActivity,
+  getRequirementDetails,
+  getRequirementParticipants,
+  getRequirementWorkflow,
+  listRequirementMembers,
+  replaceRequirementParticipants,
+  transitionRequirementWorkflow,
+  updateWorkItem,
+  type RequirementMember,
+  type RequirementRole,
+  type RequirementWorkflowAction,
+} from "../api/work-item-api";
 import { actionLabel, formatDate, statusLabel } from "../utils/requirement-detail-display";
 import { ActivityCard, BasicInfo, DescriptionCard, MembersCard, RequirementSteps, StageCard } from "./requirement-detail-sections";
 import { RequirementMaterials } from "./requirement-materials";
@@ -21,6 +34,8 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
   const queryClient = useQueryClient();
   const [managing, setManaging] = useState(false);
   const [reviewReason, setReviewReason] = useState("");
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
   const [overrides, setOverrides] = useState<Partial<Record<RequirementRole, number | undefined>>>({});
   const requirement = useQuery({ queryKey: ["requirements", requirementId], queryFn: () => getOrganizationRequirement(requirementId) });
   const materials = useQuery({ queryKey: ["requirements", requirementId, "details"], queryFn: () => getRequirementDetails(requirementId) });
@@ -46,10 +61,18 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const transition = useMutation({
-    mutationFn: ({ action, reason }: { action: RequirementWorkflowAction; reason?: string }) =>
-      transitionRequirementWorkflow(requirementId, action, workflow.data!.version, reason ? { reason } : {}),
+    mutationFn: ({ action, reason }: { action: RequirementWorkflowAction; reason?: string }) => transitionRequirementWorkflow(requirementId, action, workflow.data!.version, reason ? { reason } : {}),
     onSuccess: () => {
       setReviewReason("");
+      void invalidate();
+    },
+    onError: (error) => Message.error(formatRequestError(error)),
+  });
+  const updateDescription = useMutation({
+    mutationFn: (input: { description: string; expectedVersion: number }) => updateWorkItem(requirementId, input),
+    onSuccess: () => {
+      Message.success("需求描述已更新。");
+      setEditingDescription(false);
       void invalidate();
     },
     onError: (error) => Message.error(formatRequestError(error)),
@@ -90,7 +113,34 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
       <div className={styles.grid}>
         <main className={styles.column}>
           <BasicInfo item={item} participants={participants.data ?? []} />
-          <DescriptionCard item={item} />
+          {editingDescription ? (
+            <Card title="编辑需求描述">
+              <Input.TextArea aria-label="需求描述正文" value={descriptionDraft} onChange={setDescriptionDraft} placeholder="补充业务背景、目标、用户价值和范围边界" maxLength={10000} showWordLimit autoSize={{ minRows: 5, maxRows: 12 }} />
+              <Space style={{ marginTop: 12 }}>
+                <Button disabled={updateDescription.isPending} onClick={() => setEditingDescription(false)}>
+                  取消
+                </Button>
+                <Button type="primary" loading={updateDescription.isPending} disabled={!descriptionDraft.trim()} onClick={() => updateDescription.mutate({ description: descriptionDraft.trim(), expectedVersion: item.version })}>
+                  保存描述
+                </Button>
+              </Space>
+              {updateDescription.isError && <Alert style={{ marginTop: 12 }} type="error" content={formatRequestError(updateDescription.error)} />}
+            </Card>
+          ) : (
+            <DescriptionCard
+              item={item}
+              extra={
+                <Button
+                  onClick={() => {
+                    setDescriptionDraft(item.description);
+                    setEditingDescription(true);
+                  }}
+                >
+                  编辑描述
+                </Button>
+              }
+            />
+          )}
           <RequirementMaterials key={materials.data.version} workItemId={requirementId} details={materials.data} onChanged={invalidate} />
           <ActivityCard activity={activity.data ?? []} />
         </main>
@@ -99,9 +149,7 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
           {item.status === "PRODUCT_REVIEW" && workflow.data && (
             <Card title="产品评审决策">
               <p>请核对需求描述与已发布 PRD，再决定通过或退回修改。</p>
-              {workflow.data.availableActions.includes("REJECT_PRODUCT_REVIEW") && (
-                <Input.TextArea aria-label="退回原因" value={reviewReason} onChange={setReviewReason} placeholder="退回时必须填写具体修改意见" />
-              )}
+              {workflow.data.availableActions.includes("REJECT_PRODUCT_REVIEW") && <Input.TextArea aria-label="退回原因" value={reviewReason} onChange={setReviewReason} placeholder="退回时必须填写具体修改意见" />}
               <Space style={{ marginTop: 12 }}>
                 {workflow.data.availableActions.includes("REJECT_PRODUCT_REVIEW") && (
                   <Button status="danger" disabled={!reviewReason.trim()} loading={transition.isPending} onClick={() => transition.mutate({ action: "REJECT_PRODUCT_REVIEW", reason: reviewReason.trim() })}>
@@ -114,9 +162,7 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
                   </Button>
                 )}
               </Space>
-              {!workflow.data.availableActions.some((action) => action === "APPROVE_PRODUCT_REVIEW" || action === "REJECT_PRODUCT_REVIEW") && (
-                <Alert style={{ marginTop: 12 }} type="warning" content="当前账号没有产品评审权限，请由 Product Reviewer 或 Owner 操作。" />
-              )}
+              {!workflow.data.availableActions.some((action) => action === "APPROVE_PRODUCT_REVIEW" || action === "REJECT_PRODUCT_REVIEW") && <Alert style={{ marginTop: 12 }} type="warning" content="当前账号没有产品评审权限，请由 Product Reviewer 或 Owner 操作。" />}
             </Card>
           )}
           <StageCard item={item} workflow={workflow.data} />

@@ -8,6 +8,7 @@ import ai.forge.server.agent.domain.AgentSkill;
 import ai.forge.server.agent.domain.MediumToolConfirmation;
 import ai.forge.server.auth.CsrfTestClient;
 import ai.forge.server.infrastructure.InfrastructureIntegrationTestBase;
+import ai.forge.server.platform.agent.AgentServiceTokenProvider;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
@@ -20,9 +21,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
 
@@ -38,9 +42,17 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    /* 清理跨测试共享的登录限流状态，避免用例数量增长后相互污染。 */
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
     /* 直接验证 Runtime 结构化结果到 MySQL Trace 的事务投影。 */
     @Autowired
     private AgentRunStore agentRunStore;
+
+    /* 为内部增量回调签发与生产一致的 run-scoped credential。 */
+    @Autowired
+    private AgentServiceTokenProvider tokenProvider;
 
     private String ownerCookie;
     private long organizationId;
@@ -48,6 +60,7 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @BeforeEach
     void initializeOrganization() throws Exception {
+        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
@@ -98,7 +111,7 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
 
         JsonNode terminal = awaitTerminal(runId);
         assertThat(terminal.get("status").asText()).isEqualTo("SUCCEEDED");
-        assertThat(terminal.get("lastSequence").asLong()).isEqualTo(6);
+        assertThat(terminal.get("lastSequence").asLong()).isEqualTo(7);
         assertThat(terminal.get("steps")).hasSize(2);
         assertThat(terminal.get("steps").get(0).get("status").asText()).isEqualTo("SUCCEEDED");
 
@@ -108,11 +121,11 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
                 .contains("chars");
         assertThat(jdbcTemplate.queryForList(
                         "SELECT sequence FROM agent_events WHERE run_id = ? ORDER BY sequence", Long.class, runId))
-                .containsExactly(1L, 2L, 3L, 4L, 5L, 6L);
+                .containsExactly(1L, 2L, 3L, 4L, 5L, 6L, 7L);
         assertThat(jdbcTemplate.queryForList(
                         "SELECT event_type FROM agent_events WHERE run_id = ? ORDER BY sequence", String.class, runId))
                 .containsExactly("agent.queued", "agent.started", "step.started", "step.completed",
-                        "step.completed", "agent.completed");
+                        "step.completed", "message.completed", "agent.completed");
     }
 
     @Test
@@ -137,6 +150,113 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void successfulToolRunCompletesAfterStreamingAnswerDeltas() {
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0XV";
+        long userId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE email='owner@example.com'", Long.class);
+        jdbcTemplate.update(
+                "INSERT INTO agent_conversations(organization_id,user_id,title,created_at,updated_at,version) "
+                        + "VALUES(?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                organizationId, userId, "完成事务回归");
+        long conversationId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        agentRunStore.create(runId, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ALLOW, "User request (4 chars, content redacted)",
+                "successful-tool-trace", "request-hash", "request-create");
+        jdbcTemplate.update(
+                "INSERT INTO agent_messages(conversation_id,sender,body,run_id,created_at) "
+                        + "VALUES(?,'USER','新建需求',?,UTC_TIMESTAMP(6))",
+                conversationId, runId);
+        agentRunStore.start(organizationId, runId, "request-start");
+        agentRunStore.appendMessageDelta(organizationId, runId, "已创建需求：");
+        agentRunStore.appendMessageDelta(organizationId, runId, "REQ-20（ID 20），当前状态为草稿，版本 0。");
+
+        agentRunStore.complete(organizationId, runId, "request-complete",
+                "已创建需求：REQ-20（ID 20），当前状态为草稿，版本 0。",
+                List.of("理解产品请求", "整理受控上下文", "形成可回溯结果"),
+                List.of(new AgentRuntimeGateway.ToolCallResult(
+                        "create_requirement", "call-1", "SUCCEEDED", null)));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM agent_runs WHERE id=?", String.class, runId))
+                .isEqualTo("SUCCEEDED");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT body FROM agent_messages WHERE run_id=? AND sender='AGENT'", String.class, runId))
+                .contains("REQ-20");
+    }
+
+    @Test
+    void internalRuntimeCallbackPersistsReplayableMessageDelta() {
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0XZ";
+        long userId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE email='owner@example.com'", Long.class);
+        agentRunStore.create(runId, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ASK, "User request (8 chars, content redacted)",
+                "stream-callback", "request-hash", "request-create");
+        agentRunStore.start(organizationId, runId, "request-start");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokenProvider.createRunToken(Instant.now(), runId, organizationId));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<Void> response = restTemplate.postForEntity(
+                "/internal/v1/agent-runs/" + runId + "/message-deltas",
+                new HttpEntity<>(Map.of("delta", "增量正文"), headers), Void.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT event_type FROM agent_events WHERE run_id=? ORDER BY sequence DESC LIMIT 1",
+                String.class, runId)).isEqualTo("message.delta");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.delta')) FROM agent_events "
+                        + "WHERE run_id=? ORDER BY sequence DESC LIMIT 1",
+                String.class, runId)).isEqualTo("增量正文");
+    }
+
+    @Test
+    void internalRuntimeCallbackPersistsReplayableReasoningDelta() {
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0XA";
+        long userId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE email='owner@example.com'", Long.class);
+        agentRunStore.create(runId, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ASK, "User request (8 chars, content redacted)",
+                "reasoning-stream-callback", "request-hash", "request-create");
+        agentRunStore.start(organizationId, runId, "request-start");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokenProvider.createRunToken(Instant.now(), runId, organizationId));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<Void> response = restTemplate.postForEntity(
+                "/internal/v1/agent-runs/" + runId + "/reasoning-deltas",
+                new HttpEntity<>(Map.of("delta", "先读取权威需求，再形成结果。"), headers), Void.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT event_type FROM agent_events WHERE run_id=? ORDER BY sequence DESC LIMIT 1",
+                String.class, runId)).isEqualTo("reasoning.delta");
+    }
+
+    @Test
+    void cancelsActiveRunAndPersistsTerminalEvent() throws Exception {
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0XW";
+        long userId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE email='owner@example.com'", Long.class);
+        agentRunStore.create(runId, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ASK, "User request (8 chars, content redacted)",
+                "cancel-active", "request-hash", "request-create");
+        agentRunStore.start(organizationId, runId, "request-start");
+
+        ResponseEntity<String> response = csrf().post(
+                "/api/v1/agent-runs/" + runId + ":cancel", Map.of(), ownerCookie, String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode snapshot = data(response);
+        assertThat(snapshot.get("status").asText()).isEqualTo("CANCELLED");
+        assertThat(snapshot.get("terminal").asBoolean()).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT event_type FROM agent_events WHERE run_id=? ORDER BY sequence DESC LIMIT 1",
+                String.class, runId)).isEqualTo("agent.cancelled");
+    }
+
+    @Test
     void clientRequestIdIsIdempotentForTheSameUserAndOrganization() throws Exception {
         JsonNode first = data(createRun("first", "same-request"));
         JsonNode repeated = data(createRun("first", "same-request"));
@@ -157,13 +277,13 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void mediumToolConfirmationDefaultsToAskAndExplicitPolicyIsPersisted() throws Exception {
+    void mediumToolConfirmationDefaultsToAllowAndExplicitPolicyIsPersisted() throws Exception {
         String defaultRunId = data(createRun("default policy", "policy-default")).get("id").asText();
         String allowedRunId = data(createRun("explicit allow", "policy-allow", "ALLOW")).get("id").asText();
 
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT medium_tool_confirmation FROM agent_runs WHERE id = ?", String.class, defaultRunId))
-                .isEqualTo("ASK");
+                .isEqualTo("ALLOW");
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT medium_tool_confirmation FROM agent_runs WHERE id = ?", String.class, allowedRunId))
                 .isEqualTo("ALLOW");
@@ -218,6 +338,18 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
                 String.class));
         assertThat(productRun.get("skill").asText()).isEqualTo("PRODUCT");
         assertThat(productRun.get("workItemId").asLong()).isEqualTo(requirementId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT requirement_id FROM agent_conversations WHERE id=?", Long.class,
+                conversationId)).isEqualTo(requirementId);
+
+        JsonNode listedConversation = data(restTemplate.exchange(
+                "/api/v1/agent-conversations",
+                org.springframework.http.HttpMethod.GET,
+                new org.springframework.http.HttpEntity<>(headers(ownerCookie)),
+                String.class)).get(0);
+        assertThat(listedConversation.get("requirementId").asLong()).isEqualTo(requirementId);
+        assertThat(listedConversation.get("requirementKey").asText())
+                .isEqualTo(requirement.get("itemKey").asText());
 
         jdbcTemplate.update("UPDATE work_items SET status='UX_IN_PROGRESS', version=version+1 WHERE id=?",
                 requirementId);
@@ -231,6 +363,10 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
                         "SELECT skill FROM agent_runs WHERE work_item_id=? ORDER BY created_at",
                         String.class, requirementId))
                 .containsExactly("PRODUCT", "UX");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT medium_tool_confirmation FROM agent_runs WHERE work_item_id=? ORDER BY created_at",
+                        String.class, requirementId))
+                .containsExactly("ALLOW", "ALLOW");
 
         JsonNode otherRequirement = data(csrf().post(
                 "/api/v1/work-items",
@@ -247,10 +383,43 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void createdRequirementAutomaticallyBindsItsConversation() throws Exception {
+        JsonNode conversation = data(csrf().post(
+                "/api/v1/agent-conversations",
+                Map.of("title", "自动绑定新需求"), ownerCookie, String.class));
+        long conversationId = conversation.get("id").asLong();
+        long userId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE email='owner@example.com'", Long.class);
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0XB";
+        agentRunStore.create(runId, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ALLOW, "User request (8 chars, content redacted)",
+                "auto-bind-created-requirement", "request-hash", "request-create");
+        jdbcTemplate.update(
+                "INSERT INTO agent_messages(conversation_id,sender,body,run_id,created_at) "
+                        + "VALUES(?,'USER','创建需求',?,UTC_TIMESTAMP(6))",
+                conversationId, runId);
+        JsonNode requirement = data(csrf().post(
+                "/api/v1/work-items",
+                Map.of("type", "REQUIREMENT", "title", "Agent 新建需求",
+                        "description", "自动绑定", "priority", "MEDIUM"),
+                ownerCookie, String.class));
+        agentRunStore.bindConversationToRequirement(
+                organizationId, runId, requirement.get("id").asLong());
+
+        Long requirementId = jdbcTemplate.queryForObject(
+                "SELECT requirement_id FROM agent_conversations WHERE id=?",
+                Long.class, conversationId);
+        assertThat(requirementId).isNotNull();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT type FROM work_items WHERE id=?", String.class, requirementId))
+                .isEqualTo("REQUIREMENT");
+    }
+
+    @Test
     void terminalStreamReplaysAfterLastEventIdAndThenCloses() throws Exception {
         String runId = data(createRun("stream", "stream-request")).get("id").asText();
         JsonNode terminal = awaitTerminal(runId);
-        assertThat(terminal.get("lastSequence").asLong()).isEqualTo(6);
+        assertThat(terminal.get("lastSequence").asLong()).isEqualTo(7);
 
         org.springframework.http.HttpHeaders headers = headers(ownerCookie);
         headers.setAccept(List.of(MediaType.TEXT_EVENT_STREAM));
@@ -265,7 +434,8 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.TEXT_EVENT_STREAM);
         assertThat(response.getBody())
                 .contains("id:3", "event:step.started", "id:4", "event:step.completed",
-                        "id:5", "event:step.completed", "id:6", "event:agent.completed")
+                        "id:5", "event:step.completed", "id:6", "event:message.completed",
+                        "id:7", "event:agent.completed")
                 .doesNotContain("id:1", "id:2")
                 .doesNotContain("should-not-be-persisted");
 

@@ -1,6 +1,6 @@
 name: create_ux_task
 version: 1
-description: 在指定 Requirement 下创建 UX Task 工作项；MEDIUM 风险，默认需要确认。
+description: 在指定 Requirement 下创建 UX Task 工作项；MEDIUM 过程动作默认直接执行。
 input_schema:
   type: object
   required: [requirementId, title]

@@ -11,7 +11,31 @@ from forge_agent.gateway.runtime import (
     RunStart,
     ToolSelection,
 )
-from forge_agent.gateway.tool_transport import StaticToolTransport, ToolExecution
+from forge_agent.gateway.tool_transport import (
+    StaticToolTransport,
+    ToolExecution,
+    ToolTransportFailure,
+)
+
+
+class RecordingAnswerStream:
+    def __init__(self) -> None:
+        self.deltas: list[tuple[str, str, str]] = []
+        self.reasoning: list[tuple[str, str, str]] = []
+
+    def publish(self, run_id: str, delta: str, run_token: str) -> None:
+        self.deltas.append((run_id, delta, run_token))
+
+    def publish_reasoning(self, run_id: str, delta: str, run_token: str) -> None:
+        self.reasoning.append((run_id, delta, run_token))
+
+
+class FailingAnswerStream:
+    def publish(self, run_id: str, delta: str, run_token: str) -> None:
+        raise ToolTransportFailure("answer stream publish failed")
+
+    def publish_reasoning(self, run_id: str, delta: str, run_token: str) -> None:
+        raise ToolTransportFailure("reasoning stream publish failed")
 
 
 def manifest(
@@ -57,6 +81,38 @@ def test_fake_llm_graph_produces_plan_and_completion(tmp_path) -> None:
     assert result.tool_calls == []
 
 
+def test_runtime_publishes_each_final_answer_delta(tmp_path) -> None:
+    answer_stream = RecordingAnswerStream()
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite",
+        FakeLanguageModel(),
+        StaticToolTransport([]),
+        answer_stream,
+    )
+
+    result = runtime.start(RunStart(manifest=manifest(), message="整理 UX 交付计划"), "run-token")
+
+    assert "".join(delta for _, delta, _ in answer_stream.deltas) == result.answer
+    assert len(answer_stream.deltas) == 2
+    assert all(run_id == manifest().run_id for run_id, _, _ in answer_stream.deltas)
+    assert all(token == "run-token" for _, _, token in answer_stream.deltas)
+    assert "\n".join(delta for _, delta, _ in answer_stream.reasoning) == "\n".join(result.plan)
+
+
+def test_runtime_completes_when_replayable_answer_delta_publish_fails(tmp_path) -> None:
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite",
+        FakeLanguageModel(),
+        StaticToolTransport([]),
+        FailingAnswerStream(),
+    )
+
+    result = runtime.start(RunStart(manifest=manifest(), message="新建需求"), "run-token")
+
+    assert result.status == "SUCCEEDED"
+    assert result.answer
+
+
 def test_fake_model_recognizes_natural_create_requirement_phrase() -> None:
     model = FakeLanguageModel()
 
@@ -83,7 +139,16 @@ def test_fake_product_creates_prd_for_bound_requirement() -> None:
 
     assert selection == ToolSelection(
         tool_name="create_prd_document",
-        arguments={"requirementId": 42, "title": "Fake PRD"},
+        arguments={
+            "requirementId": 42,
+            "title": "Fake PRD",
+            "contentMarkdown": (
+                "# 1 背景与目标\n\n"
+                "为当前需求创建可编辑的产品需求文档。\n\n"
+                "## 2 验收标准\n\n"
+                "- PRD 正文已保存为初始版本"
+            ),
+        },
     )
 
 
@@ -381,9 +446,72 @@ def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:
     assert [call.tool_call_id for call in result.tool_calls] == ["call-1", "call-2"]
 
 
+def test_successful_prd_write_completes_without_another_model_decision(tmp_path) -> None:
+    class PrdModel(FakeLanguageModel):
+        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+            self.select_calls += 1
+            if not tool_calls:
+                return ToolSelection(
+                    tool_name="search_documents",
+                    arguments={"query": "需求背景"},
+                )
+            if len(tool_calls) == 1:
+                return ToolSelection(
+                    tool_name="create_prd_document",
+                    arguments={
+                        "requirementId": work_item_id,
+                        "title": "生成的 PRD",
+                        "contentMarkdown": "# 背景与目标\n\n生成完整且可验证的 PRD 正文。",
+                    },
+                )
+            raise RuntimeError("successful PRD write must not request another model decision")
+
+    model = PrdModel()
+    answer_stream = RecordingAnswerStream()
+    transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="search_documents",
+                tool_call_id="call-1",
+                result={"items": []},
+            ),
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="create_prd_document",
+                tool_call_id="call-2",
+                result={"id": 9, "currentVersionNo": 1},
+            ),
+        ]
+    )
+    request_manifest = manifest(
+        effective_tool_names=["search_documents", "create_prd_document"],
+        max_tool_calls=5,
+    ).model_copy(update={"skill": "PRODUCT"})
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", model, transport, answer_stream
+    )
+
+    result = runtime.start(
+        RunStart(manifest=request_manifest, message="检索背景并填充 PRD 正文"),
+        "run-token",
+    )
+
+    assert result.status == "SUCCEEDED"
+    assert model.select_calls == 2
+    assert model.finalize_calls == 0
+    assert [call.tool_name for call in result.tool_calls] == [
+        "search_documents",
+        "create_prd_document",
+    ]
+    assert result.answer == "PRD 正文已保存（文档 9，版本 1）。"
+    assert [delta for _, delta, _ in answer_stream.deltas] == [result.answer]
+
+
 def test_stage_agent_reads_authoritative_version_before_requesting_transition(tmp_path) -> None:
     class StageProgressModel(FakeLanguageModel):
         def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+            self.select_calls += 1
             if not tool_calls:
                 return ToolSelection(
                     tool_name="get_work_item", arguments={"workItemId": work_item_id}
@@ -398,7 +526,7 @@ def test_stage_agent_reads_authoritative_version_before_requesting_transition(tm
                         "expectedVersion": version,
                     },
                 )
-            return None
+            raise RuntimeError("successful transition must not request another model decision")
 
     transport = StaticToolTransport(
         [
@@ -419,8 +547,10 @@ def test_stage_agent_reads_authoritative_version_before_requesting_transition(tm
     request_manifest = manifest(
         effective_tool_names=["get_work_item", "advance_requirement"], max_tool_calls=5
     ).model_copy(update={"skill": "DEVELOPER"})
+    model = StageProgressModel()
+    answer_stream = RecordingAnswerStream()
     runtime = LangGraphRuntimeGateway(
-        tmp_path / "checkpoints.sqlite", StageProgressModel(), transport
+        tmp_path / "checkpoints.sqlite", model, transport, answer_stream
     )
 
     result = runtime.start(
@@ -428,8 +558,12 @@ def test_stage_agent_reads_authoritative_version_before_requesting_transition(tm
     )
 
     assert result.status == "SUCCEEDED"
+    assert model.select_calls == 2
+    assert model.finalize_calls == 0
     assert transport.requests[1]["arguments"]["expectedVersion"] == 7
     assert result.tool_calls[1].result == {"status": "READY_FOR_QA", "version": 8}
+    assert result.answer == "当前阶段已推进（状态 READY_FOR_QA，版本 8）。"
+    assert [delta for _, delta, _ in answer_stream.deltas] == [result.answer]
 
 
 def test_guard_rejects_tool_outside_manifest_allowlist_without_server_call(tmp_path) -> None:
@@ -470,6 +604,81 @@ def test_guard_rejects_tool_when_call_budget_is_exhausted(tmp_path) -> None:
     assert transport.requests == []
     assert result.tool_calls[0].status == "REJECTED"
     assert result.tool_calls[0].error_code == "TOOL_CALL_BUDGET_EXCEEDED"
+
+
+def test_stubborn_model_stops_after_tool_budget_rejection(tmp_path) -> None:
+    class StubbornModel(FakeLanguageModel):
+        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+            self.select_calls += 1
+            return ToolSelection(
+                tool_name="search_documents",
+                arguments={"query": "重复检索"},
+            )
+
+    model = StubbornModel()
+    transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="search_documents",
+                tool_call_id="call-1",
+                result={"items": []},
+            )
+        ]
+    )
+    runtime = LangGraphRuntimeGateway(tmp_path / "checkpoints.sqlite", model, transport)
+
+    result = runtime.start(
+        RunStart(
+            manifest=manifest(effective_tool_names=["search_documents"], max_tool_calls=1),
+            message="持续检索",
+        ),
+        "run-token",
+    )
+
+    assert result.status == "SUCCEEDED"
+    assert len(transport.requests) == 1
+    assert [call.status for call in result.tool_calls] == ["SUCCEEDED", "REJECTED"]
+    assert result.tool_calls[-1].error_code == "TOOL_CALL_BUDGET_EXCEEDED"
+    assert model.select_calls == 2
+
+
+def test_graph_recursion_limit_scales_with_tool_call_budget(tmp_path) -> None:
+    class BoundedModel(FakeLanguageModel):
+        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+            self.select_calls += 1
+            if len(tool_calls) < 7:
+                return ToolSelection(
+                    tool_name="search_documents",
+                    arguments={"query": f"检索 {len(tool_calls) + 1}"},
+                )
+            return None
+
+    model = BoundedModel()
+    transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="search_documents",
+                tool_call_id=f"call-{index}",
+                result={"items": []},
+            )
+            for index in range(1, 8)
+        ]
+    )
+    runtime = LangGraphRuntimeGateway(tmp_path / "checkpoints.sqlite", model, transport)
+
+    result = runtime.start(
+        RunStart(
+            manifest=manifest(effective_tool_names=["search_documents"], max_tool_calls=7),
+            message="执行有界多轮检索",
+        ),
+        "run-token",
+    )
+
+    assert result.status == "SUCCEEDED"
+    assert len(result.tool_calls) == 7
+    assert model.select_calls == 8
 
 
 def test_waiting_approval_pauses_and_new_runtime_resumes_original_tool_call(tmp_path) -> None:

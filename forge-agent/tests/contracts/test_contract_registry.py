@@ -23,7 +23,8 @@ def test_registry_loads_real_repository_contracts() -> None:
     assert tool.risk_level == "MEDIUM"
     assert tool.medium_risk
     assert tool.backend_path == "/internal/v1/tools/create_requirement:execute"
-    assert tool.input_schema["required"] == ["title"]
+    assert tool.input_schema["required"] == ["title", "description"]
+    assert tool.input_schema["properties"]["description"]["minLength"] == 20
 
     read_tool = registry.find_tool("get_organization")
     assert read_tool is not None

@@ -9,6 +9,7 @@ public interface ConversationStore {
     List<Map<String, Object>> conversations(long organizationId, long userId);
     int owns(long organizationId, long userId, long id);
     Long requirementId(long organizationId, long userId, long id);
+    int bindRequirement(long organizationId, long userId, long id, long requirementId);
     int insertUserMessage(long conversationId, String body, String runId);
     int touch(long id);
     List<Map<String, Object>> messages(long id);

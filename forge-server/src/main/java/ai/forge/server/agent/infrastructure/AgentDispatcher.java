@@ -35,8 +35,10 @@ public class AgentDispatcher {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void dispatch(AgentRunRequested requested) {
         try {
-            runStore.start(
-                    requested.organizationId(), requested.runId(), requested.requestId());
+            if (!runStore.start(
+                    requested.organizationId(), requested.runId(), requested.requestId())) {
+                return;
+            }
             AgentRuntimeGateway.RunResult result = runtimeGateway.start(requested);
             if ("WAITING_APPROVAL".equals(result.status())) {
                 LOGGER.info("Agent Run paused for approval: runId={}", requested.runId());

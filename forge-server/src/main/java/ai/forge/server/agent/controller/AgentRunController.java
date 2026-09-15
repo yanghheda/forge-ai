@@ -71,6 +71,15 @@ public class AgentRunController {
         return runService.get(userId, organizationAccess.requireContext(userId).organizationId(), runId);
     }
 
+    @PostMapping("/{runId}:cancel")
+    @Operation(summary = "终止 Agent Run", description = "先提交 Server 权威取消终态，再尽力中断 Agent Runtime。")
+    public AgentRunSnapshot cancel(@PathVariable String runId, HttpServletRequest request) {
+        long userId = AuthController.requireContext(request).userId();
+        String requestId = (String) request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
+        return runService.cancel(
+                userId, organizationAccess.requireContext(userId).organizationId(), runId, requestId);
+    }
+
     @GetMapping(value = "/{runId}/export", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "导出 Agent Trace", description = "下载当前 Run 的权威脱敏 Trace JSON。")
     public ResponseEntity<AgentRunSnapshot> export(@PathVariable String runId, HttpServletRequest request) {
@@ -85,7 +94,7 @@ public class AgentRunController {
             @Positive Long workItemId,
             /* 本轮固定的五角色 Skill；会话入口会按 Requirement 阶段自动选择。 */
             @NotNull AgentSkill skill,
-            /* 本轮 MEDIUM 风险 Tool 的确认策略；缺省 ASK，非法取值由枚举反序列化拒绝。 */
+            /* 本轮 MEDIUM 风险 Tool 的执行策略；缺省 ALLOW，非法取值由枚举反序列化拒绝。 */
             MediumToolConfirmation mediumToolConfirmation,
             /* 仅在请求内交给 Runner，不能原样持久化。 */
             @NotBlank @Size(max = 10000) String message,

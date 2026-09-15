@@ -28,6 +28,9 @@ export interface BoardItem {
 export interface AgentConversation {
   id: number;
   title: string;
+  requirementId: number | null;
+  requirementKey: string | null;
+  requirementTitle: string | null;
   createdAt: string;
   updatedAt: string;
   version: number;

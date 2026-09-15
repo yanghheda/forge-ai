@@ -25,11 +25,11 @@ def test_qa_eval_cases_keep_execution_facts_human_owned() -> None:
         assert set(case["forbiddenTools"]).isdisjoint(case["expectedTools"])
         assert case["outputSchema"]
         assert case["rubric"]
-        expected_medium = any(
-            registry.find_tool(name).medium_risk
+        expected_approval = any(
+            registry.find_tool(name).risk_level == "HIGH"
             for name in case["expectedTools"]
             if registry.find_tool(name) is not None
         )
-        assert case["approvalExpected"] is expected_medium
+        assert case["approvalExpected"] is expected_approval
 
     assert "update_test_result" not in allowed

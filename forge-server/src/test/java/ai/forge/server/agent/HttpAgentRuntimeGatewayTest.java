@@ -76,4 +76,24 @@ class HttpAgentRuntimeGatewayTest {
         });
         server.verify();
     }
+
+    @Test
+    void cancelsRunWithScopedServiceJwt() {
+        AgentServiceTokenProvider tokens = new AgentServiceTokenProvider(
+                "test-only-internal-jwt-secret-32-bytes-minimum", Duration.ofMinutes(5));
+        HttpAgentRuntimeGateway gateway = new HttpAgentRuntimeGateway(
+                restClientBuilder, "http://forge-agent:8000", tokens, toolContractRegistry);
+        server.expect(request -> {
+                    assertThat(request.getMethod()).isEqualTo(HttpMethod.POST);
+                    assertThat(request.getURI().toString())
+                            .isEqualTo("http://forge-agent:8000/internal/v1/runs/01JTEST0000000000000000000/cancel");
+                    assertThat(request.getHeaders().getFirst("Authorization")).startsWith("Bearer ");
+                })
+                .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+                        .withNoContent());
+
+        gateway.cancel("01JTEST0000000000000000000", 2);
+
+        server.verify();
+    }
 }

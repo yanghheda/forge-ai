@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
-from threading import Lock
+from threading import Event, Lock
 from typing import Any, Literal, Protocol, TypedDict
 
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -14,6 +16,8 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict, Field
 
 from forge_agent.gateway.tool_transport import ToolCallRecord, ToolExecution, ToolTransport
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _camel(value: str) -> str:
@@ -133,6 +137,14 @@ class LanguageModel(Protocol):
         tool_calls: list[dict[str, Any]],
     ) -> str: ...
 
+    def stream_final(
+        self,
+        skill: str,
+        message: str,
+        resource_count: int,
+        tool_calls: list[dict[str, Any]],
+    ) -> Iterable[str]: ...
+
 
 class FakeLanguageModel:
     """不访问网络的确定性模型，用于验证图和恢复语义。"""
@@ -197,7 +209,16 @@ class FakeLanguageModel:
             if "create_prd_document" not in executed_tool_names:
                 return ToolSelection(
                     tool_name="create_prd_document",
-                    arguments={"requirementId": work_item_id, "title": "Fake PRD"},
+                    arguments={
+                        "requirementId": work_item_id,
+                        "title": "Fake PRD",
+                        "contentMarkdown": (
+                            "# 1 背景与目标\n\n"
+                            "为当前需求创建可编辑的产品需求文档。\n\n"
+                            "## 2 验收标准\n\n"
+                            "- PRD 正文已保存为初始版本"
+                        ),
+                    },
                 )
             return None
         if skill == "UX" and "创建" in message and "任务" in message:
@@ -244,6 +265,21 @@ class FakeLanguageModel:
                 ]
             return ToolSelection(tool_name="advance_requirement", arguments=arguments)
         return None
+
+    def stream_final(
+        self,
+        skill: str,
+        message: str,
+        resource_count: int,
+        tool_calls: list[dict[str, Any]],
+    ) -> Iterable[str]:
+        """Fake 模型也按多个片段输出，用于覆盖真实流式链路。"""
+
+        answer = self.finalize(skill, message, resource_count, tool_calls)
+        midpoint = max(1, len(answer) // 2)
+        yield answer[:midpoint]
+        if midpoint < len(answer):
+            yield answer[midpoint:]
 
     @staticmethod
     def _asset_selection(skill: str, message: str, requirement_id: int) -> ToolSelection | None:
@@ -360,24 +396,44 @@ class AgentState(TypedDict, total=False):
     pending_execution: dict[str, Any]
 
 
+class AnswerStream(Protocol):
+    """把最终回答片段发送给 Backend 权威事件流。"""
+
+    def publish(self, run_id: str, delta: str, run_token: str) -> None: ...
+
+    def publish_reasoning(self, run_id: str, delta: str, run_token: str) -> None: ...
+
+
 class RuntimeGateway(Protocol):
     """Agent Run 执行器的可替换边界。"""
 
     def start(self, request: RunStart, run_token: str) -> RunResult: ...
+
+    def cancel(self, run_id: str) -> None: ...
+
+
+class RunCancelled(RuntimeError):
+    """Run 已收到用户取消信号。"""
 
 
 class LangGraphRuntimeGateway:
     """使用真实 StateGraph 和 SQLiteSaver 执行最小有界图。"""
 
     def __init__(
-        self, checkpoint_path: Path, model: LanguageModel, transport: ToolTransport
+        self,
+        checkpoint_path: Path,
+        model: LanguageModel,
+        transport: ToolTransport,
+        answer_stream: AnswerStream | None = None,
     ) -> None:
         checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         self._connection = sqlite3.connect(checkpoint_path, check_same_thread=False)
         self._checkpointer = SqliteSaver(self._connection)
         self._model = model
         self._transport = transport
+        self._answer_stream = answer_stream
         self._lock = Lock()
+        self._cancellations: dict[str, Event] = {}
         graph = StateGraph(AgentState)
         graph.add_node("validate_context", self._validate_context)
         graph.add_node("create_plan", self._create_plan)
@@ -385,6 +441,7 @@ class LangGraphRuntimeGateway:
         graph.add_node("guard_tool", self._guard_tool)
         graph.add_node("execute_tool", self._execute_tool)
         graph.add_node("observe_tool", self._observe_tool)
+        graph.add_node("complete_action", self._complete_action)
         graph.add_node("finalize", self._finalize)
         graph.add_edge(START, "validate_context")
         graph.add_edge("validate_context", "create_plan")
@@ -404,14 +461,35 @@ class LangGraphRuntimeGateway:
             self._after_execution,
             {"pause": END, "observe": "observe_tool"},
         )
-        graph.add_edge("observe_tool", "select_tool")
+        graph.add_conditional_edges(
+            "observe_tool",
+            self._after_observation,
+            {
+                "select": "select_tool",
+                "complete_action": "complete_action",
+                "finalize": "finalize",
+            },
+        )
+        graph.add_edge("complete_action", END)
         graph.add_edge("finalize", END)
         self._graph = graph.compile(checkpointer=self._checkpointer)
 
     def start(self, request: RunStart, run_token: str) -> RunResult:
         request.manifest.require_active()
-        config = {"configurable": {"thread_id": request.manifest.run_id, "run_token": run_token}}
+        cancellation = self._cancellations.setdefault(request.manifest.run_id, Event())
+        config = {
+            # 每次 Tool 调用会经过 select/guard/execute/observe 四个节点；
+            # LangGraph 默认 25 步不足以承载 Manifest 允许的最多 20 次调用。
+            "recursion_limit": max(25, request.manifest.policy.max_tool_calls * 4 + 10),
+            "configurable": {
+                "thread_id": request.manifest.run_id,
+                "run_token": run_token,
+                "cancellation": cancellation,
+            },
+        }
         with self._lock:
+            if cancellation.is_set():
+                raise RunCancelled()
             snapshot = self._graph.get_state(config)
             if snapshot.values.get("status") == "SUCCEEDED":
                 return self._result(snapshot.values)
@@ -446,18 +524,42 @@ class LangGraphRuntimeGateway:
                 )
             return self._result(state)
 
+    def cancel(self, run_id: str) -> None:
+        self._cancellations.setdefault(run_id, Event()).set()
+
+    @staticmethod
+    def _require_not_cancelled() -> None:
+        cancellation = get_config()["configurable"].get("cancellation")
+        if isinstance(cancellation, Event) and cancellation.is_set():
+            raise RunCancelled()
+
     def _validate_context(self, state: AgentState) -> AgentState:
         return {"state_version": state.get("state_version", 0) + 1}
 
     def _create_plan(self, state: AgentState) -> AgentState:
+        self._require_not_cancelled()
+        plan = self._model.create_plan(state["skill"], state["message"])
+        run_token = str(get_config()["configurable"].get("run_token", ""))
+        if self._answer_stream is not None:
+            for item in plan:
+                try:
+                    self._answer_stream.publish_reasoning(state["run_id"], item, run_token)
+                except Exception:
+                    # 执行思路属于可恢复的展示事件，发布失败不改变 Run 的业务结果。
+                    LOGGER.warning(
+                        "Reasoning summary publish failed; continuing run: run_id=%s",
+                        state["run_id"],
+                        exc_info=True,
+                    )
         return {
-            "plan": self._model.create_plan(state["skill"], state["message"]),
+            "plan": plan,
             "state_version": state["state_version"] + 1,
         }
 
     def _select_tool(self, state: AgentState) -> AgentState:
         """模型依据消息与已执行观察选择下一个 Tool；无选择则进入收尾。"""
 
+        self._require_not_cancelled()
         selection = self._model.select_tool(
             state["skill"],
             state["message"],
@@ -510,6 +612,7 @@ class LangGraphRuntimeGateway:
     def _execute_tool(self, state: AgentState) -> AgentState:
         """携带 run 凭据调用 Server 内部端点；传输失败归一为 FAILED 信封。"""
 
+        self._require_not_cancelled()
         selection = state["pending_selection"]
         tool_name = str(selection["toolName"])
         tool_call_id = self._next_tool_call_id(state)
@@ -558,14 +661,85 @@ class LangGraphRuntimeGateway:
             "state_version": state["state_version"] + 1,
         }
 
-    def _finalize(self, state: AgentState) -> AgentState:
+    def _complete_action(self, state: AgentState) -> AgentState:
+        """关键写操作成功后依据 Tool 事实直接收尾，避免后置模型阻塞终态。"""
+
+        last_call = state.get("tool_calls", [])[-1]
+        tool_name = last_call.get("toolName")
+        result = last_call.get("result")
+        result = result if isinstance(result, dict) else {}
+        if tool_name == "create_prd_document":
+            details: list[str] = []
+            if result.get("id") is not None:
+                details.append(f"文档 {result['id']}")
+            if result.get("currentVersionNo") is not None:
+                details.append(f"版本 {result['currentVersionNo']}")
+            suffix = f"（{'，'.join(details)}）" if details else ""
+            answer = f"PRD 正文已保存{suffix}。"
+        else:
+            details = []
+            if result.get("status") is not None:
+                details.append(f"状态 {result['status']}")
+            if result.get("version") is not None:
+                details.append(f"版本 {result['version']}")
+            suffix = f"（{'，'.join(details)}）" if details else ""
+            answer = f"当前阶段已推进{suffix}。"
+        run_token = str(get_config()["configurable"].get("run_token", ""))
+        if self._answer_stream is not None:
+            try:
+                self._answer_stream.publish(state["run_id"], answer, run_token)
+            except Exception:
+                # 完整回答仍会随 Run 终态提交，实时事件失败不能覆盖已成功的 PRD 写入。
+                LOGGER.warning(
+                    "Action completion publish failed; continuing with final result: run_id=%s",
+                    state["run_id"],
+                    exc_info=True,
+                )
         return {
-            "answer": self._model.finalize(
+            "answer": answer,
+            "status": "SUCCEEDED",
+            "state_version": state["state_version"] + 1,
+        }
+
+    def _finalize(self, state: AgentState) -> AgentState:
+        chunks: list[str] = []
+        run_token = str(get_config()["configurable"].get("run_token", ""))
+        stream_final = getattr(self._model, "stream_final", None)
+        stream = (
+            stream_final(
                 state["skill"],
                 state["message"],
                 state["resource_count"],
                 state.get("tool_calls", []),
-            ),
+            )
+            if stream_final is not None
+            else [
+                self._model.finalize(
+                    state["skill"],
+                    state["message"],
+                    state["resource_count"],
+                    state.get("tool_calls", []),
+                )
+            ]
+        )
+        for delta in stream:
+            self._require_not_cancelled()
+            if not delta:
+                continue
+            chunks.append(delta)
+            if self._answer_stream is not None:
+                try:
+                    self._answer_stream.publish(state["run_id"], delta, run_token)
+                except Exception:
+                    # 正文增量只用于实时展示；完整回答会随 Run 终态再次提交，
+                    # 因此回放通道故障不能抹掉已经成功的业务 Tool 结果。
+                    LOGGER.warning(
+                        "Answer delta publish failed; continuing with final result: run_id=%s",
+                        state["run_id"],
+                        exc_info=True,
+                    )
+        return {
+            "answer": "".join(chunks),
             "status": "SUCCEEDED",
             "state_version": state["state_version"] + 1,
         }
@@ -581,6 +755,22 @@ class LangGraphRuntimeGateway:
     @staticmethod
     def _after_execution(state: AgentState) -> str:
         return "pause" if state.get("status") == "WAITING_APPROVAL" else "observe"
+
+    @staticmethod
+    def _after_observation(state: AgentState) -> str:
+        """关键写操作完成即收尾，不再让模型重复决策同一副作用。"""
+
+        tool_calls = state.get("tool_calls", [])
+        if tool_calls:
+            last_call = tool_calls[-1]
+            if last_call.get("status") == "SUCCEEDED" and last_call.get("toolName") in {
+                "create_prd_document",
+                "advance_requirement",
+            }:
+                return "complete_action"
+            if last_call.get("status") != "SUCCEEDED":
+                return "finalize"
+        return "select"
 
     @staticmethod
     def _next_tool_call_id(state: AgentState) -> str:

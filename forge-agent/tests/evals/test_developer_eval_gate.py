@@ -31,11 +31,11 @@ def test_developer_eval_cases_obey_contract_gate() -> None:
         assert case["outputSchema"]
         assert case["rubric"]
 
-        expected_medium = any(
-            registry.find_tool(tool_name).medium_risk
+        expected_approval = any(
+            registry.find_tool(tool_name).risk_level == "HIGH"
             for tool_name in case["expectedTools"]
             if registry.find_tool(tool_name) is not None
         )
-        assert case["approvalExpected"] is expected_medium
+        assert case["approvalExpected"] is expected_approval
 
     assert {"deploy_release", "create_test_case"}.isdisjoint(allowed)

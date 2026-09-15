@@ -27,7 +27,7 @@ public class AgentServiceTokenProvider {
 
     public AgentServiceTokenProvider(
             @Value("${forge.infrastructure.agent.jwt-secret}") String jwtSecret,
-            @Value("${forge.infrastructure.agent.token-ttl:30s}") Duration tokenTtl) {
+            @Value("${forge.infrastructure.agent.token-ttl:5m}") Duration tokenTtl) {
         if (jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalArgumentException("Agent internal JWT secret must be at least 32 bytes");
         }

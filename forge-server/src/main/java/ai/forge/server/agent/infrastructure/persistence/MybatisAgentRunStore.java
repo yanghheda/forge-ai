@@ -103,16 +103,16 @@ public class MybatisAgentRunStore implements AgentRunStore {
 
     @Override
     @Transactional
-    public void start(long organizationId, String runId, String requestId) {
+    public boolean start(long organizationId, String runId, String requestId) {
         Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
                 .findFirst()
                 .orElse(null);
         if (locked == null || !"QUEUED".equals(text(locked, "status"))) {
-            return;
+            return false;
         }
         long firstSequence = number(locked, "last_sequence") + 1;
         if (mapper.markRunning(organizationId, runId, firstSequence + 1) != 1) {
-            return;
+            return false;
         }
         mapper.insertAgentStep(organizationId, runId);
         mapper.insertEvent(
@@ -129,6 +129,62 @@ public class MybatisAgentRunStore implements AgentRunStore {
                 "step.started",
                 requestId,
                 json(Map.of("stepNo", 1, "name", "Create plan", "status", "RUNNING")));
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public void cancel(long organizationId, String runId, String requestId) {
+        Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Agent Run not found"));
+        if (AgentRunStatus.valueOf(text(locked, "status")).terminal()) {
+            return;
+        }
+        long sequence = number(locked, "last_sequence") + 1;
+        if (mapper.markCancelled(organizationId, runId, sequence) == 1) {
+            mapper.insertEvent(organizationId, runId, sequence, "agent.cancelled", requestId,
+                    json(Map.of("status", "CANCELLED")));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void appendMessageDelta(long organizationId, String runId, String delta) {
+        appendDelta(organizationId, runId, delta, "message.delta");
+    }
+
+    @Override
+    @Transactional
+    public void appendReasoningDelta(long organizationId, String runId, String delta) {
+        appendDelta(organizationId, runId, delta, "reasoning.delta");
+    }
+
+    @Override
+    public void bindConversationToRequirement(
+            long organizationId, String runId, long requirementId) {
+        mapper.bindConversationToRequirement(organizationId, runId, requirementId);
+    }
+
+    private void appendDelta(long organizationId, String runId, String delta, String eventType) {
+        if (delta == null || delta.isEmpty()) {
+            return;
+        }
+        if (delta.length() > 4000) {
+            throw new IllegalArgumentException("message delta exceeds 4000 characters");
+        }
+        Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Agent Run not found"));
+        if (!"RUNNING".equals(text(locked, "status"))) {
+            throw new IllegalStateException("Agent Run is not accepting message deltas");
+        }
+        long sequence = number(locked, "last_sequence") + 1;
+        if (mapper.advanceRunningSequence(organizationId, runId, sequence) != 1) {
+            throw new IllegalStateException("Agent Run sequence could not be advanced");
+        }
+        if (mapper.insertEvent(organizationId, runId, sequence, eventType, runId,
+                json(Map.of("delta", delta))) != 1) {
+            throw new IllegalStateException("Agent message delta could not be persisted");
+        }
     }
 
     @Override
@@ -186,9 +242,15 @@ public class MybatisAgentRunStore implements AgentRunStore {
         if (mapper.insertCompletedFinalStep(organizationId, runId, stepNo, finalSummary) != 1) {
             throw new IllegalStateException("Agent final trace could not be projected");
         }
+        mapper.insertAgentMessage(organizationId, runId, summary);
+        mapper.bindConversationToCreatedRequirement(organizationId, runId);
+        mapper.touchConversationForRun(organizationId, runId);
         mapper.insertEvent(organizationId, runId, sequence, "step.completed", requestId,
                 json(Map.of("stepNo", stepNo, "name", "Final response", "status", "SUCCEEDED",
                         "summary", finalSummary)));
+        sequence++;
+        mapper.insertEvent(organizationId, runId, sequence, "message.completed", requestId,
+                json(Map.of("content", summary)));
         sequence++;
         if (mapper.markSucceeded(organizationId, runId, sequence) != 1) {
             throw new IllegalStateException("Agent run state changed unexpectedly");

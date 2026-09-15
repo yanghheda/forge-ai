@@ -102,11 +102,160 @@ def test_qwen_prompt_contains_only_manifest_tools_and_structured_observations() 
     assert answer == "需求读取完成"
 
 
+def test_qwen_prompt_for_create_prd_document_requires_full_body() -> None:
+    """PRD 必须由模型一次性生成完整正文，而不是只报计划/章节名/占位文本。"""
+
+    model, requests = qwen_model([completion('{"toolName":"create_prd_document","arguments":{}}')])
+
+    model.select_tool(
+        "PRODUCT",
+        "新建PRD",
+        7,
+        [
+            {
+                "name": "create_prd_document",
+                "description": "在 Requirement 下创建 PRD",
+                "inputSchema": {"type": "object"},
+            }
+        ],
+        [],
+    )
+
+    content = requests[0]["messages"][0]["content"]
+    assert "contentMarkdown" in content
+    assert "完整" in content
+    assert "PRD 正文" in content
+    assert "占位文本" in content
+
+
+def test_qwen_prompt_requires_generated_requirement_description() -> None:
+    model, requests = qwen_model(
+        [
+            completion(
+                '{"toolName":"create_requirement","arguments":'
+                '{"title":"库存预警","description":"为运营提供库存阈值预警，减少缺货。"}}'
+            )
+        ]
+    )
+
+    model.select_tool(
+        "PRODUCT",
+        "创建一个库存预警需求",
+        None,
+        [
+            {
+                "name": "create_requirement",
+                "description": "创建需求",
+                "inputSchema": {"type": "object"},
+            }
+        ],
+        [],
+    )
+
+    content = requests[0]["messages"][0]["content"]
+    assert "create_requirement" in content
+    assert "description 必填" in content
+    assert "不得使用空字符串" in content
+
+
+def test_qwen_prompt_requires_prd_creation_after_successful_search() -> None:
+    model, requests = qwen_model([completion('{"toolName":"create_prd_document","arguments":{}}')])
+
+    model.select_tool(
+        "PRODUCT",
+        "检索背景并填充 PRD 正文",
+        7,
+        [
+            {
+                "name": "search_documents",
+                "description": "检索文档",
+                "inputSchema": {"type": "object"},
+            },
+            {
+                "name": "create_prd_document",
+                "description": "创建 PRD",
+                "inputSchema": {"type": "object"},
+            },
+        ],
+        [
+            {
+                "toolName": "search_documents",
+                "status": "SUCCEEDED",
+                "result": {"items": []},
+            }
+        ],
+    )
+
+    content = requests[0]["messages"][0]["content"]
+    assert "不得再次调用 search_documents" in content
+    assert "必须选择 create_prd_document" in content
+
+
+def test_qwen_prompt_requires_transition_after_successful_work_item_read() -> None:
+    model, requests = qwen_model([completion('{"toolName":"advance_requirement","arguments":{}}')])
+
+    model.select_tool(
+        "PRODUCT",
+        "推进当前阶段",
+        7,
+        [
+            {
+                "name": "get_work_item",
+                "description": "读取需求",
+                "inputSchema": {"type": "object"},
+            },
+            {
+                "name": "advance_requirement",
+                "description": "推进需求阶段",
+                "inputSchema": {"type": "object"},
+            },
+        ],
+        [
+            {
+                "toolName": "get_work_item",
+                "status": "SUCCEEDED",
+                "result": {"id": 7, "status": "DRAFT", "version": 3},
+            }
+        ],
+    )
+
+    content = requests[0]["messages"][0]["content"]
+    assert "不得再次调用 get_work_item" in content
+    assert "必须选择 advance_requirement" in content
+
+
 def test_qwen_rejects_invalid_structured_output() -> None:
     model, _ = qwen_model([completion("not-json")])
 
     with pytest.raises(RuntimeError, match="invalid JSON"):
         model.create_plan("UX", "整理方案")
+
+
+def test_qwen_streams_final_answer_as_plain_text_deltas() -> None:
+    requests: list[dict] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(json.loads(request.content))
+        body = (
+            'data: {"choices":[{"delta":{"content":"需求"}}]}\n\n'
+            'data: {"choices":[{"delta":{"content":"已完成"}}]}\n\n'
+            'data: {"choices":[],"usage":{"total_tokens":12}}\n\n'
+            "data: [DONE]\n\n"
+        )
+        return httpx.Response(200, content=body.encode())
+
+    model = QwenLanguageModel(
+        api_key="sk-test",
+        base_url="https://dashscope.example/compatible-mode/v1",
+        model="qwen-plus",
+        client=httpx.Client(transport=httpx.MockTransport(handle)),
+    )
+
+    deltas = list(model.stream_final("PRODUCT", "完成需求", 1, []))
+
+    assert deltas == ["需求", "已完成"]
+    assert requests[0]["stream"] is True
+    assert "response_format" not in requests[0]
 
 
 def test_qwen_propagates_http_failure_without_leaking_key() -> None:

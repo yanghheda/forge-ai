@@ -680,6 +680,8 @@ POST /internal/v1/tools/{toolName}:execute
 5. Agent 建图执行并批量回写 Step/Event；Tool 必须回调 Backend。
 6. Backend 是 Run 对外状态和 SSE 的权威；Agent Checkpoint 只是恢复材料。
 
+Agent 会话可以在首轮手动选择 Requirement，或在 `create_requirement` 成功后自动绑定新建 Requirement。绑定写入 `agent_conversations.requirement_id`，后续消息固定复用该上下文；切换需求必须新建会话，浏览器输入状态不作为绑定事实。
+
 ### 9.2 ContextManifest
 
 ```json
@@ -689,7 +691,7 @@ POST /internal/v1/tools/{toolName}:execute
   "scope": {"workspaceId": 2, "projectId": 10, "workItemId": 1024},
   "skill": "UX",
   "effectiveToolNames": ["get_work_item", "search_documents", "create_ux_task", "create_ux_document"],
-  "policy": {"mediumConfirmation": "ASK", "maxToolCalls": 20, "tokenBudget": 50000},
+  "policy": {"mediumConfirmation": "ALLOW", "maxToolCalls": 20, "tokenBudget": 50000},
   "resourceRefs": [{"type":"WORK_ITEM","id":"1024","version":7}],
   "expiresAt": "2026-08-25T12:05:00Z"
 }
@@ -748,9 +750,9 @@ limits:
 
 每个 Tool Contract 必填：`name/version/description/input_schema/output_schema/required_permission/risk_level/idempotency/timeout/retry/backend_mapping/sensitive_fields/requirement_ids`。
 
-执行顺序：Registry 白名单 → JSON Schema → Run/Skill → Backend 资源 scope → 当前用户权限 → Project Policy → 风险/审批 → 幂等 → 应用服务 → Audit/Event。
+执行顺序：Registry 白名单 → JSON Schema → Run/Skill → Backend 资源 scope → 当前用户权限 → 公司策略 → 风险/审批 → 幂等 → 应用服务 → Audit/Event。MEDIUM 过程动作默认直接执行；仅最终发布等 HIGH 动作进入人工审批。
 
-重试策略：只读 Tool 可对超时/429/5xx 最多重试 2 次；声明幂等的 MEDIUM 写操作只用同一 Idempotency-Key 重试；HIGH 操作不由 Agent 自动重试，用户可基于已有审批显式重试且必须复核资源版本。
+重试策略：只读 Tool 可对超时/429/5xx 最多重试 2 次；声明幂等的 MEDIUM 写操作直接执行且只用同一 Idempotency-Key 重试；HIGH 操作不由 Agent 自动重试，用户可基于已有审批显式重试且必须复核资源版本。
 
 首批 Tool 与 Backend 映射：
 
@@ -775,7 +777,7 @@ limits:
 
 ### 9.7 审批冻结与恢复
 
-当 Guard 判定需审批：
+当 Guard 判定最终发布等 HIGH 动作需审批时（MEDIUM 过程动作默认不进入本节链路）：
 
 1. Tool Call 状态置 `WAITING_APPROVAL`。
 2. Backend 加密保存完整规范化参数，保存 Tool Contract 版本、参数 hash、资源版本与过期时间。
@@ -830,6 +832,9 @@ limits:
 | `plan.created` | steps[] | 渲染计划 |
 | `step.started/completed/failed` | stepNo/name/status/summary | 更新步骤 |
 | `tool.requested/started/completed/failed` | callId/tool/risk/resource/result | 更新 Tool 卡片 |
+| `message.delta` | delta | 追加当前 Agent 回复正文 |
+| `reasoning.delta` | delta | 追加可折叠的计划或执行摘要，不展示模型私有思维链 |
+| `message.completed` | content | 确认完整回复并等待终态校验 |
 | `approval.required` | approvalId/risk/expiresAt/summary | 显示审批卡片 |
 | `approval.approved/rejected/expired` | decision/actor | 更新审批 |
 | `agent.completed/failed/cancelled` | final summary/error/resource refs | 终止流并刷新相关 Query |

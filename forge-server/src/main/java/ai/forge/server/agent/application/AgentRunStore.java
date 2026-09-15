@@ -29,10 +29,21 @@ public interface AgentRunStore {
     List<AgentEvent> findEventsAfter(
             long organizationId, String runId, long afterSequence, int limit);
 
-    void start(long organizationId, String runId, String requestId);
+    boolean start(long organizationId, String runId, String requestId);
+
+    void cancel(long organizationId, String runId, String requestId);
 
     void complete(long organizationId, String runId, String requestId, String summary,
             List<String> plan, List<AgentRuntimeGateway.ToolCallResult> toolCalls);
+
+    /* 持久化模型正文增量，使浏览器断线后仍可按 Run sequence 完整重放。 */
+    void appendMessageDelta(long organizationId, String runId, String delta);
+
+    /* 持久化可展示的计划摘要；不得写入模型内部私有推理文本。 */
+    void appendReasoningDelta(long organizationId, String runId, String delta);
+
+    /* create_requirement 成功后立即把来源会话绑定到新需求。 */
+    void bindConversationToRequirement(long organizationId, String runId, long requirementId);
 
     void fail(long organizationId, String runId, String requestId, String errorCode);
 

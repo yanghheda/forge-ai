@@ -85,6 +85,8 @@ export const createOrganizationRequirement = (input: { title: string; descriptio
 
 export const getOrganizationRequirement = (id: number, client: RequestClient = apiClient) => client.request<OrganizationRequirement>(`/v1/requirements/${id}`);
 
+export const updateWorkItem = (id: number, input: { description: string; expectedVersion: number }, client: RequestClient = apiClient) => client.request<{ id: number; description: string; version: number }>(`/v1/work-items/${id}`, json("PATCH", input));
+
 export const getRequirementDetails = (id: number, client: RequestClient = apiClient) => client.request<RequirementDetails>(`/v1/work-items/${id}/details`);
 
 export const saveRequirementDetails = (id: number, input: Omit<RequirementDetails, "workItemId" | "organizationId" | "updatedAt">, client: RequestClient = apiClient) => {

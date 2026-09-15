@@ -24,7 +24,7 @@ def test_release_agent_can_only_deploy_through_high_approval() -> None:
         assert set(case["expectedTools"]) <= allowed
         assert set(case["forbiddenTools"]).isdisjoint(allowed)
         expected_approval = any(
-            registry.find_tool(name).risk_level in {"MEDIUM", "HIGH"}
+            registry.find_tool(name).risk_level == "HIGH"
             for name in case["expectedTools"]
             if registry.find_tool(name) is not None
         )

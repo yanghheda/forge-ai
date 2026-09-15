@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Message } from "@arco-design/web-react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +14,7 @@ const api = vi.hoisted(() => ({
   getRequirementDetails: vi.fn(),
   getRequirementActivity: vi.fn(),
   transitionRequirementWorkflow: vi.fn(),
+  updateWorkItem: vi.fn(),
 }));
 
 vi.mock("../api/work-item-api", async () => ({
@@ -25,9 +27,13 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe("OrganizationRequirementDetail", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   beforeEach(() => {
+    vi.spyOn(Message, "success").mockImplementation(() => () => undefined);
     api.getOrganizationRequirement.mockResolvedValue({
       id: 1,
       itemKey: "DEMO-1",
@@ -68,14 +74,7 @@ describe("OrganizationRequirementDetail", () => {
     fireEvent.change(screen.getByLabelText("退回原因"), { target: { value: "补充异常场景" } });
     fireEvent.click(screen.getByRole("button", { name: "退回修改" }));
 
-    await waitFor(() =>
-      expect(api.transitionRequirementWorkflow).toHaveBeenCalledWith(
-        1,
-        "REJECT_PRODUCT_REVIEW",
-        4,
-        { reason: "补充异常场景" },
-      ),
-    );
+    await waitFor(() => expect(api.transitionRequirementWorkflow).toHaveBeenCalledWith(1, "REJECT_PRODUCT_REVIEW", 4, { reason: "补充异常场景" }));
   });
 
   it("按照设计稿展示标题、六阶段、基本信息、描述和右侧阶段信息", async () => {
@@ -88,11 +87,31 @@ describe("OrganizationRequirementDetail", () => {
     expect(screen.getByText("QA 测试")).toBeInTheDocument();
     expect(screen.getByText("基本信息")).toBeInTheDocument();
     expect(screen.getByText("需求描述")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "编辑描述" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑需求" })).toBeInTheDocument();
     expect(screen.getByText("阶段 · 开发中")).toBeInTheDocument();
     expect(screen.getByText("协作成员")).toBeInTheDocument();
     expect(screen.getByText("张产品")).toBeInTheDocument();
     expect(screen.getByText("王开发")).toBeInTheDocument();
+  });
+
+  it("允许人工编辑需求描述并携带最新聚合版本", async () => {
+    api.updateWorkItem.mockResolvedValue({ id: 1, description: "人工补充后的描述", version: 4 });
+    render(<OrganizationRequirementDetail requirementId={1} />, { wrapper });
+
+    await screen.findByText("完整交付链路说明");
+    fireEvent.click(screen.getByRole("button", { name: "编辑描述" }));
+    fireEvent.change(screen.getByLabelText("需求描述正文"), {
+      target: { value: "人工补充后的描述" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存描述" }));
+
+    await waitFor(() =>
+      expect(api.updateWorkItem).toHaveBeenCalledWith(1, {
+        description: "人工补充后的描述",
+        expectedVersion: 3,
+      }),
+    );
   });
 
   it("需求完成后将发布阶段标记为已完成且进度为百分之百", async () => {

@@ -66,6 +66,17 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
                         .toList(), response.stateVersion());
     }
 
+    @Override
+    public void cancel(String runId, long organizationId) {
+        Instant issuedAt = Instant.now();
+        restClient.post()
+                .uri("/internal/v1/runs/{runId}/cancel", runId)
+                .headers(headers -> headers.setBearerAuth(
+                        tokenProvider.createRunToken(issuedAt, runId, organizationId)))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     private ContextManifest manifest(AgentRunRequested requested, Instant issuedAt) {
         Scope scope = new Scope(requested.organizationId(), requested.workItemId());
         List<ResourceRef> refs = requested.workItemId() == null

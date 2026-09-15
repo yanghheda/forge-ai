@@ -55,12 +55,16 @@ def client(tmp_path, runtime=None) -> TestClient:
     settings = AgentSettings(
         internal_jwt_secret=SECRET,
         checkpoint_path=tmp_path / "checkpoints.sqlite",
+        publish_answer_deltas=False,
         _env_file=None,
     )
     return TestClient(create_app(settings, runtime=runtime))
 
 
 class ToolResultRuntime:
+    def __init__(self) -> None:
+        self.cancelled_run_id: str | None = None
+
     def start(self, request, run_token) -> RunResult:
         return RunResult(
             status="SUCCEEDED",
@@ -76,6 +80,22 @@ class ToolResultRuntime:
             ],
             state_version=8,
         )
+
+    def cancel(self, run_id: str) -> None:
+        self.cancelled_run_id = run_id
+
+
+def test_cancel_forwards_authenticated_run_id_to_runtime(tmp_path) -> None:
+    runtime = ToolResultRuntime()
+    app = client(tmp_path, runtime)
+
+    response = app.post(
+        f"/internal/v1/runs/{RUN_ID}/cancel",
+        headers={"Authorization": f"Bearer {token()}"},
+    )
+
+    assert response.status_code == 204
+    assert runtime.cancelled_run_id == RUN_ID
 
 
 def test_start_requires_valid_internal_credential(tmp_path) -> None:

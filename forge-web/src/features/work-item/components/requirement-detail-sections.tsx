@@ -1,5 +1,6 @@
 import { Alert, Avatar, Card, Progress, Tag } from "@arco-design/web-react";
 import { IconCheck, IconRobot, IconUserGroup } from "@arco-design/web-react/icon";
+import type { ReactNode } from "react";
 
 import type { OrganizationRequirement, RequirementActivity, RequirementParticipant, RequirementWorkflow } from "../api/work-item-api";
 import { formatDate, roleMeta, stageIndex, stages, statusLabel } from "../utils/requirement-detail-display";
@@ -69,9 +70,9 @@ export function BasicInfo({ item, participants }: { item: OrganizationRequiremen
   );
 }
 
-export function DescriptionCard({ item }: { item: OrganizationRequirement }) {
+export function DescriptionCard({ item, extra }: { item: OrganizationRequirement; extra?: ReactNode }) {
   return (
-    <Card title="需求描述">
+    <Card title="需求描述" extra={extra}>
       <div className={styles.prose}>
         <p>{item.description || "尚未补充需求描述。"}</p>
         {item.goal && (

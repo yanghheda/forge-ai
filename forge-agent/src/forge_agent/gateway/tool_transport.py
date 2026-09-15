@@ -104,6 +104,33 @@ def _snake_execution(payload: dict[str, Any], tool_name: str, tool_call_id: str)
     )
 
 
+class ServerAnswerStream:
+    """把模型增量正文发布到 Backend，由其分配序号并持久化。"""
+
+    def __init__(self, server_base_url: str, *, timeout_seconds: float = 10.0) -> None:
+        self._client = httpx.Client(
+            base_url=server_base_url.rstrip("/"), timeout=timeout_seconds, trust_env=False
+        )
+
+    def publish(self, run_id: str, delta: str, run_token: str) -> None:
+        self._publish(run_id, "message-deltas", delta, run_token)
+
+    def publish_reasoning(self, run_id: str, delta: str, run_token: str) -> None:
+        """发布可审计的计划摘要，不发送模型私有推理状态。"""
+        self._publish(run_id, "reasoning-deltas", delta, run_token)
+
+    def _publish(self, run_id: str, resource: str, delta: str, run_token: str) -> None:
+        try:
+            response = self._client.post(
+                f"/internal/v1/agent-runs/{run_id}/{resource}",
+                headers={"Authorization": f"Bearer {run_token}"},
+                json={"delta": delta},
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exception:
+            raise ToolTransportFailure("answer stream publish failed") from exception
+
+
 class StaticToolTransport:
     """测试用确定性 Transport；按注册顺序返回预置执行结果。"""
 

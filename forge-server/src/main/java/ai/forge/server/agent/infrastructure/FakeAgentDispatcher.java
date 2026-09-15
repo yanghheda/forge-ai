@@ -30,8 +30,10 @@ public class FakeAgentDispatcher {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void dispatch(AgentRunRequested requested) {
         try {
-            runStore.start(
-                    requested.organizationId(), requested.runId(), requested.requestId());
+            if (!runStore.start(
+                    requested.organizationId(), requested.runId(), requested.requestId())) {
+                return;
+            }
             runStore.complete(
                     requested.organizationId(),
                     requested.runId(),

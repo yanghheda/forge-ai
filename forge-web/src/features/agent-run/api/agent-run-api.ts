@@ -76,6 +76,10 @@ export function getAgentRun(organizationId: number, runId: string, client: Reque
   return client.request(`/v1/agent-runs/${runId}?organizationId=${organizationId}`);
 }
 
+export function cancelAgentRun(runId: string, client: RequestClient = apiClient): Promise<AgentRunSnapshot> {
+  return client.request(`/v1/agent-runs/${runId}:cancel`, { method: "POST" });
+}
+
 export function getRunApproval(organizationId: number, runId: string, client: RequestClient = apiClient): Promise<ApprovalSnapshot> {
   return client.request(`/v1/approvals/by-run/${runId}?organizationId=${organizationId}`);
 }

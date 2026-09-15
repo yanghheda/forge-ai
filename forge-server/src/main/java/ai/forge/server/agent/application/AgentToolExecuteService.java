@@ -5,6 +5,7 @@ import ai.forge.server.agent.domain.AgentRunStatus;
 import ai.forge.server.agent.domain.ToolExecutionRejectedException;
 import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.common.domain.ResourceNotFoundException;
+import ai.forge.server.document.application.DocumentContent;
 import ai.forge.server.document.application.DocumentService;
 import ai.forge.server.document.application.RagSearchService;
 import ai.forge.server.document.application.SearchChunk;
@@ -536,6 +537,7 @@ public class AgentToolExecuteService {
                 enumOrNull(arguments, "priority"),
                 longOrNull(arguments, "assigneeId"),
                 null);
+        runStore.bindConversationToRequirement(organizationId, run.id(), item.id());
         ObjectNode result = objectMapper.createObjectNode();
         result.put("id", item.id());
         result.put("itemKey", item.itemKey());
@@ -679,18 +681,43 @@ public class AgentToolExecuteService {
 
     private JsonNode createDocument(
             long organizationId, AgentRun run, JsonNode arguments, String documentType) {
-        var document = documentService.create(
-                run.userId(),
-                organizationId,
-                arguments.path("requirementId").asLong(),
-                documentType,
-                arguments.path("title").asText());
+        long requirementId = arguments.path("requirementId").asLong();
+        var document = documentService.listByWorkItem(
+                        run.userId(), organizationId, requirementId).stream()
+                .filter(candidate -> documentType.equals(candidate.type()))
+                .filter(candidate -> candidate.currentVersionId() == null)
+                .findFirst()
+                .orElse(null);
+        if (document == null) {
+            document = documentService.create(
+                    run.userId(),
+                    organizationId,
+                    requirementId,
+                    documentType,
+                    arguments.path("title").asText());
+        }
+        if (arguments.path("contentMarkdown").isTextual()) {
+            document = documentService.save(
+                    run.userId(),
+                    organizationId,
+                    document.id(),
+                    document.version(),
+                    DocumentContent.fromMarkdown(arguments.path("contentMarkdown").asText())
+                            .proseMirrorJson());
+        }
         ObjectNode result = objectMapper.createObjectNode();
         result.put("id", document.id());
         result.put("documentType", document.type());
         result.put("title", document.title());
         result.put("status", document.status());
         result.put("version", document.version());
+        if (document.currentVersionId() == null) {
+            result.putNull("currentVersionId");
+            result.put("currentVersionNo", 0);
+        } else {
+            result.put("currentVersionId", document.currentVersionId());
+            result.put("currentVersionNo", 1);
+        }
         return result;
     }
 

@@ -4,6 +4,10 @@ public interface AgentRuntimeGateway {
 
     RunResult start(AgentRunRequested requested);
 
+    default void cancel(String runId, long organizationId) {
+        // 测试替身和不可中断实现可以只依赖 Server 权威取消状态。
+    }
+
     record RunResult(
             /* Agent 图返回的结构化终态。 */
             String status,

@@ -1,12 +1,17 @@
 name: create_prd_document
-version: 1
-description: 在指定 Requirement 下创建 PRD 文档；MEDIUM 风险，默认需要确认。
+version: 2
+description: 在指定 Requirement 下创建 PRD 文档及首个正文版本。contentMarkdown 必须是完整、可直接阅读的 PRD Markdown，不能只写计划、章节名或占位文本；MEDIUM 过程动作默认直接执行。
 input_schema:
   type: object
-  required: [requirementId, title]
+  required: [requirementId, title, contentMarkdown]
   properties:
     requirementId: { type: integer, minimum: 1 }
     title: { type: string, minLength: 1, maxLength: 200 }
+    contentMarkdown:
+      type: string
+      minLength: 20
+      maxLength: 50000
+      description: 完整 PRD Markdown 正文，使用 #/## 标题和列表表达背景、目标、范围、用户场景、功能需求、异常流程及可验证验收标准。
   additionalProperties: false
 output_schema:
   type: object

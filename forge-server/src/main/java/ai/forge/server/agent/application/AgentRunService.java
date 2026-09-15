@@ -8,6 +8,7 @@ import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.workitem.application.WorkItemStore;
 import ai.forge.server.workitem.domain.WorkItem;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,15 +29,20 @@ public class AgentRunService {
     /* 在创建事务提交后触发真实 Agent Gateway。 */
     private final ApplicationEventPublisher eventPublisher;
 
+    /* 在权威状态落库后通知 Runtime 尽快释放生成与 Tool 执行。 */
+    private final ObjectProvider<AgentRuntimeGateway> runtimeGateway;
+
     public AgentRunService(
             PermissionEvaluator permissionEvaluator,
             WorkItemStore workItemStore,
             AgentRunStore runStore,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            ObjectProvider<AgentRuntimeGateway> runtimeGateway) {
         this.permissionEvaluator = permissionEvaluator;
         this.workItemStore = workItemStore;
         this.runStore = runStore;
         this.eventPublisher = eventPublisher;
+        this.runtimeGateway = runtimeGateway;
     }
 
     @Transactional
@@ -53,7 +59,7 @@ public class AgentRunService {
         permissionEvaluator.requireOrganization(userId, organizationId, skill.requiredPermission());
         requireWorkItemScope(userId, organizationId, workItemId);
         MediumToolConfirmation policy = mediumToolConfirmation == null
-                ? MediumToolConfirmation.ASK
+                ? MediumToolConfirmation.ALLOW
                 : mediumToolConfirmation;
         AgentRunStore.CreateResult result = runStore.create(
                 AgentRunIdGenerator.next(),
@@ -83,6 +89,26 @@ public class AgentRunService {
     public AgentRunSnapshot get(long userId, long organizationId, String runId) {
         permissionEvaluator.requireOrganization(userId, organizationId, "agent.run");
         return snapshot(organizationId, normalizeRunId(runId));
+    }
+
+    public AgentRunSnapshot cancel(
+            long userId, long organizationId, String runId, String requestId) {
+        permissionEvaluator.requireOrganization(userId, organizationId, "agent.run");
+        String normalizedRunId = normalizeRunId(runId);
+        AgentRunSnapshot current = snapshot(organizationId, normalizedRunId);
+        if (current.terminal()) {
+            return current;
+        }
+        runStore.cancel(organizationId, normalizedRunId, requestId);
+        try {
+            AgentRuntimeGateway gateway = runtimeGateway.getIfAvailable();
+            if (gateway != null) {
+                gateway.cancel(normalizedRunId, organizationId);
+            }
+        } catch (RuntimeException ignored) {
+            // Server 权威终态已提交；Runtime 中断属于尽力通知，不能回滚取消事实。
+        }
+        return snapshot(organizationId, normalizedRunId);
     }
 
     public java.util.List<ai.forge.server.agent.domain.AgentEvent> eventsAfter(

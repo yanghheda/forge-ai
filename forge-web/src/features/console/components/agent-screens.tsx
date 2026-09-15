@@ -1,14 +1,17 @@
 "use client";
 
-import { Alert, Button, Empty, Input, InputNumber, Message, Spin } from "@arco-design/web-react";
-import { IconHistory, IconRobot, IconSend } from "@arco-design/web-react/icon";
+import { Alert, Button, Empty, Message, Spin } from "@arco-design/web-react";
+import { IconHistory, IconRobot } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { getCurrentUser } from "@/features/auth";
-import { cancelApproval, decideApproval, getAgentRun, getRunApproval, type ApprovalSnapshot } from "@/features/agent-run";
+import { cancelAgentRun, cancelApproval, decideApproval, getAgentRun, getRunApproval, type ApprovalSnapshot } from "@/features/agent-run";
 import { formatRequestError } from "@/lib/api";
 import { createAgentConversation, listAgentConversations, listAgentMessages, sendAgentMessage } from "../api/console-api";
+import { useConversationStream } from "../hooks/use-conversation-stream";
+import { AgentMessage, ReasoningDetails } from "./agent-message";
+import { ConversationComposer } from "./conversation-composer";
 import styles from "./console.module.css";
 
 export function AgentCommandScreen() {
@@ -16,6 +19,7 @@ export function AgentCommandScreen() {
   const [selectedId, setSelectedId] = useState<number>();
   const [draft, setDraft] = useState("");
   const [latestRunId, setLatestRunId] = useState<string>();
+  const [latestRunConversationId, setLatestRunConversationId] = useState<number>();
   const [requirementId, setRequirementId] = useState<number>();
   const [latestSkill, setLatestSkill] = useState<string>();
   const conversations = useQuery({
@@ -28,12 +32,15 @@ export function AgentCommandScreen() {
     queryKey: ["agent-conversations", activeId, "messages"],
     queryFn: () => listAgentMessages(activeId!),
     enabled: Boolean(activeId),
-    refetchInterval: latestRunId ? 2500 : false,
   });
   const create = useMutation({
     mutationFn: () => createAgentConversation("新会话"),
     onSuccess: (value) => {
       setSelectedId(value.id);
+      setLatestRunId(undefined);
+      setLatestRunConversationId(undefined);
+      setLatestSkill(undefined);
+      setRequirementId(undefined);
       void queryClient.invalidateQueries({ queryKey: ["agent-conversations"] });
     },
     onError: (error) => Message.error(formatRequestError(error)),
@@ -42,22 +49,42 @@ export function AgentCommandScreen() {
     mutationFn: () => sendAgentMessage(activeId!, draft, requirementId),
     onSuccess: (run) => {
       setLatestRunId(run.id);
+      setLatestRunConversationId(activeId);
       setLatestSkill(run.skill);
+      queryClient.setQueryData(["agent-run", run.id], run);
       setDraft("");
       void queryClient.invalidateQueries({
         queryKey: ["agent-conversations", activeId, "messages"],
       });
+      void queryClient.invalidateQueries({ queryKey: ["agent-conversations"] });
     },
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const active = conversations.data?.find((item) => item.id === activeId);
-  const effectiveRunId = latestRunId ?? messages.data?.slice().reverse().find((item) => Boolean(item.runId))?.runId ?? undefined;
+  const selectedRequirementId = active?.requirementId ?? requirementId;
+  const effectiveRunId =
+    (latestRunConversationId === activeId ? latestRunId : undefined) ??
+    messages.data
+      ?.slice()
+      .reverse()
+      .find((item) => Boolean(item.runId))?.runId ??
+    undefined;
   const run = useQuery({
     queryKey: ["agent-run", effectiveRunId],
     queryFn: () => getAgentRun(currentUser.data!.organization.id, effectiveRunId!),
     enabled: Boolean(effectiveRunId && currentUser.data),
-    refetchInterval: (query) => (query.state.data?.terminal || query.state.data?.status === "WAITING_APPROVAL" ? false : 1000),
   });
+  const stream = useConversationStream(currentUser.data?.organization.id, effectiveRunId);
+  const isRunActive = Boolean(run.data && !run.data.terminal);
+  const cancelRun = useMutation({
+    mutationFn: () => cancelAgentRun(effectiveRunId!),
+    onSuccess: (snapshot) => {
+      queryClient.setQueryData(["agent-run", snapshot.id], snapshot);
+      void queryClient.invalidateQueries({ queryKey: ["agent-conversations", activeId, "messages"] });
+    },
+    onError: (error) => Message.error(formatRequestError(error)),
+  });
+  const hasPersistedAgentAnswer = messages.data?.some((item) => item.sender === "AGENT" && item.runId === effectiveRunId);
   return (
     <section className={styles.agentPage}>
       <header className={styles.pageHead}>
@@ -77,7 +104,17 @@ export function AgentCommandScreen() {
           </header>
           {conversations.isPending && <Spin />}
           {conversations.data?.map((item) => (
-            <button className={item.id === activeId ? styles.selected : ""} key={item.id} onClick={() => setSelectedId(item.id)}>
+            <button
+              className={item.id === activeId ? styles.selected : ""}
+              key={item.id}
+              onClick={() => {
+                setSelectedId(item.id);
+                setLatestRunId(undefined);
+                setLatestRunConversationId(undefined);
+                setLatestSkill(undefined);
+                setRequirementId(undefined);
+              }}
+            >
               <IconRobot />
               <span>
                 <b>{item.title}</b>
@@ -103,29 +140,44 @@ export function AgentCommandScreen() {
                   {item.body}
                 </div>
               ) : (
-                <AgentMessage title="Agent 回复" key={`${item.createdAt}-${index}`}>
+                <AgentMessage title="ForgeAI Agent" key={`${item.createdAt}-${index}`}>
+                  {item.runId === effectiveRunId && stream.reasoning.length > 0 && <ReasoningDetails reasoning={stream.reasoning} completed />}
                   <p>{item.body}</p>
                 </AgentMessage>
               ),
             )}
-            {run.data?.status === "WAITING_APPROVAL" && currentUser.data && (
-              <ConversationApproval organizationId={currentUser.data.organization.id} runId={run.data.id} currentUserId={currentUser.data.id} />
+            {effectiveRunId && !hasPersistedAgentAnswer && (stream.answer || isRunActive) && (
+              <AgentMessage title="ForgeAI Agent">
+                <ReasoningDetails reasoning={stream.reasoning} completed={Boolean(stream.answer)} />
+                {stream.answer && (
+                  <p className={styles.streamingAnswer} aria-live="polite">
+                    {stream.answer}
+                  </p>
+                )}
+              </AgentMessage>
             )}
+            {run.data?.status === "WAITING_APPROVAL" && currentUser.data && <ConversationApproval organizationId={currentUser.data.organization.id} runId={run.data.id} currentUserId={currentUser.data.id} />}
           </div>
-          <footer>
-            <InputNumber min={1} value={requirementId} onChange={(value) => setRequirementId(value ?? undefined)} placeholder="Requirement ID（创建新需求时留空）" />
-            <Input.TextArea value={draft} onChange={setDraft} autoSize={{ minRows: 2, maxRows: 4 }} placeholder="输入指令，使用 @ 引用需求或文档…" />
-            <Button type="primary" icon={<IconSend />} loading={send.isPending} disabled={!activeId || !draft.trim()} onClick={() => send.mutate()}>
-              发送
-            </Button>
-          </footer>
+          <ConversationComposer
+            activeConversation={Boolean(activeId)}
+            boundRequirement={active?.requirementId ? { id: active.requirementId, itemKey: active.requirementKey, title: active.requirementTitle } : undefined}
+            selectedRequirementId={selectedRequirementId}
+            onRequirementChange={setRequirementId}
+            draft={draft}
+            onDraftChange={setDraft}
+            running={isRunActive}
+            sending={send.isPending}
+            cancelling={cancelRun.isPending}
+            onSend={() => send.mutate()}
+            onCancel={() => cancelRun.mutate()}
+          />
         </main>
         <aside className={styles.runPanel}>
           <header>Run 详情</header>
           <dl>
             <dt>状态</dt>
             <dd>
-              <span className={styles.blueTag}>● {run.data?.status ?? (effectiveRunId ? "已提交" : "等待指令")}</span>
+              <span className={styles.blueTag}>● {formatRunStatus(run.data?.status, Boolean(effectiveRunId))}</span>
             </dd>
             <dt>Run ID</dt>
             <dd>
@@ -143,6 +195,18 @@ export function AgentCommandScreen() {
       </div>
     </section>
   );
+}
+
+function formatRunStatus(status: string | undefined, hasRun: boolean) {
+  const labels: Record<string, string> = {
+    QUEUED: "排队中",
+    RUNNING: "执行中",
+    WAITING_APPROVAL: "等待审批",
+    SUCCEEDED: "已完成",
+    FAILED: "执行失败",
+    CANCELLED: "已终止",
+  };
+  return status ? (labels[status] ?? status) : hasRun ? "已提交" : "等待指令";
 }
 
 function ConversationApproval({ organizationId, runId, currentUserId }: { organizationId: number; runId: string; currentUserId: number }) {
@@ -171,41 +235,38 @@ function ConversationApproval({ organizationId, runId, currentUserId }: { organi
   return (
     <AgentMessage title={`待审批：${snapshot.toolName}`}>
       <p>{snapshot.reason}</p>
-      <p>风险：{snapshot.riskLevel} · 状态：{snapshot.status}</p>
+      <p>
+        风险：{snapshot.riskLevel} · 状态：{snapshot.status}
+      </p>
       {snapshot.status === "PENDING" && isRequester && snapshot.riskLevel === "MEDIUM" && (
         <>
           <Alert type="warning" content="Agent 请求代你执行 MEDIUM 风险操作，请确认参数摘要后继续。" />
-          <Button type="primary" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "APPROVE" })}>确认执行</Button>
-          <Button status="danger" loading={cancel.isPending} onClick={() => cancel.mutate(snapshot)}>取消申请</Button>
+          <Button type="primary" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "APPROVE" })}>
+            确认执行
+          </Button>
+          <Button status="danger" loading={cancel.isPending} onClick={() => cancel.mutate(snapshot)}>
+            取消申请
+          </Button>
         </>
       )}
       {snapshot.status === "PENDING" && isRequester && snapshot.riskLevel === "HIGH" && (
         <>
           <Alert type="warning" content="HIGH 风险操作必须由另一名具有审批权限的成员处理。" />
-          <Button status="danger" loading={cancel.isPending} onClick={() => cancel.mutate(snapshot)}>取消申请</Button>
+          <Button status="danger" loading={cancel.isPending} onClick={() => cancel.mutate(snapshot)}>
+            取消申请
+          </Button>
         </>
       )}
       {snapshot.status === "PENDING" && !isRequester && (
         <>
-          <Button type="primary" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "APPROVE" })}>批准并恢复</Button>
-          <Button status="danger" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "REJECT" })}>拒绝</Button>
+          <Button type="primary" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "APPROVE" })}>
+            批准并恢复
+          </Button>
+          <Button status="danger" loading={decide.isPending} onClick={() => decide.mutate({ snapshot, decision: "REJECT" })}>
+            拒绝
+          </Button>
         </>
       )}
     </AgentMessage>
-  );
-}
-
-function AgentMessage({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className={styles.agentMsg}>
-      <span className={styles.avatar}>
-        <IconRobot />
-      </span>
-      <div>
-        <b>{title}</b>
-        {children}
-        <small>OrchestratorAgent · 12:04</small>
-      </div>
-    </div>
   );
 }

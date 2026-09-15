@@ -23,6 +23,7 @@ class AgentSettings(BaseSettings):
     internal_jwt_audience: str = "forge-agent"
     checkpoint_path: Path = Path("data/checkpoints.sqlite")
     server_base_url: str = Field(default="http://forge-server:8080", min_length=1)
+    publish_answer_deltas: bool = True
     contracts_root: Path = Path("packages/forge-contracts")
     model_provider: Literal["fake", "qwen"] = "fake"
     qwen_api_key: SecretStr | None = Field(default=None, repr=False)

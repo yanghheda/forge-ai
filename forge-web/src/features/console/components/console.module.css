@@ -417,7 +417,7 @@
 .messages {
   flex: 1;
   min-height: 0;
-  padding: 22px;
+  padding: 28px 30px;
   overflow: auto;
 }
 .userMsg {
@@ -430,24 +430,77 @@
   background: var(--forge-primary-6);
 }
 .agentMsg {
+  width: 100%;
+  max-width: 860px;
+  margin-bottom: 32px;
+  color: var(--forge-text-1);
+}
+.agentIdentity {
   display: flex;
-  max-width: 80%;
-  margin-bottom: 22px;
-  gap: 10px;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 8px;
 }
-.agentMsg > div {
-  padding: 11px 13px;
-  border-radius: 2px 6px 6px 6px;
-  background: var(--forge-fill-1);
-}
-.agentMsg p {
-  margin: 5px 0;
-  color: var(--forge-text-2);
-  font-size: 13px;
-}
-.agentMsg small {
-  color: var(--forge-text-3);
+.agentIdentity > span {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 4px;
+  color: #fff;
+  background: var(--forge-text-1);
   font-size: 11px;
+}
+.agentIdentity b {
+  font-size: 13px;
+  font-weight: 500;
+}
+.agentMsg > p {
+  margin: 14px 0 0;
+  color: var(--forge-text-1);
+  font-size: 14px;
+  line-height: 1.75;
+}
+.reasoning {
+  margin: 0;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--forge-border-1);
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.reasoning summary {
+  width: max-content;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.reasoning summary::-webkit-details-marker {
+  display: none;
+}
+.reasoning summary::after {
+  display: inline-block;
+  margin-left: 7px;
+  content: "›";
+  transform: rotate(90deg);
+  transition: transform 0.16s ease;
+}
+.reasoning[open] summary::after {
+  transform: rotate(-90deg);
+}
+.reasoning ol {
+  display: grid;
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: var(--forge-text-2);
+  gap: 7px;
+  line-height: 1.6;
+}
+.reasoning p {
+  margin: 12px 0 0;
+  color: var(--forge-text-2);
+}
+.streamingAnswer {
+  white-space: pre-wrap;
 }
 .toolCall {
   display: flex;
@@ -470,13 +523,83 @@
   font: 12px var(--forge-font-mono);
 }
 .chatMain > footer {
-  display: flex;
+  display: block;
   flex: 0 0 auto;
-  align-items: flex-end;
-  padding: 12px;
-  border-top: 1px solid var(--forge-border-2);
+  margin: 0 24px 20px;
+  padding: 0;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 18px;
   background: #fff;
-  gap: 8px;
+  overflow: hidden;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.chatMain > footer:focus-within {
+  border-color: var(--forge-primary-4);
+  box-shadow: 0 0 0 3px rgb(22 93 255 / 8%);
+}
+.composerInput {
+  padding: 16px 16px 4px !important;
+  border: 0 !important;
+  color: var(--forge-text-1) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+  resize: none !important;
+}
+.composerInput::placeholder {
+  color: var(--forge-text-3);
+}
+.composerToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 7px 11px 9px 14px;
+}
+.requirementPicker {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 4px 0 9px;
+  border-radius: 8px;
+  color: var(--forge-text-2);
+  background: var(--forge-fill-1);
+  gap: 6px;
+  font-size: 12px;
+}
+.requirementPicker:focus-within {
+  color: var(--forge-primary-6);
+  background: var(--forge-primary-1);
+}
+.requirementPicker :global(.arco-select) {
+  width: 250px;
+}
+.requirementPicker :global(.arco-select-view) {
+  border: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+.requirementPicker :global(.arco-select-view-value) {
+  font-size: 12px;
+}
+.composerAction {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  border: 0 !important;
+  background: #5b4ff5 !important;
+  box-shadow: none !important;
+}
+.composerAction:disabled {
+  background: var(--forge-fill-3) !important;
+}
+.stopAction {
+  color: #fff !important;
+  background: var(--forge-error) !important;
 }
 .runPanel {
   padding-bottom: 16px;
