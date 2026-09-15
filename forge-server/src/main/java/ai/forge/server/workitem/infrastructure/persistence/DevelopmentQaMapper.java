@@ -20,7 +20,8 @@ public interface DevelopmentQaMapper {
             @Param("requirementId") long requirementId);
 
     @Select("SELECT t.id,t.item_key,t.title,t.status,t.version,b.name branch_name,b.commit_sha branch_commit_sha,"
-            + "mr.id merge_request_id,mr.web_url merge_request_url,mr.head_sha merge_request_head_sha,"
+            + "mr.id merge_request_id,mr.web_url merge_request_url,mr.state merge_request_state,"
+            + "mr.head_sha merge_request_head_sha,"
             + "p.id pipeline_id,p.commit_sha pipeline_commit_sha,p.status pipeline_status,p.last_synced_at "
             + "FROM work_items t "
             + "LEFT JOIN branches b ON b.id=(SELECT MAX(b2.id) FROM branches b2 "

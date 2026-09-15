@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useState, type Dispatch, type SetStateAction } from "react";
 
 import { formatRequestError } from "@/lib/api";
-import { RequirementAgentCard } from "@/features/agent-run";
 import { priorityLabel, roleLabel } from "@/lib/labels";
 import {
   getOrganizationRequirement,
@@ -24,7 +23,7 @@ import {
   type RequirementWorkflowAction,
 } from "../api/work-item-api";
 import { actionLabel, formatDate, statusLabel } from "../utils/requirement-detail-display";
-import { ActivityCard, BasicInfo, DescriptionCard, MembersCard, RequirementSteps, StageCard } from "./requirement-detail-sections";
+import { ActivityCard, BasicInfo, DescriptionCard, MembersCard, RequirementSteps } from "./requirement-detail-sections";
 import { RequirementMaterials } from "./requirement-materials";
 import styles from "./organization-requirement-detail.module.css";
 
@@ -142,10 +141,9 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
             />
           )}
           <RequirementMaterials key={materials.data.version} workItemId={requirementId} details={materials.data} onChanged={invalidate} />
-          <ActivityCard activity={activity.data ?? []} />
         </main>
         <aside className={styles.column}>
-          <RequirementAgentCard requirementId={requirementId} />
+          <ActivityCard activity={activity.data ?? []} />
           {item.status === "PRODUCT_REVIEW" && workflow.data && (
             <Card title="产品评审决策">
               <p>请核对需求描述与已发布 PRD，再决定通过或退回修改。</p>
@@ -165,7 +163,6 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
               {!workflow.data.availableActions.some((action) => action === "APPROVE_PRODUCT_REVIEW" || action === "REJECT_PRODUCT_REVIEW") && <Alert style={{ marginTop: 12 }} type="warning" content="当前账号没有产品评审权限，请由 Product Reviewer 或 Owner 操作。" />}
             </Card>
           )}
-          <StageCard item={item} workflow={workflow.data} />
           <MembersCard item={item} participants={participants.data ?? []} onManage={() => setManaging((value) => !value)} />
           {managing && <MemberEditor assignments={assignments} members={members.data ?? []} setOverrides={setOverrides} saving={save.isPending} onSave={() => save.mutate()} />}
         </aside>

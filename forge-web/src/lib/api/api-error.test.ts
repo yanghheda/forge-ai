@@ -8,6 +8,7 @@ describe("API 错误中文提示", () => {
     ["VERSION_CONFLICT", 409, "数据已被其他操作更新，请刷新后重试。"],
     ["WORKFLOW_GUARD_FAILED", 422, "当前流程条件尚未满足，请检查缺失项。"],
     ["GITLAB_TIMEOUT", 503, "GitLab 请求超时，请稍后重试。"],
+    ["MERGE_REQUEST_NOT_MERGED", 409, "该研发任务的合并请求尚未合并，请先在 GitLab 合并 MR 后再完成任务。"],
     ["INTERNAL_ERROR", 500, "服务器处理请求时发生错误，请稍后重试。"],
   ])("将 %s 映射为中文", (code, status, expected) => {
     const error = new ApiError({ code, message: "Backend English message", status });

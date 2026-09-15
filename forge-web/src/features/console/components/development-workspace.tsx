@@ -1,14 +1,14 @@
 "use client";
 
 import { Alert, Button, Drawer, Input, Message, Space, Spin, Tag } from "@arco-design/web-react";
-import { IconBranch, IconCheck, IconClockCircle, IconCode, IconLink, IconRefresh, IconRobot, IconSafe, IconThunderbolt } from "@arco-design/web-react/icon";
+import { IconBranch, IconLaunch, IconLink, IconRefresh, IconSafe, IconThunderbolt } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { triggerPipeline } from "@/features/gitlab";
-import { completeDevTask, createDevTask, getDevelopmentSummary, getRequirementWorkflow, startDevelopment, transitionRequirementWorkflow, type DevelopmentQaSummary, type RequirementWorkflow } from "@/features/work-item";
+import { completeDevTask, createDevTask, getDevelopmentSummary, getRequirementWorkflow, startDevelopment, transitionRequirementWorkflow, type DevelopmentQaSummary, type DevelopmentQaTask, type RequirementWorkflow } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
-import { Branch, Empty, Fact, Guard, Metric, Panel, Stat, shortSha, statusLabel, syncText } from "./development-workspace-parts";
+import { ChainNode, Empty, Guard, Panel, Stat, shortSha, statusLabel, syncText } from "./development-workspace-parts";
 import styles from "./development-workspace.module.css";
 
 export function DevelopmentWorkspace({ requirementId }: { requirementId: number }) {
@@ -41,11 +41,22 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
       </div>
     );
   if (!summary.data || !workflow.data || summary.isError || workflow.isError) return <Alert type="error" content={formatRequestError(summary.error ?? workflow.error)} />;
+  const pending: DevelopmentPendingAction | undefined = create.isPending
+    ? { action: "create" }
+    : pipeline.isPending
+      ? { action: "pipeline", taskId: pipeline.variables?.taskId }
+      : start.isPending
+        ? { action: "start", taskId: start.variables }
+        : complete.isPending
+          ? { action: "complete", taskId: complete.variables?.taskId }
+          : submit.isPending
+            ? { action: "submit" }
+            : undefined;
   return (
     <DevelopmentWorkspaceView
       summary={summary.data}
       workflow={workflow.data}
-      busy={create.isPending || start.isPending || pipeline.isPending || complete.isPending || submit.isPending}
+      pending={pending}
       onCreate={(title, description) => create.mutateAsync({ title, description }).then(() => undefined)}
       onStart={(taskId) => start.mutate(taskId)}
       onTriggerPipeline={(taskId, ref) => pipeline.mutate({ taskId, ref })}
@@ -56,10 +67,13 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
   );
 }
 
+/* 当前进行中的写操作；taskId 用于只让对应 Dev Task 卡片的按钮进入加载态。 */
+export type DevelopmentPendingAction = { action: "create" | "start" | "pipeline" | "complete" | "submit"; taskId?: number };
+
 export function DevelopmentWorkspaceView({
   summary,
   workflow,
-  busy,
+  pending,
   onCreate,
   onStart,
   onTriggerPipeline,
@@ -69,7 +83,7 @@ export function DevelopmentWorkspaceView({
 }: {
   summary: DevelopmentQaSummary;
   workflow: RequirementWorkflow;
-  busy: boolean;
+  pending?: DevelopmentPendingAction;
   onCreate: (title: string, description: string) => Promise<void>;
   onStart: (taskId: number) => void;
   onTriggerPipeline: (taskId: number, ref: string) => void;
@@ -80,16 +94,17 @@ export function DevelopmentWorkspaceView({
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [creatorOpen, setCreatorOpen] = useState(false);
-  const current = summary.tasks.find((task) => task.mergeRequestId != null) ?? summary.tasks[0];
-  const completed = summary.tasks.filter((task) => task.status === "DONE").length;
-  const canCreateTask = summary.tasks.every((task) => task.status === "TODO");
-  const stale = Boolean(current?.pipelineId && current.mergeRequestHeadSha !== current.pipelineCommitSha);
-  const pipelineOk = !summary.ciRequired || (current?.pipelineStatus?.toLowerCase() === "success" && !stale);
+  const tasks = summary.tasks;
+  const completed = tasks.filter((task) => task.status === "DONE").length;
+  const canCreateTask = tasks.every((task) => task.status === "TODO");
+  const mrCount = tasks.filter((task) => task.mergeRequestId != null).length;
+  const ciPassed = tasks.filter((task) => checkTaskCi(task).ok).length;
+  const pipelineOk = !summary.ciRequired || (tasks.length > 0 && ciPassed === tasks.length);
   const missing = workflow.guardHints.SUBMIT_FOR_QA ?? [];
   const actionAvailable = workflow.availableActions.includes("SUBMIT_FOR_QA");
-  const guardPassed = summary.tasks.length > 0 && completed === summary.tasks.length && pipelineOk && (summary.repositoryConfigured || !summary.ciRequired) && missing.length === 0;
+  const guardPassed = tasks.length > 0 && completed === tasks.length && pipelineOk && (summary.repositoryConfigured || !summary.ciRequired) && missing.length === 0;
   const canSubmit = actionAvailable && guardPassed;
-  const pipelineLabel = current?.pipelineStatus ? statusLabel(current.pipelineStatus) : "暂无运行";
+  const isBusy = (action: DevelopmentPendingAction["action"], taskId?: number) => pending?.action === action && pending.taskId === taskId;
 
   const submitTask = async () => {
     await onCreate(taskTitle.trim(), taskDescription.trim());
@@ -107,11 +122,6 @@ export function DevelopmentWorkspaceView({
             <p>DevAgent · GitLab 分支 / MR / Pipeline 协同</p>
           </div>
           <div className={styles.actions}>
-            {current?.mergeRequestUrl && (
-              <Button href={current.mergeRequestUrl} target="_blank" icon={<IconLink />}>
-                在 GitLab 查看
-              </Button>
-            )}
             <Button icon={<IconRefresh />} onClick={onRefresh}>
               同步状态
             </Button>
@@ -119,70 +129,27 @@ export function DevelopmentWorkspaceView({
         </header>
 
         <section className={styles.stats} aria-label="开发统计">
-          <Stat icon={<IconBranch />} tone="orange" label="当前 MR" value={current?.mergeRequestId ? `!${current.mergeRequestId}` : "暂无"} foot={current?.branchName ?? "尚未创建开发分支"} />
-          <Stat icon={<IconThunderbolt />} label={current?.pipelineId ? `Pipeline #${current.pipelineId}` : "Pipeline"} value={pipelineLabel} foot={stale ? "Pipeline 不属于 MR 当前 HEAD" : syncText(current?.pipelineLastSyncedAt)} />
-          <Stat icon={<IconCode />} tone="gray" label="开发任务" value={`${completed} / ${summary.tasks.length}`} foot="已完成 / 全部 Dev Task" />
+          <Stat icon={<IconLink />} tone={mrCount ? "blue" : "gray"} label="合并请求" value={`${mrCount} / ${tasks.length}`} foot={tasks.length > 0 && mrCount === tasks.length ? "每个 Dev Task 均已创建 MR" : "已创建 MR / 全部 Dev Task"} />
+          <Stat
+            icon={<IconThunderbolt />}
+            tone={pipelineOk ? "green" : "blue"}
+            label="Pipeline"
+            value={`${ciPassed} / ${tasks.length}`}
+            foot={summary.ciRequired ? (tasks.length > 0 && ciPassed === tasks.length ? "全部对应 MR 当前 HEAD" : "MR 当前 HEAD 通过 / 全部 Dev Task") : "当前项目策略不要求 CI"}
+          />
+          <Stat icon={<IconBranch />} tone="gray" label="开发任务" value={`${completed} / ${tasks.length}`} foot="已完成 / 全部 Dev Task" />
           <Stat icon={<IconSafe />} tone={missing.length ? "red" : "green"} label="QA 门禁缺项" value={String(missing.length)} foot={missing.length ? "需全部解决才能推进 QA" : "已满足当前服务端规则"} />
         </section>
 
         <div className={styles.columns}>
           <main className={styles.stack}>
             <Panel
-              title="分支与合并请求"
+              title="Dev Task 交付链路"
               icon={<IconBranch />}
-              extra={
-                <Tag>
-                  <IconCode /> Agent 经 Server Tool API 操作
-                </Tag>
-              }
-            >
-              {current ? (
-                <>
-                  <div className={styles.branchFlow}>
-                    <Branch name={current.branchName ?? "尚未创建源分支"} caption="源分支" />
-                    <span className={styles.line} />
-                    <span className={styles.merge}>
-                      <IconBranch />
-                    </span>
-                    <span className={styles.line} />
-                    <Branch name="目标分支由 GitLab 项目策略决定" caption="受保护分支" />
-                  </div>
-                  <dl className={styles.facts}>
-                    <Fact label="开发任务" value={`${current.itemKey} · ${current.title}`} />
-                    <Fact label="合并请求" value={current.mergeRequestId ? `!${current.mergeRequestId}` : "尚未创建"} />
-                    <Fact label="源分支" value={current.branchName ?? "—"} mono />
-                    <Fact label="MR HEAD" value={shortSha(current.mergeRequestHeadSha)} mono />
-                    <Fact label="更新时间" value={syncText(current.pipelineLastSyncedAt)} />
-                  </dl>
-                </>
-              ) : (
-                <Empty text="尚未创建研发任务。" />
-              )}
-            </Panel>
-
-            <Panel title={current?.pipelineId ? `Pipeline #${current.pipelineId}` : "Pipeline"} icon={<IconThunderbolt />} extra={<Tag color={pipelineOk ? "green" : "arcoblue"}>{pipelineLabel}</Tag>}>
-              {current?.pipelineId ? (
-                <div className={styles.pipeline}>
-                  <span className={pipelineOk ? styles.okDot : styles.runDot}>{pipelineOk ? <IconCheck /> : <IconClockCircle />}</span>
-                  <div>
-                    <strong>{pipelineLabel}</strong>
-                    <p>
-                      {shortSha(current.pipelineCommitSha)} · {stale ? "不是 MR 当前 HEAD" : "对应 MR 当前 HEAD"}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <Empty text="启动开发并创建 MR 后，将在这里显示真实 Pipeline 状态。" />
-              )}
-            </Panel>
-
-            <Panel
-              title="Dev Task"
-              icon={<IconCode />}
               extra={
                 <Space>
                   <span className={styles.muted}>
-                    {completed}/{summary.tasks.length} 已完成
+                    {completed}/{tasks.length} 已完成
                   </span>
                   {canCreateTask && (
                     <Button type="primary" size="small" onClick={() => setCreatorOpen(true)}>
@@ -192,48 +159,82 @@ export function DevelopmentWorkspaceView({
                 </Space>
               }
             >
-              <div className={styles.tasks}>
-                {summary.tasks.map((task) => (
-                  <div className={styles.task} key={task.id}>
-                    <div>
-                      <code>{task.itemKey}</code>
-                      <strong>{task.title}</strong>
-                      <span>{task.branchName ?? "尚无分支"}</span>
-                    </div>
-                    <Tag>{statusLabel(task.status)}</Tag>
-                    {task.status === "TODO" && (
-                      <Button loading={busy} onClick={() => onStart(task.id)}>
-                        启动开发
-                      </Button>
-                    )}
-                    {(task.status === "IN_PROGRESS" || task.status === "DONE") && task.branchName && (
-                      <Space className={styles.taskActions}>
-                        <Button loading={busy} onClick={() => onTriggerPipeline(task.id, task.branchName!)}>
-                          {task.pipelineId ? "重新触发 Pipeline" : "触发 Pipeline"}
-                        </Button>
-                        {task.status === "IN_PROGRESS" && (
-                          <Button
-                            type="primary"
-                            loading={busy}
-                            disabled={summary.ciRequired && (task.pipelineStatus?.toLowerCase() !== "success" || task.mergeRequestHeadSha !== task.pipelineCommitSha)}
-                            title={summary.ciRequired && task.pipelineStatus?.toLowerCase() !== "success" ? "Pipeline 成功后才能完成任务" : undefined}
-                            onClick={() => onComplete(task.id, task.version)}
-                          >
-                            完成任务
-                          </Button>
-                        )}
-                      </Space>
-                    )}
-                  </div>
-                ))}
+              <div className={styles.deliveryList}>
+                {tasks.map((task) => {
+                  const check = checkTaskCi(task);
+                  const pipelineStatus = task.pipelineStatus?.toLowerCase();
+                  const stale = Boolean(task.pipelineId && task.mergeRequestHeadSha !== task.pipelineCommitSha);
+                  const pipelineTone = !task.pipelineId ? "idle" : check.ok ? "ok" : pipelineStatus === "failed" || pipelineStatus === "canceled" ? "fail" : "run";
+                  const mrMerged = task.mergeRequestState?.toLowerCase() === "merged";
+                  return (
+                    <article className={styles.deliveryCard} key={task.id}>
+                      <header className={styles.deliveryHead}>
+                        <div>
+                          <code>{task.itemKey}</code>
+                          <strong>{task.title}</strong>
+                        </div>
+                        <Tag color={task.status === "DONE" ? "green" : task.status === "TODO" ? "gray" : "arcoblue"}>{statusLabel(task.status)}</Tag>
+                      </header>
+                      {task.branchName ? (
+                        <div className={styles.chain}>
+                          <ChainNode icon={<IconBranch />} title={task.branchName} caption="源分支" tone="run" />
+                          <span className={styles.line} />
+                          <ChainNode icon={<IconLink />} title={task.mergeRequestId ? `!${task.mergeRequestId}` : "尚未创建"} caption={mergeStateLabel(task)} tone={!task.mergeRequestId ? "idle" : mrMerged ? "ok" : "run"} />
+                          <span className={styles.line} />
+                          <ChainNode
+                            icon={<IconThunderbolt />}
+                            title={task.pipelineId ? `Pipeline #${task.pipelineId}` : "尚未触发"}
+                            caption={task.pipelineId ? `${task.pipelineStatus ? statusLabel(task.pipelineStatus) : "状态同步中"} · ${stale ? "不是 MR 当前 HEAD" : "对应 MR 当前 HEAD"}` : "触发后在此展示运行结果"}
+                            tone={pipelineTone}
+                          />
+                        </div>
+                      ) : (
+                        <Empty text="尚未启动开发，启动后自动创建源分支与合并请求。" />
+                      )}
+                      <footer className={styles.deliveryFoot}>
+                        <span className={styles.muted}>{task.mergeRequestId ? `MR HEAD ${shortSha(task.mergeRequestHeadSha)} · ${syncText(task.pipelineLastSyncedAt)}` : "尚无 MR 快照"}</span>
+                        <Space>
+                          {task.mergeRequestUrl && (
+                            <Button size="small" href={task.mergeRequestUrl} target="_blank" icon={<IconLaunch />}>
+                              查看 MR
+                            </Button>
+                          )}
+                          {task.status === "TODO" && (
+                            <Button size="small" loading={isBusy("start", task.id)} onClick={() => onStart(task.id)}>
+                              启动开发
+                            </Button>
+                          )}
+                          {(task.status === "IN_PROGRESS" || task.status === "DONE") && task.branchName && (
+                            <>
+                              <Button size="small" loading={isBusy("pipeline", task.id)} onClick={() => onTriggerPipeline(task.id, task.branchName!)}>
+                                {task.pipelineId ? "重新触发 Pipeline" : "触发 Pipeline"}
+                              </Button>
+                              {task.status === "IN_PROGRESS" && (
+                                <Button size="small" type="primary" loading={isBusy("complete", task.id)} disabled={summary.ciRequired && !check.ok} title={summary.ciRequired && !check.ok ? `Pipeline 通过后才能完成任务：${check.detail}` : undefined} onClick={() => onComplete(task.id, task.version)}>
+                                  完成任务
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </Space>
+                      </footer>
+                    </article>
+                  );
+                })}
               </div>
-              {!summary.tasks.length && <Empty text="尚未创建研发任务。" />}
+              {!tasks.length && <Empty text="尚未创建研发任务。" />}
             </Panel>
+          </main>
 
+          <aside className={styles.stack}>
             <Panel title="进入 QA 门禁（确定性检查）" icon={<IconSafe />} extra={<Tag color={guardPassed ? "green" : "red"}>{guardPassed ? "已通过" : "未通过"}</Tag>}>
-              <Guard ok={summary.tasks.length > 0 && completed === summary.tasks.length} label="Dev Task 全部完成" detail={`${completed} / ${summary.tasks.length}`} />
+              <Guard ok={tasks.length > 0 && completed === tasks.length} label="Dev Task 全部完成" detail={`${completed} / ${tasks.length}`} />
               <Guard ok={summary.repositoryConfigured || !summary.ciRequired} label="GitLab 仓库已配置" detail={summary.repositoryConfigured ? "已绑定 ACTIVE 仓库" : summary.ciRequired ? "CI 策略要求仓库" : "CI 非必需"} />
-              <Guard ok={pipelineOk} label="MR 当前 HEAD 的 Pipeline 成功" detail={pipelineLabel} />
+              {tasks.map((task) => {
+                const check = checkTaskCi(task);
+                return <Guard key={task.id} ok={!summary.ciRequired || check.ok} label={`${task.itemKey} · ${task.title}`} detail={summary.ciRequired ? check.detail : "CI 非必需"} />;
+              })}
+              {!tasks.length && <Guard ok={false} label="每个 Dev Task 的 MR 当前 HEAD 的 Pipeline 成功" detail="尚无 Dev Task" />}
               {missing.length > 0 && (
                 <Alert
                   type="error"
@@ -252,22 +253,9 @@ export function DevelopmentWorkspaceView({
               {guardPassed && !actionAvailable && <Alert type="warning" content="当前账号无推进权限，或需求已不处于开发中。" />}
               <div className={styles.guardFoot}>
                 <span>检查结果由 forge-server 确定性计算，Agent 不能自行放行。</span>
-                <Button type="primary" disabled={!canSubmit} loading={busy} onClick={onSubmitQa}>
+                <Button type="primary" disabled={!canSubmit} loading={isBusy("submit")} onClick={onSubmitQa}>
                   推进到 QA
                 </Button>
-              </div>
-            </Panel>
-          </main>
-
-          <aside className={styles.stack}>
-            <Panel title="DevAgent" icon={<IconRobot />} extra={<Tag color="arcoblue">● 运行中</Tag>}>
-              <p className={styles.role}>DEVELOPER 角色 · Requirement #{summary.requirementId}</p>
-              <Alert type="info" content={missing.length ? `当前动作：等待 ${missing.length} 项服务端门禁条件满足。` : "当前动作：开发交付事实已同步，可提交进入 QA。"} />
-              <div className={styles.metrics}>
-                <Metric value={summary.tasks.length} label="Dev Task" />
-                <Metric value={completed} label="已完成" />
-                <Metric value={current?.mergeRequestId ? 1 : 0} label="Merge Request" />
-                <Metric value={current?.pipelineId ? 1 : 0} label="Pipeline" />
               </div>
             </Panel>
             <Panel title="交付安全边界" icon={<IconSafe />}>
@@ -276,6 +264,7 @@ export function DevelopmentWorkspaceView({
                 <Tag>Server Tool API</Tag>
                 <Tag>审计与权限校验</Tag>
                 <Tag>{summary.ciRequired ? "CI 必需" : "CI 可选"}</Tag>
+                <Tag>MR 目标分支由 GitLab 项目策略决定</Tag>
               </div>
             </Panel>
           </aside>
@@ -289,7 +278,7 @@ export function DevelopmentWorkspaceView({
         footer={
           <>
             <Button onClick={() => setCreatorOpen(false)}>取消</Button>
-            <Button type="primary" loading={busy} disabled={!taskTitle.trim()} onClick={() => void submitTask()}>
+            <Button type="primary" loading={isBusy("create")} disabled={!taskTitle.trim()} onClick={() => void submitTask()}>
               创建 Dev Task
             </Button>
           </>
@@ -308,4 +297,24 @@ export function DevelopmentWorkspaceView({
       </Drawer>
     </>
   );
+}
+
+/* MR 合并状态文案；完成任务要求该 Dev Task 的 MR 已合并。 */
+function mergeStateLabel(task: DevelopmentQaTask) {
+  const state = task.mergeRequestState?.toLowerCase();
+  if (!state) return "合并请求";
+  if (state === "merged") return "合并请求 · 已合并";
+  if (state === "closed") return "合并请求 · 已关闭";
+  return "合并请求 · 待合并";
+}
+
+/* 与 forge-server DevelopmentQaGuard 的逐任务 CI 规则保持一致：每个 Dev Task 都要有自己的 MR、Pipeline，且 Pipeline 必须对应 MR 当前 HEAD 并成功。 */
+function checkTaskCi(task: DevelopmentQaTask) {
+  if (!task.mergeRequestId) return { ok: false, detail: "尚未创建合并请求" };
+  if (!task.pipelineId) return { ok: false, detail: "尚未触发 Pipeline" };
+  if (task.mergeRequestHeadSha !== task.pipelineCommitSha) return { ok: false, detail: `Pipeline #${task.pipelineId} 不是 MR 当前 HEAD 的运行结果` };
+  const status = task.pipelineStatus?.toLowerCase();
+  if (status === "success") return { ok: true, detail: `Pipeline #${task.pipelineId} 成功且对应 MR 当前 HEAD` };
+  if (status === "running" || status === "pending" || status === "created") return { ok: false, detail: `Pipeline #${task.pipelineId} 运行中` };
+  return { ok: false, detail: `Pipeline #${task.pipelineId} ${task.pipelineStatus ? statusLabel(task.pipelineStatus) : "状态未知"}` };
 }

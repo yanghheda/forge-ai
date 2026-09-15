@@ -12,6 +12,7 @@ import ai.forge.server.common.domain.VersionConflictException;
 import ai.forge.server.document.domain.RagUnavailableException;
 import ai.forge.server.gitlab.application.GitLabRemoteException;
 import ai.forge.server.gitlab.application.DevelopmentStateException;
+import ai.forge.server.gitlab.application.MergeRequestNotMergedException;
 import ai.forge.server.gitlab.application.RemoteResourceConflictException;
 import ai.forge.server.gitlab.application.WebhookRejectedException;
 import ai.forge.server.gitlab.infrastructure.UnsafeGitLabUrlException;
@@ -250,6 +251,13 @@ public class GlobalExceptionHandler {
             DevelopmentStateException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, ErrorCode.DEVELOPMENT_STATE_CONFLICT,
                 "Development cannot start from the current state", Map.of(), request);
+    }
+
+    @ExceptionHandler(MergeRequestNotMergedException.class)
+    public ResponseEntity<ApiError> handleMergeRequestNotMerged(
+            MergeRequestNotMergedException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.MERGE_REQUEST_NOT_MERGED,
+                "Merge request must be merged before the dev task can be completed", Map.of(), request);
     }
 
     @ExceptionHandler(QaStateException.class)

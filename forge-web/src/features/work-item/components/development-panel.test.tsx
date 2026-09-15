@@ -23,6 +23,7 @@ describe("DevelopmentSummaryView", () => {
               branchCommitSha: "new-head",
               mergeRequestId: 7,
               mergeRequestUrl: "https://gitlab.example/mr/7",
+              mergeRequestState: "merged",
               mergeRequestHeadSha: "new-head",
               pipelineId: 9,
               pipelineCommitSha: "old-head",

@@ -77,7 +77,7 @@ describe("OrganizationRequirementDetail", () => {
     await waitFor(() => expect(api.transitionRequirementWorkflow).toHaveBeenCalledWith(1, "REJECT_PRODUCT_REVIEW", 4, { reason: "补充异常场景" }));
   });
 
-  it("按照设计稿展示标题、六阶段、基本信息、描述和右侧阶段信息", async () => {
+  it("按照设计稿展示标题、六阶段、基本信息、描述、动态时间线与右侧协作成员", async () => {
     render(<OrganizationRequirementDetail requirementId={1} />, { wrapper });
 
     expect(await screen.findByText("黄金 Demo：AI 需求交付全流程演示")).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe("OrganizationRequirementDetail", () => {
     expect(screen.getByText("需求描述")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑描述" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑需求" })).toBeInTheDocument();
-    expect(screen.getByText("阶段 · 开发中")).toBeInTheDocument();
+    expect(screen.getByText("动态时间线")).toBeInTheDocument();
     expect(screen.getByText("协作成员")).toBeInTheDocument();
     expect(screen.getByText("张产品")).toBeInTheDocument();
     expect(screen.getByText("王开发")).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe("OrganizationRequirementDetail", () => {
     );
   });
 
-  it("需求完成后将发布阶段标记为已完成且进度为百分之百", async () => {
+  it("需求完成后将发布阶段标记为已完成", async () => {
     api.getOrganizationRequirement.mockResolvedValue({
       id: 1,
       itemKey: "DEMO-1",
@@ -137,6 +137,5 @@ describe("OrganizationRequirementDetail", () => {
     const stages = screen.getByRole("list", { name: "需求交付阶段" });
     expect(stages.querySelectorAll("li")[5]).toHaveTextContent("发布已完成");
     expect(screen.queryByText("已完成 · 进行中")).not.toBeInTheDocument();
-    expect(screen.getByText("100%")).toBeInTheDocument();
   });
 });

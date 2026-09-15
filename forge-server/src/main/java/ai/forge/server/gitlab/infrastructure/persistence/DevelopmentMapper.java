@@ -133,6 +133,12 @@ public interface DevelopmentMapper {
             @Param("repositoryId") long repositoryId,
             @Param("iid") long iid);
 
+    @Select("SELECT state FROM merge_requests WHERE organization_id=#{organizationId} "
+            + "AND work_item_id=#{workItemId} ORDER BY id DESC LIMIT 1")
+    List<String> findLatestMergeRequestState(
+            @Param("organizationId") long organizationId,
+            @Param("workItemId") long workItemId);
+
     @Update("UPDATE work_items SET version=version+IF(status='TODO',1,0),status='IN_PROGRESS',"
             + "updated_at=UTC_TIMESTAMP(6) "
             + "WHERE id=#{taskId} AND organization_id=#{organizationId} AND status IN ('TODO','IN_PROGRESS')")

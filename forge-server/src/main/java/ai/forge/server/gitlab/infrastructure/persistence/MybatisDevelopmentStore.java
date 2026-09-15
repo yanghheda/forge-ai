@@ -32,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Profile("!test-unit")
 public class MybatisDevelopmentStore implements DevelopmentStore {
 
+    /* GitLab 快照中表示 MR 已合并的标准化状态值。 */
+    private static final String MERGED_STATE = "merged";
+
     /* 复用工作项聚合的编号分配与 scope 查询。 */
     private final WorkItemStore workItems;
     /* 执行显式带公司作用域的开发关联 SQL。 */
@@ -133,6 +136,14 @@ public class MybatisDevelopmentStore implements DevelopmentStore {
         }
         return workItems.findByIdAndScope(organizationId, taskId)
                 .orElseThrow(ResourceNotFoundException::new);
+    }
+
+    @Override
+    public boolean hasMergedMergeRequest(long organizationId, long devTaskId) {
+        return mapper.findLatestMergeRequestState(organizationId, devTaskId).stream()
+                .findFirst()
+                .map(state -> MERGED_STATE.equalsIgnoreCase(state))
+                .orElse(false);
     }
 
     @Override

@@ -14,7 +14,8 @@ services:
       - "127.0.0.1:${FORGE_GITLAB_HTTP_HOST_PORT:-8929}:8929"
       - "127.0.0.1:${FORGE_GITLAB_SSH_HOST_PORT:-2224}:22"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8929/-/health"]
+      test:
+        ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8929/-/health"]
       interval: 10s
       timeout: 5s
       retries: 60
@@ -45,8 +46,13 @@ services:
             --token "$$FORGE_GITLAB_RUNNER_TOKEN" \
             --executor docker \
             --docker-image alpine:3.20 \
+            --docker-pull-policy if-not-present \
             --docker-network-mode forge-gitlab_default \
             --description forge-local-runner
+        fi
+        # 优先复用本机已有镜像（alpine 与 helper 已随部署缓存），避免每次 Job 联网拉取
+        if [ -s /etc/gitlab-runner/config.toml ] && ! grep -q 'pull_policy' /etc/gitlab-runner/config.toml; then
+          sed -i 's|^[[:space:]]*\[runners\.docker\][[:space:]]*$|&\n    pull_policy = "if-not-present"|' /etc/gitlab-runner/config.toml
         fi
         exec gitlab-runner run --user=gitlab-runner --working-directory=/home/gitlab-runner
     volumes:

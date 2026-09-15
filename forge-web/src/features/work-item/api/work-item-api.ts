@@ -144,6 +144,7 @@ export interface DevelopmentQaTask {
   branchCommitSha: string | null;
   mergeRequestId: number | null;
   mergeRequestUrl: string | null;
+  mergeRequestState: string | null;
   mergeRequestHeadSha: string | null;
   pipelineId: number | null;
   pipelineCommitSha: string | null;

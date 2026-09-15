@@ -51,6 +51,8 @@ public enum ErrorCode {
     REMOTE_RESOURCE_CONFLICT,
     /* Requirement 或 Dev Task 当前状态不允许启动研发。 */
     DEVELOPMENT_STATE_CONFLICT,
+    /* Dev Task 关联 MR 尚未在 GitLab 合并，不允许结束该研发任务。 */
+    MERGE_REQUEST_NOT_MERGED,
     /* Test Run 当前状态或执行完整性不允许所请求的 QA 动作。 */
     QA_STATE_CONFLICT,
     /* Webhook Secret 无效或 payload 超过接收上限。 */

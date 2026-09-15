@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Button, Empty, Message, Spin } from "@arco-design/web-react";
-import { IconHistory, IconRobot } from "@arco-design/web-react/icon";
+import { IconRobot } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -21,7 +21,6 @@ export function AgentCommandScreen() {
   const [latestRunId, setLatestRunId] = useState<string>();
   const [latestRunConversationId, setLatestRunConversationId] = useState<number>();
   const [requirementId, setRequirementId] = useState<number>();
-  const [latestSkill, setLatestSkill] = useState<string>();
   const conversations = useQuery({
     queryKey: ["agent-conversations"],
     queryFn: () => listAgentConversations(),
@@ -39,7 +38,6 @@ export function AgentCommandScreen() {
       setSelectedId(value.id);
       setLatestRunId(undefined);
       setLatestRunConversationId(undefined);
-      setLatestSkill(undefined);
       setRequirementId(undefined);
       void queryClient.invalidateQueries({ queryKey: ["agent-conversations"] });
     },
@@ -50,7 +48,6 @@ export function AgentCommandScreen() {
     onSuccess: (run) => {
       setLatestRunId(run.id);
       setLatestRunConversationId(activeId);
-      setLatestSkill(run.skill);
       queryClient.setQueryData(["agent-run", run.id], run);
       setDraft("");
       void queryClient.invalidateQueries({
@@ -111,7 +108,6 @@ export function AgentCommandScreen() {
                 setSelectedId(item.id);
                 setLatestRunId(undefined);
                 setLatestRunConversationId(undefined);
-                setLatestSkill(undefined);
                 setRequirementId(undefined);
               }}
             >
@@ -172,41 +168,9 @@ export function AgentCommandScreen() {
             onCancel={() => cancelRun.mutate()}
           />
         </main>
-        <aside className={styles.runPanel}>
-          <header>Run 详情</header>
-          <dl>
-            <dt>状态</dt>
-            <dd>
-              <span className={styles.blueTag}>● {formatRunStatus(run.data?.status, Boolean(effectiveRunId))}</span>
-            </dd>
-            <dt>Run ID</dt>
-            <dd>
-              <code>{effectiveRunId ?? "—"}</code>
-            </dd>
-            <dt>智能体</dt>
-            <dd>{latestSkill ? `${latestSkill} Agent` : "按 Requirement 阶段自动选择"}</dd>
-          </dl>
-          <Alert type="info" content="计划、Tool 调用、审批和结果以真实 Run 轨迹为准。" />
-          <Button long disabled={!effectiveRunId} href={effectiveRunId ? `/agent/trace/${effectiveRunId}` : undefined}>
-            <IconHistory />
-            查看完整轨迹
-          </Button>
-        </aside>
       </div>
     </section>
   );
-}
-
-function formatRunStatus(status: string | undefined, hasRun: boolean) {
-  const labels: Record<string, string> = {
-    QUEUED: "排队中",
-    RUNNING: "执行中",
-    WAITING_APPROVAL: "等待审批",
-    SUCCEEDED: "已完成",
-    FAILED: "执行失败",
-    CANCELLED: "已终止",
-  };
-  return status ? (labels[status] ?? status) : hasRun ? "已提交" : "等待指令";
 }
 
 function ConversationApproval({ organizationId, runId, currentUserId }: { organizationId: number; runId: string; currentUserId: number }) {

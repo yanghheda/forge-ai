@@ -505,11 +505,8 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     @Test
     void completingADevTaskUsesItsVersionAndConcurrentQaSubmissionHasOneWinner() throws Exception {
         long taskId = prepareDevelopmentRequirement("IN_PROGRESS");
-        ResponseEntity<String> completed = csrf().post(
-                "/api/v1/development/tasks/" + taskId + "/complete",
-                Map.of("expectedVersion", 0),
-                ownerCookie,
-                String.class);
+        insertMergeRequest(taskId, "merged", "task-head");
+        ResponseEntity<String> completed = completeDevTask(taskId);
         assertThat(completed.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(objectMapper.readTree(completed.getBody()).get("status").asText()).isEqualTo("DONE");
         jdbcTemplate.update(
@@ -542,6 +539,30 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
             assertThat(successes).isOne();
             assertThat(conflicts).isOne();
         }
+    }
+
+    @Test
+    void completingADevTaskRequiresAMergedMergeRequest() throws Exception {
+        long taskId = prepareDevelopmentRequirement("IN_PROGRESS");
+        insertMergeRequest(taskId, "opened", "task-head");
+
+        assertThat(developmentSummary().at("/tasks/0/mergeRequestState").asText())
+                .isEqualTo("opened");
+
+        ResponseEntity<String> rejected = completeDevTask(taskId);
+
+        assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(objectMapper.readTree(rejected.getBody()).get("code").asText())
+                .isEqualTo("MERGE_REQUEST_NOT_MERGED");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM work_items WHERE id=?", String.class, taskId))
+                .isEqualTo("IN_PROGRESS");
+
+        jdbcTemplate.update("UPDATE merge_requests SET state='merged' WHERE work_item_id=?", taskId);
+
+        assertThat(developmentSummary().at("/tasks/0/mergeRequestState").asText())
+                .isEqualTo("merged");
+        assertThat(completeDevTask(taskId).getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
@@ -690,6 +711,38 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
                 organizationId,
                 connectionId);
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+    }
+
+    /* 通过真实 Controller 完成 Dev Task，验证合并门禁与状态推进。 */
+    private ResponseEntity<String> completeDevTask(long taskId) {
+        return csrf().post(
+                "/api/v1/development/tasks/" + taskId + "/complete",
+                Map.of("expectedVersion", 0),
+                ownerCookie,
+                String.class);
+    }
+
+    /* 读取 Development 汇总，用于验证 MR 状态快照随 Webhook 事实更新。 */
+    private JsonNode developmentSummary() throws Exception {
+        return objectMapper.readTree(get(
+                        "/api/v1/development/requirements/" + requirementId + "?organizationId=" + organizationId)
+                .getBody());
+    }
+
+    /* 写入与 Dev Task 关联的 MR 快照；state 用于驱动完成任务时的合并门禁。 */
+    private long insertMergeRequest(long taskId, String state, String headSha) {
+        long repositoryId = insertRepository();
+        jdbcTemplate.update(
+                "INSERT INTO merge_requests (organization_id,repository_id,work_item_id,remote_mr_iid,title,"
+                        + "source_branch,target_branch,state,web_url,head_sha,remote_updated_at,last_synced_at,version) "
+                        + "VALUES (?,?,?,7,'MR','feature/task','main',?,'https://gitlab.example/mr/7',?,"
+                        + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                organizationId,
+                repositoryId,
+                taskId,
+                state,
+                headSha);
         return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
 

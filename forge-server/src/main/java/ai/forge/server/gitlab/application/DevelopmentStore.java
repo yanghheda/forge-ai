@@ -25,6 +25,9 @@ public interface DevelopmentStore {
             long taskId,
             long expectedVersion);
 
+    /* 读取 Dev Task 最新 MR 快照是否已合并；无 MR 快照时视为未合并。 */
+    boolean hasMergedMergeRequest(long organizationId, long devTaskId);
+
     default Optional<PendingDevelopmentOperation> findPendingOperation() {
         return Optional.empty();
     }

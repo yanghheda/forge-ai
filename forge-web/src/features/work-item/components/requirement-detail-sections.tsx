@@ -1,8 +1,8 @@
-import { Alert, Avatar, Card, Progress, Tag } from "@arco-design/web-react";
+import { Avatar, Card, Tag } from "@arco-design/web-react";
 import { IconCheck, IconRobot, IconUserGroup } from "@arco-design/web-react/icon";
 import type { ReactNode } from "react";
 
-import type { OrganizationRequirement, RequirementActivity, RequirementParticipant, RequirementWorkflow } from "../api/work-item-api";
+import type { OrganizationRequirement, RequirementActivity, RequirementParticipant } from "../api/work-item-api";
 import { formatDate, roleMeta, stageIndex, stages, statusLabel } from "../utils/requirement-detail-display";
 import styles from "./organization-requirement-detail.module.css";
 
@@ -110,36 +110,6 @@ export function DescriptionCard({ item, extra }: { item: OrganizationRequirement
           </>
         )}
       </div>
-    </Card>
-  );
-}
-
-export function StageCard({ item, workflow }: { item: OrganizationRequirement; workflow?: RequirementWorkflow }) {
-  const current = stageIndex(item.status);
-  const completed = item.status === "RELEASED" || item.status === "DONE";
-  const progress = completed ? 100 : Math.round(((current + (item.status.startsWith("READY_FOR_") ? 0.2 : 0.62)) / stages.length) * 100);
-  const missing = workflow?.availableActions.flatMap((action) => workflow.guardHints[action] ?? []) ?? [];
-  return (
-    <Card title={`阶段 · ${statusLabel[item.status] ?? item.status}`} extra={<Tag color="arcoblue">{item.status}</Tag>}>
-      <div className={styles.progress}>
-        <Progress percent={progress} showText={false} />
-        <b>{progress}%</b>
-      </div>
-      <dl className={styles.stageFacts}>
-        <dt>进入时间</dt>
-        <dd>{formatDate(item.updatedAt, true)}</dd>
-        <dt>当前状态</dt>
-        <dd>{statusLabel[item.status] ?? item.status}</dd>
-        <dt>执行 Agent</dt>
-        <dd>
-          <Tag color="purple">
-            <IconRobot /> {roleMeta[(["PRODUCT", "UX", "DEVELOPER", "QA"] as const)[Math.min(current, 3)]].agent}
-          </Tag>
-        </dd>
-        <dt>下一步</dt>
-        <dd>{completed ? "交付流程已完成" : workflow?.availableActions.length ? "完成当前阶段准入条件并推进流程" : "当前暂无可执行动作"}</dd>
-      </dl>
-      {missing.length > 0 && <Alert type="warning" title="当前阶段仍有未满足条件" content={missing.join("、")} />}
     </Card>
   );
 }

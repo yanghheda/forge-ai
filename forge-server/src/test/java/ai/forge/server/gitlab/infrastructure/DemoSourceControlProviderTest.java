@@ -31,6 +31,7 @@ class DemoSourceControlProviderTest {
 
         assertThat(replayedBranch).isEqualTo(branch);
         assertThat(replayedMergeRequest).isEqualTo(mergeRequest);
+        assertThat(mergeRequest.state()).isEqualTo("merged");
         assertThat(pipeline.status()).isEqualTo("success");
         assertThat(provider.getJobLog(null, pipeline.remotePipelineId(), 1, 1024))
                 .asString()

@@ -48,6 +48,7 @@ public class MybatisDevelopmentQaStore implements DevelopmentQaStore {
                 nullableText(row, "branch_commit_sha"),
                 nullableNumber(row, "merge_request_id"),
                 nullableText(row, "merge_request_url"),
+                nullableText(row, "merge_request_state"),
                 nullableText(row, "merge_request_head_sha"),
                 nullableNumber(row, "pipeline_id"),
                 nullableText(row, "pipeline_commit_sha"),

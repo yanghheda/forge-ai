@@ -66,6 +66,8 @@ public class DemoSourceControlProvider implements SourceControlProvider {
                 context.repositoryId(), sourceBranch, targetBranch)));
     }
 
+    /* Demo 环境没有真实 GitLab 合并动作：MR 快照直接以已合并状态入库，
+       保证“启动开发 → 触发 Pipeline → 完成任务”的黄金 Demo 链路满足服务端合并门禁。 */
     @Override
     public MergeRequest createMergeRequest(
             DevelopmentContext context,
@@ -84,7 +86,7 @@ public class DemoSourceControlProvider implements SourceControlProvider {
                         title,
                         sourceBranch,
                         targetBranch,
-                        "opened",
+                        "merged",
                         "https://gitlab.demo.invalid/demo/demo-shop/-/merge_requests/18",
                         "32001",
                         requireBranch(context.repositoryId(), sourceBranch).commitSha(),

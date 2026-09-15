@@ -95,6 +95,7 @@ class DevelopmentQaGuardTest {
                 null,
                 hasMergeRequest ? 7L : null,
                 hasMergeRequest ? "https://gitlab.example/mr/7" : null,
+                hasMergeRequest ? "merged" : null,
                 mergeRequestHeadSha,
                 pipelineCommitSha == null ? null : 9L,
                 pipelineCommitSha,

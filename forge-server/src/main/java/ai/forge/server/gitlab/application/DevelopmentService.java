@@ -157,6 +157,14 @@ public class DevelopmentService {
             long devTaskId,
             long expectedVersion) {
         permissions.requireOrganization(userId, organizationId, "task.edit");
+        if (store.findWorkItem(organizationId, devTaskId)
+                .filter(item -> item.type() == WorkItemType.DEV_TASK)
+                .isEmpty()) {
+            throw new ResourceNotFoundException();
+        }
+        if (!store.hasMergedMergeRequest(organizationId, devTaskId)) {
+            throw new MergeRequestNotMergedException();
+        }
         return store.completeTask(organizationId, devTaskId, expectedVersion);
     }
 

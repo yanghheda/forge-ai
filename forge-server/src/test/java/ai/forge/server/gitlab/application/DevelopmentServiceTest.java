@@ -120,6 +120,25 @@ class DevelopmentServiceTest {
     }
 
     @Test
+    void rejectsCompletionWhileTheTaskMergeRequestIsNotMerged() {
+        FakeStore store = new FakeStore();
+        store.mergedMergeRequest = false;
+
+        assertThatThrownBy(() -> service(store, new FakeProvider()).completeTask(1L, 7L, 12L, 3L))
+                .isInstanceOf(MergeRequestNotMergedException.class);
+        assertThat(store.completedTaskExpectedVersion).isNull();
+    }
+
+    @Test
+    void rejectsCompletionForWorkItemsThatAreNotDevTasks() {
+        FakeStore store = new FakeStore();
+
+        assertThatThrownBy(() -> service(store, new FakeProvider()).completeTask(1L, 7L, 11L, 3L))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(store.completedTaskExpectedVersion).isNull();
+    }
+
+    @Test
     void reconciliationReusesFrozenOperationAndDefersRateLimit() {
         FakeStore store = new FakeStore();
         store.pending = Optional.of(new PendingDevelopmentOperation(
@@ -171,6 +190,7 @@ class DevelopmentServiceTest {
         private boolean completed;
         private int reads;
         private Long completedTaskExpectedVersion;
+        private boolean mergedMergeRequest = true;
         private Optional<PendingDevelopmentOperation> pending = Optional.empty();
         private String lastTargetBranch;
         private String lastIdempotencyKey;
@@ -221,6 +241,11 @@ class DevelopmentServiceTest {
                 boolean reconciled) {
             completed = true;
             return new DevelopmentResult(branch, mergeRequest, reconciled);
+        }
+
+        @Override
+        public boolean hasMergedMergeRequest(long organizationId, long devTaskId) {
+            return mergedMergeRequest;
         }
 
         @Override

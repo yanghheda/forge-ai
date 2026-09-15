@@ -332,7 +332,7 @@
 }
 .commandGrid {
   display: grid;
-  grid-template-columns: 240px minmax(420px, 1fr) 280px;
+  grid-template-columns: 240px minmax(420px, 1fr);
   grid-template-rows: minmax(0, 1fr);
   flex: 1;
   height: auto;
@@ -342,15 +342,13 @@
   background: #fff;
   overflow: hidden;
 }
-.sessionList,
-.runPanel {
+.sessionList {
   min-height: 0;
   overflow-y: auto;
   border-right: 1px solid var(--forge-border-2);
   background: var(--forge-fill-1);
 }
-.sessionList > header,
-.runPanel > header {
+.sessionList > header {
   height: 50px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--forge-border-2);
@@ -601,32 +599,6 @@
   color: #fff !important;
   background: var(--forge-error) !important;
 }
-.runPanel {
-  padding-bottom: 16px;
-  border-right: 0;
-  border-left: 1px solid var(--forge-border-2);
-  background: #fff;
-}
-.runPanel dl {
-  display: grid;
-  grid-template-columns: 82px 1fr;
-  margin: 0;
-  padding: 16px;
-  border-bottom: 1px solid var(--forge-border-1);
-  gap: 10px;
-}
-.runPanel dt {
-  color: var(--forge-text-3);
-  font-size: 12px;
-}
-.runPanel dd {
-  margin: 0;
-  font-size: 12px;
-}
-.runPanel h3 {
-  padding: 0 16px;
-  font-size: 13px;
-}
 .plan {
   display: flex;
   align-items: center;
@@ -653,11 +625,6 @@
 }
 .warningDot {
   background: var(--forge-warning);
-}
-.runPanel > button,
-.runPanel > a {
-  margin: 8px 16px;
-  width: calc(100% - 32px);
 }
 .traceGrid {
   display: grid;
@@ -747,9 +714,6 @@
   }
   .commandGrid {
     grid-template-columns: 210px 1fr;
-  }
-  .runPanel {
-    display: none;
   }
 }
 @media (max-width: 800px) {

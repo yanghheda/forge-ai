@@ -19,7 +19,6 @@
   line-height: 1.3;
 }
 .head p,
-.role,
 .policy {
   margin: 0;
   color: var(--forge-text-3);
@@ -143,34 +142,65 @@
 .body {
   padding: 16px 20px;
 }
-.branchFlow {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  padding: 14px 16px;
-  border-radius: 4px;
-  background: var(--forge-fill-1);
+/* 每个 Dev Task 一张交付卡片：分支 → MR → Pipeline 归属同一个任务，避免多任务时信息串台。 */
+.deliveryList {
+  display: grid;
   gap: 12px;
 }
-.branch {
+.deliveryCard {
+  padding: 14px 16px;
+  border: 1px solid var(--forge-border-1);
+  border-radius: 4px;
+}
+.deliveryHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+.deliveryHead > div {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  gap: 10px;
+}
+.deliveryHead code {
+  flex: 0 0 auto;
+  color: var(--forge-primary-6);
+  font-size: 12px;
+}
+.deliveryHead strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chain {
   display: flex;
   align-items: center;
   min-width: 0;
-  max-width: 42%;
+  padding: 12px 14px;
+  border-radius: 4px;
+  background: var(--forge-fill-1);
+  gap: 10px;
+}
+.node {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 36%;
   padding: 8px 12px;
   border: 1px solid var(--forge-border-2);
   border-radius: 3px;
   background: #fff;
   gap: 9px;
 }
-.branch > svg {
-  flex: 0 0 auto;
-  color: var(--forge-primary-6);
-}
-.branch div {
+.node div {
   min-width: 0;
 }
-.branch code {
+.node b {
   display: block;
   overflow: hidden;
   color: var(--forge-text-1);
@@ -179,10 +209,39 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.branch small {
+.node small {
   display: block;
   margin-top: 2px;
+  overflow: hidden;
   color: var(--forge-text-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nodeIcon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 3px;
+  color: var(--forge-text-3);
+  background: var(--forge-fill-2);
+}
+.nodeIcon svg {
+  width: 14px;
+  height: 14px;
+}
+.node.ok .nodeIcon {
+  color: var(--forge-success);
+  background: var(--forge-success-bg);
+}
+.node.run .nodeIcon {
+  color: var(--forge-primary-6);
+  background: var(--forge-primary-1);
+}
+.node.fail .nodeIcon {
+  color: var(--forge-error);
+  background: var(--forge-error-bg);
 }
 .line {
   min-width: 12px;
@@ -190,65 +249,12 @@
   flex: 1;
   background: var(--forge-border-2);
 }
-.merge {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  color: var(--forge-primary-6);
-  background: var(--forge-primary-1);
-}
-.facts {
-  margin: 16px 0 0;
-}
-.facts > div {
-  display: grid;
-  grid-template-columns: 100px minmax(0, 1fr);
-  align-items: center;
-  min-height: 42px;
-  border-bottom: 1px solid var(--forge-border-1);
-  font-size: 13px;
-}
-.facts dt {
-  color: var(--forge-text-3);
-}
-.facts dd {
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-.mono {
-  font-family: var(--forge-font-mono);
-}
-.pipeline {
+.deliveryFoot {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
   gap: 12px;
-}
-.pipeline p {
-  margin: 4px 0 0;
-  color: var(--forge-text-3);
-  font: 12px var(--forge-font-mono);
-}
-.okDot,
-.runDot {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--forge-success);
-}
-.runDot {
-  color: var(--forge-primary-6);
-  background: var(--forge-primary-1);
-}
-.tasks {
-  display: grid;
 }
 .fieldLabel {
   display: block;
@@ -257,57 +263,24 @@
   font-size: 13px;
   font-weight: 500;
 }
-.task {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  min-height: 66px;
-  border-bottom: 1px solid var(--forge-border-1);
-  gap: 10px;
-}
-.task:last-child {
-  border-bottom: 0;
-}
-.task > div {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  min-width: 0;
-  gap: 4px 10px;
-}
-.task > .taskActions {
-  display: flex;
-  grid-template-columns: none;
-  flex-wrap: wrap;
-}
-.task code {
-  color: var(--forge-primary-6);
-  font-size: 12px;
-}
-.task strong {
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.task div span {
-  grid-column: 1 / -1;
-  color: var(--forge-text-3);
-  font: 11px var(--forge-font-mono);
-}
+/* 门禁面板位于窄侧栏，明细单独换行，避免长文案被压成窄列。 */
 .guardRow {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   min-height: 46px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--forge-border-1);
-  gap: 12px;
+  gap: 2px 12px;
   font-size: 13px;
 }
 .guardRow > strong {
-  flex: 1;
+  min-width: 0;
+  flex: 1 1 auto;
   font-weight: 500;
 }
 .guardRow > span:last-child {
+  flex: 1 1 180px;
   color: var(--forge-text-3);
   font-size: 12px;
 }
@@ -333,34 +306,15 @@
 .guardFoot {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   margin-top: 14px;
-  gap: 16px;
+  gap: 10px 16px;
   color: var(--forge-text-3);
   font-size: 12px;
 }
-.metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-.metrics > div {
-  padding: 12px;
-  border-radius: 4px;
-  background: var(--forge-fill-1);
-}
-.metrics strong,
-.metrics span {
-  display: block;
-}
-.metrics strong {
-  font-size: 18px;
-}
-.metrics span {
-  margin-top: 3px;
-  color: var(--forge-text-3);
-  font-size: 12px;
+.guardFoot > span {
+  flex: 1 1 180px;
 }
 .chips {
   display: flex;
@@ -395,21 +349,18 @@
   .stats {
     grid-template-columns: 1fr;
   }
-  .branchFlow {
+  .chain {
     align-items: stretch;
     flex-direction: column;
   }
-  .branch {
+  .node {
     max-width: none;
   }
-  .line,
-  .merge {
+  .line {
     display: none;
   }
-  .task {
-    grid-template-columns: 1fr auto;
-  }
-  .task > button {
-    grid-column: 1 / -1;
+  .deliveryFoot {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

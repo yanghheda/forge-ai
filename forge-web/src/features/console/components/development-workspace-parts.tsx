@@ -1,4 +1,4 @@
-import { IconBranch, IconCheck } from "@arco-design/web-react/icon";
+import { IconCheck } from "@arco-design/web-react/icon";
 import type { ReactNode } from "react";
 
 import styles from "./development-workspace.module.css";
@@ -29,22 +29,15 @@ export function Stat({ icon, tone = "blue", label, value, foot }: { icon: ReactN
     </article>
   );
 }
-export function Branch({ name, caption }: { name: string; caption: string }) {
+/* 交付链路中的单个节点，tone 表示该节点自身的状态而非整条链路。 */
+export function ChainNode({ icon, title, caption, tone = "idle" }: { icon: ReactNode; title: string; caption: string; tone?: "ok" | "run" | "fail" | "idle" }) {
   return (
-    <div className={styles.branch}>
-      <IconBranch />
+    <div className={`${styles.node} ${styles[tone]}`}>
+      <span className={styles.nodeIcon}>{icon}</span>
       <div>
-        <code>{name}</code>
+        <b>{title}</b>
         <small>{caption}</small>
       </div>
-    </div>
-  );
-}
-export function Fact({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd className={mono ? styles.mono : ""}>{value}</dd>
     </div>
   );
 }
@@ -54,14 +47,6 @@ export function Guard({ ok, label, detail }: { ok: boolean; label: string; detai
       <span className={ok ? styles.guardOk : styles.guardFail}>{ok ? <IconCheck /> : "×"}</span>
       <strong>{label}</strong>
       <span>{detail}</span>
-    </div>
-  );
-}
-export function Metric({ value, label }: { value: number; label: string }) {
-  return (
-    <div>
-      <strong>{value}</strong>
-      <span>{label}</span>
     </div>
   );
 }

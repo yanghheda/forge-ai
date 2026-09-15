@@ -13,6 +13,7 @@ public record DevelopmentQaTask(
         /* 可选关联分支头提交。 */ String branchCommitSha,
         /* 可选关联 MR 的本地稳定标识。 */ Long mergeRequestId,
         /* 可选且不含凭据的 MR 页面地址。 */ String mergeRequestUrl,
+        /* MR 标准化快照状态；完成任务要求该值为 merged。 */ String mergeRequestState,
         /* 当前 MR head SHA；CI 必须验证该提交。 */ String mergeRequestHeadSha,
         /* 最新 Pipeline 的本地稳定标识。 */ Long pipelineId,
         /* 最新 Pipeline 实际验证的提交 SHA。 */ String pipelineCommitSha,
