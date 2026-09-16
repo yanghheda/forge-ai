@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { completeDevTask, createDevTask, createTestCase, createTestRun, getDeliveryGraph, getDevelopmentSummary, getLatestTestRun, listBugs, listTestCases, startDevelopment, updateTestResult } from "./work-item-api";
+import { completeDevTask, createBug, createDevTask, createTestCase, createTestRun, getDeliveryGraph, getDevelopmentSummary, getLatestTestRun, listBugs, listTestCases, startDevelopment, updateTestResult } from "./work-item-api";
 
 describe("work item API", () => {
   it("按 Organization、Project 和 Requirement 范围读取 Delivery Graph", async () => {
@@ -53,5 +53,13 @@ describe("work item API", () => {
     expect(client.request).toHaveBeenNthCalledWith(1, "/v1/qa/requirements/30/cases", expect.objectContaining({ method: "POST" }));
     expect(client.request).toHaveBeenNthCalledWith(2, "/v1/qa/requirements/30/runs", expect.objectContaining({ method: "POST" }));
     expect(client.request).toHaveBeenNthCalledWith(3, "/v1/qa/runs/9/results/8", expect.objectContaining({ method: "PUT" }));
+  });
+
+  it("创建人工发现的缺陷", async () => {
+    const client = { request: vi.fn().mockResolvedValue({ id: 7 }) };
+
+    await createBug({ organizationId: 0, requirementId: 30, title: "登录失败", severity: "MAJOR", reproductionSteps: ["输入账号", "点击登录"], expectedResult: "进入首页", actualResult: "返回 500" }, client);
+
+    expect(client.request).toHaveBeenCalledWith("/v1/bugs", expect.objectContaining({ method: "POST", body: expect.stringContaining('"testRunId":null') }));
   });
 });

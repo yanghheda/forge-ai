@@ -82,7 +82,7 @@ public interface QaMapper {
 
     @Select("SELECT COUNT(*) total,SUM(tr.status='PASS') passed,SUM(tr.status='FAIL') failed,"
             + "SUM(tr.status='BLOCKED') blocked,SUM(tr.status='SKIPPED') skipped,"
-            + "SUM(tr.status='NOT_RUN') not_run,"
+            + "SUM(tr.status IN ('NOT_RUN','IN_PROGRESS')) not_run,"
             + "SUM(tr.status='SKIPPED' AND tc.priority IN ('P0','P1')) mandatory_skipped "
             + "FROM test_results tr JOIN test_cases tc ON tc.id=tr.test_case_id AND tc.organization_id=tr.organization_id "
             + "JOIN test_runs run ON run.id=tr.test_run_id AND run.organization_id=tr.organization_id "

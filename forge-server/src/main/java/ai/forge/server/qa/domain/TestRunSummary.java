@@ -6,5 +6,5 @@ public record TestRunSummary(
         /* 执行结论为失败的用例数。 */ int failed,
         /* 因环境或依赖阻塞的用例数。 */ int blocked,
         /* 经人工明确跳过的用例数。 */ int skipped,
-        /* 尚未产生执行结论的用例数。 */ int notRun,
+        /* 未执行或仍在执行中、尚未形成最终结论的用例数。 */ int notRun,
         /* P0 或 P1 用例中被跳过的数量。 */ int mandatorySkipped) {}

@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -40,6 +40,12 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                                 + "WHERE table_schema = DATABASE() AND table_name = 'instance_settings'",
                         String.class))
                 .isEqualTo("utf8mb4_0900_ai_ci");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT column_comment FROM information_schema.columns "
+                                + "WHERE table_schema = DATABASE() AND table_name = 'test_results' "
+                                + "AND column_name = 'status'",
+                        String.class))
+                .contains("IN_PROGRESS");
     }
 
     @Test

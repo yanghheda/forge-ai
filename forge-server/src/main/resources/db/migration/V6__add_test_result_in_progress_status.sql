@@ -1,0 +1,2 @@
+ALTER TABLE `test_results`
+  MODIFY COLUMN `status` varchar(16) NOT NULL COMMENT '结果状态：NOT_RUN、IN_PROGRESS、PASS、FAIL、BLOCKED 或 SKIPPED；IN_PROGRESS 表示人工执行尚未形成最终结论';

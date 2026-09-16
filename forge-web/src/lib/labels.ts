@@ -56,6 +56,7 @@ const guardHintLabels: Record<string, string> = {
 /* 测试结果状态的中文文案。 */
 const testResultLabels: Record<string, string> = {
   NOT_RUN: "未执行",
+  IN_PROGRESS: "执行中",
   PASS: "通过",
   FAIL: "失败",
   BLOCKED: "阻塞",

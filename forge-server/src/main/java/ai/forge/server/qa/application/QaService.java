@@ -5,9 +5,14 @@ import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.qa.domain.TestCasePriority;
 import ai.forge.server.qa.domain.TestCaseType;
 import ai.forge.server.qa.domain.TestResultStatus;
+import ai.forge.server.workitem.application.RequirementTransitionService;
+import ai.forge.server.workitem.application.WorkItemStore;
+import ai.forge.server.workitem.domain.WorkItemStatus;
+import ai.forge.server.workitem.domain.WorkflowAction;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Profile("!test-unit")
@@ -19,9 +24,18 @@ public class QaService {
     /* 持有 QA 短事务和显式租户范围持久化。 */
     private final QaStore store;
 
-    public QaService(PermissionEvaluator permissions, QaStore store) {
+    /* 读取 Requirement 当前状态和乐观锁版本。 */
+    private final WorkItemStore workItems;
+
+    /* 通过统一状态机推进 Requirement，保留权限与审计语义。 */
+    private final RequirementTransitionService transitions;
+
+    public QaService(PermissionEvaluator permissions, QaStore store, WorkItemStore workItems,
+            RequirementTransitionService transitions) {
         this.permissions = permissions;
         this.store = store;
+        this.workItems = workItems;
+        this.transitions = transitions;
     }
 
     public TestCaseView createCase(long userId, long organizationId, long requirementId,
@@ -58,12 +72,21 @@ public class QaService {
                 .orElseThrow(ResourceNotFoundException::new);
     }
 
+    @Transactional
     public TestResultView updateResult(long userId, long organizationId, long runId, long resultId,
             TestResultStatus status, String actualResult, List<String> evidence, long expectedVersion) {
         permissions.requireOrganization(userId, organizationId, "qa.execute");
-        return store.updateResult(organizationId, runId, resultId, userId, status,
+        TestRunView run = store.findRun(organizationId, runId).orElseThrow(ResourceNotFoundException::new);
+        var requirement = workItems.findByIdAndScope(organizationId, run.requirementId())
+                .orElseThrow(ResourceNotFoundException::new);
+        TestResultView updated = store.updateResult(organizationId, runId, resultId, userId, status,
                 normalize(actualResult), evidence.stream().map(String::trim).filter(value -> !value.isBlank()).toList(),
                 expectedVersion);
+        if (requirement.status() == WorkItemStatus.READY_FOR_QA) {
+            transitions.transition(userId, organizationId, requirement.id(), WorkflowAction.START_QA,
+                    requirement.version(), "qa-run-" + runId + "-start", null);
+        }
+        return updated;
     }
 
     public TestRunView completeRun(long userId, long organizationId, long runId,

@@ -180,7 +180,7 @@ export const completeDevTask = (input: { organizationId: number; taskId: number;
 
 export type TestCasePriority = "P0" | "P1" | "P2";
 export type TestCaseType = "FUNCTIONAL" | "REGRESSION" | "E2E";
-export type TestResultStatus = "NOT_RUN" | "PASS" | "FAIL" | "BLOCKED" | "SKIPPED";
+export type TestResultStatus = "NOT_RUN" | "IN_PROGRESS" | "PASS" | "FAIL" | "BLOCKED" | "SKIPPED";
 
 export interface TestCaseView {
   id: number;

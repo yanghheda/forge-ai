@@ -419,7 +419,7 @@ RELEASE 类型 Work Item 若保留，仅作为 Release 聚合的看板代理，�
 | `SKIP_UX` | PRODUCT_REVIEW → READY_FOR_DEV | `ux.skip` | policy 允许、reason 必填、只允许纯后端/运维标签，审计 |
 | `START_DEVELOPMENT` | READY_FOR_DEV → IN_DEVELOPMENT | `development.start` | 至少一个 Dev Task；负责人存在 |
 | `SUBMIT_FOR_QA` | IN_DEVELOPMENT → READY_FOR_QA | `development.submit` | Dev Task 完成；若策略要求则 MR 存在且 Pipeline 成功 |
-| `START_QA` | READY_FOR_QA → IN_QA | `test.execute` | Test Run 已创建且包含用例 |
+| `START_QA` | READY_FOR_QA → IN_QA | `test.execute` | Test Run 已创建且包含用例；首次提交任一实际执行状态时由 QA 服务自动触发 |
 | `QA_FAIL` | IN_QA → IN_DEVELOPMENT | `test.execute` | 有 FAIL/BLOCKED 结果或阻断 Bug；reason 必填 |
 | `QA_PASS` | IN_QA → READY_FOR_RELEASE | `test.execute` | Test Run 完成；无 OPEN/REOPENED 阻断 Bug |
 | `MARK_RELEASED` | READY_FOR_RELEASE → RELEASED | `release.deploy` | Release 已 RELEASED；有效审批和成功 Deployment |
@@ -897,7 +897,7 @@ Processor 将事件映射为 `MergeRequestChanged`、`PipelineChanged`，upsert 
 
 ### 12.1 Test Run 统计
 
-Test Result 状态：`NOT_RUN/PASS/FAIL/BLOCKED/SKIPPED`。Run 状态：`DRAFT/IN_PROGRESS/COMPLETED/CANCELLED`。完成时固化统计；之后修改结果需要显式 reopen，写审计并使关联 Release Precheck 失效。
+Test Result 状态：`NOT_RUN/IN_PROGRESS/PASS/FAIL/BLOCKED/SKIPPED`，其中 `IN_PROGRESS` 表示人工执行已经开始但尚未形成最终结论，与 `NOT_RUN` 一样阻止完成 Run。Run 状态：`DRAFT/IN_PROGRESS/COMPLETED/CANCELLED`。完成时固化统计；之后修改结果需要显式 reopen，写审计并使关联 Release Precheck 失效。Web 不暴露独立 Test Run 面板，人工执行入口与状态直接呈现在 Test Case 列表中；Run 仍作为后端审计、统计和发布门禁事实保留。
 
 QA PASS Guard：所有 P0/P1 用例已执行且 PASS，P2 可按策略允许 SKIPPED；无 FAIL/BLOCKED；阻断 Bug 集合为空。规则实现为确定性代码，不让 Agent 给出最终放行结论。
 

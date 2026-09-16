@@ -55,16 +55,14 @@
 .orange {
   color: var(--forge-warning) !important;
 }
-.progress,
-.runProgress {
+.progress {
   height: 4px;
   margin-top: 12px;
   border-radius: 3px;
   background: var(--forge-fill-3);
   overflow: hidden;
 }
-.progress i,
-.runProgress i {
+.progress i {
   display: block;
   height: 100%;
   background: var(--forge-primary-6);
@@ -106,9 +104,7 @@
   align-items: start;
 }
 .panel,
-.gate,
-.runPanel,
-.emptyRun {
+.gate {
   border: 1px solid var(--forge-border-2);
   border-radius: 4px;
   background: #fff;
@@ -122,7 +118,7 @@
   align-items: center;
   gap: 10px;
 }
-.toolbar span {
+.toolbar > span {
   padding: 7px 12px;
   border: 1px solid var(--forge-border-2);
   color: var(--forge-text-2);
@@ -160,6 +156,22 @@
   color: var(--forge-text-3);
   white-space: nowrap;
 }
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--forge-primary-6);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.linkButton:hover {
+  text-decoration: underline;
+}
+.linkButton:focus-visible {
+  outline: 2px solid var(--forge-primary-6);
+  outline-offset: 3px;
+}
 .panel > footer {
   padding: 13px 16px;
   color: var(--forge-text-3);
@@ -187,11 +199,11 @@
   color: var(--forge-warning);
 }
 .not_run,
+.in_progress,
 .skipped {
   color: var(--forge-text-3);
 }
 .gate > header,
-.runPanel > header,
 .sectionHead {
   display: flex;
   min-height: 54px;
@@ -220,74 +232,6 @@
   margin: 0 16px 16px;
   width: calc(100% - 32px);
 }
-.runBody {
-  padding: 20px;
-}
-.runProgress {
-  height: 8px;
-}
-.runBody dl {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin: 16px 0;
-}
-.runBody dl div {
-  padding: 0 14px;
-  border-right: 1px solid var(--forge-border-1);
-}
-.runBody dt {
-  color: var(--forge-text-3);
-  font-size: 12px;
-}
-.runBody dd {
-  margin: 8px 0 0;
-  font-size: 13px;
-}
-.executionLog {
-  padding: 16px;
-  border-radius: 4px;
-  background: #232323;
-  color: #d8d8d8;
-  font:
-    12px/1.8 ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
-}
-.executionLog p {
-  display: flex;
-  margin: 0;
-  gap: 12px;
-}
-.executionLog time {
-  color: #87909e;
-}
-.executionLog b {
-  min-width: 58px;
-}
-.executionLog em {
-  color: #a9aeb8;
-  font-style: normal;
-}
-.executionLog button {
-  margin-left: auto;
-  border: 0;
-  color: #69a9ff;
-  background: transparent;
-  cursor: pointer;
-}
-.runFooter {
-  display: flex;
-  margin-top: 14px;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--forge-text-3);
-  font-size: 12px;
-}
-.runActions {
-  display: flex;
-  gap: 8px;
-}
 .sectionHead span {
   color: var(--forge-text-3);
   font-size: 12px;
@@ -304,14 +248,41 @@
   min-width: 190px;
   gap: 6px;
 }
-.empty,
-.emptyRun {
+.empty {
   padding: 30px;
   color: var(--forge-text-3);
   text-align: center;
 }
-.emptyRun p {
-  margin: 8px 0 16px;
+.detail {
+  display: grid;
+  gap: 20px;
+}
+.detail header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.detail h3 {
+  margin: 6px 0 0;
+  color: var(--forge-text-1);
+}
+.detail b {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--forge-text-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+.detail p,
+.detail ol {
+  margin: 0;
+  color: var(--forge-text-1);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.detail ol {
+  padding-left: 22px;
 }
 @media (max-width: 1100px) {
   .stats {
@@ -322,9 +293,5 @@
   }
   .actions {
     margin-top: 0;
-  }
-  .runBody dl {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
   }
 }

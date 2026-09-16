@@ -106,6 +106,21 @@ class QaPersistenceIntegrationTest extends InfrastructureIntegrationTestBase {
                 .isEqualTo(TestResultStatus.PASS);
     }
 
+    @Test
+    void inProgressResultKeepsRunIncompleteUntilItHasFinalResult() {
+        createCase("Manual execution", TestCasePriority.P1);
+        TestRunView run = store.createRun(2803, 2805, 2801, "staging");
+        var result = run.results().get(0);
+
+        store.updateResult(2803, run.id(), result.id(), 2801, TestResultStatus.IN_PROGRESS,
+                "正在人工验证", List.of(), result.version());
+
+        assertThat(store.findRun(2803, run.id()).orElseThrow().results().get(0).status())
+                .isEqualTo(TestResultStatus.IN_PROGRESS);
+        assertThatThrownBy(() -> store.completeRun(2803, run.id(), 2801, 1))
+                .isInstanceOf(ai.forge.server.qa.application.QaStateException.class);
+    }
+
     private TestCaseView createCase(String title, TestCasePriority priority) {
         return store.createCase(2803, 2805, 2801, title, "", List.of("Execute"), "Expected", priority,
                 TestCaseType.FUNCTIONAL);

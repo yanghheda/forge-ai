@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -17,14 +18,17 @@ const api = vi.hoisted(() => ({
 
 vi.mock("../api/work-item-api", () => api);
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
-import { BugList, QaPanel, QaRunView } from "./qa-panel";
+import { BugList, QaPanel } from "./qa-panel";
 
 const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>;
 
 describe("QaPanel", () => {
-  it("展示 Server 返回的用例、最新执行统计与关联 Bug", async () => {
+  it("移除测试运行模块并可查看测试用例详情", async () => {
     api.listTestCases.mockResolvedValue([{ id: 1, caseKey: "QA-CASE-001", requirementId: 2, title: "真实登录回归", preconditions: "", steps: ["登录"], expectedResult: "成功", priority: "P0", caseType: "REGRESSION", createdBy: 6, createdByName: "赵测试", version: 0 }]);
     api.getLatestTestRun.mockResolvedValue({
       id: 9,
@@ -48,16 +52,17 @@ describe("QaPanel", () => {
     expect(screen.getByText("QA-CASE-001")).toBeInTheDocument();
     expect(screen.getByText("QA 门禁（进入待发布条件）")).toBeInTheDocument();
     expect(screen.getByText("真实登录回归")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "测试运行 1" }));
-    expect(screen.getByText("测试运行 RUN-9")).toBeInTheDocument();
-    expect(screen.getByText("真实登录回归", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("通过 1/1；允许 QA 通过")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /测试运行/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "查看用例 QA-CASE-001" }));
+    expect(screen.getByRole("dialog", { name: "测试用例详情" })).toBeInTheDocument();
+    expect(screen.getByText("前置条件")).toBeInTheDocument();
+    expect(screen.getByText("预期结果")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "缺陷 1" }));
     expect(screen.getByText("BUG-7")).toBeInTheDocument();
     expect(screen.getByText("真实接口缺陷")).toBeInTheDocument();
   });
 
-  it("可切换测试用例、测试运行和缺陷视图", async () => {
+  it("用例列表承载人工执行入口与执行中状态", async () => {
     api.listTestCases.mockResolvedValue([{ id: 1, caseKey: "QA-CASE-001", requirementId: 2, title: "登录回归", preconditions: "", steps: ["登录"], expectedResult: "成功", priority: "P1", caseType: "REGRESSION", createdBy: 6, createdByName: "赵测试", version: 0 }]);
     api.getLatestTestRun.mockResolvedValue({
       id: 9,
@@ -66,108 +71,59 @@ describe("QaPanel", () => {
       startedBy: 6,
       startedByName: "赵测试",
       triggerSource: "USER",
-      status: "COMPLETED",
-      summary: { total: 1, passed: 1, failed: 0, blocked: 0, skipped: 0, notRun: 0, mandatorySkipped: 0 },
-      decision: { passed: true, missing: [] },
-      results: [{ id: 3, testCaseId: 1, title: "登录回归", priority: "P1", status: "PASS", actualResult: "", evidence: [], version: 1 }],
-      version: 2,
+      status: "IN_PROGRESS",
+      summary: null,
+      decision: { passed: false, missing: ["completedTestRun"] },
+      results: [{ id: 3, testCaseId: 1, title: "登录回归", priority: "P1", status: "IN_PROGRESS", actualResult: "", evidence: [], version: 1 }],
+      version: 1,
     });
     api.listBugs.mockResolvedValue([]);
 
     render(<QaPanel organizationId={0} requirementId={2} onChanged={async () => undefined} />, { wrapper });
 
-    expect(await screen.findByRole("tab", { name: "测试用例" })).toHaveAttribute("aria-selected", "true");
-    fireEvent.click(screen.getByRole("tab", { name: "测试运行 1" }));
-    expect(screen.getByRole("tab", { name: "测试运行 1" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("测试运行 RUN-9")).toBeInTheDocument();
+    expect(await screen.findByText("执行中")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "完成本轮测试" })).toBeDisabled();
     fireEvent.click(screen.getByRole("tab", { name: "缺陷 0" }));
     expect(screen.getByRole("tab", { name: "缺陷 0" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByText("测试运行 RUN-9")).not.toBeInTheDocument();
-  });
-});
-
-describe("QaRunView", () => {
-  it("展示固化统计且已完成 Run 只能 reopen", () => {
-    const reopen = vi.fn();
-    render(
-      <QaRunView
-        run={{
-          id: 1,
-          requirementId: 2,
-          environment: "staging",
-          startedBy: 6,
-          startedByName: "赵测试",
-          triggerSource: "USER",
-          status: "COMPLETED",
-          summary: {
-            total: 2,
-            passed: 1,
-            failed: 0,
-            blocked: 0,
-            skipped: 1,
-            notRun: 0,
-            mandatorySkipped: 0,
-          },
-          decision: { passed: true, missing: [] },
-          results: [
-            {
-              id: 3,
-              testCaseId: 4,
-              title: "核心路径",
-              priority: "P0",
-              status: "PASS",
-              actualResult: "",
-              evidence: [],
-              version: 1,
-            },
-          ],
-          version: 2,
-        }}
-        busy={false}
-        onResult={vi.fn()}
-        onComplete={vi.fn()}
-        onReopen={reopen}
-      />,
-    );
-
-    expect(screen.getByText("通过 1/2；允许 QA 通过")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "完成测试执行" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "重新打开测试执行" }));
-    expect(reopen).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "创建缺陷" }));
+    expect(screen.getByRole("dialog", { name: "创建缺陷" })).toBeInTheDocument();
+    expect(screen.getByText("复现步骤（每行一步）")).toBeInTheDocument();
   });
 
-  it("已完成运行可以基于当前用例创建新一轮执行", () => {
-    const createNewRun = vi.fn();
-    render(
-      <QaRunView
-        run={{
-          id: 1,
-          requirementId: 2,
-          environment: "staging",
-          startedBy: 6,
-          startedByName: "赵测试",
-          triggerSource: "USER",
-          status: "COMPLETED",
-          summary: { total: 1, passed: 0, failed: 1, blocked: 0, skipped: 0, notRun: 0, mandatorySkipped: 0 },
-          decision: { passed: false, missing: ["FAILED_RESULTS"] },
-          results: [{ id: 3, testCaseId: 4, title: "核心路径", priority: "P0", status: "FAIL", actualResult: "失败", evidence: [], version: 1 }],
-          version: 2,
-        }}
-        busy={false}
-        onResult={vi.fn()}
-        onComplete={vi.fn()}
-        onReopen={vi.fn()}
-        onCreateNewRun={createNewRun}
-      />,
-    );
+  it("没有测试轮次时可直接选择执行中并自动创建后台轮次", async () => {
+    const testCase = { id: 1, caseKey: "QA-CASE-001", requirementId: 2, title: "登录回归", preconditions: "", steps: ["登录"], expectedResult: "成功", priority: "P1", caseType: "REGRESSION", createdBy: 6, createdByName: "赵测试", version: 0 };
+    api.listTestCases.mockResolvedValue([testCase]);
+    api.getLatestTestRun.mockResolvedValue(null);
+    api.listBugs.mockResolvedValue([]);
+    api.createTestRun.mockResolvedValue({
+      id: 10,
+      requirementId: 2,
+      environment: "staging",
+      startedBy: 6,
+      startedByName: "赵测试",
+      triggerSource: "USER",
+      status: "DRAFT",
+      summary: null,
+      decision: { passed: false, missing: ["completedTestRun"] },
+      results: [{ id: 4, testCaseId: 1, title: "登录回归", priority: "P1", status: "NOT_RUN", actualResult: "", evidence: [], version: 0 }],
+      version: 0,
+    });
+    api.updateTestResult.mockResolvedValue({ id: 4, testCaseId: 1, status: "IN_PROGRESS", version: 1 });
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-    fireEvent.click(screen.getByRole("button", { name: "创建新测试执行" }));
-    expect(createNewRun).toHaveBeenCalledOnce();
+    render(<QaPanel organizationId={0} requirementId={2} onChanged={async () => undefined} />, { wrapper });
+
+    const select = await screen.findByRole("combobox", { name: "登录回归 结果" });
+    await user.click(select);
+    await user.click(await screen.findByRole("option", { name: "执行中" }));
+
+    await waitFor(() => expect(api.createTestRun).toHaveBeenCalledWith({ organizationId: 0, requirementId: 2, environment: "staging" }));
+    expect(api.updateTestResult).toHaveBeenCalledWith({ organizationId: 0, runId: 10, resultId: 4, status: "IN_PROGRESS", expectedVersion: 0 });
   });
 });
 
 describe("BugList", () => {
-  it("按 Bug 状态提供修复与独立验证动作", () => {
+  it("按 Bug 状态提供动作并可查看详情", () => {
     const action = vi.fn();
     render(
       <BugList
@@ -198,6 +154,9 @@ describe("BugList", () => {
     );
 
     expect(screen.getByText("BLOCKER")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "查看缺陷 QA-9" }));
+    expect(screen.getByRole("dialog", { name: "缺陷详情" })).toBeInTheDocument();
+    expect(screen.getByText("HTTP 500")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "验证" }));
     expect(action).toHaveBeenCalledWith(expect.objectContaining({ id: 9 }), "VERIFY", undefined, undefined);
   });
