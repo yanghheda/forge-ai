@@ -251,15 +251,6 @@
 .risk:last-child {
   border-bottom: 0;
 }
-.agentLine {
-  margin: 0 0 10px;
-  color: var(--forge-text-2);
-  font-size: 13px;
-  line-height: 1.7;
-}
-.agentLine:last-child {
-  margin-bottom: 0;
-}
 .approval {
   display: flex;
   align-items: center;
@@ -282,41 +273,6 @@
 .approvalActions {
   display: flex;
   gap: 8px;
-}
-.deployment {
-  position: relative;
-  display: flex;
-  padding: 4px 0 16px;
-  gap: 10px;
-}
-.deployment:last-child {
-  padding-bottom: 0;
-}
-.deployment:not(:last-child)::before {
-  position: absolute;
-  top: 14px;
-  bottom: 0;
-  left: 4px;
-  width: 1px;
-  background: var(--forge-border-2);
-  content: "";
-}
-.dot {
-  z-index: 1;
-  flex: 0 0 9px;
-  width: 9px;
-  height: 9px;
-  margin-top: 5px;
-  border-radius: 50%;
-  background: var(--forge-primary-5);
-}
-.deployment b {
-  font-size: 13px;
-}
-.deployment p {
-  margin: 2px 0 0;
-  color: var(--forge-text-3);
-  font-size: 12px;
 }
 .empty {
   margin: 10px 0;

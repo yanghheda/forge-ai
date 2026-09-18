@@ -12,12 +12,12 @@ import ai.forge.server.release.application.ReleaseView;
 import ai.forge.server.release.infrastructure.SimulatedDeploymentWorker;
 import ai.forge.server.release.domain.PrecheckFacts;
 import ai.forge.server.release.domain.PrecheckRuleRegistry;
+import ai.forge.server.release.domain.ReleaseVersionConflictException;
 import java.util.List;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 class ReleasePersistenceIntegrationTest extends InfrastructureIntegrationTestBase {
@@ -119,7 +119,7 @@ class ReleasePersistenceIntegrationTest extends InfrastructureIntegrationTestBas
                 Integer.class, release.id())).isEqualTo(2);
         assertThatThrownBy(() -> releases.create(
                 3003, 3001, "v1.0.0", "production", List.of(3005L), 60))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                .isInstanceOf(ReleaseVersionConflictException.class);
     }
 
     @Test

@@ -8,6 +8,7 @@ import ai.forge.server.release.application.ReleaseView;
 import ai.forge.server.release.domain.PrecheckDecision;
 import ai.forge.server.release.domain.PrecheckFacts;
 import ai.forge.server.release.domain.PrecheckResult;
+import ai.forge.server.release.domain.ReleaseVersionConflictException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,8 +46,12 @@ public class MybatisReleaseStore implements ReleaseStore {
             throw new ResourceNotFoundException();
         }
         Map<String, Object> generated = new LinkedHashMap<>();
-        mapper.insert(generated, organizationId, versionName, environment,
-                write(Map.of("approvalTtlMinutes", approvalTtlMinutes)), userId);
+        try {
+            mapper.insert(generated, organizationId, versionName, environment,
+                    write(Map.of("approvalTtlMinutes", approvalTtlMinutes)), userId);
+        } catch (DuplicateKeyException exception) {
+            throw new ReleaseVersionConflictException();
+        }
         long releaseId = number(generated.get("id"));
         scoped.forEach(itemId -> mapper.insertItem(organizationId, releaseId, itemId));
         return find(organizationId, releaseId).orElseThrow();

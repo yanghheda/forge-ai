@@ -18,6 +18,7 @@ import ai.forge.server.gitlab.application.WebhookRejectedException;
 import ai.forge.server.gitlab.infrastructure.UnsafeGitLabUrlException;
 import ai.forge.server.qa.application.QaStateException;
 import ai.forge.server.organization.domain.MemberEmailConflictException;
+import ai.forge.server.release.domain.ReleaseVersionConflictException;
 import ai.forge.server.workitem.domain.IdempotencyConflictException;
 import ai.forge.server.workitem.domain.InvalidTransitionException;
 import ai.forge.server.workitem.domain.RelationConflictException;
@@ -67,6 +68,13 @@ public class GlobalExceptionHandler {
             MemberEmailConflictException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, ErrorCode.MEMBER_EMAIL_CONFLICT,
                 "A user account already exists for this email", Map.of(), request);
+    }
+
+    @ExceptionHandler(ReleaseVersionConflictException.class)
+    public ResponseEntity<ApiError> handleReleaseVersionConflict(
+            ReleaseVersionConflictException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.RELEASE_VERSION_CONFLICT,
+                "A release with this version and environment already exists", Map.of(), request);
     }
 
     @ExceptionHandler(VersionConflictException.class)

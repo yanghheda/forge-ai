@@ -5,6 +5,8 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND,
     /* 创建成员账号时邮箱已经被现有本地账号占用。 */
     MEMBER_EMAIL_CONFLICT,
+    /* 同一公司与环境中已经存在同名发布版本。 */
+    RELEASE_VERSION_CONFLICT,
     /* 写入请求携带的 expectedVersion 已落后于当前资源版本。 */
     VERSION_CONFLICT,
     /* 当前状态或工作项类型不允许执行请求中的固定 Action。 */

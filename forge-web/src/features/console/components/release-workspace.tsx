@@ -178,27 +178,6 @@ export function ReleaseWorkspaceView({
             <Risk label="审批 TTL" value={currentDeployment ? formatDate(currentDeployment.approvalExpiresAt) : "申请时冻结"} />
             <Risk label="资源快照" value={snapshot?.current ? "当前有效" : "未冻结或已变化"} danger={!snapshot?.current} />
           </Panel>
-          <Panel title="ReleaseAgent" extra={<Tag color={snapshot?.status === "PASS" ? "green" : "orange"}>{snapshot?.status === "PASS" ? "等待审批" : "等待门禁"}</Tag>}>
-            <p className={styles.agentLine}>最近动作：{snapshot ? `读取 Precheck #${snapshot.id}` : "等待首次 Precheck"}</p>
-            <p className={styles.agentLine}>权限边界：只读预检结果、生成或编辑 Note；不能执行部署。</p>
-          </Panel>
-          <Panel title="模拟部署记录" extra={<Tag color="orange">SIMULATED</Tag>}>
-            {deployments.length ? (
-              deployments.map((item) => (
-                <div className={styles.deployment} key={item.id}>
-                  <span className={styles.dot} />
-                  <div>
-                    <b>Deployment #{item.id}</b>
-                    <p>
-                      {deploymentStatusLabel(item.status)} · {item.resultSummary ?? "等待后续动作"}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <Empty text="尚无模拟部署记录。" />
-            )}
-          </Panel>
         </aside>
       </div>
     </div>

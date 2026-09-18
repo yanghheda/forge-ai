@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/features/work-item", () => ({
   getOrganizationRequirement: vi.fn().mockResolvedValue({ itemKey: "REQ-1", status: "IN_QA" }),
+  statusLabel: { IN_QA: "测试中" },
   QaPanel: ({ requirementId }: { requirementId: number }) => <div>真实 QA 数据面板 · {requirementId}</div>,
 }));
 
@@ -15,9 +16,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientPro
 describe("DeliveryScreen", () => {
   afterEach(cleanup);
 
-  it("展示需求上下文导航与任务看板", () => {
+  it("展示需求上下文导航与任务看板", async () => {
     render(<DeliveryScreen kind="tasks" requirementId="1" />, { wrapper });
     expect(screen.getByRole("navigation", { name: "需求交付阶段" })).toBeInTheDocument();
+    expect(await screen.findByText(/测试中/)).toBeInTheDocument();
     expect(screen.getByText("待处理")).toBeInTheDocument();
     expect(screen.getByText("进行中")).toBeInTheDocument();
     expect(screen.getByText("已完成")).toBeInTheDocument();

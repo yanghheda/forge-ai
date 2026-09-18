@@ -5,6 +5,7 @@ import { ApiError, formatRequestError, getUserErrorMessage } from "./api-error";
 describe("API 错误中文提示", () => {
   it.each([
     ["RESOURCE_NOT_FOUND", 404, "请求的资源不存在或当前账户无权访问。"],
+    ["RELEASE_VERSION_CONFLICT", 409, "该环境下已存在同名发布版本，请使用其他版本号。"],
     ["VERSION_CONFLICT", 409, "数据已被其他操作更新，请刷新后重试。"],
     ["WORKFLOW_GUARD_FAILED", 422, "当前流程条件尚未满足，请检查缺失项。"],
     ["GITLAB_TIMEOUT", 503, "GitLab 请求超时，请稍后重试。"],

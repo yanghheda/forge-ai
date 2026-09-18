@@ -4,7 +4,7 @@ import { IconBranch, IconBug, IconEdit, IconFile, IconLaunch } from "@arco-desig
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
-import { getOrganizationRequirement } from "@/features/work-item";
+import { getOrganizationRequirement, statusLabel } from "@/features/work-item";
 import styles from "./console.module.css";
 
 export function RequirementContext({ active, requirementId }: { active: string; requirementId: string }) {
@@ -27,7 +27,7 @@ export function RequirementContext({ active, requirementId }: { active: string; 
     <div className={styles.reqBar}>
       <div>
         <code>{requirement.data?.itemKey ?? `REQ-${requirementId}`}</code>
-        <span className={styles.blueTag}>● {requirement.data?.status ?? "加载中"}</span>
+        <span className={styles.blueTag}>● {requirement.data ? statusLabel[requirement.data.status] ?? requirement.data.status : "加载中"}</span>
       </div>
       <nav aria-label="需求交付阶段">
         {items.map(([key, label, href, icon]) => (

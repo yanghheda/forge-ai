@@ -8,7 +8,7 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
   if (!Number.isSafeInteger(id) || id <= 0) notFound();
   return (
     <ProtectedApp>
-      <div style={{ maxWidth: 1600, margin: "0 auto", padding: 20 }}>
+      <div style={{ maxWidth: 1440, margin: "0 auto", padding: 20 }}>
         <RequirementContext active="document" requirementId={String(id)} />
         <PrdWorkspace requirementId={id} />
       </div>

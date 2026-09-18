@@ -13,37 +13,54 @@
 .reqBar {
   display: flex;
   align-items: center;
-  min-height: 46px;
-  margin: -20px -20px 20px;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--forge-border-2);
-  background: #fff;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 .reqBar > div {
-  display: flex;
+  display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 8px;
-  margin-right: 28px;
+  padding: 5px 12px;
+  border: 1px solid var(--forge-border-1);
+  border-radius: 4px;
+  background: var(--forge-card);
+}
+.reqBar > div code {
+  color: var(--forge-text-1);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 .reqBar nav {
   display: flex;
-  align-self: stretch;
-  gap: 4px;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--forge-border-1);
+  border-radius: 4px;
+  background: var(--forge-card);
 }
 .reqBar nav a {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 14px;
-  border-bottom: 2px solid transparent;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 2px;
   color: var(--forge-text-2);
   font-size: 13px;
+  white-space: nowrap;
   text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
-.reqBar nav a:hover,
-.reqBar nav .activeTab {
-  border-color: var(--forge-primary-6);
+.reqBar nav a:not(.activeTab):hover {
   color: var(--forge-primary-6);
+}
+.reqBar nav .activeTab {
+  color: var(--forge-primary-foreground);
+  background: var(--forge-primary-6);
 }
 .blueTag,
 .orangeTag,
@@ -722,8 +739,8 @@
     padding: 16px;
   }
   .reqBar {
-    margin: -16px -16px 16px;
-    overflow: auto;
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
   .reqBar > div {
     display: none;
