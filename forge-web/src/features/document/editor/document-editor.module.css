@@ -1,9 +1,9 @@
 .editor {
   overflow: hidden;
-  border: 1px solid var(--forge-color-border);
-  border-radius: 12px;
-  background: var(--forge-color-surface);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  border: 1px solid var(--forge-border-2);
+  border-radius: 8px;
+  background: var(--forge-card);
+  box-shadow: var(--forge-shadow-1);
 }
 
 .draftAlert {
@@ -11,62 +11,100 @@
   padding: 10px 16px;
   border-bottom: 1px solid #fedf89;
   color: #93370d;
-  background: #fffaeb;
+  background: var(--forge-warning-bg);
   font-size: 12px;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--forge-color-border);
-  background: var(--forge-color-surface-subtle);
+  gap: 8px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--forge-border-2);
+  background: var(--forge-fill-1);
+}
+
+.formatActions,
+.saveActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.formatActions {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.saveActions {
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 
 .toolGroup {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
+  flex: 0 0 auto;
 }
 
 .toolGroup button {
-  height: 32px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 6px;
-  color: var(--forge-color-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  min-width: 32px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--forge-text-2);
   background: transparent;
   cursor: pointer;
   font-size: 12px;
+  white-space: nowrap;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .toolGroup button:hover {
-  color: var(--forge-color-text);
-  background: #eceff5;
+  border-color: var(--forge-border-2);
+  color: var(--forge-text-1);
+  background: var(--forge-card);
+}
+
+.toolGroup button:focus-visible {
+  outline: 2px solid var(--forge-primary-6);
+  outline-offset: 1px;
 }
 
 .toolGroup button[aria-pressed="true"] {
-  color: var(--forge-color-brand-strong);
-  background: var(--forge-color-brand-soft);
+  border-color: var(--forge-primary-2);
+  color: var(--forge-primary-6);
+  background: var(--forge-card);
+  font-weight: 600;
 }
 
 .separator {
   width: 1px;
-  height: 22px;
-  background: var(--forge-color-border);
+  height: 18px;
+  margin: 0 3px;
+  flex: 0 0 auto;
+  background: var(--forge-border-3);
 }
 
 .paper {
   min-height: 620px;
   padding: 38px clamp(28px, 6vw, 72px);
-  background: #fff;
+  background: var(--forge-card);
 }
 
 .paper :global(.tiptap) {
   min-height: 540px;
-  color: var(--forge-color-text);
+  color: var(--forge-text-1);
   font-size: 15px;
   line-height: 1.85;
   outline: none;
@@ -88,11 +126,20 @@
   line-height: 1.35;
 }
 
+.paper :global(.tiptap h1),
+.paper :global(.tiptap h2),
+.paper :global(.tiptap h3),
+.paper :global(.tiptap h4),
+.paper :global(.tiptap h5),
+.paper :global(.tiptap h6) {
+  scroll-margin-top: 24px;
+}
+
 .paper :global(.tiptap blockquote) {
   margin: 18px 0;
   padding-left: 16px;
-  border-left: 3px solid var(--forge-color-brand-strong);
-  color: var(--forge-color-muted);
+  border-left: 3px solid var(--forge-primary-6);
+  color: var(--forge-text-2);
 }
 
 .paper :global(.tiptap ul),
@@ -100,15 +147,26 @@
   padding-left: 24px;
 }
 
-.footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 56px;
-  padding: 9px 12px 9px 16px;
-  border-top: 1px solid var(--forge-color-border);
-  background: var(--forge-color-surface-subtle);
+.paper :global(.tiptap code) {
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: var(--forge-fill-2);
+  font-family: var(--forge-font-mono);
+  font-size: 13px;
+}
+
+.paper :global(.tiptap pre) {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 6px;
+  background: var(--forge-fill-1);
+}
+
+.paper :global(.tiptap pre code) {
+  padding: 0;
+  background: transparent;
 }
 
 .saved,
@@ -117,7 +175,7 @@
 }
 
 .saved {
-  color: var(--forge-color-muted);
+  color: var(--forge-text-3);
 }
 
 .unsaved {
@@ -125,40 +183,52 @@
 }
 
 .saveButton {
-  height: 36px;
+  height: 32px;
   padding: 0 15px;
-  border: 1px solid var(--forge-color-border);
-  border-radius: 7px;
-  color: var(--forge-color-text);
-  background: #fff;
+  border: 1px solid var(--forge-primary-6);
+  border-radius: 4px;
+  color: var(--forge-primary-6);
+  background: var(--forge-card);
   cursor: pointer;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .saveButton:hover:not(:disabled) {
-  border-color: #c7c2ff;
-  color: var(--forge-color-brand-strong);
-  background: var(--forge-color-brand-soft);
+  border-color: var(--forge-primary-7);
+  color: var(--forge-primary-foreground);
+  background: var(--forge-primary-6);
+}
+
+.saveButton:focus-visible {
+  outline: 2px solid var(--forge-primary-6);
+  outline-offset: 1px;
 }
 
 .saveButton:disabled {
-  cursor: wait;
-  opacity: 0.6;
+  border-color: var(--forge-border-3);
+  color: var(--forge-text-3);
+  background: var(--forge-card);
+  cursor: not-allowed;
 }
 
 @media (max-width: 640px) {
   .toolbar {
-    overflow-x: auto;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .saveActions {
+    justify-content: space-between;
+    margin-left: 0;
   }
 
   .paper {
     min-height: 240px;
     padding: 26px 20px;
-  }
-
-  .footer {
-    align-items: stretch;
-    flex-direction: column;
   }
 }

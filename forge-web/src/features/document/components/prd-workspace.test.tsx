@@ -1,12 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/features/auth", () => ({
   getCurrentUser: vi.fn().mockResolvedValue({ id: 7, organization: { id: 10 } }),
 }));
 vi.mock("../api/document-api", () => ({
-  listWorkItemDocuments: vi.fn().mockResolvedValue([]),
+  listWorkItemDocuments: vi.fn(),
   createDocument: vi.fn(),
   listDocumentVersions: vi.fn(),
   saveDocumentVersion: vi.fn(),
@@ -20,27 +20,81 @@ vi.mock("@/features/work-item/api/work-item-api", () => ({
   createRequirementComment: vi.fn(),
 }));
 vi.mock("@/features/agent-run/api/agent-run-api", () => ({ createAgentRun: vi.fn() }));
+vi.mock("../editor/document-editor", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../editor/document-editor")>()),
+  DocumentEditor: () => (
+    <section aria-label="文档编辑器">
+      <div className="paper">
+        <h2>1 背景与目标</h2>
+        <h3>1.1 现状</h3>
+        <h2>2 用户故事</h2>
+      </div>
+    </section>
+  ),
+}));
 
-import { canSubmitProductReview, PrdWorkspace } from "./prd-workspace";
+import { listDocumentVersions, listWorkItemDocuments } from "../api/document-api";
+import { PrdWorkspace } from "./prd-workspace";
+
+const scrollIntoView = vi.fn();
+
+function renderWorkspace() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <PrdWorkspace requirementId={1} />
+    </QueryClientProvider>,
+  );
+}
 
 describe("PrdWorkspace", () => {
-  it("没有 PRD 时展示创建入口，并始终展示产品推进路径", async () => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={client}>
-        <PrdWorkspace requirementId={1} />
-      </QueryClientProvider>,
-    );
-
-    expect(await screen.findByRole("button", { name: "创建 PRD 文档" })).toBeInTheDocument();
-    expect(screen.getByText("产品推进")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "提交产品评审" })).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: "提交产品评审" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
-    expect(screen.getByText(/请先发布 PRD 版本/)).toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    vi.mocked(listWorkItemDocuments).mockResolvedValue([]);
   });
 
-  it("PRD 已发布但需求描述缺失时仍禁止提交", () => {
-    expect(canSubmitProductReview(true, true, ["description"])).toBe(false);
-    expect(canSubmitProductReview(true, true, [])).toBe(true);
+  it("没有 PRD 时展示创建入口，并移除右侧推进与 Agent 模块", async () => {
+    renderWorkspace();
+
+    expect(await screen.findByRole("button", { name: "创建 PRD 文档" })).toBeInTheDocument();
+    expect(screen.queryByText("产品推进")).not.toBeInTheDocument();
+    expect(screen.queryByText("ProductAgent")).not.toBeInTheDocument();
+    expect(screen.getByText("最近更新")).toBeInTheDocument();
+    expect(screen.getByText("需求状态")).toBeInTheDocument();
+  });
+
+  it("点击目录项滚动到对应标题并标记当前章节", async () => {
+    vi.mocked(listWorkItemDocuments).mockResolvedValue([{ id: 5, organizationId: 10, workItemId: 1, type: "PRD", title: "DEMO-1 黄金 Demo 产品需求文档", status: "DRAFT", currentVersionId: 9, version: 0 }]);
+    vi.mocked(listDocumentVersions).mockResolvedValue([
+      {
+        id: 9,
+        documentId: 5,
+        versionNo: 2,
+        content: {
+          type: "doc",
+          content: [
+            { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "1 背景与目标" }] },
+            { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "1.1 现状" }] },
+            { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "2 用户故事" }] },
+          ],
+        },
+        plainText: "1 背景与目标\n1.1 现状\n2 用户故事",
+        contentHash: "hash",
+        createdAt: "2026-09-12T04:00:00Z",
+      },
+    ]);
+    renderWorkspace();
+
+    const third = await screen.findByRole("button", { name: "2 用户故事" });
+    expect(screen.getByRole("button", { name: "1 背景与目标" })).toHaveAttribute("aria-current", "true");
+
+    fireEvent.click(third);
+
+    // 正文标题不带 id，跳转只能按序号定位到第 3 个标题。
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    expect((scrollIntoView.mock.instances[0] as unknown as HTMLElement).textContent).toBe("2 用户故事");
+    expect(third).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: "1 背景与目标" })).not.toHaveAttribute("aria-current");
   });
 });

@@ -9,7 +9,7 @@
   grid-template-columns: minmax(110px, 18%) 1fr;
   gap: 20px;
   padding: 14px 0;
-  border-bottom: 1px solid var(--forge-color-border);
+  border-bottom: 1px solid var(--forge-border-1);
 }
 
 .materials > div:last-child {
@@ -17,19 +17,19 @@
 }
 
 .materials dt {
-  color: var(--forge-color-muted);
+  color: var(--forge-text-3);
   font-weight: 650;
 }
 
 .materials dd {
   margin: 0;
-  color: var(--forge-color-text);
+  color: var(--forge-text-1);
   line-height: 1.7;
   white-space: pre-wrap;
 }
 
 .empty {
-  color: var(--forge-color-muted);
+  color: var(--forge-text-3);
 }
 
 .form {
@@ -52,7 +52,7 @@
 }
 
 .fieldHint {
-  color: var(--forge-color-muted);
+  color: var(--forge-text-3);
   font-size: 12px;
   font-weight: 400;
 }
@@ -68,7 +68,7 @@
   justify-content: flex-end;
   gap: 12px;
   padding-top: 20px;
-  border-top: 1px solid var(--forge-color-border);
+  border-top: 1px solid var(--forge-border-1);
 }
 
 .errorAlert {

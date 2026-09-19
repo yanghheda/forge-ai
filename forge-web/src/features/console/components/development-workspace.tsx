@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { triggerPipeline } from "@/features/gitlab";
-import { completeDevTask, createDevTask, getDevelopmentSummary, getRequirementWorkflow, startDevelopment, transitionRequirementWorkflow, type DevelopmentQaSummary, type DevelopmentQaTask, type RequirementWorkflow } from "@/features/work-item";
+import { completeDevTask, createDevTask, getDevelopmentSummary, getRequirementWorkflow, startDevelopment, type DevelopmentQaSummary, type DevelopmentQaTask, type RequirementWorkflow } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
 import { ChainNode, Empty, Guard, Panel, Stat, shortSha, statusLabel, syncText } from "./development-workspace-parts";
 import styles from "./development-workspace.module.css";
@@ -32,7 +32,6 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
     onError: (error) => Message.error(formatRequestError(error)),
   });
   const complete = useMutation({ mutationFn: ({ taskId, version }: { taskId: number; version: number }) => completeDevTask({ organizationId: 0, taskId, expectedVersion: version }), onSuccess: refresh, onError: (error) => Message.error(formatRequestError(error)) });
-  const submit = useMutation({ mutationFn: () => transitionRequirementWorkflow(requirementId, "SUBMIT_FOR_QA", workflow.data!.version), onSuccess: refresh, onError: (error) => Message.error(formatRequestError(error)) });
 
   if (summary.isPending || workflow.isPending)
     return (
@@ -49,9 +48,7 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
         ? { action: "start", taskId: start.variables }
         : complete.isPending
           ? { action: "complete", taskId: complete.variables?.taskId }
-          : submit.isPending
-            ? { action: "submit" }
-            : undefined;
+          : undefined;
   return (
     <DevelopmentWorkspaceView
       summary={summary.data}
@@ -62,13 +59,12 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
       onTriggerPipeline={(taskId, ref) => pipeline.mutate({ taskId, ref })}
       onComplete={(taskId, version) => complete.mutate({ taskId, version })}
       onRefresh={() => void refresh()}
-      onSubmitQa={() => submit.mutate()}
     />
   );
 }
 
 /* 当前进行中的写操作；taskId 用于只让对应 Dev Task 卡片的按钮进入加载态。 */
-export type DevelopmentPendingAction = { action: "create" | "start" | "pipeline" | "complete" | "submit"; taskId?: number };
+export type DevelopmentPendingAction = { action: "create" | "start" | "pipeline" | "complete"; taskId?: number };
 
 export function DevelopmentWorkspaceView({
   summary,
@@ -79,7 +75,6 @@ export function DevelopmentWorkspaceView({
   onTriggerPipeline,
   onComplete,
   onRefresh,
-  onSubmitQa,
 }: {
   summary: DevelopmentQaSummary;
   workflow: RequirementWorkflow;
@@ -89,7 +84,6 @@ export function DevelopmentWorkspaceView({
   onTriggerPipeline: (taskId: number, ref: string) => void;
   onComplete: (taskId: number, version: number) => void;
   onRefresh: () => void;
-  onSubmitQa: () => void;
 }) {
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
@@ -101,9 +95,7 @@ export function DevelopmentWorkspaceView({
   const ciPassed = tasks.filter((task) => checkTaskCi(task).ok).length;
   const pipelineOk = !summary.ciRequired || (tasks.length > 0 && ciPassed === tasks.length);
   const missing = workflow.guardHints.SUBMIT_FOR_QA ?? [];
-  const actionAvailable = workflow.availableActions.includes("SUBMIT_FOR_QA");
   const guardPassed = tasks.length > 0 && completed === tasks.length && pipelineOk && (summary.repositoryConfigured || !summary.ciRequired) && missing.length === 0;
-  const canSubmit = actionAvailable && guardPassed;
   const isBusy = (action: DevelopmentPendingAction["action"], taskId?: number) => pending?.action === action && pending.taskId === taskId;
 
   const submitTask = async () => {
@@ -238,7 +230,7 @@ export function DevelopmentWorkspaceView({
               {missing.length > 0 && (
                 <Alert
                   type="error"
-                  title="门禁未通过，无法推进到 QA"
+                  title="QA 门禁未通过"
                   content={
                     <span>
                       {missing.map((item) => (
@@ -250,12 +242,8 @@ export function DevelopmentWorkspaceView({
                   }
                 />
               )}
-              {guardPassed && !actionAvailable && <Alert type="warning" content="当前账号无推进权限，或需求已不处于开发中。" />}
               <div className={styles.guardFoot}>
-                <span>检查结果由 forge-server 确定性计算，Agent 不能自行放行。</span>
-                <Button type="primary" disabled={!canSubmit} loading={isBusy("submit")} onClick={onSubmitQa}>
-                  推进到 QA
-                </Button>
+                <span>检查结果由 forge-server 确定性计算，Agent 不能自行放行；推进流程统一在需求详情页操作。</span>
               </div>
             </Panel>
             <Panel title="交付安全边界" icon={<IconSafe />}>

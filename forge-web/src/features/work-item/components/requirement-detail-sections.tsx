@@ -1,5 +1,5 @@
-import { Avatar, Card, Tag } from "@arco-design/web-react";
-import { IconCheck, IconRobot, IconUserGroup } from "@arco-design/web-react/icon";
+import { Avatar, Card } from "@arco-design/web-react";
+import { IconCheck, IconUserGroup } from "@arco-design/web-react/icon";
 import type { ReactNode } from "react";
 
 import type { OrganizationRequirement, RequirementActivity, RequirementParticipant } from "../api/work-item-api";
@@ -34,24 +34,12 @@ export function BasicInfo({ item, participants }: { item: OrganizationRequiremen
           <dd className={styles.mono}>{item.itemKey}</dd>
         </div>
         <div>
-          <dt>所属公司</dt>
-          <dd>{item.organizationName}</dd>
-        </div>
-        <div>
           <dt>类型</dt>
           <dd>产品需求</dd>
         </div>
         <div>
           <dt>来源</dt>
           <dd>人工创建</dd>
-        </div>
-        <div>
-          <dt>当前 Agent</dt>
-          <dd>
-            <Tag color="purple">
-              <IconRobot /> {roleMeta[activeRole].agent}
-            </Tag>
-          </dd>
         </div>
         <div>
           <dt>负责人</dt>

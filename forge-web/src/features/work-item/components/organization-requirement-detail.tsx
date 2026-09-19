@@ -1,13 +1,13 @@
 "use client";
 
 import { Alert, Button, Card, Form, Input, Message, Select, Space, Spin, Tag } from "@arco-design/web-react";
-import { IconDown, IconPause, IconRight } from "@arco-design/web-react/icon";
+import { IconRight } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState, type Dispatch, type SetStateAction } from "react";
 
 import { formatRequestError } from "@/lib/api";
-import { priorityLabel, roleLabel } from "@/lib/labels";
+import { priorityLabel, roleLabel, workflowActionLabel } from "@/lib/labels";
 import {
   getOrganizationRequirement,
   getRequirementActivity,
@@ -22,7 +22,7 @@ import {
   type RequirementRole,
   type RequirementWorkflowAction,
 } from "../api/work-item-api";
-import { actionLabel, formatDate, statusLabel } from "../utils/requirement-detail-display";
+import { formatDate, statusLabel } from "../utils/requirement-detail-display";
 import { ActivityCard, BasicInfo, DescriptionCard, MembersCard, RequirementSteps } from "./requirement-detail-sections";
 import { RequirementMaterials } from "./requirement-materials";
 import styles from "./organization-requirement-detail.module.css";
@@ -99,12 +99,8 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
           </p>
         </div>
         <div className={styles.actions}>
-          <Button type="text">
-            更多 <IconDown />
-          </Button>
-          <Button icon={<IconPause />}>暂停 Agent</Button>
           <Button type="primary" icon={<IconRight />} disabled={!nextAction} loading={transition.isPending} onClick={() => nextAction && transition.mutate({ action: nextAction })}>
-            {nextAction ? (actionLabel[nextAction] ?? "推进到下一阶段") : "推进到下一阶段"}
+            {nextAction ? workflowActionLabel(nextAction) : "推进到下一阶段"}
           </Button>
         </div>
       </div>

@@ -318,21 +318,6 @@ export function UxWorkspaceView({
                 ))}
             </div>
           </Panel>
-          <Panel title="UXAgent 生成记录" extra="UXAgent">
-            <ol className={styles.timeline}>
-              {model.activity
-                .slice(-6)
-                .reverse()
-                .map((item) => (
-                  <li key={`${item.kind}-${item.id}`}>
-                    <b>{item.action ? workflowActionLabel(item.action) : "协作评论"}</b>
-                    <time>{formatDate(item.createdAt)}</time>
-                    <p>{item.reason || item.body || "工作流事件已记录"}</p>
-                  </li>
-                ))}
-              {model.activity.length === 0 && <Empty text="暂无生成或评审记录" />}
-            </ol>
-          </Panel>
           <Alert type="info" content="阶段推进由服务端 Guard 校验；缺少已发布 UX Spec 或四项 checklist 时不能进入开发。" />
         </aside>
       </div>

@@ -17,7 +17,7 @@
 .eyebrow {
   display: block;
   margin-bottom: 7px;
-  color: var(--forge-color-brand);
+  color: var(--forge-primary-6);
   font-size: 12px;
   font-weight: 750;
   letter-spacing: 1.2px;
@@ -33,7 +33,7 @@
 
 .pageHeader p {
   margin: 8px 0 0;
-  color: var(--forge-color-muted);
+  color: var(--forge-text-3);
   font-size: 14px;
 }
 
@@ -60,13 +60,13 @@
   justify-content: space-between;
   gap: 18px;
   padding: 18px 20px;
-  border-bottom: 1px solid var(--forge-color-border);
-  background: var(--forge-color-surface-subtle);
+  border-bottom: 1px solid var(--forge-border-1);
+  background: var(--forge-fill-1);
 }
 
 .panelIntro p {
   margin: 4px 0 0;
-  color: var(--forge-color-muted);
+  color: var(--forge-text-3);
   font-size: 13px;
 }
 
@@ -116,7 +116,7 @@
 
 .itemTitle {
   overflow: hidden;
-  color: var(--forge-color-text);
+  color: var(--forge-text-1);
   font-size: 14px;
   font-weight: 680;
   text-overflow: ellipsis;
@@ -124,7 +124,7 @@
 }
 
 .itemMeta {
-  color: var(--forge-color-muted);
+  color: var(--forge-text-3);
   font-size: 12px;
 }
 
@@ -133,7 +133,7 @@
   min-height: 150px;
   padding: 28px;
   place-items: center;
-  color: var(--forge-color-muted);
+  color: var(--forge-text-3);
   text-align: center;
 }
 

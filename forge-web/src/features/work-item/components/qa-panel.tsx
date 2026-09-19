@@ -366,9 +366,6 @@ function GatePanel({ run, blockingBugs }: { run?: TestRunView; blockingBugs: Bug
         </div>
       ))}
       {run && !run.decision.passed && <Alert type="error" content={`QA 门禁未通过：${missing.map(guardHintLabel).join("、") || "请处理失败结果或阻断缺陷"}`} />}
-      <Button long disabled={!run?.decision.passed}>
-        推进到待发布
-      </Button>
     </aside>
   );
 }

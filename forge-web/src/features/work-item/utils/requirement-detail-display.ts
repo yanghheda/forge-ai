@@ -1,4 +1,4 @@
-import type { RequirementRole, RequirementWorkflowAction } from "../api/work-item-api";
+import type { RequirementRole } from "../api/work-item-api";
 
 export const stages = [
   { title: "产品评审", statuses: ["DRAFT", "PRODUCT_REVIEW"] },
@@ -30,16 +30,6 @@ export const roleMeta: Record<RequirementRole, { label: string; duty: string; ag
   UX: { label: "UX 设计师", duty: "UX Spec · 交互评审", agent: "UXAgent" },
   DEVELOPER: { label: "开发负责人", duty: "MR 评审 · 开发质量把关", agent: "DevAgent" },
   QA: { label: "测试负责人", duty: "测试计划 · 用例与验收", agent: "QaAgent" },
-};
-
-export const actionLabel: Partial<Record<RequirementWorkflowAction, string>> = {
-  SUBMIT_PRODUCT_REVIEW: "提交产品评审",
-  APPROVE_PRODUCT_REVIEW: "通过产品评审",
-  SUBMIT_UX_REVIEW: "提交 UX 评审",
-  APPROVE_UX_REVIEW: "通过 UX 评审",
-  SUBMIT_FOR_QA: "提交 QA",
-  START_QA: "开始 QA",
-  QA_PASS: "QA 通过",
 };
 
 export function stageIndex(status: string) {
