@@ -3,6 +3,7 @@ package ai.forge.server.document.application;
 import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.document.domain.RagUnavailableException;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -25,13 +26,18 @@ public class RagSearchService {
     /* 向量索引端口；过滤器在服务端构造。 */
     private final VectorIndexClient vectorIndexClient;
 
+    /* 当前部署在共享 Qdrant 中独占的集合名前缀。 */
+    private final String collectionPrefix;
+
     public RagSearchService(
             PermissionEvaluator permissions,
             EmbeddingClient embeddingClient,
-            VectorIndexClient vectorIndexClient) {
+            VectorIndexClient vectorIndexClient,
+            @Value("${forge.rag.qdrant.collection-prefix:}") String collectionPrefix) {
         this.permissions = permissions;
         this.embeddingClient = embeddingClient;
         this.vectorIndexClient = vectorIndexClient;
+        this.collectionPrefix = collectionPrefix;
     }
 
     /* 在强制范围内检索；调用方只能提供 query、documentType 与 topK，不能触碰范围过滤。 */
@@ -43,7 +49,7 @@ public class RagSearchService {
         float[] queryVector = embeddingClient.embed(normalizedQuery);
         VectorIndexClient.SearchFilter filter =
                 new VectorIndexClient.SearchFilter(organizationId, documentType);
-        String collectionName = "documents_" + embeddingClient.modelVersion();
+        String collectionName = collectionPrefix + "documents_" + embeddingClient.modelVersion();
         List<VectorIndexClient.ScoredChunk> hits;
         try {
             hits = vectorIndexClient.search(collectionName, queryVector, filter, limit);

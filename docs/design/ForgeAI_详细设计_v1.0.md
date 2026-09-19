@@ -77,17 +77,23 @@ flowchart LR
     B[Browser] -->|HTTPS + Cookie + CSRF| N[Nginx]
     N --> W[forge-web]
     W -->|REST / SSE，同源| S[forge-server]
-    S --> M[(MySQL)]
-    S --> R[(Redis)]
+    subgraph I["/opt/infra · infra-net"]
+        M[(MySQL)]
+        R[(Redis)]
+        Q[(Qdrant)]
+    end
+    S --> M
+    S --> R
+    S --> Q
     S -->|内部 Run API + 服务凭据| A[forge-agent]
     A -->|run-scoped credential + Tool API| S
-    A --> Q[(Qdrant)]
     A --> L[LLM / Embedding]
     S --> G[GitLab API]
     G -->|签名 Webhook| S
 ```
 
-上图为腾讯云最终上线时的信任边界。本地开发使用相同服务名和网络关系的 Docker Desktop Compose；Browser 通过 `http://localhost:<port>` 访问本机入口，MySQL、Redis、Qdrant 均为本机容器，不连接 VM。
+上图为单服务器最终上线时的信任边界。MySQL、Redis、Qdrant 由项目外的 `/opt/infra`
+管理，只有 Server 加入外部 `infra-net`；Web 与 Agent 不能直接访问数据设施。
 
 信任级别从高到低为：Backend 领域规则与数据库约束、Backend 身份与授权上下文、受签名的内部调用、外部系统响应、模型输出与用户文档。模型输出和文档内容始终是不可信输入。
 
@@ -1110,49 +1116,56 @@ Browser/Backend 使用 `requestId`；Agent 链路增加 `runId/stepId/toolCallId
 
 ---
 
-## 17. 部署与运维详细设计：本地 Docker Desktop 开发 + 腾讯云上线
+## 17. 部署与运维详细设计：服务器级共享基础设施 + 项目应用栈
 
 ### 17.1 环境分层
 
-| 环境 | 运行位置 | 数据服务 | 访问方式 | 验收目标 |
-|---|---|---|---|---|
-| 本地开发/测试/Demo | 开发者本机 Docker Desktop | MySQL、Redis、Qdrant 均为本机 Compose 服务 | `http://localhost:<port>` | 每轮开发可重复启动、测试与黄金 Demo |
-| 最终上线 | 腾讯云 CVM Docker Compose | 私有 Docker 网络中的 MySQL、Redis、Qdrant；可按生产策略替换托管服务 | 域名 + Nginx/TLS | 部署、备份恢复、HTTPS 与安全组验证 |
+| 层级 | 运行位置 | 所有服务 | 生命周期 |
+|---|---|---|---|
+| 服务器基础设施 | `/opt/infra` 独立 Compose | MySQL、Redis、Qdrant、`infra-net`、数据卷 | 跨项目长期运行，由服务器级运维控制 |
+| ForgeAI 正式应用 | ForgeAI Compose | `forge-web`、`forge-server`、`forge-agent` | 可独立部署、升级、停止和回滚 |
+| ForgeAI 测试应用 | `forge-ai-test` Compose project | 同上，连接 `infra-net` 的专用测试命名空间 | 测试结束只停止应用容器 |
 
-本地与腾讯云 Compose 必须保持相同的服务名、容器内端口、环境变量键、健康检查和 Volume 语义，差异只放在环境专用 Compose/`.env` 文件。禁止为了本机方便修改应用代码中的服务地址或安全边界。
+ForgeAI 仓库不得声明 MySQL、Redis、Qdrant service 或其数据卷，也不得提供控制 `/opt/infra`
+生命周期的命令。`infra-net` 缺失时应用启动应明确失败，而不是临时创建项目私有数据服务。
+三个应用分别使用 `forge-web`、`forge-server`、`forge-agent` 镜像；生产服务器只拉取镜像，
+不得把生产部署退化为服务器现场构建源码。
 
-### 17.2 本地 Docker Desktop Compose 服务
+### 17.2 ForgeAI Compose 服务
 
-本地默认仅映射浏览器入口到 `127.0.0.1`。MySQL、Redis、Qdrant、Agent 与 Worker 不映射宿主机端口；确需调试时使用未提交的本地 override 文件。MySQL、Qdrant 与附件必须使用命名 Volume，禁止因普通 `down` 丢失数据；`docker compose down -v` 视为明确的破坏性重置操作。
+默认仅映射浏览器入口到 `127.0.0.1`。Server、Agent 与 Worker 不映射宿主机端口。
+ForgeAI Compose 只管理应用容器与 Agent checkpoint；数据服务和数据卷不存在于本项目 Compose。
 
 | 服务 | 暴露 | 持久卷 | 健康条件 |
 |---|---|---|---|
 | 本机入口代理（可选） | `127.0.0.1:<port>` | 无 | upstream ready |
 | forge-web | Compose 内网 3000 | 无 | `/healthz` |
-| forge-server | Compose 内网 8080 | attachments 可独立服务 | DB/Redis ready，Agent/Qdrant 非强制 readiness |
+| forge-server | Compose 内网 8080 | attachments 可独立服务 | DB/Redis ready，Agent/Qdrant 非强制 readiness；额外接入 `infra-net` |
 | forge-agent | Compose 内网 8000 | checkpoints 可选 | config loaded |
 | worker | 不暴露 | 无 | DB + dependent adapters |
-| mysql | 不映射宿主机 | mysql-data | ping |
-| redis | 不映射宿主机 | redis-data 可选 | ping |
-| qdrant | 不映射宿主机 | qdrant-data | ready endpoint |
 
 本机入口代理若启用，`/api/v1/agent/.../events` 关闭 buffering/compression cache，设置至少 60s read timeout；其他 API 保持普通代理策略。
 
-### 17.3 腾讯云上线 Compose 服务
+### 17.3 共享数据服务接入
 
-腾讯云使用与本地同名的服务拓扑；Nginx 为必需入口，只开放 80/443（以及受限来源的 22），MySQL、Redis、Qdrant、Agent 与 Worker 只在私有 Docker 网络内通信。TLS、域名、CVM 数据盘、备份策略和安全组均在该环境配置，不能复制到本地开发默认配置。
+`forge-server` 使用外部网络 `infra-net` 中的服务名访问 MySQL、Redis、Qdrant；`forge-web` 与
+`forge-agent` 不加入该网络。MySQL 为 ForgeAI 分配独立 database/user；Redis 使用唯一
+`FORGE_REDIS_NAMESPACE`；Qdrant 使用唯一 `FORGE_QDRANT_COLLECTION_PREFIX`。未来项目必须分配
+不同的账号和前缀。共享实例不允许演变为共享 schema 或无命名空间数据。
 
 ### 17.4 配置校验
 
-启动时区分：必填且缺失则失败（DB、Redis、Session secret、encryption master key、内部服务凭据）；可选且缺失则降级（LLM、Embedding、GitLab）。配置诊断只显示“已配置/指纹末尾/版本”，不显示明文。
+启动时区分：必填且缺失则失败（`infra-net`、DB、Redis、项目命名空间、Session secret、encryption
+master key、内部服务凭据）；可选且缺失则降级（LLM、Embedding、GitLab）。配置诊断只显示
+“已配置/指纹末尾/版本”，不显示明文。
 
 ### 17.5 初始化、备份与恢复
 
 - 初始化 URL 只在未初始化时可用；成功后永久关闭，重新开放需离线管理员命令并审计。
-- 本地备份集合必须同时包含 Docker Volume 中的 MySQL、Qdrant、附件和加密主密钥；Redis 不作为事实备份。
-- 腾讯云备份集合必须同时包含 MySQL、附件和加密主密钥；Qdrant 可快照或重建；Redis 不作为事实备份。
-- 本地恢复演练顺序：停止 Compose → 恢复 MySQL/附件/主密钥 → 启动服务 → 校验 Flyway → 重建/恢复 Qdrant → Smoke Test。
-- 腾讯云恢复演练顺序：停写 → 恢复 MySQL/附件/主密钥 → 启动 Backend → 校验 Flyway → 重建/恢复 Qdrant → Smoke Test → 开放 Nginx。
+- `/opt/infra` 统一备份 MySQL 与 Qdrant 数据卷；ForgeAI 另行备份附件和加密主密钥；Redis 不作为事实备份。
+- ForgeAI 恢复演练只恢复本项目 database、附件、主密钥和 collection，不覆盖其他项目数据。
+- 恢复顺序：ForgeAI 停写 → 恢复本项目 MySQL database/附件/主密钥 → 启动 Server → 校验 Flyway → 重建或恢复 ForgeAI Qdrant collection → Smoke Test → 开放入口。
+- `/opt/infra` 的整体恢复与升级必须进入服务器级维护窗口，并验证全部接入项目。
 - 每个 Release 提供镜像 tag + commit SHA + migration version；升级前执行兼容检查。
 
 ---

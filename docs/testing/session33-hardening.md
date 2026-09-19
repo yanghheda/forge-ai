@@ -55,7 +55,8 @@ EXPLAIN：idx_work_items_scope_type_status_page
 
 ## 三、故障演练
 
-警告：以下命令会停止本机 Compose 中的 MySQL、Redis、Qdrant 和 Agent，再逐项恢复。不要在共享环境执行。
+项目故障脚本只停止 ForgeAI 自己的 Agent，不控制 `/opt/infra`。MySQL、Redis、Qdrant 属于共享
+基础设施，其故障演练必须由服务器管理员在独立维护窗口执行，不能从本仓库停止共享容器。
 
 ```bash
 make test-apps-up
@@ -64,11 +65,11 @@ make hardening-faults
 
 | 故障注入 | 预期行为 | 恢复判据 |
 | --- | --- | --- |
-| Qdrant 停止 | Server 为 `DEGRADED`，人工主流程入口仍返回成功 | Qdrant 恢复健康 |
 | Agent 停止 | Server 为 `DEGRADED`，人工主流程入口仍返回成功 | Agent 恢复健康 |
-| Redis 停止 | readiness 非 2xx，实例 fail-closed | Redis 恢复健康 |
-| MySQL 停止 | readiness 非 2xx，实例 fail-closed | MySQL 恢复健康 |
 | GitLab 超时/401/恶意重定向 | 调用失败且不伪造成功，不泄露 Token | `GitLabHttpClientTest` 通过 |
+
+服务器级维护窗口仍需分别验证：Qdrant 故障时 Server 降级但人工主流程可用；Redis/MySQL 故障时
+readiness fail-closed。该验证由 `/opt/infra` 运维记录证据，不由 `make hardening-faults` 注入。
 
 脚本注册了退出恢复钩子；即使断言失败也会尝试重新启动全部服务。完成后仍应人工确认：
 

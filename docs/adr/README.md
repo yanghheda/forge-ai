@@ -25,6 +25,7 @@ ADR 用于记录影响多个模块、长期演进或安全边界的架构决策�
 | [ADR-016](ADR-016-remove-workspace-project-scope.md) | Accepted | 公司直属资源并物理移除 Workspace/Project scope |
 | [ADR-017](ADR-017-stage-aware-conversational-agent.md) | Accepted | 阶段感知的角色会话驱动交付流程 |
 | [ADR-018](ADR-018-agent-confirmation-and-high-risk-approval.md) | Accepted | 区分 Agent 代执行确认与 HIGH 风险审批 |
+| [ADR-020](ADR-020-shared-server-infrastructure.md) | Accepted | 单机多项目共享服务器级基础设施 |
 
 ## 何时新增 ADR
 

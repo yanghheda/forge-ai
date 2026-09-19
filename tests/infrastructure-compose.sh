@@ -3,13 +3,11 @@ set -eu
 
 compose_file='deploy/compose.yml'
 test_compose_file='deploy/compose-test.yml'
-host_dev_compose_file='deploy/compose.host-dev.yml.example'
 gitlab_compose_file='deploy/compose.gitlab.yml'
 environment_file='deploy/.env.example'
 
 docker compose --profile applications --env-file "$environment_file" -f "$compose_file" config --quiet
 docker compose --profile applications --env-file "$environment_file" -f "$compose_file" -f "$test_compose_file" config --quiet
-docker compose --env-file "$environment_file" -f "$compose_file" -f "$host_dev_compose_file" config --quiet
 docker compose --env-file "$environment_file" -f "$gitlab_compose_file" config --quiet
 
 for variable in FORGE_MYSQL_URL FORGE_MYSQL_USERNAME \
@@ -30,9 +28,15 @@ if ! grep -q '^    password: ${FORGE_MYSQL_PASSWORD}$' forge-server/src/main/res
 fi
 
 services=$(docker compose --profile applications --env-file "$environment_file" -f "$compose_file" config --services)
-for service in forge-web forge-server forge-agent mysql redis qdrant; do
+for service in forge-web forge-server forge-agent; do
   if ! printf '%s\n' "$services" | grep -qx "$service"; then
-    echo "基础设施 Compose 检查失败：缺少 $service 服务" >&2
+    echo "应用 Compose 检查失败：缺少 $service 服务" >&2
+    exit 1
+  fi
+done
+for service in mysql redis qdrant; do
+  if printf '%s\n' "$services" | grep -qx "$service"; then
+    echo "应用 Compose 检查失败：不得包含 $service 服务" >&2
     exit 1
   fi
 done
@@ -44,43 +48,34 @@ import os
 
 config = json.loads(os.environ["CONFIGURATION"])
 services = config["services"]
-for name in ("forge-web", "forge-server", "forge-agent", "mysql", "redis", "qdrant"):
-    service = services[name]
-    assert service.get("healthcheck"), f"{name} 必须声明 healthcheck"
-assert services["forge-server"].get("environment", {}).get("SPRING_PROFILES_ACTIVE") == "prod", (
-    "正式 Compose 中 forge-server 必须默认使用 prod profile"
-)
-assert services["forge-server"].get("environment", {}).get("FORGE_GITLAB_PROVIDER") == "real", (
-    "正式 Compose 中 forge-server 必须默认使用真实 GitLab provider"
-)
+assert set(services) == {"forge-web", "forge-server", "forge-agent"}
+for name in services:
+    assert services[name].get("healthcheck"), f"{name} 必须声明 healthcheck"
+assert services["forge-server"]["environment"]["SPRING_PROFILES_ACTIVE"] == "prod"
+assert services["forge-server"]["environment"]["FORGE_GITLAB_PROVIDER"] == "real"
 server_build = services["forge-server"].get("build", {})
-assert server_build.get("context", "").endswith("/forge-ai"), (
-    "forge-server 构建上下文必须包含仓库级 forge-contracts"
-)
-assert server_build.get("dockerfile", "").endswith("forge-server/Dockerfile"), (
-    "forge-server 必须继续使用模块内 Dockerfile"
-)
-for name in ("forge-server", "forge-agent", "mysql", "redis", "qdrant"):
+assert server_build.get("context", "").endswith("/forge-ai")
+assert server_build.get("dockerfile", "").endswith("forge-server/Dockerfile")
+for name in ("forge-server", "forge-agent"):
     assert not services[name].get("ports"), f"{name} 不得映射宿主机端口"
 web_ports = services["forge-web"].get("ports", [])
-assert len(web_ports) == 1, "forge-web 必须是唯一宿主机入口"
-assert web_ports[0].get("host_ip") == "127.0.0.1", "forge-web 只能绑定本机回环地址"
-assert services["forge-web"].get("environment", {}).get("HOSTNAME") == "0.0.0.0", (
-    "forge-web 必须监听容器全部接口"
-)
-assert set(services["forge-web"].get("networks", {})) == {"forge-edge", "forge-internal"}, (
-    "forge-web 必须同时接入入口网络与内部网络"
-)
-assert config["networks"]["forge-internal"].get("internal") is True, "内部网络必须隔离外部访问"
-assert config["networks"]["forge-edge"].get("internal") is not True, "入口网络必须允许回环端口转发"
-for name in ("mysql", "qdrant"):
-    assert services[name].get("volumes"), f"{name} 必须挂载命名卷"
+assert len(web_ports) == 1 and web_ports[0].get("host_ip") == "127.0.0.1"
+assert set(services["forge-web"].get("networks", {})) == {"forge-edge", "forge-internal"}
+assert set(services["forge-server"].get("networks", {})) == {"forge-internal", "shared-infrastructure"}
+assert set(services["forge-agent"].get("networks", {})) == {"forge-internal"}
+assert config["networks"]["forge-internal"].get("internal") is True
+shared = config["networks"]["shared-infrastructure"]
+assert shared.get("external") is True, "infra-net 必须由 /opt/infra 在项目外创建"
+assert shared.get("name") == "infra-net"
+server_environment = services["forge-server"].get("environment", {})
+assert server_environment.get("FORGE_REDIS_NAMESPACE") == "forge-ai"
+assert server_environment.get("FORGE_QDRANT_COLLECTION_PREFIX") == "forge_ai_"
 agent_environment = services["forge-agent"].get("environment", {})
 for forbidden in ("FORGE_MYSQL_URL", "FORGE_MYSQL_PASSWORD", "GITLAB_TOKEN", "DEPLOY_TOKEN"):
     assert forbidden not in agent_environment, f"forge-agent 不得接收 {forbidden}"
 '
 
-echo '基础设施 Compose 契约检查通过'
+echo '外部共享基础设施拓扑契约检查通过'
 
 test_configuration=$(docker compose --profile applications --env-file "$environment_file" -f "$compose_file" -f "$test_compose_file" config --format json)
 TEST_CONFIGURATION="$test_configuration" python3 -c '
@@ -89,42 +84,16 @@ import os
 
 config = json.loads(os.environ["TEST_CONFIGURATION"])
 services = config["services"]
-assert config.get("name") == "forge-ai-test", "测试环境必须使用独立 Compose project"
+assert config.get("name") == "forge-ai-test"
+assert set(services) == {"forge-web", "forge-server", "forge-agent"}
 assert services["forge-server"]["environment"]["SPRING_PROFILES_ACTIVE"] == "test"
 assert services["forge-server"]["environment"]["FORGE_GITLAB_PROVIDER"] == "demo"
-assert config["networks"]["forge-internal"].get("internal") is not True
+assert config["networks"]["shared-infrastructure"].get("external") is True
 web_ports = services["forge-web"].get("ports", [])
-assert len(web_ports) == 1 and web_ports[0].get("published") == "13000", (
-    "测试 Web 必须默认使用独立的 13000 端口"
-)
-expected_ports = {"mysql": {3306}, "redis": {6379}, "qdrant": {6333, 6334}}
-for name, targets in expected_ports.items():
-    ports = services[name].get("ports", [])
-    assert {port.get("target") for port in ports} == targets, f"{name} 测试端口映射不完整"
-    assert all(port.get("host_ip") == "127.0.0.1" for port in ports), f"{name} 只能绑定回环地址"
+assert len(web_ports) == 1 and web_ports[0].get("published") == "13000"
 '
 
-echo '测试环境 Compose 契约检查通过'
-
-host_dev_configuration=$(docker compose --env-file "$environment_file" -f "$compose_file" -f "$host_dev_compose_file" config --format json)
-HOST_DEV_CONFIGURATION="$host_dev_configuration" python3 -c '
-import json
-import os
-
-config = json.loads(os.environ["HOST_DEV_CONFIGURATION"])
-services = config["services"]
-assert config["networks"]["forge-internal"].get("internal") is not True, (
-    "宿主机开发覆盖必须允许回环端口转发"
-)
-expected_ports = {"mysql": 3306, "redis": 6379, "qdrant": 6333}
-for name, target in expected_ports.items():
-    ports = services[name].get("ports", [])
-    assert len(ports) == 1, f"{name} 本机开发覆盖必须且只能映射一个端口"
-    assert ports[0].get("host_ip") == "127.0.0.1", f"{name} 只能绑定本机回环地址"
-    assert ports[0].get("target") == target, f"{name} 容器端口必须是 {target}"
-'
-
-echo '宿主机开发 Compose 契约检查通过'
+echo '测试应用 Compose 契约检查通过'
 
 gitlab_configuration=$(docker compose --env-file "$environment_file" -f "$gitlab_compose_file" config --format json)
 GITLAB_CONFIGURATION="$gitlab_configuration" python3 -c '
@@ -132,15 +101,15 @@ import json
 import os
 
 config = json.loads(os.environ["GITLAB_CONFIGURATION"])
-assert config.get("name") == "forge-gitlab", "GitLab 必须使用独立 Compose project"
-assert set(config["services"]) == {"gitlab"}, "GitLab Compose 只能包含 GitLab 服务"
+assert config.get("name") == "forge-gitlab"
+assert set(config["services"]) == {"gitlab"}
 service = config["services"]["gitlab"]
-assert service.get("healthcheck"), "GitLab 必须声明 healthcheck"
-assert service.get("restart") == "unless-stopped", "GitLab 必须配置自动重启策略"
-assert len(service.get("volumes", [])) == 3, "GitLab 配置、日志与数据必须分别持久化"
+assert service.get("healthcheck")
+assert service.get("restart") == "unless-stopped"
+assert len(service.get("volumes", [])) == 3
 ports = service.get("ports", [])
-assert {port.get("target") for port in ports} == {22, 8929}, "GitLab HTTP/SSH 端口映射不完整"
-assert all(port.get("host_ip") == "127.0.0.1" for port in ports), "GitLab 只能绑定本机回环地址"
+assert {port.get("target") for port in ports} == {22, 8929}
+assert all(port.get("host_ip") == "127.0.0.1" for port in ports)
 '
 
 echo '独立 GitLab Compose 契约检查通过'

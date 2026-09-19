@@ -40,18 +40,23 @@ public class DocumentIndexingWorker {
     /* INDEXING 租约时长；超过后视为持有者失联并允许重新领取。 */
     private final Duration lease;
 
+    /* 当前部署在共享 Qdrant 中独占的集合名前缀。 */
+    private final String collectionPrefix;
+
     public DocumentIndexingWorker(
             DocumentIndexingService indexingService,
             EmbeddingClient embeddingClient,
             VectorIndexClient vectorIndexClient,
             @Value("${forge.rag.indexer.max-attempts:5}") int maxAttempts,
             @Value("${forge.rag.indexer.backoff-base:10s}") Duration backoffBase,
-            @Value("${forge.rag.indexer.lease:5m}") Duration lease) {
+            @Value("${forge.rag.indexer.lease:5m}") Duration lease,
+            @Value("${forge.rag.qdrant.collection-prefix:}") String collectionPrefix) {
         this.indexingService = indexingService;
         this.embeddingClient = embeddingClient;
         this.vectorIndexClient = vectorIndexClient;
         this.retryPolicy = new IndexRetryPolicy(maxAttempts, backoffBase);
         this.lease = lease;
+        this.collectionPrefix = collectionPrefix;
     }
 
     /* 单次调度：先把 Outbox 事件落成任务，再逐个处理到无可处理任务。 */
@@ -127,6 +132,6 @@ public class DocumentIndexingWorker {
 
     /* 集合名由 embedding 模型版本派生；切换模型时重建集合并原子切换别名。 */
     private String collectionName() {
-        return "documents_" + embeddingClient.modelVersion();
+        return collectionPrefix + "documents_" + embeddingClient.modelVersion();
     }
 }

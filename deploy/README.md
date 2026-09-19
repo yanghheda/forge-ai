@@ -4,34 +4,63 @@
 
 ## 环境分层
 
-- 宿主机开发：`compose.yml + compose.host-dev.yml`，使用 `make host-infra-*`。
-- 测试与 Demo：`compose.yml + compose-test.yml`，使用 `make test-apps-*`。
-- 正式发布：仅使用 `compose.yml`，使用 `make apps-*`。
+- 服务器共享基础设施：已在项目外的 `/opt/infra` 独立部署，本仓库不创建、停止或升级它。
+- 测试与 Demo：`compose.yml + compose-test.yml`，只启动三应用并连接现有 `infra-net`。
+- 正式发布：仅使用 `compose.yml`，只管理 ForgeAI 三应用。
 
-`compose-test.yml` 使用独立的 `forge-ai-test` Compose project、容器、网络和命名卷，
-不会复用正式环境数据。测试 Web 默认使用 `127.0.0.1:13000`；数据端口只绑定 `127.0.0.1`：MySQL `3306`、Redis
-`6379`、Qdrant HTTP `6333` 和 gRPC `6334`。如端口冲突，可在 `deploy/.env`
-设置 `FORGE_TEST_WEB_PORT`、`FORGE_TEST_MYSQL_HOST_PORT`、`FORGE_TEST_REDIS_HOST_PORT`、
-`FORGE_TEST_QDRANT_HTTP_HOST_PORT`、`FORGE_TEST_QDRANT_GRPC_HOST_PORT`。
+`compose.yml` 中不存在 MySQL、Redis、Qdrant service 或数据卷。`infra-net` 必须由
+`/opt/infra` 预先创建，且网络内可通过 `mysql`、`redis`、`qdrant` 服务名访问对应服务。
 
 ## 正式环境
 
-Compose 默认只启动 MySQL、Redis 和 Qdrant；`applications` profile 额外启动三应用。首次启动前复制示例配置，并更换本机数据库密码和 Agent JWT 签名密钥：
+首次启动前复制示例配置，填入 `/opt/infra` 已为 ForgeAI 分配的数据库账号，并更换 Agent JWT 签名密钥。
+`make apps-up` 只拉取已发布镜像，不在生产服务器构建源码：
 
 ```bash
 cp deploy/.env.example deploy/.env
-make infra-up
-make infra-ready
-```
-
-使用正式配置启动三应用：
-
-```bash
 make apps-up
 make apps-ready
 ```
 
-只有 `forge-web` 映射到宿主机 `127.0.0.1:3000`。Server、Agent 与三项数据设施只加入 `forge-internal` Compose 网络，不映射宿主机端口。Server 默认使用 `prod` profile 和真实 GitLab provider。MySQL 与 Qdrant 使用命名卷；Redis 明确作为可丢失的短期状态运行。`make infra-down` 和 `make apps-down` 都会保留数据卷。
+只有 `forge-web` 映射到宿主机 `127.0.0.1:3000`。`forge-server` 同时加入项目私有网络和
+外部 `infra-net`，`forge-web` 与 `forge-agent` 不直接接入基础设施网络。Server 默认使用
+`prod` profile 和真实 GitLab provider。`make apps-down` 只停止三应用，不影响 `/opt/infra`。
+
+共享 MySQL 必须为每个项目分配独立 database/user；ForgeAI 不得与其他项目共用 schema 或账号。
+共享 Redis 与 Qdrant 分别使用 `FORGE_REDIS_NAMESPACE` 和
+`FORGE_QDRANT_COLLECTION_PREFIX` 隔离键和 collection。不同项目不得复用这些前缀。
+
+## 三服务独立镜像与部署
+
+Compose 中三个应用分别引用以下镜像，镜像 tag 由 `FORGE_IMAGE_TAG` 控制：
+
+- `ghcr.io/yanghheda/forge-web`
+- `ghcr.io/yanghheda/forge-server`
+- `ghcr.io/yanghheda/forge-agent`
+
+`.github/workflows/deploy-services.yml` 在 `main` 分支 push 时按路径选择构建与部署 job：
+
+| 变更路径 | 重建与重启 |
+|---|---|
+| `forge-web/**` | 仅 `forge-web` |
+| `forge-server/**` | 仅 `forge-server` |
+| `forge-agent/**` | 仅 `forge-agent` |
+| `packages/forge-contracts/**` | `forge-server` 与 `forge-agent` |
+
+Agent 镜像内置 `packages/forge-contracts`，生产环境不再依赖仓库 bind mount。每个 job 推送
+commit SHA 与 `latest` 两个 tag，再在服务器执行 `docker compose pull <service>` 和
+`docker compose up -d --no-deps --wait <service>`；未命中的服务不会重建或重启。
+
+首次启用前需把本版 `deploy/compose.yml` 同步到服务器的 `/opt/forge-ai`，并在 GitHub
+`production` Environment 配置以下 Secrets：
+
+- `DEPLOY_HOST`：服务器地址。
+- `DEPLOY_USER`：具有目标目录和 Docker 权限的部署用户。
+- `DEPLOY_SSH_PRIVATE_KEY`：专用最小权限 SSH 私钥。
+- `DEPLOY_KNOWN_HOSTS`：预先核验的服务器 host key，禁止运行时无条件 `ssh-keyscan`。
+
+可选 Environment Variable `DEPLOY_PATH` 默认为 `/opt/forge-ai`。GitHub Actions 使用短期
+`GITHUB_TOKEN` 登录 GHCR；仓库必须允许 Actions 写入 Packages。工作流也可手动选择单个服务或全部服务。
 
 ## 测试环境
 
@@ -40,44 +69,15 @@ make test-apps-up
 make test-apps-ready
 ```
 
-测试结束后使用 `make test-apps-down`，默认保留测试数据卷。测试环境 Server 使用
-`test` profile 和确定性 demo GitLab provider。
+测试结束后使用 `make test-apps-down`。该命令只停止测试应用容器。测试环境 Server 使用
+`test` profile 和确定性 demo GitLab provider，但仍会访问 `infra-net`；应使用专门的测试 database/user
+和独立 Redis/Qdrant 前缀，禁止指向生产命名空间。
 
-`make smoke` 使用示例配置在 `127.0.0.1:13000` 临时启动完整拓扑，验证 Web → Server → Agent 调用及无效 Agent 凭据拒绝，完成后自动停止且不删除数据卷。
+`make smoke` 使用未提交的 `deploy/.env` 在 `127.0.0.1:13000` 临时启动三应用，验证
+Web → Server → Agent 调用及无效 Agent 凭据拒绝，完成后只停止应用容器。
 
-不要把 `deploy/.env` 提交到 Git。确需从宿主机 IDE 调试数据服务时，可自行创建不提交的 Compose override 文件。`docker compose down -v` 会删除 MySQL/Qdrant 本机数据，只能在明确重置环境时手工执行。
-
-## 三应用在宿主机运行
-
-仓库提供 `deploy/compose.host-dev.yml.example`，本机私有副本为已忽略的
-`deploy/compose.host-dev.yml`。它只将 MySQL、Redis、Qdrant 绑定到
-`127.0.0.1`，不会启动三个应用：
-
-```bash
-cp deploy/.env.example deploy/.env             # 首次使用时执行并更换 Secret
-cp deploy/compose.host-dev.yml.example deploy/compose.host-dev.yml
-make host-infra-up
-make host-infra-ready
-```
-
-如果默认端口被占用，可在 `deploy/.env` 中设置 `FORGE_MYSQL_HOST_PORT`、
-`FORGE_REDIS_HOST_PORT`、`FORGE_QDRANT_HOST_PORT`，并同步修改下方应用配置。
-
-IDEA 的 `ForgeServerApplication` Run Configuration 至少需要以下环境变量：
-
-```text
-FORGE_MYSQL_URL=jdbc:mysql://127.0.0.1:3306/forge_ai
-FORGE_MYSQL_USERNAME=forge_ai
-FORGE_MYSQL_PASSWORD=<deploy/.env 中的本机密码>
-FORGE_REDIS_HOST=127.0.0.1
-FORGE_REDIS_PORT=6379
-FORGE_QDRANT_BASE_URL=http://127.0.0.1:6333
-FORGE_AGENT_BASE_URL=http://127.0.0.1:8000
-FORGE_AGENT_INTERNAL_JWT_SECRET=<与 forge-agent 相同的本机随机密钥>
-```
-
-`forge-agent` 在宿主机启动时使用同一个 `FORGE_AGENT_INTERNAL_JWT_SECRET`。
-停止基础设施使用 `make host-infra-down`，该命令保留 MySQL/Qdrant 数据卷。
+不要把 `deploy/.env` 提交到 Git。ForgeAI 仓库内的任何 Compose 命令都不得以 `/opt/infra`
+为目标；共享基础设施的备份、恢复和升级必须在服务器级运维流程中完成。
 
 ## 独立 GitLab CE
 
@@ -119,6 +119,5 @@ GitLab 删除旧 Runner、创建新 Runner，再更新 `deploy/.env`；不得把
 `FORGE_GITLAB_SSH_HOST_PORT`。`make gitlab-down` 会保留 GitLab 的配置、日志和数据卷；
 只有显式执行带 `--volumes` 的 Compose down 才会删除这些数据。
 
-三个应用在宿主机运行时，Server 使用 `dev,local` profiles。Compose Smoke 显式使用
-`test` profile，容器服务名来自 `application-test.yml` 或 Compose 环境变量，不会加载
-个人的 `application-local.yml`。生产 `prod` profile 留待部署阶段配置。
+Compose Smoke 显式使用 `test` profile，服务地址来自 Compose 环境变量，不会加载个人的
+`application-local.yml`。生产 Compose 默认使用 `prod` profile。

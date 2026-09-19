@@ -117,17 +117,23 @@ flowchart LR
     U[Product / UX / Developer / QA / Admin] -->|HTTPS| N[Nginx]
     N --> W[forge-web / Next.js]
     N -->|REST / SSE| B[forge-server / Spring Boot]
-    B --> M[(MySQL)]
-    B --> R[(Redis)]
+    subgraph I["/opt/infra · infra-net"]
+        M[(MySQL)]
+        R[(Redis)]
+        Q[(Qdrant)]
+    end
+    B --> M
+    B --> R
+    B --> Q
     B -->|Agent Run| A[forge-agent / FastAPI]
     A -->|受控 Tool API| B
-    A --> Q[(Qdrant)]
     A --> L[LLM / Embedding Provider]
     B --> G[GitLab / GitLab CI]
     G -->|Webhook| B
 ```
 
-该图展示腾讯云最终上线拓扑。本地开发时同一组服务运行在 Docker Desktop Compose 网络中，Browser 通过 `http://localhost:<port>` 访问本机入口；MySQL、Redis 与 Qdrant 同样在本机容器中运行，不依赖 VM。
+该图展示单服务器最终上线拓扑。MySQL、Redis 与 Qdrant 由 `/opt/infra` 独立运行；只有
+`forge-server` 通过外部 Docker 网络 `infra-net` 连接它们，业务项目 Compose 不拥有数据服务。
 
 ### 4.1 调用规则
 
@@ -1105,28 +1111,30 @@ features/work-items/
 
 ---
 
-## 21. 部署方案：本地 Docker Desktop 开发 + 腾讯云上线
+## 21. 部署方案：服务器级共享基础设施 + 项目级应用 Compose
 
-### 21.1 本地开发 Docker Desktop Compose
+### 21.1 服务器级共享基础设施
 
-本地开发、测试、黄金 Demo 与每轮 Codex 会话使用 Docker Desktop。MySQL、Redis、Qdrant、Agent、Worker 和应用服务位于同一个本机 Compose Network；MySQL/Qdrant 使用命名 Volume 持久化，Redis 默认可不持久化。
+单服务器上的个人项目共用 `/opt/infra` 独立 Compose 提供的一套 MySQL、Redis 与 Qdrant。
+该 Compose 在业务项目之外维护容器和 named volume，并创建外部 Docker 网络 `infra-net`。
+ForgeAI 仓库不得声明或控制这三个数据服务。
 
 ```text
-本机浏览器
-   │ http://localhost:<port>
-本机入口代理（可选）或 forge-web
-   ├── forge-web
-   ├── forge-server
-   ├── forge-agent
-   ├── worker(optional)
-   ├── mysql      -> 命名 Volume
-   ├── redis
-   └── qdrant     -> 命名 Volume
+/opt/infra compose
+   ├── mysql   -> 服务器级 named volume
+   ├── redis   -> 可丢失短期状态
+   └── qdrant  -> 服务器级 named volume
+             │
+       infra-net（external）
+        ┌────┴───────────────┐
+ ForgeAI compose       未来项目 compose
+   └── forge-server      └── backend
 ```
 
-默认只映射浏览器需要的本机入口端口；MySQL、Redis、Qdrant、Agent 和 Worker 不发布宿主机端口。调试所需端口仅在本地 override Compose 文件中临时映射，禁止提交到默认生产 Compose。`docker compose down -v` 会删除本地开发数据，只能在明确重置环境时执行。
+共享的是服务实例而不是业务命名空间：每个项目必须使用独立 MySQL database/user、唯一 Redis
+键前缀与唯一 Qdrant collection 前缀。MySQL、Redis、Qdrant 只在 `infra-net` 可达，不暴露公网端口。
 
-### 21.2 腾讯云 Docker Compose 上线拓扑
+### 21.2 ForgeAI 应用 Compose 上线拓扑
 
 ```text
 Internet
@@ -1140,19 +1148,20 @@ Private Docker Network
    ├── forge-web
    ├── forge-server
    ├── forge-agent
-   ├── worker(optional)
-   ├── mysql
-   ├── redis
-   └── qdrant
+   └── worker(optional)
+
+External infra-net
+   └── forge-server -> mysql / redis / qdrant
 ```
 
-MySQL、Redis、Qdrant 与 Agent 不暴露公网端口。Nginx 对 SSE 关闭代理缓冲并增加合理读超时。
+ForgeAI Compose 只包含应用服务。只有 `forge-server` 加入 `infra-net`，Web 和 Agent 不直接访问
+数据服务。Nginx 对 SSE 关闭代理缓冲并增加合理读超时。`apps-down` 不得影响 `/opt/infra`。
 
 ### 21.3 配置分类
 
-- 本地：Docker Desktop 入口端口、时区、日志级别、上传限制。
-- 腾讯云：域名、TLS、Nginx、时区、日志级别、上传限制。
-- Backend：数据库、Redis、Session、加密主密钥、Agent 内网地址。
+- 基础设施：由 `/opt/infra` 独立管理网络名、镜像版本、数据卷、备份与服务凭据。
+- 应用入口：域名、TLS、Nginx、时区、日志级别、上传限制。
+- Server：MySQL database/user、Redis namespace、Qdrant collection prefix、Session、加密主密钥、Agent 内网地址。
 - Agent：Backend 内部地址、服务凭据、LLM/Embedding Provider、Qdrant。
 - 集成：GitLab Base URL/Token 由管理员在工作台配置并加密保存。
 
@@ -1160,23 +1169,24 @@ MySQL、Redis、Qdrant 与 Agent 不暴露公网端口。Nginx 对 SSE 关闭代
 
 ### 21.4 腾讯云建议
 
-MVP 可使用一台 4C8G 起步 CVM；视模型调用与文档量调整。系统盘与数据盘分离，数据卷放在数据盘；安全组仅开放 22（限制来源）、80/443。域名与 TLS 由 Nginx/ACME 或腾讯云证书管理。若使用外部 LLM，确认网络、延迟和数据合规要求。
+MVP 可使用一台 4C8G 起步 CVM；视所有项目的合计负载、模型调用与文档量调整。系统盘与数据盘分离，
+`/opt/infra` 的数据卷放在数据盘；安全组仅开放 22（限制来源）、80/443。域名与 TLS 由
+Nginx/ACME 或腾讯云证书管理。若使用外部 LLM，确认网络、延迟和数据合规要求。
 
 ### 21.5 备份与恢复
 
-- 本地：备份 MySQL/Qdrant 命名 Volume、附件和加密主密钥；重要演示前执行一次恢复演练。
-- 腾讯云 MySQL：每日全量 + binlog（生产建议），定期恢复演练。
-- 腾讯云附件：数据卷快照或 S3 兼容对象存储版本化。
-- 腾讯云 Qdrant：快照；同时保证可从文档版本重建。
+- `/opt/infra` MySQL：按服务器级策略执行每日全量 + binlog，并逐项目验证 database 恢复。
+- ForgeAI 附件：应用数据卷快照或 S3 兼容对象存储版本化。
+- `/opt/infra` Qdrant：服务器级快照；同时保证 ForgeAI collection 可从文档版本重建。
 - Redis Session 可不做灾备事实源；重启后允许用户重新登录。
 - 加密主密钥单独安全备份，缺失时密文不可恢复。
 
 ### 21.6 升级
 
 1. 锁定镜像版本和 commit SHA。
-2. 升级前备份 MySQL、附件和密钥。
-3. 先执行兼容性检查和 Flyway Migration。
-4. 本地先使用 Docker Desktop 更新服务并运行 Smoke Test，再在腾讯云按同一镜像版本更新。
+2. 应用升级前备份 ForgeAI database、附件和密钥，但不随应用升级基础设施容器。
+3. 先执行兼容性检查和 ForgeAI database 的 Flyway Migration。
+4. 更新 ForgeAI 应用服务并运行 Smoke Test；`/opt/infra` 升级使用独立维护窗口并评估所有项目。
 5. 失败时回滚镜像；数据库 Migration 必须设计向后兼容或提供明确恢复流程。
 
 ---
@@ -1185,18 +1195,23 @@ MVP 可使用一台 4C8G 起步 CVM；视模型调用与文档量调整。系统
 
 ```mermaid
 flowchart LR
-    C[Commit/MR] --> L[Lint & Format]
-    L --> T[Unit/Contract Tests]
-    T --> B[Build 3 Apps]
-    B --> I[Integration Tests]
-    I --> S[Security Scan & SBOM]
-    S --> D[Docker Images]
-    D --> M[Compose Smoke Test]
-    M --> A{Manual Approval}
-    A -->|Approved| P[Deploy]
+    C[Commit to main] --> F{Path filters}
+    F -->|forge-web/**| W[Build forge-web image]
+    F -->|forge-server/**| S[Build forge-server image]
+    F -->|forge-agent/**| A[Build forge-agent image]
+    F -->|forge-contracts/**| S
+    F -->|forge-contracts/**| A
+    W --> DW[Pull + up --no-deps forge-web]
+    S --> DS[Pull + up --no-deps forge-server]
+    A --> DA[Pull + up --no-deps forge-agent]
 ```
 
-Web 执行 lint、typecheck、unit test、build；Backend 执行 unit/integration、Migration 校验和 package；Agent 执行 lint、typecheck、Tool Contract、图测试和 Eval Smoke。三套镜像用同一 commit SHA 标记，防止版本漂移。
+Web、Server、Agent 分别构建独立 GHCR 镜像，并同时发布不可变 commit SHA tag 与便捷的
+`latest` tag。部署必须使用本次 commit SHA，只对命中的服务执行 `pull` 和
+`up -d --no-deps --wait`，禁止用整栈 `down/up` 造成无关服务重启。
+
+路径过滤必须覆盖真实共享依赖：`packages/forge-contracts/**` 同时触发 Server 与 Agent；Web
+当前不消费该目录。新增共享包时必须在同一个变更中更新消费者列表和路径过滤测试，避免公共代码变化漏发。
 
 ---
 

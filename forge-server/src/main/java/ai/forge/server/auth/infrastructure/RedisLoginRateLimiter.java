@@ -33,19 +33,24 @@ public class RedisLoginRateLimiter implements LoginRateLimiter {
     /* 登录尝试计数保留的滚动窗口长度。 */
     private final Duration window;
 
+    /* 当前部署在共享 Redis 中独占的键前缀。 */
+    private final String namespace;
+
     public RedisLoginRateLimiter(
             StringRedisTemplate redisTemplate,
             @Value("${forge.auth.rate-limit-attempts:10}") int maximumAttempts,
-            @Value("${forge.auth.rate-limit-window:5m}") Duration window) {
+            @Value("${forge.auth.rate-limit-window:5m}") Duration window,
+            @Value("${forge.redis.namespace:forge}") String namespace) {
         this.redisTemplate = redisTemplate;
         this.maximumAttempts = maximumAttempts;
         this.window = window;
+        this.namespace = namespace;
     }
 
     @Override
     public void checkAndRecord(String remoteAddress, String normalizedEmail) {
         String material = (remoteAddress == null ? "unknown" : remoteAddress) + "\n" + normalizedEmail;
-        String key = "forge:auth:login:" + sha256(material);
+        String key = namespace + ":auth:login:" + sha256(material);
         Long attempts = redisTemplate.execute(INCREMENT_WITH_EXPIRY, List.of(key), Long.toString(window.toMillis()));
         if (attempts == null || attempts > maximumAttempts) {
             throw new LoginRateLimitedException();

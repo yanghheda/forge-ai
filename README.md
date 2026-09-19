@@ -10,7 +10,7 @@ ForgeAI 采用 Monorepo 管理三个独立应用，使业务契约、应用实�
 - `forge-server`：Spring Boot 模块化单体，是业务事实、授权和事务的唯一权威。
 - `forge-agent`：FastAPI Agent Runtime，只能通过受控 Tool API 调用 `forge-server`。
 
-当前仓库已完成 P0 工程基础：三应用骨架、MySQL/Redis/Qdrant 基础设施、Tool/Skill 契约目录和 Compose Smoke 均已建立。业务领域能力仍按后续会话逐步加入。
+当前仓库已完成 P0 工程基础：三应用骨架、外部 MySQL/Redis/Qdrant 接入、Tool/Skill 契约目录和 Compose Smoke 均已建立。业务领域能力仍按后续会话逐步加入。
 
 ## 开发入口
 
@@ -31,7 +31,9 @@ Backend 可单独验证和启动：
 
 启动后可访问 `/actuator/health`、`/api/v1/system/status`、`/v3/api-docs`；开发 profile 额外开放 `/swagger-ui/index.html`。
 
-完整本机测试拓扑先复制并修改 `deploy/.env.example`，再执行 `make test-apps-up`。测试环境将三项数据服务绑定到本机回环地址；正式发布使用 `make apps-up`，只暴露 Web。浏览器经 Web 的 `/api` 代理访问 Server，Server 使用短时服务 JWT 探测 Agent 内部就绪端点。
+服务器上的 MySQL、Redis、Qdrant 由项目外的 `/opt/infra` 独立运行并提供外部网络 `infra-net`。
+复制并修改 `deploy/.env.example` 后，执行 `make test-apps-up` 或 `make apps-up` 只启动三应用；
+ForgeAI 的停止命令不会触碰共享基础设施。浏览器经 Web 的 `/api` 代理访问 Server，Server 使用短时服务 JWT 探测 Agent 内部就绪端点。
 
 ## 文档
 

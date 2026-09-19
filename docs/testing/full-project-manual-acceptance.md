@@ -23,9 +23,9 @@ GitLab Project ID、Docker Compose project 和 Python `pyproject.toml` 属于第
 
 ### 2.1 前置条件
 
-- Docker Desktop 可用，根目录存在仅供本机使用且未提交的 `deploy/.env`。
+- Docker Compose 可用，`/opt/infra` 已运行并提供外部网络 `infra-net`，根目录存在未提交的 `deploy/.env`。
 - Node、npm、Java、浏览器及项目依赖已按 README 准备。
-- 测试端口未被占用，故障演练期间无人共享 Compose 环境。
+- 测试端口未被占用；已分配独立测试 database/user、Redis 前缀和 Qdrant collection 前缀。
 - 准备一个不超过 2 MiB 的有效 WebP 公司 Logo。
 - GitLab 用例使用可控测试实例或 stub，不连接生产仓库。
 
@@ -36,7 +36,8 @@ make test-apps-up
 make test-apps-ready
 ```
 
-通过标准：MySQL、Redis、Qdrant、`forge-agent`、`forge-server`、`forge-web` 均 running/healthy；`http://127.0.0.1:13000` 有响应。
+通过标准：`forge-agent`、`forge-server`、`forge-web` 均 running/healthy，Server 可连接
+`infra-net` 中的 MySQL、Redis、Qdrant，且 `http://127.0.0.1:13000` 有响应。
 
 实际/证据：
 
@@ -53,13 +54,13 @@ make test-apps-ready
 | 主需求 / 负向需求             | `UAT 手机登录` / `UAT 支付回调` |
 
 ```bash
-docker compose --profile applications --env-file deploy/.env -f deploy/compose.yml -f deploy/compose-test.yml down
-docker volume rm forge-ai-test_mysql-data forge-ai-test_qdrant-data
+# 先由 /opt/infra 管理员重建仅属于 ForgeAI UAT 的 database 和索引命名空间。
 make test-apps-up
 make test-apps-ready
 ```
 
-`docker volume rm` 会永久删除指定测试卷。Agent checkpoint 卷默认保留；仅在明确要求清除运行历史时另行确认。这里的 Compose project 是 Docker 术语。
+禁止从 ForgeAI 仓库删除 `/opt/infra` 的共享 volume。空环境只能清理预先分配给 ForgeAI UAT 的
+database、Redis 前缀与 Qdrant collection 前缀，不能影响其他项目。这里的 Compose project 是 Docker 术语。
 
 ## 三、拓扑、初始化与认证
 
@@ -67,7 +68,8 @@ make test-apps-ready
 
 步骤：执行 `make test-apps-ready` 并检查端口。
 
-预期：六个服务健康；Web 与测试数据服务仅绑定 `127.0.0.1`；Server 与 Agent 不直接暴露宿主机端口。
+预期：三个 ForgeAI 应用服务健康；只有 Web 绑定 `127.0.0.1`；Server 与 Agent 不直接暴露宿主机端口；
+只有 Server 加入外部 `infra-net`，且项目 Compose 中不存在 MySQL、Redis、Qdrant service。
 
 实际/证据：
 

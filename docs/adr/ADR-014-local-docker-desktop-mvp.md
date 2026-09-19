@@ -1,8 +1,9 @@
 # ADR-014：本地开发使用 Docker Desktop 运行依赖服务
 
-- 状态：Accepted
+- 状态：Superseded
 - 日期：2026-09-02
 - 补充：ADR-010 的本地开发环境策略
+- 替代者：ADR-020
 
 ## 上下文
 

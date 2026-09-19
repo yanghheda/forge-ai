@@ -1,0 +1,211 @@
+name: Build and deploy changed services
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to rebuild and deploy
+        required: true
+        default: all
+        type: choice
+        options: [all, forge-web, forge-server, forge-agent]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production-service-deploy
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      server: ${{ steps.filter.outputs.server }}
+      agent: ${{ steps.filter.outputs.agent }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        name: Resolve affected services
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            selection="${{ inputs.service }}"
+            [[ "$selection" == "all" || "$selection" == "forge-web" ]] && web=true || web=false
+            [[ "$selection" == "all" || "$selection" == "forge-server" ]] && server=true || server=false
+            [[ "$selection" == "all" || "$selection" == "forge-agent" ]] && agent=true || agent=false
+          else
+            before="${{ github.event.before }}"
+            if [[ "$before" =~ ^0+$ ]] || ! git cat-file -e "${before}^{commit}" 2>/dev/null; then
+              changed_files="$(git ls-files)"
+            else
+              changed_files="$(git diff --name-only "$before" "${{ github.sha }}")"
+            fi
+            grep -Eq '^forge-web/' <<<"$changed_files" && web=true || web=false
+            grep -Eq '^(forge-server/|packages/forge-contracts/)' <<<"$changed_files" && server=true || server=false
+            grep -Eq '^(forge-agent/|packages/forge-contracts/)' <<<"$changed_files" && agent=true || agent=false
+          fi
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "server=$server" >> "$GITHUB_OUTPUT"
+          echo "agent=$agent" >> "$GITHUB_OUTPUT"
+
+  forge-web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: forge-web/package-lock.json
+      - name: Test forge-web
+        working-directory: forge-web
+        run: |
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./forge-web
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/forge-web:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/forge-web:latest
+          cache-from: type=gha,scope=forge-web
+          cache-to: type=gha,mode=max,scope=forge-web
+      - name: Deploy forge-web only
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          deploy_path="${DEPLOY_PATH:-/opt/forge-ai}"
+          image_prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "cd '$deploy_path' && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml pull forge-web && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml up -d --no-deps --wait forge-web"
+
+  forge-server:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+          cache-dependency-path: forge-server/pom.xml
+      - name: Test forge-server
+        run: ./forge-server/mvnw -f forge-server/pom.xml --batch-mode test
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: forge-server/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/forge-server:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/forge-server:latest
+          cache-from: type=gha,scope=forge-server
+          cache-to: type=gha,mode=max,scope=forge-server
+      - name: Deploy forge-server only
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          deploy_path="${DEPLOY_PATH:-/opt/forge-ai}"
+          image_prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "cd '$deploy_path' && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml pull forge-server && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml up -d --no-deps --wait forge-server"
+
+  forge-agent:
+    needs: changes
+    if: needs.changes.outputs.agent == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test forge-agent image
+        run: |
+          docker build --target test -t forge-agent:test -f forge-agent/Dockerfile .
+          docker run --rm forge-agent:test
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: forge-agent/Dockerfile
+          target: runtime
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/forge-agent:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/forge-agent:latest
+          cache-from: type=gha,scope=forge-agent
+          cache-to: type=gha,mode=max,scope=forge-agent
+      - name: Deploy forge-agent only
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          deploy_path="${DEPLOY_PATH:-/opt/forge-ai}"
+          image_prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "cd '$deploy_path' && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml pull forge-agent && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml up -d --no-deps --wait forge-agent"

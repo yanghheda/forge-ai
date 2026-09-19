@@ -3,9 +3,14 @@ set -eu
 
 compose_file='deploy/compose.yml'
 test_compose_file='deploy/compose-test.yml'
-environment_file='deploy/.env.example'
+environment_file=${FORGE_ENV_FILE:-deploy/.env}
 smoke_port='13000'
 export FORGE_WEB_PORT="$smoke_port"
+
+if [ ! -f "$environment_file" ]; then
+  echo "Compose Smoke 需要包含 /opt/infra 连接凭据的 $environment_file" >&2
+  exit 1
+fi
 
 cleanup() {
   docker compose --profile applications --env-file "$environment_file" -f "$compose_file" -f "$test_compose_file" down

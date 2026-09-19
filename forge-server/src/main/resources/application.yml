@@ -9,6 +9,7 @@ spring:
     redis:
       host: ${FORGE_REDIS_HOST}
       port: ${FORGE_REDIS_PORT:6379}
+      password: ${FORGE_REDIS_PASSWORD:}
       connect-timeout: 1s
       timeout: 1s
   flyway:
@@ -18,7 +19,7 @@ spring:
   session:
     timeout: ${FORGE_SESSION_IDLE_TIMEOUT:30m}
     redis:
-      namespace: forge:session
+      namespace: ${FORGE_REDIS_NAMESPACE:forge}:session
 
 server:
   servlet:
@@ -44,6 +45,8 @@ forge:
     account-lock-duration: ${FORGE_ACCOUNT_LOCK_DURATION:15m}
     rate-limit-attempts: ${FORGE_LOGIN_RATE_LIMIT_ATTEMPTS:10}
     rate-limit-window: ${FORGE_LOGIN_RATE_LIMIT_WINDOW:5m}
+  redis:
+    namespace: ${FORGE_REDIS_NAMESPACE:forge}
   infrastructure:
     agent:
       base-url: ${FORGE_AGENT_BASE_URL}
@@ -58,6 +61,7 @@ forge:
       dimension: ${FORGE_RAG_EMBEDDING_DIMENSION:64}
     qdrant:
       request-timeout: ${FORGE_RAG_QDRANT_TIMEOUT:10s}
+      collection-prefix: ${FORGE_QDRANT_COLLECTION_PREFIX:}
     indexer:
       schedule-enabled: ${FORGE_RAG_INDEXER_SCHEDULE_ENABLED:true}
       poll-interval: ${FORGE_RAG_INDEXER_POLL_INTERVAL:5s}

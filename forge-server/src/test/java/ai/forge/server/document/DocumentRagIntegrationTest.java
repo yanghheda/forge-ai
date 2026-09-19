@@ -266,7 +266,7 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         QdrantVectorIndexClient deadClient =
                 new QdrantVectorIndexClient("http://127.0.0.1:1", Duration.ofMillis(500));
         DocumentIndexingWorker brokenWorker = new DocumentIndexingWorker(
-                indexingService, embeddingClient, deadClient, 3, Duration.ofSeconds(5), Duration.ofMinutes(5));
+                indexingService, embeddingClient, deadClient, 3, Duration.ofSeconds(5), Duration.ofMinutes(5), "");
 
         assertThat(brokenWorker.processNextJob()).isTrue();
         Map<String, Object> job = jdbcTemplate.queryForMap(
@@ -314,7 +314,7 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
 
         QdrantVectorIndexClient deadClient =
                 new QdrantVectorIndexClient("http://127.0.0.1:1", Duration.ofMillis(500));
-        RagSearchService degraded = new RagSearchService(permissions, embeddingClient, deadClient);
+        RagSearchService degraded = new RagSearchService(permissions, embeddingClient, deadClient, "");
 
         assertThatThrownBy(() -> degraded.search(ownerId, organizationId, "degradation probe", null, null))
                 .isInstanceOf(RagUnavailableException.class);
