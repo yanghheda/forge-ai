@@ -17,6 +17,10 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/work-item-api", () => api);
+vi.mock("@/features/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/auth")>()),
+  getCurrentUser: vi.fn().mockResolvedValue({ id: 6, organization: { id: 0, roles: ["QA"] } }),
+}));
 
 afterEach(() => {
   cleanup();

@@ -129,4 +129,42 @@ describe("ReleaseWorkspaceView", () => {
     expect(decide).toHaveBeenNthCalledWith(1, deployment, "APPROVE");
     expect(decide).toHaveBeenNthCalledWith(2, deployment, "REJECT");
   });
+
+  it("非研发与发布审批角色只读：隐藏预检、部署、审批与保存说明入口", () => {
+    const deployment: DeploymentView = {
+      id: 9,
+      releaseId: 18,
+      mode: "SIMULATED",
+      status: "PENDING_APPROVAL",
+      requestedBy: 3,
+      approverUserId: null,
+      approvalExpiresAt: "2026-09-10T03:00:00Z",
+      resultCode: null,
+      resultSummary: null,
+      version: 0,
+    };
+    render(
+      <ReleaseWorkspaceView
+        requirement={{ itemKey: "DEMO-1", title: "发布闭环", status: "READY_FOR_RELEASE" }}
+        release={release}
+        deployments={[deployment]}
+        busy={false}
+        readOnly
+        noteDraft={release.releaseNote}
+        onNoteChange={vi.fn()}
+        onCreate={vi.fn()}
+        onSaveNote={vi.fn()}
+        onPrecheck={vi.fn()}
+        onRequestDeployment={vi.fn()}
+        onDecide={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "重新运行预检" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "申请 HIGH 审批并模拟部署" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存说明" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "批准" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "拒绝" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Release Note")).toHaveAttribute("readonly");
+  });
 });

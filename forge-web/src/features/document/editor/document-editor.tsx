@@ -14,6 +14,8 @@ interface DocumentEditorProps {
   serverContent: ProseMirrorDocument;
   onSave(content: ProseMirrorDocument): Promise<void>;
   onOutlineChange?(outline: DocumentOutlineItem[]): void;
+  /* 非对应角色打开文档时进入只读视图：不加载本地草稿、不写入正文、不提供保存入口。 */
+  readOnly?: boolean;
 }
 
 export interface DocumentOutlineItem {
@@ -23,17 +25,20 @@ export interface DocumentOutlineItem {
   title: string;
 }
 
-export function DocumentEditor({ userId, documentId, baseVersion, serverContent, onSave, onOutlineChange }: DocumentEditorProps) {
-  const [draft, setDraft] = useState(() => loadDraft(userId, documentId, baseVersion));
+export function DocumentEditor({ userId, documentId, baseVersion, serverContent, onSave, onOutlineChange, readOnly = false }: DocumentEditorProps) {
+  const [draft, setDraft] = useState(() => (readOnly ? null : loadDraft(userId, documentId, baseVersion)));
   const [dirty, setDirty] = useState(() => Boolean(draft));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const editor = useEditor({
     extensions: [StarterKit],
     content: draft ?? serverContent,
-    editable: true,
+    editable: !readOnly,
     onCreate: ({ editor: instance }) => syncOutline(instance, onOutlineChange),
     onUpdate: ({ editor: instance }) => {
+      if (readOnly) {
+        return;
+      }
       const content = instance.getJSON() as ProseMirrorDocument;
       setDirty(true);
       setDraft(content);
@@ -57,7 +62,7 @@ export function DocumentEditor({ userId, documentId, baseVersion, serverContent,
     }
   };
   return (
-    <section aria-label="文档编辑器" className={styles.editor}>
+    <section aria-label="文档编辑器" className={readOnly ? `${styles.editor} ${styles.readOnly}` : styles.editor}>
       {draft && (
         <p className={styles.draftAlert} role="alert">
           检测到本地草稿，请确认内容后再保存为新版本。
@@ -66,55 +71,61 @@ export function DocumentEditor({ userId, documentId, baseVersion, serverContent,
       <div className={styles.toolbar} aria-label="文档格式工具栏">
         <div className={styles.formatActions}>
           <div className={styles.toolGroup}>
-            <button type="button" aria-label="正文" aria-pressed={editor.isActive("paragraph")} onClick={() => editor.chain().focus().setParagraph().run()}>
+            <button type="button" aria-label="正文" aria-pressed={editor.isActive("paragraph")} disabled={readOnly} onClick={() => editor.chain().focus().setParagraph().run()}>
               正文
             </button>
-            <button type="button" aria-label="二级标题" aria-pressed={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+            <button type="button" aria-label="二级标题" aria-pressed={editor.isActive("heading", { level: 2 })} disabled={readOnly} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
               H2
             </button>
-            <button type="button" aria-label="一级标题" aria-pressed={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+            <button type="button" aria-label="一级标题" aria-pressed={editor.isActive("heading", { level: 1 })} disabled={readOnly} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
               H1
             </button>
           </div>
           <span className={styles.separator} />
           <div className={styles.toolGroup}>
-            <button type="button" aria-label="粗体" aria-pressed={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
+            <button type="button" aria-label="粗体" aria-pressed={editor.isActive("bold")} disabled={readOnly} onClick={() => editor.chain().focus().toggleBold().run()}>
               <strong>B</strong>
             </button>
-            <button type="button" aria-label="斜体" aria-pressed={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}>
+            <button type="button" aria-label="斜体" aria-pressed={editor.isActive("italic")} disabled={readOnly} onClick={() => editor.chain().focus().toggleItalic().run()}>
               <em>I</em>
             </button>
-            <button type="button" aria-label="删除线" aria-pressed={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}>
+            <button type="button" aria-label="删除线" aria-pressed={editor.isActive("strike")} disabled={readOnly} onClick={() => editor.chain().focus().toggleStrike().run()}>
               <s>S</s>
             </button>
-            <button type="button" aria-label="无序列表" aria-pressed={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+            <button type="button" aria-label="无序列表" aria-pressed={editor.isActive("bulletList")} disabled={readOnly} onClick={() => editor.chain().focus().toggleBulletList().run()}>
               • 列表
             </button>
-            <button type="button" aria-label="有序列表" aria-pressed={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+            <button type="button" aria-label="有序列表" aria-pressed={editor.isActive("orderedList")} disabled={readOnly} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
               1. 列表
             </button>
-            <button type="button" aria-label="引用" aria-pressed={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+            <button type="button" aria-label="引用" aria-pressed={editor.isActive("blockquote")} disabled={readOnly} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
               “ ”
             </button>
-            <button type="button" aria-label="代码块" aria-pressed={editor.isActive("codeBlock")} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
+            <button type="button" aria-label="代码块" aria-pressed={editor.isActive("codeBlock")} disabled={readOnly} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
               {"</>"}
             </button>
           </div>
           <span className={styles.separator} />
           <div className={styles.toolGroup}>
-            <button type="button" aria-label="撤销" onClick={() => editor.chain().focus().undo().run()}>
+            <button type="button" aria-label="撤销" disabled={readOnly} onClick={() => editor.chain().focus().undo().run()}>
               ↶
             </button>
-            <button type="button" aria-label="重做" onClick={() => editor.chain().focus().redo().run()}>
+            <button type="button" aria-label="重做" disabled={readOnly} onClick={() => editor.chain().focus().redo().run()}>
               ↷
             </button>
           </div>
         </div>
         <div className={styles.saveActions}>
-          <span className={dirty ? styles.unsaved : styles.saved}>{dirty ? "有未保存的修改" : savedAt ? `已保存于 ${savedAt.toLocaleTimeString()}` : "修改后可保存新版本"}</span>
-          <button className={styles.saveButton} type="button" disabled={saving || !dirty} onClick={() => void save()}>
-            {saving ? "正在保存…" : "保存为新版本"}
-          </button>
+          {readOnly ? (
+            <span className={styles.readOnlyBadge}>只读</span>
+          ) : (
+            <>
+              <span className={dirty ? styles.unsaved : styles.saved}>{dirty ? "有未保存的修改" : savedAt ? `已保存于 ${savedAt.toLocaleTimeString()}` : "修改后可保存新版本"}</span>
+              <button className={styles.saveButton} type="button" disabled={saving || !dirty} onClick={() => void save()}>
+                {saving ? "正在保存…" : "保存为新版本"}
+              </button>
+            </>
+          )}
         </div>
       </div>
       <div className={styles.paper}>

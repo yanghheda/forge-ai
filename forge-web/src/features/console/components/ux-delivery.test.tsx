@@ -38,4 +38,14 @@ describe("UxWorkspaceView", () => {
     await userEvent.click(reject);
     expect(onAction).not.toHaveBeenCalled();
   });
+
+  it("非设计角色只读：禁用编辑、AI 生成与设计检查点", () => {
+    render(<UxWorkspaceView model={model} checklist={{ userFlow: true, pageList: true, keyInteraction: true, exceptionState: true }} busy={false} reason="" readOnly onChecklistChange={vi.fn()} onReasonChange={vi.fn()} onAction={vi.fn()} onGenerate={vi.fn()} onEdit={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "编辑 UX Spec" })).toBeDisabled();
+    // 顶部与画板工具栏各有一个同名入口，二者都必须禁用。
+    for (const button of screen.getAllByRole("button", { name: "AI 生成画板" })) expect(button).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /用户流/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "通过 UX 评审" })).toBeDisabled();
+  });
 });

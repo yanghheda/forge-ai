@@ -88,6 +88,13 @@
   font-weight: 600;
 }
 
+.toolGroup button:disabled {
+  border-color: transparent;
+  color: var(--forge-text-3);
+  background: transparent;
+  cursor: not-allowed;
+}
+
 .separator {
   width: 1px;
   height: 18px;
@@ -167,6 +174,20 @@
 .paper :global(.tiptap pre code) {
   padding: 0;
   background: transparent;
+}
+
+.readOnly .paper :global(.tiptap) {
+  caret-color: transparent;
+  cursor: default;
+}
+
+.readOnlyBadge {
+  padding: 2px 9px;
+  border: 1px solid var(--forge-border-3);
+  border-radius: 10px;
+  color: var(--forge-text-3);
+  background: var(--forge-fill-2);
+  font-size: 11px;
 }
 
 .saved,

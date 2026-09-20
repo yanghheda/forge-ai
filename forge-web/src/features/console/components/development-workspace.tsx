@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { triggerPipeline } from "@/features/gitlab";
+import { canEditModule, getCurrentUser } from "@/features/auth";
 import { completeDevTask, createDevTask, getDevelopmentSummary, getRequirementWorkflow, startDevelopment, type DevelopmentQaSummary, type DevelopmentQaTask, type RequirementWorkflow } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
 import { ChainNode, Empty, Guard, Panel, Stat, shortSha, statusLabel, syncText } from "./development-workspace-parts";
@@ -15,6 +16,7 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
   const queryClient = useQueryClient();
   const summaryKey = ["development-summary", requirementId];
   const workflowKey = ["requirements", requirementId, "workflow"];
+  const user = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
   const summary = useQuery({ queryKey: summaryKey, queryFn: () => getDevelopmentSummary(0, requirementId), refetchInterval: 3_000 });
   const workflow = useQuery({ queryKey: workflowKey, queryFn: () => getRequirementWorkflow(requirementId) });
   const refresh = async () => {
@@ -33,7 +35,7 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
   });
   const complete = useMutation({ mutationFn: ({ taskId, version }: { taskId: number; version: number }) => completeDevTask({ organizationId: 0, taskId, expectedVersion: version }), onSuccess: refresh, onError: (error) => Message.error(formatRequestError(error)) });
 
-  if (summary.isPending || workflow.isPending)
+  if (summary.isPending || workflow.isPending || user.isPending)
     return (
       <div className={styles.loading}>
         <Spin tip="正在加载开发工作区…" />
@@ -54,6 +56,7 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
       summary={summary.data}
       workflow={workflow.data}
       pending={pending}
+      readOnly={!canEditModule(user.data?.organization.roles, "development")}
       onCreate={(title, description) => create.mutateAsync({ title, description }).then(() => undefined)}
       onStart={(taskId) => start.mutate(taskId)}
       onTriggerPipeline={(taskId, ref) => pipeline.mutate({ taskId, ref })}
@@ -70,6 +73,7 @@ export function DevelopmentWorkspaceView({
   summary,
   workflow,
   pending,
+  readOnly = false,
   onCreate,
   onStart,
   onTriggerPipeline,
@@ -79,6 +83,7 @@ export function DevelopmentWorkspaceView({
   summary: DevelopmentQaSummary;
   workflow: RequirementWorkflow;
   pending?: DevelopmentPendingAction;
+  readOnly?: boolean;
   onCreate: (title: string, description: string) => Promise<void>;
   onStart: (taskId: number) => void;
   onTriggerPipeline: (taskId: number, ref: string) => void;
@@ -143,7 +148,7 @@ export function DevelopmentWorkspaceView({
                   <span className={styles.muted}>
                     {completed}/{tasks.length} 已完成
                   </span>
-                  {canCreateTask && (
+                  {canCreateTask && !readOnly && (
                     <Button type="primary" size="small" onClick={() => setCreatorOpen(true)}>
                       新建 Dev Task
                     </Button>
@@ -191,12 +196,12 @@ export function DevelopmentWorkspaceView({
                               查看 MR
                             </Button>
                           )}
-                          {task.status === "TODO" && (
+                          {task.status === "TODO" && !readOnly && (
                             <Button size="small" loading={isBusy("start", task.id)} onClick={() => onStart(task.id)}>
                               启动开发
                             </Button>
                           )}
-                          {(task.status === "IN_PROGRESS" || task.status === "DONE") && task.branchName && (
+                          {(task.status === "IN_PROGRESS" || task.status === "DONE") && task.branchName && !readOnly && (
                             <>
                               <Button size="small" loading={isBusy("pipeline", task.id)} onClick={() => onTriggerPipeline(task.id, task.branchName!)}>
                                 {task.pipelineId ? "重新触发 Pipeline" : "触发 Pipeline"}

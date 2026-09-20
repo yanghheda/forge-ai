@@ -5,7 +5,7 @@ import { IconCheck, IconClockCircle, IconClose, IconEdit, IconPlus, IconRefresh,
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { getCurrentUser } from "@/features/auth";
+import { canEditModule, getCurrentUser } from "@/features/auth";
 import { createRelease, decideDeployment, listDeployments, listReleases, requestDeployment, runPrecheck, updateReleaseNote, type DeploymentView, type PrecheckResult, type ReleaseView } from "@/features/release";
 import { getOrganizationRequirement, type OrganizationRequirement } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
@@ -56,6 +56,7 @@ export function ReleaseWorkspace({ requirementId }: { requirementId: number }) {
       release={release}
       deployments={deployments.data ?? []}
       busy={create.isPending || note.isPending || precheck.isPending || deploy.isPending || decide.isPending}
+      readOnly={!canEditModule(user.data.organization.roles, "release")}
       noteDraft={effectiveNote}
       onNoteChange={setNoteDraft}
       onCreate={(versionName, environment) => create.mutate({ versionName, environment })}
@@ -72,6 +73,7 @@ export function ReleaseWorkspaceView({
   release,
   deployments,
   busy,
+  readOnly = false,
   noteDraft,
   onNoteChange,
   onCreate,
@@ -84,6 +86,7 @@ export function ReleaseWorkspaceView({
   release: ReleaseView | null;
   deployments: DeploymentView[];
   busy: boolean;
+  readOnly?: boolean;
   noteDraft: string;
   onNoteChange: (value: string) => void;
   onCreate: (versionName: string, environment: string) => void;
@@ -94,7 +97,7 @@ export function ReleaseWorkspaceView({
 }) {
   const [versionName, setVersionName] = useState("");
   const [environment, setEnvironment] = useState("staging");
-  if (!release) return <CreateRelease requirement={requirement} versionName={versionName} environment={environment} busy={busy} onVersionName={setVersionName} onEnvironment={setEnvironment} onCreate={() => onCreate(versionName.trim(), environment)} />;
+  if (!release) return <CreateRelease requirement={requirement} versionName={versionName} environment={environment} busy={busy} readOnly={readOnly} onVersionName={setVersionName} onEnvironment={setEnvironment} onCreate={() => onCreate(versionName.trim(), environment)} />;
   const snapshot = release.latestPrecheck;
   const passed = snapshot?.checks.filter((check) => check.passed).length ?? 0;
   const deployable = snapshot?.status === "PASS" && snapshot.current;
@@ -107,10 +110,10 @@ export function ReleaseWorkspaceView({
           <p>ReleaseAgent · 确定性预检查 / HIGH 审批 / 模拟部署</p>
         </div>
         <div className={styles.headActions}>
-          <Button icon={<IconRefresh />} loading={busy} onClick={onPrecheck}>
+          <Button icon={<IconRefresh />} disabled={readOnly} loading={busy} onClick={onPrecheck}>
             {snapshot ? "重新运行预检" : "运行发布预检"}
           </Button>
-          <Button type="primary" icon={<IconThunderbolt />} disabled={!deployable} loading={busy} onClick={onRequestDeployment}>
+          <Button type="primary" icon={<IconThunderbolt />} disabled={!deployable || readOnly} loading={busy} onClick={onRequestDeployment}>
             申请 HIGH 审批并模拟部署
           </Button>
         </div>
@@ -159,7 +162,7 @@ export function ReleaseWorkspaceView({
           <Panel
             title="Release Note"
             extra={
-              <Button size="small" icon={<IconEdit />} disabled={!noteDraft.trim() || noteDraft === release.releaseNote} loading={busy} onClick={onSaveNote}>
+              <Button size="small" icon={<IconEdit />} disabled={readOnly || !noteDraft.trim() || noteDraft === release.releaseNote} loading={busy} onClick={onSaveNote}>
                 保存说明
               </Button>
             }
@@ -167,11 +170,11 @@ export function ReleaseWorkspaceView({
             <div className={styles.noteMeta}>
               <IconRobot /> 当前内容来自 Release 聚合，可由人工或 ReleaseAgent 编辑
             </div>
-            <Input.TextArea aria-label="Release Note" value={noteDraft} onChange={onNoteChange} autoSize={{ minRows: 10, maxRows: 22 }} placeholder="填写变更概述、功能、修复、已知问题和回滚说明" />
+            <Input.TextArea aria-label="Release Note" value={noteDraft} readOnly={readOnly} onChange={onNoteChange} autoSize={{ minRows: 10, maxRows: 22 }} placeholder="填写变更概述、功能、修复、已知问题和回滚说明" />
           </Panel>
         </main>
         <aside className={styles.stack}>
-          <ApprovalPanel deployment={currentDeployment} busy={busy} onDecide={onDecide} />
+          <ApprovalPanel deployment={currentDeployment} busy={busy} readOnly={readOnly} onDecide={onDecide} />
           <Panel title="发布风险">
             <Risk label="执行动作" value="HIGH" danger />
             <Risk label="部署模式" value="SIMULATED" />
@@ -189,6 +192,7 @@ function CreateRelease({
   versionName,
   environment,
   busy,
+  readOnly = false,
   onVersionName,
   onEnvironment,
   onCreate,
@@ -197,6 +201,7 @@ function CreateRelease({
   versionName: string;
   environment: string;
   busy: boolean;
+  readOnly?: boolean;
   onVersionName: (value: string) => void;
   onEnvironment: (value: string) => void;
   onCreate: () => void;
@@ -220,13 +225,14 @@ function CreateRelease({
           <p>候选版本将聚合当前 Requirement 的 CI、QA、Bug 与 Release Note，并由服务端运行六项确定性检查。</p>
           <label>
             <span>版本号</span>
-            <Input aria-label="发布版本号" value={versionName} onChange={onVersionName} placeholder="v0.2.0-rc1" />
+            <Input aria-label="发布版本号" value={versionName} readOnly={readOnly} onChange={onVersionName} placeholder="v0.2.0-rc1" />
           </label>
           <label>
             <span>目标环境</span>
             <Select
               aria-label="目标环境"
               value={environment}
+              disabled={readOnly}
               onChange={onEnvironment}
               options={[
                 { label: "staging", value: "staging" },
@@ -235,9 +241,11 @@ function CreateRelease({
             />
           </label>
           <Alert type="info" content="本项目只执行 SIMULATED 模式，不会连接或改变生产环境。" />
-          <Button type="primary" loading={busy} disabled={!versionName.trim()} onClick={onCreate}>
-            创建发布候选版本
-          </Button>
+          {!readOnly && (
+            <Button type="primary" loading={busy} disabled={!versionName.trim()} onClick={onCreate}>
+              创建发布候选版本
+            </Button>
+          )}
         </div>
       </Panel>
     </div>
@@ -308,7 +316,7 @@ function PrecheckTable({ checks }: { checks: PrecheckResult[] }) {
     </div>
   );
 }
-function ApprovalPanel({ deployment, busy, onDecide }: { deployment?: DeploymentView; busy: boolean; onDecide: (deployment: DeploymentView, decision: "APPROVE" | "REJECT") => void }) {
+function ApprovalPanel({ deployment, busy, readOnly = false, onDecide }: { deployment?: DeploymentView; busy: boolean; readOnly?: boolean; onDecide: (deployment: DeploymentView, decision: "APPROVE" | "REJECT") => void }) {
   return (
     <Panel title="HIGH 风险审批" extra={<Tag color="red">HIGH</Tag>}>
       <Alert type="warning" content="审批冻结 Release version 与 PASS Precheck；过期或资源变化后自动失效。" />
@@ -323,7 +331,7 @@ function ApprovalPanel({ deployment, busy, onDecide }: { deployment?: Deployment
               </p>
             </div>
           </div>
-          {deployment.status === "PENDING_APPROVAL" && (
+          {deployment.status === "PENDING_APPROVAL" && !readOnly && (
             <div className={styles.approvalActions}>
               <Button type="primary" loading={busy} onClick={() => onDecide(deployment, "APPROVE")}>
                 批准

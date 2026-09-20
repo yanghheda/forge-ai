@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const run = vi.fn();
 const chain = {
@@ -25,7 +25,7 @@ const editor = {
   setEditable: vi.fn(),
   view: { dom: document.createElement("div") },
 };
-let editorOptions: { onCreate?: (event: { editor: typeof editor }) => void; onUpdate?: (event: { editor: typeof editor }) => void } = {};
+let editorOptions: { editable?: boolean; onCreate?: (event: { editor: typeof editor }) => void; onUpdate?: (event: { editor: typeof editor }) => void } = {};
 
 vi.mock("@tiptap/react", () => ({
   EditorContent: () => <div data-testid="editor-content" />,
@@ -38,6 +38,8 @@ vi.mock("@tiptap/react", () => ({
 import { DocumentEditor } from "./document-editor";
 
 describe("DocumentEditor", () => {
+  afterEach(cleanup);
+
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
@@ -88,5 +90,14 @@ describe("DocumentEditor", () => {
       { headingIndex: 0, level: 2, title: "用户场景" },
       { headingIndex: 2, level: 3, title: "权限矩阵" },
     ]);
+  });
+
+  it("只读模式下禁用正文编辑、隐藏保存并把编辑器设为不可编辑", () => {
+    render(<DocumentEditor userId={1} documentId={2} baseVersion={3} serverContent={{ type: "doc" }} onSave={vi.fn()} readOnly />);
+
+    expect(editorOptions).toMatchObject({ editable: false });
+    expect(screen.queryByRole("button", { name: "保存为新版本" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "粗体" })).toBeDisabled();
+    expect(screen.getByText("只读")).toBeInTheDocument();
   });
 });

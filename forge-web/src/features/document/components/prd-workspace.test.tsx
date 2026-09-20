@@ -1,9 +1,10 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/features/auth", () => ({
-  getCurrentUser: vi.fn().mockResolvedValue({ id: 7, organization: { id: 10 } }),
+vi.mock("@/features/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/auth")>()),
+  getCurrentUser: vi.fn().mockResolvedValue({ id: 7, organization: { id: 10, roles: ["PRODUCT"] } }),
 }));
 vi.mock("../api/document-api", () => ({
   listWorkItemDocuments: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock("../editor/document-editor", async (importOriginal) => ({
   ),
 }));
 
+import { getCurrentUser } from "@/features/auth";
 import { listDocumentVersions, listWorkItemDocuments } from "../api/document-api";
 import { PrdWorkspace } from "./prd-workspace";
 
@@ -48,8 +50,12 @@ function renderWorkspace() {
 }
 
 describe("PrdWorkspace", () => {
+  afterEach(cleanup);
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // 恢复默认的产品角色，避免单个用例改 mock 后污染后续用例。
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: 7, email: "pm@example.com", displayName: "钱产品", organization: { id: 10, slug: "demo", name: "Demo", roles: ["PRODUCT"] } });
     Element.prototype.scrollIntoView = scrollIntoView;
     vi.mocked(listWorkItemDocuments).mockResolvedValue([]);
   });
@@ -96,5 +102,25 @@ describe("PrdWorkspace", () => {
     expect((scrollIntoView.mock.instances[0] as unknown as HTMLElement).textContent).toBe("2 用户故事");
     expect(third).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("button", { name: "1 背景与目标" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("非产品角色只读：隐藏创建、发布与 AI 润色入口", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: 7, email: "qa@example.com", displayName: "赵测试", organization: { id: 10, slug: "demo", name: "Demo", roles: ["QA"] } });
+    vi.mocked(listWorkItemDocuments).mockResolvedValue([{ id: 5, organizationId: 10, workItemId: 1, type: "PRD", title: "DEMO-1 黄金 Demo 产品需求文档", status: "DRAFT", currentVersionId: 9, version: 0 }]);
+    vi.mocked(listDocumentVersions).mockResolvedValue([]);
+    renderWorkspace();
+
+    expect(await screen.findByText("只读")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "AI 润色" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "发布当前版本" })).not.toBeInTheDocument();
+  });
+
+  it("非产品角色且没有 PRD 时不提供创建入口", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: 7, email: "qa@example.com", displayName: "赵测试", organization: { id: 10, slug: "demo", name: "Demo", roles: ["QA"] } });
+    vi.mocked(listWorkItemDocuments).mockResolvedValue([]);
+    renderWorkspace();
+
+    expect(await screen.findByText("只读")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "创建 PRD 文档" })).not.toBeInTheDocument();
   });
 });

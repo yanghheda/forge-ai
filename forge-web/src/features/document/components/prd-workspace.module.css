@@ -106,6 +106,14 @@
   line-height: 1.5;
   text-align: right;
 }
+.readOnlyBadge {
+  padding: 2px 9px;
+  border: 1px solid var(--forge-border-3);
+  border-radius: 10px;
+  color: var(--forge-text-3);
+  background: var(--forge-fill-2);
+  font-size: 11px;
+}
 .columns {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);

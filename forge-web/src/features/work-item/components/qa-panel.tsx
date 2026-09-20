@@ -5,6 +5,7 @@ import { IconCheck, IconClose, IconExclamationCircle, IconPlus } from "@arco-des
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { canEditModule, getCurrentUser } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
 import { bugActionLabel, guardHintLabel, testResultLabel } from "@/lib/labels";
 import { completeTestRun, createBug, createTestCase, createTestRun, getLatestTestRun, listBugs, listTestCases, transitionBug, updateTestResult, type BugView, type TestCasePriority, type TestCaseType, type TestRunView } from "../api/work-item-api";
@@ -16,6 +17,7 @@ type QaTab = "cases" | "bugs";
 export function QaPanel({ organizationId, requirementId, onChanged }: { organizationId: number; requirementId: number; onChanged: () => Promise<unknown> }) {
   const client = useQueryClient();
   const key = ["qa", organizationId, requirementId];
+  const user = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
   const cases = useQuery({ queryKey: [...key, "cases"], queryFn: () => listTestCases(organizationId, requirementId) });
   const run = useQuery({ queryKey: [...key, "run"], queryFn: () => getLatestTestRun(organizationId, requirementId), retry: false });
   const bugs = useQuery({ queryKey: [...key, "bugs"], queryFn: () => listBugs(organizationId, requirementId) });
@@ -94,6 +96,7 @@ export function QaPanel({ organizationId, requirementId, onChanged }: { organiza
         <Spin tip="正在加载 QA 数据…" />
       </div>
     );
+  const readOnly = !canEditModule(user.data?.organization.roles, "qa");
   return (
     <div className={styles.workspace}>
       {error && <Alert type="error" content={formatRequestError(error)} />}
@@ -101,12 +104,12 @@ export function QaPanel({ organizationId, requirementId, onChanged }: { organiza
         {activeTab === "cases" ? (
           <>
             <Button disabled>导入用例</Button>
-            <Button type="primary" icon={<IconPlus />} onClick={() => setCaseDrawer(true)}>
+            <Button type="primary" icon={<IconPlus />} disabled={readOnly} onClick={() => setCaseDrawer(true)}>
               新建测试用例
             </Button>
           </>
         ) : (
-          <Button type="primary" icon={<IconPlus />} onClick={() => setBugDrawer(true)}>
+          <Button type="primary" icon={<IconPlus />} disabled={readOnly} onClick={() => setBugDrawer(true)}>
             创建缺陷
           </Button>
         )}
@@ -128,13 +131,13 @@ export function QaPanel({ organizationId, requirementId, onChanged }: { organiza
       </div>
       {activeTab === "cases" && (
         <div className={styles.mainGrid} role="tabpanel">
-          <CaseTable cases={cases.data ?? []} run={run.data} busy={update.isPending || createRun.isPending || complete.isPending} onStart={() => createRun.mutate()} onComplete={() => complete.mutate()} onResult={(testCaseId, status) => update.mutate({ testCaseId, status })} />
+          <CaseTable cases={cases.data ?? []} run={run.data} readOnly={readOnly} busy={update.isPending || createRun.isPending || complete.isPending} onStart={() => createRun.mutate()} onComplete={() => complete.mutate()} onResult={(testCaseId, status) => update.mutate({ testCaseId, status })} />
           <GatePanel run={run.data} blockingBugs={blockingBugs} />
         </div>
       )}
       {activeTab === "bugs" && (
         <div role="tabpanel">
-          <BugList bugs={bugs.data ?? []} onAction={(bug, action, reason, evidence) => moveBug.mutate({ bug, action, reason, evidence })} />
+          <BugList bugs={bugs.data ?? []} readOnly={readOnly} onAction={(bug, action, reason, evidence) => moveBug.mutate({ bug, action, reason, evidence })} />
         </div>
       )}
       <Drawer
@@ -239,7 +242,7 @@ function Metric({ label, value, note, tone = "blue", progress }: { label: string
   );
 }
 
-function CaseTable({ cases, run, busy, onStart, onComplete, onResult }: { cases: Awaited<ReturnType<typeof listTestCases>>; run?: TestRunView; busy: boolean; onStart: () => void; onComplete: () => void; onResult: (testCaseId: number, status: ResultChoice) => void }) {
+function CaseTable({ cases, run, readOnly = false, busy, onStart, onComplete, onResult }: { cases: Awaited<ReturnType<typeof listTestCases>>; run?: TestRunView; readOnly?: boolean; busy: boolean; onStart: () => void; onComplete: () => void; onResult: (testCaseId: number, status: ResultChoice) => void }) {
   const results = new Map(run?.results.map((item) => [item.testCaseId, item]));
   const [selected, setSelected] = useState<(typeof cases)[number]>();
   const selectedResult = selected ? results.get(selected.id) : undefined;
@@ -251,15 +254,16 @@ function CaseTable({ cases, run, busy, onStart, onComplete, onResult }: { cases:
         <span>全部优先级</span>
         <span>全部类型</span>
         <span className={styles.search}>搜索用例编号 / 标题</span>
-        {activeRun ? (
-          <Button size="small" type="primary" loading={busy} disabled={!canComplete} onClick={onComplete}>
-            完成本轮测试
-          </Button>
-        ) : (
-          <Button size="small" type="primary" loading={busy} disabled={!cases.length} onClick={onStart}>
-            {run?.status === "COMPLETED" ? "开始新一轮测试" : "开始人工测试"}
-          </Button>
-        )}
+        {!readOnly &&
+          (activeRun ? (
+            <Button size="small" type="primary" loading={busy} disabled={!canComplete} onClick={onComplete}>
+              完成本轮测试
+            </Button>
+          ) : (
+            <Button size="small" type="primary" loading={busy} disabled={!cases.length} onClick={onStart}>
+              {run?.status === "COMPLETED" ? "开始新一轮测试" : "开始人工测试"}
+            </Button>
+          ))}
       </div>
       <div className={styles.tableWrap}>
         <table>
@@ -300,7 +304,7 @@ function CaseTable({ cases, run, busy, onStart, onComplete, onResult }: { cases:
                       aria-label={`${item.title} 结果`}
                       size="small"
                       value={result?.status ?? "NOT_RUN"}
-                      disabled={busy}
+                      disabled={busy || readOnly}
                       onChange={(status) => status !== "NOT_RUN" && onResult(item.id, status)}
                       options={[{ label: testResultLabel("NOT_RUN"), value: "NOT_RUN", disabled: true }, ...["IN_PROGRESS", "PASS", "FAIL", "BLOCKED", "SKIPPED"].map((value) => ({ label: testResultLabel(value), value }))]}
                     />
@@ -371,7 +375,7 @@ function GatePanel({ run, blockingBugs }: { run?: TestRunView; blockingBugs: Bug
 }
 
 type BugAction = "START_FIX" | "RESOLVE" | "VERIFY" | "CLOSE" | "REOPEN";
-export function BugList({ bugs, onAction }: { bugs: BugView[]; onAction: (bug: BugView, action: BugAction, reason?: string, evidence?: string) => void }) {
+export function BugList({ bugs, readOnly = false, onAction }: { bugs: BugView[]; readOnly?: boolean; onAction: (bug: BugView, action: BugAction, reason?: string, evidence?: string) => void }) {
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [evidence, setEvidence] = useState<Record<number, string>>({});
   const [selected, setSelected] = useState<BugView>();
@@ -417,7 +421,7 @@ export function BugList({ bugs, onAction }: { bugs: BugView[]; onAction: (bug: B
                   <td>{bug.devTaskKey ?? "—"}</td>
                   <td>{bug.assigneeName ?? "—"}</td>
                   <td>
-                    {bug.status === "IN_PROGRESS" ? (
+                    {bug.status === "IN_PROGRESS" && !readOnly ? (
                       <div className={styles.fixInputs}>
                         <Input aria-label={`${bug.itemKey} 修复说明`} placeholder="修复说明" value={notes[bug.id] ?? ""} onChange={(value) => setNotes((current) => ({ ...current, [bug.id]: value }))} />
                         <Input aria-label={`${bug.itemKey} 修复证据`} placeholder="MR 或 Commit" value={evidence[bug.id] ?? ""} onChange={(value) => setEvidence((current) => ({ ...current, [bug.id]: value }))} />
@@ -427,7 +431,7 @@ export function BugList({ bugs, onAction }: { bugs: BugView[]; onAction: (bug: B
                     )}
                   </td>
                   <td>
-                    {action ? (
+                    {action && !readOnly ? (
                       <Button type="text" disabled={action === "RESOLVE" && (!notes[bug.id]?.trim() || !evidence[bug.id]?.trim())} onClick={() => onAction(bug, action, notes[bug.id], evidence[bug.id])}>
                         {bugActionLabel(action)}
                       </Button>

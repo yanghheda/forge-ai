@@ -154,4 +154,13 @@ describe("DevelopmentWorkspaceView", () => {
     fireEvent.click(button);
     await waitFor(() => expect(create).toHaveBeenCalledWith("实现登录接口", "覆盖验证码和 Session"));
   });
+
+  it("非研发角色只读：隐藏新建与任务操作", () => {
+    render(<DevelopmentWorkspaceView summary={summary} workflow={{ version: 5, availableActions: [], guardHints: {} }} readOnly onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "新建 Dev Task" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重新触发 Pipeline" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "完成任务" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "同步状态" })).toBeInTheDocument();
+  });
 });

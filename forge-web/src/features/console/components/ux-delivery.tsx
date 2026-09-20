@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { createAgentRun } from "@/features/agent-run";
-import { getCurrentUser } from "@/features/auth";
+import { canEditModule, getCurrentUser } from "@/features/auth";
 import { createDocument, DocumentEditor, listDocumentVersions, listWorkItemDocuments, publishDocumentVersion, saveDocumentVersion, type Document, type DocumentVersion, type ProseMirrorDocument } from "@/features/document";
 import {
   getDeliveryGraph,
@@ -126,6 +126,7 @@ export function UxDelivery({ requirementId }: { requirementId: number }) {
   if (pending) return <Spin tip="正在加载 UX 工作区…" />;
   if (error || !user.data || !requirement.data || !workflow.data) return <Alert type="error" content={formatRequestError(error ?? new Error("无法加载 UX 工作区"))} />;
   const uxParticipant = participants.data?.find((item) => item.role === "UX");
+  const canEdit = canEditModule(user.data.organization.roles, "ux");
   const latestReview = [...(activity.data ?? [])].reverse().find((item) => item.action?.includes("UX_REVIEW"));
   const reviewer = members.data?.find((item) => item.userId === latestReview?.actorId)?.displayName ?? "等待评审人";
   return (
@@ -135,6 +136,7 @@ export function UxDelivery({ requirementId }: { requirementId: number }) {
         checklist={checklist}
         busy={transition.isPending || generate.isPending}
         reason={reason}
+        readOnly={!canEdit}
         onChecklistChange={(key, checked) => setChecklist((value) => ({ ...value, [key]: checked }))}
         onReasonChange={setReason}
         onAction={(action) => transition.mutate(action)}
@@ -149,7 +151,7 @@ export function UxDelivery({ requirementId }: { requirementId: number }) {
         footer={
           <>
             <Button onClick={() => setEditorOpen(false)}>关闭</Button>
-            {uxSpec && editableVersion && uxSpec.status !== "PUBLISHED" && (
+            {canEdit && uxSpec && editableVersion && uxSpec.status !== "PUBLISHED" && (
               <Button type="primary" loading={publishSpec.isPending} onClick={() => publishSpec.mutate()}>
                 发布当前版本
               </Button>
@@ -160,13 +162,19 @@ export function UxDelivery({ requirementId }: { requirementId: number }) {
         {!uxSpec ? (
           <div className={styles.editorEmpty}>
             <h2>创建 UX Spec</h2>
-            <p>创建后可编辑正文、保存不可变版本并发布，再提交 UX 评审。</p>
-            <Button type="primary" loading={createSpec.isPending} onClick={() => createSpec.mutate()}>
-              创建 UX Spec
-            </Button>
+            {canEdit ? (
+              <>
+                <p>创建后可编辑正文、保存不可变版本并发布，再提交 UX 评审。</p>
+                <Button type="primary" loading={createSpec.isPending} onClick={() => createSpec.mutate()}>
+                  创建 UX Spec
+                </Button>
+              </>
+            ) : (
+              <p>暂无 UX Spec，等待设计角色创建。</p>
+            )}
           </div>
         ) : (
-          <DocumentEditor key={`${uxSpec.id}-${editableVersion?.id ?? "empty"}`} userId={user.data.id} documentId={uxSpec.id} baseVersion={uxSpec.version} serverContent={editableVersion?.content ?? emptyDocument()} onSave={(content) => saveSpec.mutateAsync(content).then(() => undefined)} />
+          <DocumentEditor key={`${uxSpec.id}-${editableVersion?.id ?? "empty"}`} userId={user.data.id} documentId={uxSpec.id} baseVersion={uxSpec.version} serverContent={editableVersion?.content ?? emptyDocument()} onSave={(content) => saveSpec.mutateAsync(content).then(() => undefined)} readOnly={!canEdit} />
         )}
       </Drawer>
     </>
@@ -178,6 +186,7 @@ export function UxWorkspaceView({
   checklist,
   busy,
   reason,
+  readOnly = false,
   onChecklistChange,
   onReasonChange,
   onAction,
@@ -188,6 +197,7 @@ export function UxWorkspaceView({
   checklist: Checklist;
   busy: boolean;
   reason: string;
+  readOnly?: boolean;
   onChecklistChange: (key: ChecklistKey, checked: boolean) => void;
   onReasonChange: (value: string) => void;
   onAction: (action: RequirementWorkflowAction) => void;
@@ -213,10 +223,10 @@ export function UxWorkspaceView({
         </div>
         <div>
           <Button icon={<IconHistory />}>查看评审历史</Button>
-          <Button icon={<IconEdit />} onClick={onEdit}>
+          <Button icon={<IconEdit />} disabled={readOnly} onClick={onEdit}>
             编辑 UX Spec
           </Button>
-          <Button type="primary" icon={<IconRobot />} loading={busy} onClick={onGenerate}>
+          <Button type="primary" icon={<IconRobot />} disabled={readOnly} loading={busy} onClick={onGenerate}>
             AI 生成画板
           </Button>
         </div>
@@ -252,7 +262,7 @@ export function UxWorkspaceView({
           <Panel title="设计检查点" extra={`${checklistKeys.filter((key) => checklist[key]).length}/4`}>
             <div className={styles.checks}>
               {checklistKeys.map((key) => (
-                <Checkbox key={key} checked={checklist[key]} onChange={(checked) => onChecklistChange(key, checked)}>
+                <Checkbox key={key} checked={checklist[key]} disabled={readOnly} onChange={(checked) => onChecklistChange(key, checked)}>
                   {guardHintLabel(key)}
                 </Checkbox>
               ))}
@@ -267,7 +277,7 @@ export function UxWorkspaceView({
             </b>
             <span>画板</span>
             <span>列表</span>
-            <Button size="small" icon={<IconRobot />} onClick={onGenerate}>
+            <Button size="small" icon={<IconRobot />} disabled={readOnly} onClick={onGenerate}>
               AI 生成画板
             </Button>
           </div>
@@ -310,7 +320,7 @@ export function UxWorkspaceView({
                     type={action.startsWith("APPROVE") || action.startsWith("SUBMIT") ? "primary" : "secondary"}
                     icon={action.startsWith("SUBMIT") ? <IconSend /> : undefined}
                     loading={busy}
-                    disabled={(action === "REJECT_UX_REVIEW" && !reason.trim()) || (action === "SUBMIT_UX_REVIEW" && checklistKeys.some((key) => !checklist[key]))}
+                    disabled={readOnly || (action === "REJECT_UX_REVIEW" && !reason.trim()) || (action === "SUBMIT_UX_REVIEW" && checklistKeys.some((key) => !checklist[key]))}
                     onClick={() => onAction(action)}
                   >
                     {workflowActionLabel(action)}

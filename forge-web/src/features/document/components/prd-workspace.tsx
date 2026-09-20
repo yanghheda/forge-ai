@@ -3,7 +3,7 @@
 import { Alert, Button, Message, Spin } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getCurrentUser } from "@/features/auth";
+import { getCurrentUser, canEditModule } from "@/features/auth";
 import { createAgentRun } from "@/features/agent-run";
 import { formatRequestError } from "@/lib/api";
 import { getOrganizationRequirement, statusLabel } from "@/features/work-item";
@@ -63,6 +63,7 @@ export function PrdWorkspace({ requirementId }: { requirementId: number }) {
   if (loadError || !user.data || !requirement.data) return <Alert type="error" content={formatRequestError(loadError ?? new Error("无法加载 PRD 工作区"))} />;
 
   const published = prd?.status === "PUBLISHED";
+  const canEdit = canEditModule(user.data.organization.roles, "prd");
   const outline = liveOutline ?? (current ? extractDocumentOutline(current.content) : []);
   const currentSection = activeSection ?? outline[0]?.headingIndex ?? null;
 
@@ -99,13 +100,19 @@ export function PrdWorkspace({ requirementId }: { requirementId: number }) {
         </div>
         <div className={styles.headAside}>
           <div className={styles.headActions}>
-            <Button disabled={!prd || !current || save.isPending || publish.isPending} loading={polish.isPending} onClick={() => polish.mutate()}>
-              AI 润色
-            </Button>
-            {prd && current && !published && (
-              <Button type="primary" disabled={save.isPending || polish.isPending} loading={publish.isPending} onClick={() => publish.mutate()}>
-                发布当前版本
-              </Button>
+            {canEdit ? (
+              <>
+                <Button disabled={!prd || !current || save.isPending || publish.isPending} loading={polish.isPending} onClick={() => polish.mutate()}>
+                  AI 润色
+                </Button>
+                {prd && current && !published && (
+                  <Button type="primary" disabled={save.isPending || polish.isPending} loading={publish.isPending} onClick={() => publish.mutate()}>
+                    发布当前版本
+                  </Button>
+                )}
+              </>
+            ) : (
+              <span className={styles.readOnlyBadge}>只读</span>
             )}
           </div>
         </div>
@@ -129,16 +136,31 @@ export function PrdWorkspace({ requirementId }: { requirementId: number }) {
             <div className={styles.emptyEditor}>
               <div>PRD</div>
               <h2>建立这条需求的产品事实</h2>
-              <p>创建后可直接编辑正文、保存不可变版本，并在页面顶部发布和提交评审。</p>
-              <Button type="primary" size="large" loading={create.isPending} onClick={() => create.mutate()}>
-                创建 PRD 文档
-              </Button>
+              {canEdit ? (
+                <>
+                  <p>创建后可直接编辑正文、保存不可变版本，并在页面顶部发布和提交评审。</p>
+                  <Button type="primary" size="large" loading={create.isPending} onClick={() => create.mutate()}>
+                    创建 PRD 文档
+                  </Button>
+                </>
+              ) : (
+                <p>暂无 PRD 文档，等待产品角色创建。</p>
+              )}
             </div>
           ) : versions.isPending ? (
             <Spin tip="正在加载文档版本…" />
           ) : (
             <>
-              <DocumentEditor key={`${prd.id}-${current?.id ?? "empty"}`} userId={user.data.id} documentId={prd.id} baseVersion={prd.version} serverContent={current?.content ?? emptyDocument()} onSave={(content) => save.mutateAsync(content).then(() => undefined)} onOutlineChange={setLiveOutline} />
+              <DocumentEditor
+                key={`${prd.id}-${current?.id ?? "empty"}`}
+                userId={user.data.id}
+                documentId={prd.id}
+                baseVersion={prd.version}
+                serverContent={current?.content ?? emptyDocument()}
+                onSave={(content) => save.mutateAsync(content).then(() => undefined)}
+                onOutlineChange={setLiveOutline}
+                readOnly={!canEdit}
+              />
               {save.isError && <Alert type="error" content={formatRequestError(save.error)} />}
             </>
           )}
