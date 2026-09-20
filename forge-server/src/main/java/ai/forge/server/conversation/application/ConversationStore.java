@@ -13,6 +13,7 @@ public interface ConversationStore {
     int initializeTitle(long organizationId, long userId, long id, String title);
     int insertUserMessage(long conversationId, String body, String runId);
     int touch(long id);
+    int rename(long organizationId, long userId, long id, String title);
     int delete(long organizationId, long userId, long id);
     List<Map<String, Object>> messages(long id);
 }

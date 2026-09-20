@@ -10,6 +10,7 @@ import { formatRequestError } from "@/lib/api";
 import { priorityLabel } from "@/lib/labels";
 import { getDashboardOverview } from "@/features/console";
 import { createOrganizationRequirement, getRequirementOverview, listOrganizationRequirements } from "../api/work-item-api";
+import { statusLabel } from "../utils/requirement-detail-display";
 import styles from "./requirement-dashboard.module.css";
 
 const statuses = ["DRAFT", "PRODUCT_REVIEW", "UX_IN_PROGRESS", "UX_REVIEW", "READY_FOR_DEV", "IN_DEVELOPMENT", "READY_FOR_QA", "IN_QA", "READY_FOR_RELEASE", "RELEASED", "DONE"];
@@ -143,7 +144,7 @@ export function RequirementDashboard({ mine = false }: { mine?: boolean }) {
         <Card className={styles.listCard} title="需求列表">
           <div className={styles.filters}>
             <Input prefix={<IconSearch />} allowClear placeholder="搜索需求标题、编号或描述" value={q} onChange={setQ} />
-            <Select allowClear placeholder="全部状态" value={status} onChange={setStatus} options={statuses.map((value) => ({ label: value, value }))} />
+            <Select allowClear placeholder="全部状态" value={status} onChange={setStatus} options={statuses.map((value) => ({ label: statusLabel[value] ?? value, value }))} />
           </div>
           {requirements.isPending && (
             <div className={styles.loading}>
@@ -166,7 +167,7 @@ export function RequirementDashboard({ mine = false }: { mine?: boolean }) {
                   <strong>{item.title}</strong>
                 </div>
                 <Tag color={item.priority === "HIGH" || item.priority === "URGENT" ? "red" : "orange"}>{priorityLabel(item.priority)}</Tag>
-                <Tag color={item.status === "DONE" || item.status === "RELEASED" ? "green" : "arcoblue"}>{item.status}</Tag>
+                <Tag color={item.status === "DONE" || item.status === "RELEASED" ? "green" : "arcoblue"}>{statusLabel[item.status] ?? item.status}</Tag>
                 <time>{new Date(item.updatedAt).toLocaleDateString("zh-CN")}</time>
               </Link>
             ))}

@@ -24,6 +24,8 @@ public class ConversationController {
     @GetMapping public List<ConversationService.Conversation> list(HttpServletRequest request){return service.list(user(request));}
     @GetMapping("/{id}/messages") public List<ConversationService.Message> messages(@PathVariable long id,HttpServletRequest request){return service.messages(user(request),id);}
     @PostMapping("/{id}/messages") public AgentRunSnapshot send(@PathVariable long id,@Valid @RequestBody SendRequest body,HttpServletRequest request){return service.send(user(request),id,body.message(),body.skill(),body.workItemId());}
+    @PatchMapping("/{id}") public ResponseEntity<Void> rename(@PathVariable long id,@Valid @RequestBody RenameRequest body,HttpServletRequest request){service.rename(user(request),id,body.title());return ResponseEntity.noContent().build();}
+    public record RenameRequest(/* 用户指定的非空会话标题，最多 255 个字符。 */ @NotBlank @Size(max=255) String title){}
     @DeleteMapping("/{id}") public ResponseEntity<Void> delete(@PathVariable long id,HttpServletRequest request){service.delete(user(request),id);return ResponseEntity.noContent().build();}
     private long user(HttpServletRequest request){return AuthController.requireContext(request).userId();}
     public record CreateRequest(/* 会话标题；空值时使用默认标题。 */ @Size(max=255) String title){}

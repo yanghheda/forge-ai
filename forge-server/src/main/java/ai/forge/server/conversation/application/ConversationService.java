@@ -38,6 +38,13 @@ public class ConversationService {
     public AgentRunSnapshot send(long userId,long id,String body,AgentSkill requestedSkill,Long workItemId){long organizationId=requireOwner(userId,id);String message=body==null?"":body.trim();if(message.isEmpty()||message.length()>10000)throw new IllegalArgumentException("message length must be 1..10000");Long bound=mapper.requirementId(organizationId,userId,id);if(bound!=null&&workItemId!=null&&!bound.equals(workItemId))throw new IllegalArgumentException("conversation is already bound to another requirement");Long effectiveWorkItemId=bound==null?workItemId:bound;AgentSkill skill=stageSkill(organizationId,effectiveWorkItemId);if(bound==null&&effectiveWorkItemId!=null){mapper.bindRequirement(organizationId,userId,id,effectiveWorkItemId);Long persisted=mapper.requirementId(organizationId,userId,id);if(!effectiveWorkItemId.equals(persisted))throw new IllegalArgumentException("conversation is already bound to another requirement");}if(requestedSkill!=null&&requestedSkill!=skill)throw new IllegalArgumentException("skill does not match requirement stage");AgentRunSnapshot run=runs.create(userId,organizationId,effectiveWorkItemId,skill,MediumToolConfirmation.ALLOW,message,"conversation-"+id+"-"+UUID.randomUUID(),UUID.randomUUID().toString());mapper.initializeTitle(organizationId,userId,id,generatedTitle(message));mapper.insertUserMessage(id,message,run.id());mapper.touch(id);return run;}
     @Transactional
     public void delete(long userId,long id){long organizationId=requireOwner(userId,id);if(mapper.delete(organizationId,userId,id)!=1)throw new ResourceNotFoundException();}
+    @Transactional
+    public void rename(long userId,long id,String title){
+        long organizationId=requireOwner(userId,id);
+        String value=title==null?"":title.trim();
+        if(value.isEmpty()||value.length()>255)throw new IllegalArgumentException("title length must be 1..255");
+        if(mapper.rename(organizationId,userId,id,value)!=1)throw new ResourceNotFoundException();
+    }
     private AgentSkill stageSkill(long organizationId,Long workItemId){if(workItemId==null)return AgentSkill.PRODUCT;var item=workItems.findByIdAndScope(organizationId,workItemId).orElseThrow(ResourceNotFoundException::new);if(item.type()!=WorkItemType.REQUIREMENT)throw new IllegalArgumentException("conversation context must be a requirement");return StageSkillRouter.route(item.status());}
     private long requireOwner(long userId,long id){long organizationId=organization(userId);if(mapper.owns(organizationId,userId,id)!=1)throw new ResourceNotFoundException();return organizationId;}
     private long organization(long userId){return access.requireContext(userId).organizationId();}

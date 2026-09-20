@@ -1,12 +1,12 @@
 "use client";
 
-import { Alert, Button, Message, Popconfirm, Spin, Tooltip } from "@arco-design/web-react";
-import { IconDelete } from "@arco-design/web-react/icon";
+import { Alert, Button, Message, Spin } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { formatRequestError } from "@/lib/api";
 import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
-import { createAgentConversation, deleteAgentConversation, listAgentConversations } from "../api/console-api";
+import { createAgentConversation, deleteAgentConversation, listAgentConversations, renameAgentConversation } from "../api/console-api";
+import { ConversationActions } from "./conversation-actions";
 import { AgentConversationPanel } from "./agent-conversation-panel";
 import styles from "./console.module.css";
 
@@ -39,6 +39,11 @@ export function AgentCommandScreen() {
     },
     onError: (error) => Message.error(formatRequestError(error)),
   });
+  const rename = useMutation({
+    mutationFn: ({ id, title }: { id: number; title: string }) => renameAgentConversation(id, title),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["agent-conversations"] }),
+    onError: (error) => Message.error(formatRequestError(error)),
+  });
   return (
     <section className={styles.agentPage}>
       <header className={styles.pageHead}>
@@ -62,11 +67,7 @@ export function AgentCommandScreen() {
                   <b>{item.title}</b>
                 </span>
               </button>
-              <Popconfirm title={`确定删除“${item.title}”吗？`} content="会话消息将被删除，此操作无法撤销。" okText="删除" cancelText="取消" onOk={() => remove.mutateAsync(item.id)}>
-                <Tooltip content="删除会话">
-                  <Button aria-label={`删除会话：${item.title}`} className={styles.deleteSession} type="text" status="danger" shape="circle" icon={<IconDelete />} loading={remove.isPending && remove.variables === item.id} />
-                </Tooltip>
-              </Popconfirm>
+              <ConversationActions title={item.title} onRename={(title) => rename.mutateAsync({ id: item.id, title })} onDelete={() => remove.mutateAsync(item.id)} />
             </div>
           ))}
         </aside>

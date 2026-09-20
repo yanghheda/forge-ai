@@ -351,6 +351,7 @@
 }
 .sessionList {
   min-height: 0;
+  padding-bottom: 8px;
   overflow-y: auto;
   border-right: 1px solid var(--forge-border-2);
   background: var(--forge-fill-1);
@@ -368,21 +369,30 @@
 .sessionItem {
   display: flex;
   align-items: center;
+  margin: 2px 8px;
+  border-radius: 6px;
   color: var(--forge-text-2);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.sessionItem:hover {
+  color: var(--forge-text-1);
+  background: var(--forge-fill-2);
 }
 .sessionItem.selected {
-  color: var(--forge-primary-6);
-  background: var(--forge-primary-1);
+  color: var(--forge-text-1);
+  background: var(--forge-fill-2);
 }
 .sessionSelect {
   display: flex;
   min-width: 0;
   width: 100%;
-  padding: 11px 14px;
+  padding: 9px 10px;
   border: 0;
   color: inherit;
   background: transparent;
   text-align: left;
+  cursor: pointer;
 }
 .sessionSelect span,
 .sessionList b {
@@ -396,13 +406,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.deleteSession {
+.moreSession {
   flex: 0 0 auto;
-  margin-right: 8px;
+  margin-right: 4px;
+  color: var(--forge-text-3) !important;
+  background: transparent !important;
   opacity: 0;
 }
-.sessionItem:hover .deleteSession,
-.sessionItem:focus-within .deleteSession {
+.moreSession:hover,
+.moreSession:active {
+  color: var(--forge-text-2) !important;
+  background: var(--forge-fill-3) !important;
+}
+.sessionItem:hover .moreSession,
+.sessionItem:focus-within .moreSession,
+.sessionItem.selected .moreSession {
   opacity: 1;
 }
 .chatMain {
@@ -909,7 +927,7 @@
   .editorGrid > .card:first-child {
     display: none;
   }
-  .deleteSession {
+  .moreSession {
     opacity: 1;
   }
   .board {

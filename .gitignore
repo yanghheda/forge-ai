@@ -44,3 +44,5 @@ docs/learning/temp.md
 
 .pnpm-store/
 data/
+.trae
+.pnpm-store

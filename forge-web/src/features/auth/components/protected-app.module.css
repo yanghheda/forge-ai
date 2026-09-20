@@ -1,0 +1,153 @@
+/* 全屏加载遮罩：模糊底层工作台，把注意力收拢到中心的加载卡片 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(247, 248, 250, 0.55);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  animation: fadeIn 0.2s ease-out both;
+}
+/* 居中承载卡片：半透明磨砂，让模糊后的界面透出层次 */
+.card {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  min-width: 224px;
+  padding: 30px 32px 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 32px rgba(29, 33, 41, 0.12);
+}
+/* 卡片上缓慢扫过的光带，暗示请求仍在进行 */
+.card:after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(22, 93, 255, 0.12) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: sweep 2.2s ease-in-out infinite;
+  content: "";
+  pointer-events: none;
+}
+.mark {
+  position: relative;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--forge-primary-5), var(--forge-primary-7));
+  box-shadow: 0 10px 22px rgba(22, 93, 255, 0.3);
+}
+.markGlyph {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+/* 绕品牌标记旋转的渐变光环，只有尾段着色，形成缺口旋转的观感 */
+.ring {
+  position: absolute;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: conic-gradient(from 0turn, rgba(22, 93, 255, 0) 0turn, var(--forge-primary-4) 0.35turn, var(--forge-primary-6) 0.75turn, rgba(22, 93, 255, 0) 1turn);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  animation: spin 1.2s linear infinite;
+}
+.label {
+  margin: 0;
+  color: var(--forge-text-2);
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+.dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.dots i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--forge-text-3);
+  animation: dot 1.2s ease-in-out infinite;
+}
+.dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+/* 不定量进度条：无法预知耗时时只表达“在进行中”，不伪造进度 */
+.progress {
+  position: relative;
+  width: 132px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--forge-fill-3);
+}
+.progress i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--forge-primary-4), var(--forge-primary-6));
+  animation: slide 1.4s ease-in-out infinite;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@keyframes dot {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(330%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .card:after,
+  .ring,
+  .dots i,
+  .progress i {
+    animation: none;
+  }
+}

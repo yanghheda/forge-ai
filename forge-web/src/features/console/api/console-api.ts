@@ -106,3 +106,5 @@ export const listAgentMessages = (id: number, client: RequestClient = apiClient)
 export const sendAgentMessage = (id: number, message: string, workItemId?: number, client: RequestClient = apiClient) => client.request<AgentRunCreated>(`/v1/agent-conversations/${id}/messages`, json("POST", { message, workItemId }));
 
 export const traceExportUrl = (runId: string) => `/api/v1/agent-runs/${encodeURIComponent(runId)}/export`;
+
+export const renameAgentConversation = (id: number, title: string, client: RequestClient = apiClient) => client.request<void>(`/v1/agent-conversations/${id}`, json("PATCH", { title }));

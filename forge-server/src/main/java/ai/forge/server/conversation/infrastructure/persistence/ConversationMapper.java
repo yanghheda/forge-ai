@@ -45,11 +45,15 @@ public interface ConversationMapper extends ConversationStore {
     int insertUserMessage(@Param("conversationId") long conversationId,@Param("body") String body,@Param("runId") String runId);
     @Update("UPDATE agent_conversations SET updated_at=UTC_TIMESTAMP(6),version=version+1 WHERE id=#{id}")
     int touch(@Param("id") long id);
+    @Update("UPDATE agent_conversations SET title=#{title},updated_at=UTC_TIMESTAMP(6),version=version+1 "
+            + "WHERE id=#{id} AND organization_id=#{organizationId} AND user_id=#{userId}")
+    int rename(@Param("organizationId") long organizationId,@Param("userId") long userId,
+            @Param("id") long id,@Param("title") String title);
     @Delete("DELETE FROM agent_conversations WHERE id=#{id} AND organization_id=#{organizationId} AND user_id=#{userId}")
     int delete(@Param("organizationId") long organizationId,@Param("userId") long userId,
             @Param("id") long id);
     @Select("SELECT sender,body,run_id,created_at FROM agent_messages WHERE conversation_id=#{id} UNION ALL "
-            + "SELECT 'AGENT',COALESCE(s.output_summary,ar.error_code,'Agent run completed'),ar.id,"
+            + "SELECT 'AGENT',COALESCE(s.output_summary,ar.error_code,'已暂停'),ar.id,"
             + "COALESCE(ar.finished_at,ar.created_at) FROM agent_messages m JOIN agent_runs ar ON ar.id=m.run_id "
             + "LEFT JOIN agent_steps s ON s.run_id=ar.id AND s.type='FINAL' WHERE m.conversation_id=#{id} "
             + "AND m.sender='USER' AND ar.status IN ('SUCCEEDED','FAILED','CANCELLED') "
