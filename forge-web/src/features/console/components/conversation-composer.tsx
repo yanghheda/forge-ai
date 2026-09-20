@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Input, Select } from "@arco-design/web-react";
-import { IconCloseCircle, IconLink, IconSend } from "@arco-design/web-react/icon";
+import { IconLink } from "@arco-design/web-react/icon";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -12,6 +12,24 @@ interface BoundRequirement {
   id: number;
   itemKey: string | null;
   title: string | null;
+}
+
+/* 发送图标：向上箭头，保持与终止图标一致的笔画粗细 */
+function SendGlyph() {
+  return (
+    <svg aria-hidden className={styles.composerGlyph} fill="none" viewBox="0 0 16 16">
+      <path d="M8 13.1V3.3M8 3.3 3.7 7.6M8 3.3l4.3 4.3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+/* 终止图标：圆点内收起为方块 */
+function StopGlyph() {
+  return (
+    <svg aria-hidden className={styles.composerGlyph} viewBox="0 0 16 16">
+      <rect x="4.4" y="4.4" fill="currentColor" height="7.2" rx="2.1" width="7.2" />
+    </svg>
+  );
 }
 
 export function ConversationComposer({
@@ -80,9 +98,9 @@ export function ConversationComposer({
           />
         </label>
         {running ? (
-          <Button aria-label="终止 Agent" className={`${styles.composerAction} ${styles.stopAction}`} shape="circle" icon={<IconCloseCircle />} loading={cancelling} onClick={onCancel} />
+          <Button aria-label="终止 Agent" className={`${styles.composerAction} ${styles.stopAction}`} shape="circle" icon={<StopGlyph />} loading={cancelling} onClick={onCancel} />
         ) : (
-          <Button aria-label="发送消息" className={styles.composerAction} type="primary" shape="circle" icon={<IconSend />} loading={sending} disabled={!activeConversation || !draft.trim()} onClick={onSend} />
+          <Button aria-label="发送消息" className={styles.composerAction} type="primary" shape="circle" icon={<SendGlyph />} loading={sending} disabled={!activeConversation || !draft.trim()} onClick={onSend} />
         )}
       </div>
     </footer>

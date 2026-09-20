@@ -730,19 +730,42 @@
   font-size: 12px;
 }
 .composerAction {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
   width: 34px !important;
   min-width: 34px !important;
   height: 34px !important;
+  padding: 0 !important;
   border: 0 !important;
-  background: #5b4ff5 !important;
+  background: var(--forge-primary-6) !important;
   box-shadow: none !important;
+  transition:
+    background-color 0.16s ease,
+    transform 0.12s ease;
+}
+.composerAction:hover:not(:disabled) {
+  background: var(--forge-primary-7) !important;
+}
+.composerAction:active:not(:disabled) {
+  transform: scale(0.94);
 }
 .composerAction:disabled {
+  color: var(--forge-text-3) !important;
   background: var(--forge-fill-3) !important;
+}
+.composerGlyph {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 .stopAction {
   color: #fff !important;
   background: var(--forge-error) !important;
+}
+.stopAction:hover:not(:disabled) {
+  background: var(--forge-error) !important;
+  filter: brightness(0.92);
 }
 .plan {
   display: flex;

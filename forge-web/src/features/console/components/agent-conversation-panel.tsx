@@ -2,7 +2,7 @@
 
 import { Alert, Button, Empty, Message, Spin } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { cancelAgentRun, cancelApproval, decideApproval, getAgentRun, getRunApproval, type ApprovalSnapshot } from "@/features/agent-run";
 import { getCurrentUser } from "@/features/auth";
@@ -25,6 +25,9 @@ export function AgentConversationPanel({ header, contextRequirementId }: { heade
   const [latestRunId, setLatestRunId] = useState<string>();
   const [latestRunConversationId, setLatestRunConversationId] = useState<number>();
   const [requirementId, setRequirementId] = useState<number>();
+  const messagesRef = useRef<HTMLDivElement>(null);
+  /* 用户是否停在消息流底部；离开底部后不再自动下拉，避免打断向上翻阅 */
+  const pinnedToBottom = useRef(true);
   const conversations = useQuery({
     queryKey: ["agent-conversations"],
     queryFn: () => listAgentConversations(),
@@ -83,10 +86,27 @@ export function AgentConversationPanel({ header, contextRequirementId }: { heade
   });
   const hasPersistedAgentAnswer = messages.data?.some((item) => item.sender === "AGENT" && item.runId === effectiveRunId);
   const streamPlaybackVisible = isStreamPlaybackVisible(stream, Boolean(hasPersistedAgentAnswer));
+  /* 切换会话时重置为跟随底部 */
+  useEffect(() => {
+    pinnedToBottom.current = true;
+  }, [activeId]);
+  /* 流式输出与消息追加都会触发重渲染，渲染后按需保持滚动到底部 */
+  useEffect(() => {
+    const node = messagesRef.current;
+    if (!node || !pinnedToBottom.current) return;
+    node.scrollTop = node.scrollHeight;
+  });
   return (
     <main className={styles.chatMain}>
       <header>{header ?? <b>{active?.title ?? "请选择或新建会话"}</b>}</header>
-      <div className={styles.messages}>
+      <div
+        className={styles.messages}
+        ref={messagesRef}
+        onScroll={(event) => {
+          const node = event.currentTarget;
+          pinnedToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight <= 48;
+        }}
+      >
         {messages.isPending && activeId && <Spin />}
         {!activeId && <Empty description="新建会话后即可开始对话" />}
         {messages.data?.map((item, index) =>
