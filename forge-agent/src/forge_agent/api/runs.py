@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from forge_agent.api.auth import require_run_credential
+from forge_agent.gateway.qwen import ModelGatewayError
 from forge_agent.gateway.runtime import RunCancelled, RunResult, RunStart, RuntimeGateway
 
 router = APIRouter(prefix="/internal/v1/runs", include_in_schema=False)
@@ -38,6 +39,19 @@ def start_run(
     except RunCancelled as exception:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="run cancelled"
+        ) from exception
+    except ModelGatewayError as exception:
+        status_code = (
+            status.HTTP_504_GATEWAY_TIMEOUT
+            if exception.error_code == "AGENT_MODEL_TIMEOUT"
+            else status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail={
+                "errorCode": exception.error_code,
+                "retryable": exception.retryable,
+            },
         ) from exception
 
 

@@ -84,6 +84,8 @@ export function useConversationStream(organizationId: number | undefined, runId:
 
   return {
     answer: displayedAnswer,
+    hasAnswer: completeAnswer.length > 0,
+    isTyping: displayedAnswer !== completeAnswer,
     reasoning: reasoningState.runId === runId ? reasoningState.values : [],
     connected,
   };

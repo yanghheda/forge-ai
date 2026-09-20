@@ -53,6 +53,15 @@ public class AgentDispatcher {
                     "Agent Run completed: runId={}, checkpointVersion={}",
                     requested.runId(),
                     result.stateVersion());
+        } catch (AgentRuntimeException exception) {
+            LOGGER.error(
+                    "Agent Runtime rejected Run: runId={}, errorCode={}, retryable={}",
+                    requested.runId(), exception.errorCode(), exception.retryable(), exception);
+            runStore.fail(
+                    requested.organizationId(),
+                    requested.runId(),
+                    requested.requestId(),
+                    exception.errorCode());
         } catch (RuntimeException exception) {
             LOGGER.error("Agent Run dispatch failed: runId={}", requested.runId(), exception);
             runStore.fail(

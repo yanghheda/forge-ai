@@ -9,8 +9,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 class GlobalExceptionHandlerTest {
+
+    @Test
+    void asyncRequestTimeoutIsHandledAsNormalStreamClosure() {
+        new GlobalExceptionHandler().handleAsyncRequestTimeout(new AsyncRequestTimeoutException());
+    }
 
     @Test
     void releaseVersionConflictReturnsStableConflictResponse() {

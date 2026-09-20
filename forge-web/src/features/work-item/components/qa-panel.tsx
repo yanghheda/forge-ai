@@ -242,7 +242,23 @@ function Metric({ label, value, note, tone = "blue", progress }: { label: string
   );
 }
 
-function CaseTable({ cases, run, readOnly = false, busy, onStart, onComplete, onResult }: { cases: Awaited<ReturnType<typeof listTestCases>>; run?: TestRunView; readOnly?: boolean; busy: boolean; onStart: () => void; onComplete: () => void; onResult: (testCaseId: number, status: ResultChoice) => void }) {
+function CaseTable({
+  cases,
+  run,
+  readOnly = false,
+  busy,
+  onStart,
+  onComplete,
+  onResult,
+}: {
+  cases: Awaited<ReturnType<typeof listTestCases>>;
+  run?: TestRunView;
+  readOnly?: boolean;
+  busy: boolean;
+  onStart: () => void;
+  onComplete: () => void;
+  onResult: (testCaseId: number, status: ResultChoice) => void;
+}) {
   const results = new Map(run?.results.map((item) => [item.testCaseId, item]));
   const [selected, setSelected] = useState<(typeof cases)[number]>();
   const selectedResult = selected ? results.get(selected.id) : undefined;

@@ -5,7 +5,7 @@ import json
 import httpx
 import pytest
 
-from forge_agent.gateway.qwen import QwenLanguageModel
+from forge_agent.gateway.qwen import ModelGatewayError, QwenLanguageModel
 
 
 def qwen_model(responses: list[dict[str, object]]) -> tuple[QwenLanguageModel, list[dict]]:
@@ -227,7 +227,7 @@ def test_qwen_prompt_requires_transition_after_successful_work_item_read() -> No
 def test_qwen_rejects_invalid_structured_output() -> None:
     model, _ = qwen_model([completion("not-json")])
 
-    with pytest.raises(RuntimeError, match="invalid JSON"):
+    with pytest.raises(ModelGatewayError, match="AGENT_MODEL_INVALID_RESPONSE"):
         model.create_plan("UX", "整理方案")
 
 
@@ -273,3 +273,51 @@ def test_qwen_propagates_http_failure_without_leaking_key() -> None:
         model.finalize("UX", "整理方案", 1, [])
 
     assert "sk-sensitive" not in str(raised.value)
+
+
+def test_qwen_retries_read_timeout_then_returns_structured_result() -> None:
+    attempts = 0
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ReadTimeout("slow model response", request=request)
+        return httpx.Response(200, json=completion('{"steps":["继续执行"]}'))
+
+    model = QwenLanguageModel(
+        api_key="sk-test",
+        base_url="https://dashscope.example/compatible-mode/v1",
+        model="qwen-plus",
+        max_attempts=2,
+        retry_backoff_seconds=0,
+        client=httpx.Client(transport=httpx.MockTransport(handle)),
+    )
+
+    assert model.create_plan("RELEASE", "继续") == ["继续执行"]
+    assert attempts == 2
+
+
+def test_qwen_exhausted_read_timeout_has_stable_retryable_error() -> None:
+    attempts = 0
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        raise httpx.ReadTimeout("slow model response", request=request)
+
+    model = QwenLanguageModel(
+        api_key="sk-test",
+        base_url="https://dashscope.example/compatible-mode/v1",
+        model="qwen-plus",
+        max_attempts=2,
+        retry_backoff_seconds=0,
+        client=httpx.Client(transport=httpx.MockTransport(handle)),
+    )
+
+    with pytest.raises(ModelGatewayError) as raised:
+        model.create_plan("RELEASE", "继续")
+
+    assert raised.value.error_code == "AGENT_MODEL_TIMEOUT"
+    assert raised.value.retryable is True
+    assert attempts == 2

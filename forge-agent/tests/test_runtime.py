@@ -508,6 +508,45 @@ def test_successful_prd_write_completes_without_another_model_decision(tmp_path)
     assert [delta for _, delta, _ in answer_stream.deltas] == [result.answer]
 
 
+def test_successful_release_precheck_completes_without_another_model_decision(tmp_path) -> None:
+    class ReleaseModel(FakeLanguageModel):
+        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+            self.select_calls += 1
+            if not tool_calls:
+                return ToolSelection(
+                    tool_name="run_release_precheck",
+                    arguments={"releaseId": 7},
+                )
+            raise RuntimeError("successful precheck must not request another model decision")
+
+    model = ReleaseModel()
+    answer_stream = RecordingAnswerStream()
+    transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="run_release_precheck",
+                tool_call_id="call-1",
+                result={"id": 7, "status": "PASS"},
+            )
+        ]
+    )
+    request_manifest = manifest(
+        effective_tool_names=["run_release_precheck"], max_tool_calls=5
+    ).model_copy(update={"skill": "RELEASE"})
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", model, transport, answer_stream
+    )
+
+    result = runtime.start(RunStart(manifest=request_manifest, message="运行发布预检"), "run-token")
+
+    assert result.status == "SUCCEEDED"
+    assert model.select_calls == 1
+    assert model.finalize_calls == 0
+    assert result.answer == "发布预检已完成（状态 PASS，预检 7）。"
+    assert [delta for _, delta, _ in answer_stream.deltas] == [result.answer]
+
+
 def test_stage_agent_reads_authoritative_version_before_requesting_transition(tmp_path) -> None:
     class StageProgressModel(FakeLanguageModel):
         def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):

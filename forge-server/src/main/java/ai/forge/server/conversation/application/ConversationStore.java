@@ -10,7 +10,9 @@ public interface ConversationStore {
     int owns(long organizationId, long userId, long id);
     Long requirementId(long organizationId, long userId, long id);
     int bindRequirement(long organizationId, long userId, long id, long requirementId);
+    int initializeTitle(long organizationId, long userId, long id, String title);
     int insertUserMessage(long conversationId, String body, String runId);
     int touch(long id);
+    int delete(long organizationId, long userId, long id);
     List<Map<String, Object>> messages(long id);
 }

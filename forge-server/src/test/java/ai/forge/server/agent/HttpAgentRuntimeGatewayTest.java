@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ai.forge.server.agent.application.AgentRunRequested;
 import ai.forge.server.agent.application.ToolContractRegistry;
 import ai.forge.server.agent.domain.MediumToolConfirmation;
+import ai.forge.server.agent.infrastructure.AgentRuntimeException;
 import ai.forge.server.agent.infrastructure.HttpAgentRuntimeGateway;
 import ai.forge.server.platform.agent.AgentServiceTokenProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -31,7 +33,8 @@ class HttpAgentRuntimeGatewayTest {
         AgentServiceTokenProvider tokens = new AgentServiceTokenProvider(
                 "test-only-internal-jwt-secret-32-bytes-minimum", Duration.ofMinutes(5));
         HttpAgentRuntimeGateway gateway = new HttpAgentRuntimeGateway(
-                restClientBuilder, "http://forge-agent:8000", tokens, toolContractRegistry);
+                restClientBuilder, "http://forge-agent:8000", tokens, toolContractRegistry,
+                new ObjectMapper());
         server.expect(request -> {
                     assertThat(request.getMethod()).isEqualTo(HttpMethod.POST);
                     assertThat(request.getURI().toString())
@@ -82,7 +85,8 @@ class HttpAgentRuntimeGatewayTest {
         AgentServiceTokenProvider tokens = new AgentServiceTokenProvider(
                 "test-only-internal-jwt-secret-32-bytes-minimum", Duration.ofMinutes(5));
         HttpAgentRuntimeGateway gateway = new HttpAgentRuntimeGateway(
-                restClientBuilder, "http://forge-agent:8000", tokens, toolContractRegistry);
+                restClientBuilder, "http://forge-agent:8000", tokens, toolContractRegistry,
+                new ObjectMapper());
         server.expect(request -> {
                     assertThat(request.getMethod()).isEqualTo(HttpMethod.POST);
                     assertThat(request.getURI().toString())
@@ -94,6 +98,31 @@ class HttpAgentRuntimeGatewayTest {
 
         gateway.cancel("01JTEST0000000000000000000", 2);
 
+        server.verify();
+    }
+
+    @Test
+    void preservesStableRetryableAgentError() {
+        AgentServiceTokenProvider tokens = new AgentServiceTokenProvider(
+                "test-only-internal-jwt-secret-32-bytes-minimum", Duration.ofMinutes(5));
+        HttpAgentRuntimeGateway gateway = new HttpAgentRuntimeGateway(
+                restClientBuilder, "http://forge-agent:8000", tokens, toolContractRegistry,
+                new ObjectMapper());
+        server.expect(MockRestRequestMatchers.requestTo(
+                        "http://forge-agent:8000/internal/v1/runs/01JTEST0000000000000000000/start"))
+                .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+                        .withGatewayTimeout()
+                        .body("{\"detail\":{\"errorCode\":\"AGENT_MODEL_TIMEOUT\",\"retryable\":true}}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> gateway.start(
+                        new AgentRunRequested(
+                                "01JTEST0000000000000000000", 2, 1024L, 12, "UX",
+                                MediumToolConfirmation.ASK, "整理 UX 计划", "request-1")))
+                .isInstanceOfSatisfying(AgentRuntimeException.class, exception -> {
+                    assertThat(exception.errorCode()).isEqualTo("AGENT_MODEL_TIMEOUT");
+                    assertThat(exception.retryable()).isTrue();
+                });
         server.verify();
     }
 }

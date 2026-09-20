@@ -7,6 +7,8 @@ import ai.forge.server.agent.application.ToolContractRegistry;
 import ai.forge.server.agent.domain.AgentSkill;
 import ai.forge.server.platform.agent.AgentServiceTokenProvider;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -16,6 +18,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @Component
 @Profile("!test-unit")
@@ -31,30 +34,40 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
     /* 提供该 Skill 允许的 Tool 白名单与调用上限。 */
     private final ToolContractRegistry toolContractRegistry;
 
+    /* 只解析 Agent 返回的稳定错误信封，不记录原始响应正文。 */
+    private final ObjectMapper objectMapper;
+
     public HttpAgentRuntimeGateway(
             RestClient.Builder builder,
             @Value("${forge.infrastructure.agent.base-url}") String baseUrl,
             AgentServiceTokenProvider tokenProvider,
-            ToolContractRegistry toolContractRegistry) {
+            ToolContractRegistry toolContractRegistry,
+            ObjectMapper objectMapper) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.tokenProvider = tokenProvider;
         this.toolContractRegistry = toolContractRegistry;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public RunResult start(AgentRunRequested requested) {
         Instant issuedAt = Instant.now();
-        StartResponse response = restClient
-                .post()
-                .uri("/internal/v1/runs/{runId}/start", requested.runId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .headers(headers -> headers.setBearerAuth(tokenProvider.createRunToken(
-                        issuedAt,
-                        requested.runId(),
-                        requested.organizationId())))
-                .body(new StartRequest(manifest(requested, issuedAt), requested.message()))
-                .retrieve()
-                .body(StartResponse.class);
+        StartResponse response;
+        try {
+            response = restClient
+                    .post()
+                    .uri("/internal/v1/runs/{runId}/start", requested.runId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> headers.setBearerAuth(tokenProvider.createRunToken(
+                            issuedAt,
+                            requested.runId(),
+                            requested.organizationId())))
+                    .body(new StartRequest(manifest(requested, issuedAt), requested.message()))
+                    .retrieve()
+                    .body(StartResponse.class);
+        } catch (RestClientResponseException exception) {
+            throw runtimeException(exception);
+        }
         if (response == null || (!"SUCCEEDED".equals(response.status())
                 && !"WAITING_APPROVAL".equals(response.status()))) {
             throw new IllegalStateException("Agent Runtime returned an unsupported result");
@@ -64,6 +77,28 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
                         .map(call -> new ToolCallResult(call.toolName(), call.toolCallId(),
                                 call.status(), call.errorCode()))
                         .toList(), response.stateVersion());
+    }
+
+    private AgentRuntimeException runtimeException(RestClientResponseException exception) {
+        try {
+            JsonNode detail = objectMapper.readTree(exception.getResponseBodyAsString())
+                    .path("detail");
+            String errorCode = detail.path("errorCode").asText("");
+            if (!errorCode.isBlank()) {
+                return new AgentRuntimeException(
+                        errorCode,
+                        detail.path("retryable").asBoolean(false),
+                        "Agent Runtime request failed with " + errorCode,
+                        exception);
+            }
+        } catch (RuntimeException | java.io.IOException ignored) {
+            // 非契约响应按 HTTP 网关错误归一化，且不暴露远端正文。
+        }
+        return new AgentRuntimeException(
+                "AGENT_RUNTIME_HTTP_ERROR",
+                exception.getStatusCode().is5xxServerError(),
+                "Agent Runtime HTTP request failed",
+                exception);
     }
 
     @Override

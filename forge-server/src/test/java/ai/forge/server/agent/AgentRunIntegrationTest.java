@@ -383,6 +383,52 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void firstPromptGeneratesConversationTitleAndLaterPromptsKeepIt() throws Exception {
+        JsonNode conversation = data(csrf().post(
+                "/api/v1/agent-conversations", Map.of(), ownerCookie, String.class));
+        long conversationId = conversation.get("id").asLong();
+        assertThat(conversation.get("title").asText()).isEqualTo("新会话");
+
+        csrf().post(
+                "/api/v1/agent-conversations/" + conversationId + "/messages",
+                Map.of("message", "  请帮我   梳理登录流程\n并补充异常场景  "), ownerCookie, String.class);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT title FROM agent_conversations WHERE id=?", String.class, conversationId))
+                .isEqualTo("请帮我 梳理登录流程 并补充异常场景");
+
+        csrf().post(
+                "/api/v1/agent-conversations/" + conversationId + "/messages",
+                Map.of("message", "第二轮不应覆盖标题"), ownerCookie, String.class);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT title FROM agent_conversations WHERE id=?", String.class, conversationId))
+                .isEqualTo("请帮我 梳理登录流程 并补充异常场景");
+    }
+
+    @Test
+    void ownerCanDeleteConversationAndMessagesButRunTraceRemains() throws Exception {
+        JsonNode conversation = data(csrf().post(
+                "/api/v1/agent-conversations", Map.of(), ownerCookie, String.class));
+        long conversationId = conversation.get("id").asLong();
+        JsonNode run = data(csrf().post(
+                "/api/v1/agent-conversations/" + conversationId + "/messages",
+                Map.of("message", "这条会话随后删除"), ownerCookie, String.class));
+
+        ResponseEntity<String> deleted = csrf().delete(
+                "/api/v1/agent-conversations/" + conversationId, ownerCookie, String.class);
+
+        assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agent_conversations WHERE id=?", Long.class, conversationId)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agent_messages WHERE conversation_id=?", Long.class, conversationId)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agent_runs WHERE id=?", Long.class, run.get("id").asText())).isOne();
+        assertThat(csrf().delete(
+                "/api/v1/agent-conversations/" + conversationId, ownerCookie, String.class).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void createdRequirementAutomaticallyBindsItsConversation() throws Exception {
         JsonNode conversation = data(csrf().post(
                 "/api/v1/agent-conversations",

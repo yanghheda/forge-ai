@@ -286,16 +286,6 @@
   justify-content: space-between;
   margin-top: 14px;
 }
-.avatar {
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--forge-primary-5);
-  font-size: 11px;
-}
 .column time {
   color: var(--forge-text-3);
   font-size: 11px;
@@ -375,23 +365,27 @@
   color: var(--forge-text-3);
   font-weight: 400;
 }
-.sessionList button {
+.sessionItem {
   display: flex;
-  width: 100%;
-  padding: 13px 14px;
-  border: 0;
+  align-items: center;
   color: var(--forge-text-2);
-  background: transparent;
-  gap: 10px;
-  text-align: left;
 }
-.sessionList button.selected {
+.sessionItem.selected {
   color: var(--forge-primary-6);
   background: var(--forge-primary-1);
 }
-.sessionList button span,
-.sessionList b,
-.sessionList small {
+.sessionSelect {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+.sessionSelect span,
+.sessionList b {
   display: block;
   min-width: 0;
 }
@@ -402,10 +396,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sessionList small {
-  margin-top: 3px;
-  color: var(--forge-text-3);
-  font-size: 11px;
+.deleteSession {
+  flex: 0 0 auto;
+  margin-right: 8px;
+  opacity: 0;
+}
+.sessionItem:hover .deleteSession,
+.sessionItem:focus-within .deleteSession {
+  opacity: 1;
 }
 .chatMain {
   display: flex;
@@ -417,17 +415,69 @@
 .chatMain > header {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   height: 50px;
   padding: 0 16px;
   border-bottom: 1px solid var(--forge-border-2);
   gap: 10px;
 }
-.chatMain > header div {
-  display: grid;
+.sessionPicker {
+  flex: 1;
+  min-width: 0;
 }
-.chatMain > header small {
-  color: var(--forge-text-3);
-  font-size: 11px;
+.agentDrawer :global(.arco-drawer-header-title) {
+  flex: 1;
+  min-width: 0;
+}
+.drawerHead {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 4px;
+}
+.drawerHead > b {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.drawerIconButton {
+  display: grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  color: var(--forge-text-2);
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+}
+.drawerIconButton:hover {
+  color: var(--forge-primary-6);
+  background: var(--forge-fill-1);
+}
+.drawerIconButton:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.contextTag {
+  flex: 0 0 auto;
+  max-width: calc(100% - 32px);
+  margin: 12px 16px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.drawerPanel {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+.drawerPanel > .chatMain {
+  flex: 1;
 }
 .messages {
   flex: 1;
@@ -470,11 +520,64 @@
   font-size: 13px;
   font-weight: 500;
 }
-.agentMsg > p {
+.messageBody {
   margin: 14px 0 0;
   color: var(--forge-text-1);
   font-size: 14px;
   line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.messageBody > :first-child {
+  margin-top: 0;
+}
+.messageBody > :last-child {
+  margin-bottom: 0;
+}
+.messageBody p,
+.messageBody ul,
+.messageBody ol,
+.messageBody pre,
+.messageBody blockquote,
+.messageBody table {
+  margin: 10px 0;
+}
+.messageBody ul,
+.messageBody ol {
+  padding-left: 24px;
+}
+.messageBody code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--forge-fill-2);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.92em;
+}
+.messageBody pre {
+  max-width: 100%;
+  padding: 12px 14px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--forge-fill-2);
+}
+.messageBody pre code {
+  padding: 0;
+  background: transparent;
+}
+.messageBody blockquote {
+  padding-left: 12px;
+  border-left: 3px solid var(--forge-border-3);
+  color: var(--forge-text-2);
+}
+.messageBody table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.messageBody th,
+.messageBody td {
+  padding: 6px 10px;
+  border: 1px solid var(--forge-border-2);
 }
 .reasoning {
   margin: 0;
@@ -491,6 +594,23 @@
 }
 .reasoning summary::-webkit-details-marker {
   display: none;
+}
+.reasoningSweep {
+  color: transparent;
+  background: linear-gradient(100deg, var(--forge-text-4) 0%, var(--forge-text-3) 25%, var(--forge-text-2) 42%, var(--forge-text-1) 50%, var(--forge-text-2) 58%, var(--forge-text-3) 75%, var(--forge-text-4) 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  animation: reasoning-sweep 2s linear infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+@keyframes reasoning-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
 }
 .reasoning summary::after {
   display: inline-block;
@@ -514,8 +634,16 @@
   margin: 12px 0 0;
   color: var(--forge-text-2);
 }
+@media (prefers-reduced-motion: reduce) {
+  .reasoningSweep {
+    color: var(--forge-text-3);
+    background: none;
+    animation: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
 .streamingAnswer {
-  white-space: pre-wrap;
+  min-height: 1lh;
 }
 .toolCall {
   display: flex;
@@ -757,6 +885,9 @@
   }
   .editorGrid > .card:first-child {
     display: none;
+  }
+  .deleteSession {
+    opacity: 1;
   }
   .board {
     grid-template-columns: repeat(4, 260px);

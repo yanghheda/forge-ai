@@ -37,6 +37,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -45,6 +46,12 @@ public class GlobalExceptionHandler {
 
     /* 仅在服务端记录未知异常堆栈，避免把内部实现泄露给调用方。 */
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public void handleAsyncRequestTimeout(AsyncRequestTimeoutException exception) {
+        // SSE 到达连接时限属于正常重连边界，不记录为服务端未知故障。
+        LOGGER.debug("Async response timed out and may be reconnected", exception);
+    }
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(

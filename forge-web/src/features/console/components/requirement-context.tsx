@@ -27,7 +27,7 @@ export function RequirementContext({ active, requirementId }: { active: string; 
     <div className={styles.reqBar}>
       <div>
         <code>{requirement.data?.itemKey ?? `REQ-${requirementId}`}</code>
-        <span className={styles.blueTag}>● {requirement.data ? statusLabel[requirement.data.status] ?? requirement.data.status : "加载中"}</span>
+        <span className={styles.blueTag}>● {requirement.data ? (statusLabel[requirement.data.status] ?? requirement.data.status) : "加载中"}</span>
       </div>
       <nav aria-label="需求交付阶段">
         {items.map(([key, label, href, icon]) => (

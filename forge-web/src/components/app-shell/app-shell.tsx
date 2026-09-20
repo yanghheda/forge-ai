@@ -8,9 +8,10 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 
-import { getUnreadNotificationCount, listNotifications, markNotificationRead, searchConsole } from "@/features/console";
+import { AgentCommandDrawer, getUnreadNotificationCount, listNotifications, markNotificationRead, searchConsole } from "@/features/console";
 import { getCurrentUser, logout } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
+import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
 import { useShellStore } from "@/stores/use-shell-store";
 import styles from "./app-shell.module.css";
 
@@ -34,6 +35,9 @@ export function AppShell({ children }: AppShellProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const setAgentPanelOpen = useAgentPanelStore((state) => state.setOpen);
+  const agentRunning = useAgentPanelStore((state) => state.running);
+  const agentAwaitingApproval = useAgentPanelStore((state) => state.awaitingApproval);
   const search = useQuery({
     queryKey: ["global-search", query],
     queryFn: () => searchConsole(query),
@@ -70,16 +74,23 @@ export function AppShell({ children }: AppShellProps) {
     },
     onError: (error) => Message.error(formatRequestError(error)),
   });
+  const agentDrawerAvailable = !publicPage && pathname !== "/agent/command";
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === "k") {
         event.preventDefault();
         setSearchOpen(true);
+      }
+      if (key === "j" && agentDrawerAvailable) {
+        event.preventDefault();
+        setAgentPanelOpen(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [agentDrawerAvailable, setAgentPanelOpen]);
   if (publicPage) return <main className={styles.publicPage}>{children}</main>;
 
   const items: NavItem[] = [
@@ -184,10 +195,13 @@ export function AppShell({ children }: AppShellProps) {
               <span>搜索</span>
               <kbd>⌘ K</kbd>
             </button>
-            <Button className={styles.agentButton} href="/agent/command">
-              <IconRobot />
-              Agent 指令
-            </Button>
+            {agentDrawerAvailable && (
+              <Button className={styles.agentButton} onClick={() => setAgentPanelOpen(true)}>
+                <IconRobot />
+                Agent 指令
+                {agentRunning && <span className={`${styles.agentDot} ${agentAwaitingApproval ? styles.agentDotAlert : ""}`} aria-label={agentAwaitingApproval ? "有操作待审批" : "Agent 执行中"} />}
+              </Button>
+            )}
             <Badge count={unread.data?.count ?? 0} dot>
               <button className={styles.iconButton} aria-label="通知" onClick={() => setNotificationsOpen(true)}>
                 <IconNotification />
@@ -259,6 +273,7 @@ export function AppShell({ children }: AppShellProps) {
             ))}
           </div>
         </Drawer>
+        {agentDrawerAvailable && <AgentCommandDrawer />}
       </div>
     </div>
   );

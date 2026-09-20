@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Iterable
 from typing import Any
 
@@ -10,6 +11,15 @@ import httpx
 from pydantic import BaseModel, Field, ValidationError
 
 from forge_agent.gateway.runtime import ToolSelection
+
+
+class ModelGatewayError(RuntimeError):
+    """模型 Provider 失败，并携带可跨进程传递的稳定错误语义。"""
+
+    def __init__(self, error_code: str, *, retryable: bool) -> None:
+        super().__init__(error_code)
+        self.error_code = error_code
+        self.retryable = retryable
 
 
 class _PlanResponse(BaseModel):
@@ -41,6 +51,8 @@ class QwenLanguageModel:
         base_url: str,
         model: str,
         timeout_seconds: float = 30.0,
+        max_attempts: int = 2,
+        retry_backoff_seconds: float = 0.25,
         client: httpx.Client | None = None,
     ) -> None:
         self._model = model
@@ -49,6 +61,8 @@ class QwenLanguageModel:
             timeout=timeout_seconds,
             headers={"Authorization": f"Bearer {api_key}"},
         )
+        self._max_attempts = max_attempts
+        self._retry_backoff_seconds = retry_backoff_seconds
 
     def create_plan(self, skill: str, message: str) -> list[str]:
         payload = self._complete_json(
@@ -166,38 +180,68 @@ class QwenLanguageModel:
                     delta = choice_delta.get("content")
                     if delta:
                         yield str(delta)
-        except (
-            httpx.HTTPError,
-            json.JSONDecodeError,
-            KeyError,
-            TypeError,
-            ValueError,
-        ) as exception:
-            raise RuntimeError(
-                "Qwen streaming request or response validation failed"
-            ) from exception
+        except httpx.TimeoutException as exception:
+            raise ModelGatewayError("AGENT_MODEL_TIMEOUT", retryable=True) from exception
+        except httpx.HTTPError as exception:
+            raise ModelGatewayError("AGENT_MODEL_UNAVAILABLE", retryable=True) from exception
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exception:
+            raise ModelGatewayError("AGENT_MODEL_INVALID_RESPONSE", retryable=False) from exception
 
     def _complete_json(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
-        try:
-            response = self._client.post(
-                self._endpoint,
-                json={
-                    "model": self._model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "response_format": {"type": "json_object"},
-                    "temperature": 0,
-                },
-            )
-            response.raise_for_status()
-            content = response.json()["choices"][0]["message"]["content"]
-            parsed = json.loads(content)
-            if not isinstance(parsed, dict):
-                raise ValueError("root must be an object")
-            return parsed
-        except json.JSONDecodeError as exception:
-            raise RuntimeError("Qwen returned invalid JSON") from exception
-        except (httpx.HTTPError, KeyError, TypeError, ValueError, ValidationError) as exception:
-            raise RuntimeError("Qwen request or response validation failed") from exception
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                response = self._client.post(
+                    self._endpoint,
+                    json={
+                        "model": self._model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "response_format": {"type": "json_object"},
+                        "temperature": 0,
+                    },
+                )
+                response.raise_for_status()
+                content = response.json()["choices"][0]["message"]["content"]
+                parsed = json.loads(content)
+                if not isinstance(parsed, dict):
+                    raise ValueError("root must be an object")
+                return parsed
+            except httpx.TimeoutException as exception:
+                if attempt < self._max_attempts:
+                    self._backoff(attempt)
+                    continue
+                raise ModelGatewayError("AGENT_MODEL_TIMEOUT", retryable=True) from exception
+            except httpx.HTTPStatusError as exception:
+                status_code = exception.response.status_code
+                retryable = status_code == 429 or status_code >= 500
+                if retryable and attempt < self._max_attempts:
+                    self._backoff(attempt)
+                    continue
+                raise ModelGatewayError(
+                    "AGENT_MODEL_UNAVAILABLE" if retryable else "AGENT_MODEL_REQUEST_REJECTED",
+                    retryable=retryable,
+                ) from exception
+            except httpx.RequestError as exception:
+                if attempt < self._max_attempts:
+                    self._backoff(attempt)
+                    continue
+                raise ModelGatewayError("AGENT_MODEL_UNAVAILABLE", retryable=True) from exception
+            except (
+                json.JSONDecodeError,
+                KeyError,
+                TypeError,
+                ValueError,
+                ValidationError,
+            ) as exception:
+                raise ModelGatewayError(
+                    "AGENT_MODEL_INVALID_RESPONSE", retryable=False
+                ) from exception
+        raise AssertionError("model attempt loop must return or raise")
+
+    def _backoff(self, attempt: int) -> None:
+        """仅在 Provider 可恢复失败时执行有界指数退避。"""
+
+        if self._retry_backoff_seconds > 0:
+            time.sleep(self._retry_backoff_seconds * (2 ** (attempt - 1)))

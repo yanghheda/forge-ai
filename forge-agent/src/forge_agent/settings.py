@@ -32,7 +32,9 @@ class AgentSettings(BaseSettings):
         min_length=1,
     )
     qwen_model: str = Field(default="qwen-plus", min_length=1)
-    qwen_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    qwen_timeout_seconds: float = Field(default=60.0, gt=0, le=120)
+    qwen_max_attempts: int = Field(default=2, ge=1, le=3)
+    qwen_retry_backoff_seconds: float = Field(default=0.25, ge=0, le=5)
 
     @model_validator(mode="after")
     def require_provider_credentials(self) -> AgentSettings:

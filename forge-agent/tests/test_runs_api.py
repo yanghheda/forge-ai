@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from fastapi.testclient import TestClient
 
+from forge_agent.gateway.qwen import ModelGatewayError
 from forge_agent.gateway.runtime import RunResult
 from forge_agent.gateway.tool_transport import ToolCallRecord
 from forge_agent.main import create_app
@@ -83,6 +84,11 @@ class ToolResultRuntime:
 
     def cancel(self, run_id: str) -> None:
         self.cancelled_run_id = run_id
+
+
+class FailingModelRuntime(ToolResultRuntime):
+    def start(self, request, run_token) -> RunResult:
+        raise ModelGatewayError("AGENT_MODEL_TIMEOUT", retryable=True)
 
 
 def test_cancel_forwards_authenticated_run_id_to_runtime(tmp_path) -> None:
@@ -170,3 +176,19 @@ def test_start_rejects_manifest_for_another_run(tmp_path) -> None:
     )
 
     assert response.status_code == 409
+
+
+def test_start_exposes_stable_retryable_model_error(tmp_path) -> None:
+    app = client(tmp_path, FailingModelRuntime())
+
+    response = app.post(
+        f"/internal/v1/runs/{RUN_ID}/start",
+        json=body(),
+        headers={"Authorization": f"Bearer {token()}"},
+    )
+
+    assert response.status_code == 504
+    assert response.json()["detail"] == {
+        "errorCode": "AGENT_MODEL_TIMEOUT",
+        "retryable": True,
+    }

@@ -97,7 +97,9 @@ export const getDashboardOverview = (client: RequestClient = apiClient) => clien
 
 export const listAgentConversations = (client: RequestClient = apiClient) => client.request<AgentConversation[]>("/v1/agent-conversations");
 
-export const createAgentConversation = (title: string, client: RequestClient = apiClient) => client.request<AgentConversation>("/v1/agent-conversations", json("POST", { title }));
+export const createAgentConversation = (client: RequestClient = apiClient) => client.request<AgentConversation>("/v1/agent-conversations", json("POST", {}));
+
+export const deleteAgentConversation = (id: number, client: RequestClient = apiClient) => client.request<void>(`/v1/agent-conversations/${id}`, { method: "DELETE" });
 
 export const listAgentMessages = (id: number, client: RequestClient = apiClient) => client.request<AgentMessage[]>(`/v1/agent-conversations/${id}/messages`);
 

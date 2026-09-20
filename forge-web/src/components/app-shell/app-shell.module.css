@@ -212,6 +212,30 @@
   background: #fff;
   font-size: 13px;
 }
+.agentDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--forge-primary-6);
+  animation: agentDotPulse 1.4s ease-in-out infinite;
+}
+.agentDotAlert {
+  background: var(--forge-warning);
+}
+@keyframes agentDotPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agentDot {
+    animation: none;
+  }
+}
 .iconButton {
   position: relative;
   display: grid;

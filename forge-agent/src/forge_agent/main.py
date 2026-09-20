@@ -38,6 +38,8 @@ def create_app(
                 base_url=resolved_settings.qwen_base_url,
                 model=resolved_settings.qwen_model,
                 timeout_seconds=resolved_settings.qwen_timeout_seconds,
+                max_attempts=resolved_settings.qwen_max_attempts,
+                retry_backoff_seconds=resolved_settings.qwen_retry_backoff_seconds,
             )
         else:
             model = FakeLanguageModel()

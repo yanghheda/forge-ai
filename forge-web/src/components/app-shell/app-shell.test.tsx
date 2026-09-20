@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
 import { useShellStore } from "@/stores/use-shell-store";
 
 import { AppShell } from "./app-shell";
@@ -11,6 +12,16 @@ const replace = vi.fn();
 const authApi = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   logout: vi.fn(),
+}));
+const consoleApi = vi.hoisted(() => ({
+  listAgentConversations: vi.fn(),
+  listAgentMessages: vi.fn(),
+  createAgentConversation: vi.fn(),
+  sendAgentMessage: vi.fn(),
+  getUnreadNotificationCount: vi.fn(),
+  listNotifications: vi.fn(),
+  markNotificationRead: vi.fn(),
+  searchConsole: vi.fn(),
 }));
 
 let testQueryClient: QueryClient;
@@ -21,6 +32,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace }),
 }));
 vi.mock("@/features/auth", () => authApi);
+vi.mock("@/features/console/api/console-api", () => consoleApi);
 
 describe("AppShell", () => {
   beforeEach(() => {
@@ -32,6 +44,9 @@ describe("AppShell", () => {
       organization: { id: 2, slug: "forge", name: "Forge", roles: ["OWNER"] },
     });
     authApi.logout.mockResolvedValue(undefined);
+    consoleApi.getUnreadNotificationCount.mockResolvedValue({ count: 0 });
+    consoleApi.listAgentConversations.mockResolvedValue([]);
+    consoleApi.listAgentMessages.mockResolvedValue([]);
     testQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     testQueryClient.setQueryData(["current-user"], {
       id: 1,
@@ -40,6 +55,7 @@ describe("AppShell", () => {
       organization: { id: 2, slug: "forge", name: "Forge", roles: ["OWNER"] },
     });
     useShellStore.setState({ navigationCollapsed: false });
+    useAgentPanelStore.setState({ open: false, activeConversationId: undefined, running: false, awaitingApproval: false, contextDismissed: false });
   });
   afterEach(cleanup);
 
@@ -74,6 +90,34 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: /执行轨迹/ })).toHaveAttribute("href", "/agent/trace/demo-run");
     expect(screen.queryByText("全部项目")).not.toBeInTheDocument();
     expect(screen.getByRole("presentation").getAttribute("src")).toMatch(/\/api\/v1\/branding\/company-logo$/);
+  });
+
+  it("顶栏 Agent 指令按钮在任意页面唤起全局抽屉而非跳转", async () => {
+    const user = userEvent.setup();
+    render(
+      <AppShell>
+        <p>内容</p>
+      </AppShell>,
+      { wrapper },
+    );
+
+    await user.click(screen.getByRole("button", { name: /Agent 指令/ }));
+
+    expect(useAgentPanelStore.getState().open).toBe(true);
+    expect(await screen.findByPlaceholderText("描述你希望 Agent 完成的任务…")).toBeInTheDocument();
+  });
+
+  it("⌘J 唤起全局 Agent 抽屉", async () => {
+    render(
+      <AppShell>
+        <p>内容</p>
+      </AppShell>,
+      { wrapper },
+    );
+
+    fireEvent.keyDown(window, { key: "j", metaKey: true });
+
+    expect(useAgentPanelStore.getState().open).toBe(true);
   });
 
   it("头像使用当前用户姓名首字且点击后从菜单退出", async () => {

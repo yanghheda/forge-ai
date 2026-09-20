@@ -19,8 +19,8 @@ export function AgentMessage({ title, children }: { title: string; children: Rea
 
 export function ReasoningDetails({ reasoning, completed }: { reasoning: string[]; completed: boolean }) {
   return (
-    <details className={styles.reasoning} open={!completed}>
-      <summary>{completed ? "已完成思考" : "正在思考…"}</summary>
+    <details className={styles.reasoning} open>
+      <summary>{completed ? "已完成思考" : <span className={styles.reasoningSweep}>正在思考</span>}</summary>
       {reasoning.length > 0 ? (
         <ol aria-live="polite">
           {reasoning.map((item, index) => (

@@ -174,7 +174,15 @@ export function UxDelivery({ requirementId }: { requirementId: number }) {
             )}
           </div>
         ) : (
-          <DocumentEditor key={`${uxSpec.id}-${editableVersion?.id ?? "empty"}`} userId={user.data.id} documentId={uxSpec.id} baseVersion={uxSpec.version} serverContent={editableVersion?.content ?? emptyDocument()} onSave={(content) => saveSpec.mutateAsync(content).then(() => undefined)} readOnly={!canEdit} />
+          <DocumentEditor
+            key={`${uxSpec.id}-${editableVersion?.id ?? "empty"}`}
+            userId={user.data.id}
+            documentId={uxSpec.id}
+            baseVersion={uxSpec.version}
+            serverContent={editableVersion?.content ?? emptyDocument()}
+            onSave={(content) => saveSpec.mutateAsync(content).then(() => undefined)}
+            readOnly={!canEdit}
+          />
         )}
       </Drawer>
     </>

@@ -676,6 +676,14 @@ class LangGraphRuntimeGateway:
                 details.append(f"版本 {result['currentVersionNo']}")
             suffix = f"（{'，'.join(details)}）" if details else ""
             answer = f"PRD 正文已保存{suffix}。"
+        elif tool_name == "run_release_precheck":
+            details = []
+            if result.get("status") is not None:
+                details.append(f"状态 {result['status']}")
+            if result.get("id") is not None:
+                details.append(f"预检 {result['id']}")
+            suffix = f"（{'，'.join(details)}）" if details else ""
+            answer = f"发布预检已完成{suffix}。"
         else:
             details = []
             if result.get("status") is not None:
@@ -766,6 +774,7 @@ class LangGraphRuntimeGateway:
             if last_call.get("status") == "SUCCEEDED" and last_call.get("toolName") in {
                 "create_prd_document",
                 "advance_requirement",
+                "run_release_precheck",
             }:
                 return "complete_action"
             if last_call.get("status") != "SUCCEEDED":
