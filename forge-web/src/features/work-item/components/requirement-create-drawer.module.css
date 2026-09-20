@@ -1,0 +1,59 @@
+.createDrawer :global(.arco-drawer-header) {
+  min-height: 64px;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom-color: var(--forge-border-2);
+}
+.createDrawer :global(.arco-drawer-header-title) {
+  color: var(--forge-text-1);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.createDrawer :global(.arco-drawer-content) {
+  padding: 24px;
+}
+.createDrawer :global(.arco-drawer-footer) {
+  padding: 14px 24px;
+}
+.drawerDescription {
+  margin: 0 0 22px;
+  color: var(--forge-text-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.drawerForm {
+  display: block;
+}
+.drawerForm :global(.arco-form-item) {
+  margin-bottom: 22px;
+}
+.drawerForm :global(.arco-form-label-item) {
+  padding-bottom: 8px;
+}
+.drawerForm :global(.arco-form-extra) {
+  margin-top: 6px;
+  color: var(--forge-text-3);
+  font-size: 11px;
+}
+.formHint {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--forge-primary-2);
+  border-radius: 2px;
+  background: var(--forge-primary-1);
+}
+.formHint strong {
+  color: var(--forge-primary-7);
+  font-size: 12px;
+}
+.formHint span {
+  color: var(--forge-text-2);
+  font-size: 12px;
+}
+.drawerFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

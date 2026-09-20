@@ -4,13 +4,11 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RequirementDashboard } from "./requirement-dashboard";
+import { MyRequirements } from "./my-requirements";
 
 const api = vi.hoisted(() => ({
-  getRequirementOverview: vi.fn(),
   listOrganizationRequirements: vi.fn(),
   createOrganizationRequirement: vi.fn(),
-  getDashboardOverview: vi.fn(),
 }));
 
 vi.mock("../api/work-item-api", async () => ({
@@ -18,33 +16,20 @@ vi.mock("../api/work-item-api", async () => ({
   ...api,
 }));
 
-vi.mock("@/features/console", async () => ({
-  ...(await vi.importActual("@/features/console")),
-  getDashboardOverview: api.getDashboardOverview,
-}));
-
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>;
 }
 
-describe("RequirementDashboard", () => {
+describe("MyRequirements", () => {
   afterEach(cleanup);
 
   beforeEach(() => {
-    api.getRequirementOverview.mockResolvedValue({ total: 8, inProgress: 5, completed: 3 });
-    api.getDashboardOverview.mockResolvedValue({
-      weeklyDeliveries: 3,
-      activeAgents: 4,
-      personalTodos: 3,
-      stageDistribution: { IN_DEVELOPMENT: 4 },
-      deliveryTrend: [],
-    });
     api.listOrganizationRequirements.mockResolvedValue({
       items: [
         {
           id: 1,
           itemKey: "REQ-1",
-          title: "公司级需求",
+          title: "登录页改版",
           description: "",
           status: "DRAFT",
           priority: "HIGH",
@@ -59,25 +44,22 @@ describe("RequirementDashboard", () => {
     });
   });
 
-  it("展示三项需求统计、创建入口和可搜索列表", async () => {
-    render(<RequirementDashboard />, { wrapper });
+  it("只查询与我相关的需求并渲染列表", async () => {
+    render(<MyRequirements />, { wrapper });
 
-    expect(await screen.findByText("5")).toBeInTheDocument();
-    expect(screen.getByText("进行中需求")).toBeInTheDocument();
-    expect(screen.getByText("待我处理")).toBeInTheDocument();
-    expect(screen.getByText("本周已交付")).toBeInTheDocument();
-    expect(screen.getByText("活跃 Agent")).toBeInTheDocument();
+    expect(screen.getByText("我创建、我负责或等待我评审的需求")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("搜索需求标题、编号或描述")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "新建需求" })).toBeInTheDocument();
-    expect(await screen.findByText("公司级需求")).toBeInTheDocument();
+    expect(await screen.findByText("登录页改版")).toBeInTheDocument();
+    expect(screen.getByText("共 1 条需求")).toBeInTheDocument();
+    expect(api.listOrganizationRequirements).toHaveBeenCalledWith({ mine: true, q: "", status: undefined });
   });
 
   it("点击新建需求后在抽屉中展示创建表单", async () => {
-    render(<RequirementDashboard />, { wrapper });
+    render(<MyRequirements />, { wrapper });
     const user = userEvent.setup();
 
     expect(screen.queryByLabelText("需求标题")).not.toBeInTheDocument();
-    await user.click(await screen.findByRole("button", { name: "新建需求" }));
+    await user.click(screen.getByRole("button", { name: "新建需求" }));
 
     expect(screen.getByLabelText("需求标题")).toBeInTheDocument();
     expect(screen.getByLabelText("需求描述")).toBeInTheDocument();

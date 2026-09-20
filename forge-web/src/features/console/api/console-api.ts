@@ -57,13 +57,6 @@ export interface NotificationItem {
   readAt: string | null;
   createdAt: string;
 }
-export interface DashboardOverview {
-  weeklyDeliveries: number;
-  activeAgents: number;
-  personalTodos: number;
-  stageDistribution: Record<string, number>;
-  deliveryTrend: { date: string; value: number }[];
-}
 export interface AgentRunCreated {
   id: string;
   status: string;
@@ -92,8 +85,6 @@ export const listNotifications = (client: RequestClient = apiClient) => client.r
 export const getUnreadNotificationCount = (client: RequestClient = apiClient) => client.request<{ count: number }>("/v1/notifications/unread-count");
 
 export const markNotificationRead = (id: number, client: RequestClient = apiClient) => client.request<void>(`/v1/notifications/${id}/read`, { method: "POST" });
-
-export const getDashboardOverview = (client: RequestClient = apiClient) => client.request<DashboardOverview>("/v1/dashboard/overview");
 
 export const listAgentConversations = (client: RequestClient = apiClient) => client.request<AgentConversation[]>("/v1/agent-conversations");
 

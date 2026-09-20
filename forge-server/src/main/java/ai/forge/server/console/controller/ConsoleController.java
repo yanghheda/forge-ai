@@ -24,7 +24,6 @@ public class ConsoleController {
     @GetMapping("/notifications") public List<ConsoleModels.NotificationView> notifications(@RequestParam(defaultValue="30") int limit,HttpServletRequest request){return service.notifications(user(request),limit);}
     @GetMapping("/notifications/unread-count") public Map<String,Long> unread(HttpServletRequest request){return Map.of("count",service.unread(user(request)));}
     @PostMapping("/notifications/{id}/read") public ResponseEntity<Void> read(@PathVariable long id,HttpServletRequest request){service.markRead(user(request),id);return ResponseEntity.noContent().build();}
-    @GetMapping("/dashboard/overview") public ConsoleModels.Dashboard dashboard(HttpServletRequest request){return service.dashboard(user(request));}
     @GetMapping("/task-board") public List<ConsoleModels.BoardItem> board(HttpServletRequest request){return service.board(user(request));}
     @PutMapping("/task-board/items/{id}/position") public ResponseEntity<Void> move(@PathVariable long id,@Valid @RequestBody MoveRequest body,HttpServletRequest request){service.move(user(request),id,body.lane(),body.position());return ResponseEntity.noContent().build();}
 

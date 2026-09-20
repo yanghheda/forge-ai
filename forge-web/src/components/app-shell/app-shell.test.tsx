@@ -83,7 +83,7 @@ describe("AppShell", () => {
       { wrapper },
     );
 
-    expect(screen.getByRole("link", { name: /需求概览/ })).toHaveAttribute("href", "/overview");
+    expect(screen.getByRole("link", { name: /全局仪表盘/ })).toHaveAttribute("href", "/overview");
     expect(screen.getByRole("link", { name: /我的需求/ })).toHaveAttribute("href", "/my-requirements");
     expect(screen.getByRole("link", { name: /任务看板/ })).toHaveAttribute("href", "/task-board");
     expect(screen.getAllByRole("link", { name: /Agent 指令/ })[0]).toHaveAttribute("href", "/agent/command");

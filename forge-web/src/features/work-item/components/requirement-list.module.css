@@ -1,0 +1,83 @@
+.listCard {
+  min-width: 0;
+}
+.filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 132px;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--forge-border-1);
+}
+.tableHead,
+.row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 80px 110px 110px;
+  align-items: center;
+  gap: 12px;
+}
+.tableHead {
+  padding: 10px 12px;
+  color: var(--forge-text-3);
+  background: var(--forge-fill-1);
+  font-size: 12px;
+}
+.row {
+  min-height: 66px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--forge-border-1);
+  text-decoration: none;
+}
+.row:hover {
+  background: var(--forge-fill-1);
+}
+.row div {
+  min-width: 0;
+}
+.row strong,
+.row small {
+  display: block;
+}
+.row small {
+  color: var(--forge-text-3);
+  font: 12px var(--forge-font-mono);
+}
+.row strong {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--forge-text-1);
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row time {
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.loading,
+.empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: var(--forge-text-3);
+}
+.total {
+  padding-top: 12px;
+  color: var(--forge-text-3);
+  font-size: 12px;
+  text-align: right;
+}
+@media (max-width: 700px) {
+  .tableHead {
+    display: none;
+  }
+  .row {
+    grid-template-columns: 1fr auto auto;
+  }
+  .row time {
+    display: none;
+  }
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}

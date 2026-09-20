@@ -37,6 +37,77 @@ export interface RequirementOverview {
   completed: number;
 }
 
+export interface RequirementStatusBucket {
+  status: string;
+  total: number;
+}
+
+export interface RequirementPriorityBucket {
+  priority: string;
+  total: number;
+}
+
+export interface RequirementDailyFlow {
+  date: string;
+  created: number;
+  completed: number;
+}
+
+export interface RequirementBacklogPoint {
+  date: string;
+  value: number;
+}
+
+export interface RequirementBugBucket {
+  severity: string;
+  status: string;
+  total: number;
+}
+
+export interface RequirementQaQuality {
+  passed: number;
+  failed: number;
+  blocked: number;
+  skipped: number;
+  notRun: number;
+  passRate: number | null;
+}
+
+export interface RequirementRiskItem {
+  id: number;
+  itemKey: string;
+  title: string;
+  status: string;
+  priority: string;
+  dueAt: string | null;
+  blocked: boolean;
+}
+
+export interface RequirementAnalyticsMetrics {
+  total: number;
+  inProgress: number;
+  completed: number;
+  overdue: number;
+  createdInRange: number;
+  completedInRange: number;
+  onTimeRate: number | null;
+  avgCycleDays: number | null;
+  createdDeltaRate: number | null;
+  completedDeltaRate: number | null;
+}
+
+export interface RequirementAnalytics {
+  rangeDays: number;
+  metrics: RequirementAnalyticsMetrics;
+  statusFunnel: RequirementStatusBucket[];
+  priorityDistribution: RequirementPriorityBucket[];
+  flowTrend: RequirementDailyFlow[];
+  backlogTrend: RequirementBacklogPoint[];
+  bugDistribution: RequirementBugBucket[];
+  qaQuality: RequirementQaQuality;
+  risks: RequirementRiskItem[];
+}
+
 export type RequirementRole = "PRODUCT" | "UX" | "DEVELOPER" | "QA";
 
 export interface RequirementParticipant {
@@ -72,6 +143,8 @@ const json = (method: string, body: unknown): RequestInit => ({
 });
 
 export const getRequirementOverview = (client: RequestClient = apiClient) => client.request<RequirementOverview>("/v1/requirements/overview");
+
+export const getRequirementAnalytics = (range: number, client: RequestClient = apiClient) => client.request<RequirementAnalytics>(`/v1/requirements/analytics?range=${range}`);
 
 export const listOrganizationRequirements = (filters: { mine?: boolean; q?: string; status?: string } = {}, client: RequestClient = apiClient) => {
   const query = new URLSearchParams();

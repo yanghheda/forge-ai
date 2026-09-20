@@ -373,7 +373,9 @@
   border-radius: 6px;
   color: var(--forge-text-2);
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
 }
 .sessionItem:hover {
   color: var(--forge-text-1);

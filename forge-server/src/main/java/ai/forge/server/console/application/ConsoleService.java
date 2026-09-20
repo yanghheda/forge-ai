@@ -3,10 +3,8 @@ package ai.forge.server.console.application;
 import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.organization.application.OrganizationAccessService;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,14 +41,6 @@ public class ConsoleService {
 
     public long unread(long userId) { long organizationId=organization(userId); return mapper.unread(organizationId,userId); }
     public void markRead(long userId,long id) { long organizationId=organization(userId); if(mapper.markRead(organizationId,userId,id)!=1) throw new ResourceNotFoundException(); }
-
-    public ConsoleModels.Dashboard dashboard(long userId) {
-        long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"requirement.read");
-        Map<String,Long> stages=new LinkedHashMap<>(); mapper.stages(organizationId).forEach(row->stages.put(text(row,"status"),number(row,"total")));
-        Map<String,Long> values=new LinkedHashMap<>(); mapper.trend(organizationId).forEach(row->values.put(row.get("day").toString(),number(row,"total")));
-        List<ConsoleModels.TrendPoint> trend=java.util.stream.IntStream.rangeClosed(0,6).mapToObj(offset->{String day=LocalDate.now(ZoneOffset.UTC).minusDays(6-offset).toString(); return new ConsoleModels.TrendPoint(day,values.getOrDefault(day,0L));}).toList();
-        return new ConsoleModels.Dashboard(mapper.weeklyDeliveries(organizationId),mapper.activeAgents(organizationId),mapper.personalTodos(organizationId,userId),stages,trend);
-    }
 
     public List<ConsoleModels.BoardItem> board(long userId) {
         long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.read");

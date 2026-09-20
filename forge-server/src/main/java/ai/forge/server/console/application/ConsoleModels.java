@@ -1,8 +1,6 @@
 package ai.forge.server.console.application;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 
 public final class ConsoleModels {
     private ConsoleModels() {}
@@ -22,17 +20,6 @@ public final class ConsoleModels {
             /* 可选关联资源标识。 */ String resourceId,
             /* 首次已读时间；未读时为空。 */ Instant readAt,
             /* 通知创建时间。 */ Instant createdAt) {}
-
-    public record Dashboard(
-            /* 本周完成需求数。 */ long weeklyDeliveries,
-            /* 近七天发起过运行的 Agent 数。 */ long activeAgents,
-            /* 当前用户未完成待办数。 */ long personalTodos,
-            /* 各阶段需求数。 */ Map<String, Long> stageDistribution,
-            /* 近七日每日完成量。 */ List<TrendPoint> deliveryTrend) {}
-
-    public record TrendPoint(
-            /* UTC 日期文本。 */ String date,
-            /* 当日完成数。 */ long value) {}
 
     public record BoardItem(
             /* 工作项标识。 */ long id,

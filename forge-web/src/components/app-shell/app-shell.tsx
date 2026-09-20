@@ -94,7 +94,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const items: NavItem[] = [
     {
-      label: "需求概览",
+      label: "全局仪表盘",
       href: "/overview",
       icon: <IconDashboard />,
       active: pathname === "/overview",
@@ -273,7 +273,7 @@ function avatarText(displayName?: string) {
 }
 
 function pageName(pathname: string) {
-  if (pathname === "/overview") return "需求概览";
+  if (pathname === "/overview") return "全局仪表盘";
   if (pathname === "/my-requirements") return "我的需求";
   if (pathname === "/task-board") return "任务看板";
   if (pathname.startsWith("/agent/command")) return "Agent 指令中心";

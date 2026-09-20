@@ -33,27 +33,6 @@ public interface ConsoleMapper extends ConsoleStore {
             + "AND organization_id=#{organizationId} AND user_id=#{userId}")
     int markRead(@Param("organizationId") long organizationId, @Param("userId") long userId, @Param("id") long id);
 
-    @Select("SELECT COUNT(*) FROM work_items WHERE organization_id=#{organizationId} AND type='REQUIREMENT' "
-            + "AND status IN ('DONE','RELEASED') AND updated_at>=UTC_TIMESTAMP(6)-INTERVAL 7 DAY AND deleted_at IS NULL")
-    long weeklyDeliveries(@Param("organizationId") long organizationId);
-
-    @Select("SELECT COUNT(DISTINCT skill) FROM agent_runs WHERE organization_id=#{organizationId} "
-            + "AND created_at>=UTC_TIMESTAMP(6)-INTERVAL 7 DAY")
-    long activeAgents(@Param("organizationId") long organizationId);
-
-    @Select("SELECT COUNT(*) FROM work_items WHERE organization_id=#{organizationId} AND assignee_user_id=#{userId} "
-            + "AND status NOT IN ('DONE','RELEASED','CANCELLED') AND deleted_at IS NULL")
-    long personalTodos(@Param("organizationId") long organizationId, @Param("userId") long userId);
-
-    @Select("SELECT status,COUNT(*) total FROM work_items WHERE organization_id=#{organizationId} "
-            + "AND type='REQUIREMENT' AND deleted_at IS NULL GROUP BY status")
-    List<Map<String, Object>> stages(@Param("organizationId") long organizationId);
-
-    @Select("SELECT DATE(updated_at) day,COUNT(*) total FROM work_items WHERE organization_id=#{organizationId} "
-            + "AND type='REQUIREMENT' AND status IN ('DONE','RELEASED') AND updated_at>=UTC_DATE()-INTERVAL 6 DAY "
-            + "AND deleted_at IS NULL GROUP BY DATE(updated_at) ORDER BY day")
-    List<Map<String, Object>> trend(@Param("organizationId") long organizationId);
-
     @Select("SELECT wi.id,wi.item_key,wi.type,wi.title,wi.assignee_user_id,"
             + "COALESCE(bp.lane,CASE WHEN wi.status IN ('DONE','RELEASED') THEN 'DONE' "
             + "WHEN wi.status='BLOCKED' THEN 'BLOCKED' WHEN wi.status IN ('TODO','DRAFT','OPEN') THEN 'TODO' "
