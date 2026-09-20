@@ -4,7 +4,6 @@ import { Badge, Button, Drawer, Dropdown, Empty, Input, Menu, Message, Modal, Sp
 import { IconApps, IconBranch, IconCommand, IconDashboard, IconHistory, IconMenuFold, IconMenuUnfold, IconNotification, IconPoweroff, IconRobot, IconSearch, IconSettings, IconUser } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 
@@ -119,17 +118,6 @@ export function AppShell({ children }: AppShellProps) {
       <aside className={styles.sidebar}>
         <Link className={styles.brand} href="/overview" aria-label="ForgeAI 首页">
           <span className={styles.brandMark}>
-            <Image
-              src="/api/v1/branding/company-logo"
-              alt=""
-              width={36}
-              height={36}
-              unoptimized
-              onError={(event) => {
-                event.currentTarget.hidden = true;
-                event.currentTarget.parentElement?.classList.add(styles.brandFallback);
-              }}
-            />
             <b>F</b>
           </span>
           {!navigationCollapsed && (

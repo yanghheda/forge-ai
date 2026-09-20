@@ -53,10 +53,7 @@ class AuthenticationSessionExpiryIntegrationTest extends InfrastructureIntegrati
                         "adminDisplayName", "Forge Owner",
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
-                        "organizationSlug", "forge",
-                        "logoFileName", "logo.webp",
-                        "logoMediaType", "image/webp",
-                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"), null,
+                        "organizationSlug", "forge"), null,
                 String.class);
         redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
     }

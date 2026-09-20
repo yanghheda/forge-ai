@@ -26,7 +26,6 @@ GitLab Project ID、Docker Compose project 和 Python `pyproject.toml` 属于第
 - Docker Compose 可用，`/opt/infra` 已运行并提供外部网络 `infra-net`，根目录存在未提交的 `deploy/.env`。
 - Node、npm、Java、浏览器及项目依赖已按 README 准备。
 - 测试端口未被占用；已分配独立测试 database/user、Redis 前缀和 Qdrant collection 前缀。
-- 准备一个不超过 2 MiB 的有效 WebP 公司 Logo。
 - GitLab 用例使用可控测试实例或 stub，不连接生产仓库。
 
 ```bash
@@ -75,17 +74,17 @@ database、Redis 前缀与 Qdrant collection 前缀，不能影响其他项目�
 
 ### AUTH-01 [P0] 空实例初始化 [✅]
 
-步骤：打开首页；上传合法 WebP Logo，填写 Owner、公司名称与 Slug；提交、刷新并再次初始化。
+步骤：打开首页；填写 Owner、公司名称与 Slug；提交、刷新并再次初始化。
 
-预期：只原子创建公司、Owner、公司成员关系和 Owner 角色；Logo 可读取；重复初始化冲突且无第二家公司或 Owner；页面、API、数据库均不创建 ForgeAI Workspace/Project。
+预期：只原子创建公司、Owner、公司成员关系和 Owner 角色；重复初始化冲突且无第二家公司或 Owner；页面、API、数据库均不创建 ForgeAI Workspace/Project。
 
 实际/证据：
 
-### AUTH-02 [P0] 初始化字段与 Logo 校验 [✅]
+### AUTH-02 [P0] 初始化字段校验 [✅]
 
-步骤：在独立空环境提交空字段、非法 Slug、弱密码、非 WebP、伪造媒体类型、损坏内容和超限 Logo。
+步骤：在独立空环境提交空字段、非法 Slug、弱密码与超长字段。
 
-预期：全部失败且无部分事实；错误不回显密码或 Base64；合法 Logo 响应为 `image/webp`。
+预期：全部失败且无部分事实；错误不回显密码。
 
 实际/证据：
 

@@ -10,7 +10,6 @@ import { getSetupStatus, initializeInstance, login, register, type InitializeInp
 import { initializeSchema, loginSchema, registerSchema } from "../schemas/auth-form.schema";
 import { AuthErrorAlert } from "./auth-error-alert";
 import { AuthLayout } from "./auth-layout";
-import { LogoUpload } from "./logo-upload";
 import { issuesToFieldErrors, schemaRule, type FieldErrors } from "../utils/auth-validation";
 import styles from "./auth-forms.module.css";
 
@@ -20,7 +19,6 @@ const emptyInitialization: InitializeInput = {
   password: "",
   organizationName: "",
   organizationSlug: "",
-  logo: null,
 };
 const emptyLogin = { email: "", password: "" };
 const emptyRegistration: RegisterInput = {
@@ -110,21 +108,11 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
     loginMutation.mutate(parsed.data);
   }
 
-  async function submitInitialization() {
+  function submitInitialization() {
     const parsed = initializeSchema.safeParse(initializeValues);
-    if (!parsed.success) {
-      showSchemaErrors([...parsed.error.issues, ...(!initializeValues.logo ? [{ path: ["logo"], message: "请选择公司 Logo" }] : [])]);
-      return;
-    }
-    if (!initializeValues.logo) return setFieldErrors({ logo: "请选择 WebP 格式的公司 Logo。" });
-    if (initializeValues.logo.type !== "image/webp" || !initializeValues.logo.name.toLowerCase().endsWith(".webp")) return setFieldErrors({ logo: "公司 Logo 仅支持 WebP 格式。" });
-    if (initializeValues.logo.size > 2 * 1024 * 1024) return setFieldErrors({ logo: "公司 Logo 不能超过 2 MiB。" });
-    if (!(await hasSquareLogoDimensions(initializeValues.logo)))
-      return setFieldErrors({
-        logo: "公司 Logo 的宽高比例必须为 1:1。",
-      });
+    if (!parsed.success) return showSchemaErrors(parsed.error.issues);
     setFieldErrors({});
-    initializeMutation.mutate({ ...parsed.data, logo: initializeValues.logo });
+    initializeMutation.mutate(parsed.data);
   }
 
   function submitRegistration() {
@@ -135,7 +123,7 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
   }
 
   if (initialMode === "init" || !initialized) {
-    const fields: Array<[Exclude<keyof InitializeInput, "logo">, string, string, string]> = [
+    const fields: Array<[keyof InitializeInput, string, string, string]> = [
       ["adminEmail", "管理员邮箱", "name@example.com", "请输入有效邮箱"],
       ["adminDisplayName", "管理员名称", "Forge 所有者", "请输入管理员名称"],
       ["password", "密码", "至少 12 个字符，包含字母和数字", "请输入密码"],
@@ -187,19 +175,6 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
                 )}
               </Form.Item>
             ))}
-            <Form.Item field="logo" label="公司 Logo" required rules={[{ required: true, message: "请选择公司 Logo" }]} validateStatus={fieldErrors.logo ? "error" : undefined} help={fieldErrors.logo}>
-              <div>
-                <LogoUpload
-                  value={initializeValues.logo}
-                  error={Boolean(fieldErrors.logo)}
-                  onFileChange={(logo) => {
-                    initializeForm.setFieldValue("logo", logo);
-                    clearFieldError("logo");
-                    setInitializeValues((current) => ({ ...current, logo }));
-                  }}
-                />
-              </div>
-            </Form.Item>
             <AuthErrorAlert error={initializeMutation.error} />
             <Button htmlType="submit" type="primary" long size="large" loading={initializeMutation.isPending}>
               完成初始化
@@ -339,20 +314,4 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
       </Card>
     </AuthLayout>
   );
-}
-
-function hasSquareLogoDimensions(file: File): Promise<boolean> {
-  return new Promise((resolve) => {
-    const image = new Image();
-    const source = URL.createObjectURL(file);
-    image.onload = () => {
-      URL.revokeObjectURL(source);
-      resolve(image.naturalWidth === image.naturalHeight);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(source);
-      resolve(false);
-    };
-    image.src = source;
-  });
 }

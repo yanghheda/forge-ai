@@ -116,10 +116,7 @@ class CsrfIntegrationTest extends InfrastructureIntegrationTestBase {
                         "adminDisplayName", "Forge Owner",
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
-                        "organizationSlug", "forge",
-                        "logoFileName", "logo.webp",
-                        "logoMediaType", "image/webp",
-                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"), headers),
+                        "organizationSlug", "forge"), headers),
                 String.class);
     }
 

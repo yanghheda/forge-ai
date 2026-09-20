@@ -45,18 +45,15 @@ describe("AuthEntry", () => {
 
   it("未初始化实例展示完整初始化表单", async () => {
     authApi.getSetupStatus.mockResolvedValue({ initialized: false });
-    const { container } = render(<AuthEntry />, { wrapper });
+    render(<AuthEntry />, { wrapper });
 
     expect(await screen.findByText("初始化 ForgeAI")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "让需求到发布 由 AI 智能体协同完成" })).toBeInTheDocument();
     expect(screen.queryByText(/\\n/)).not.toBeInTheDocument();
     expect(screen.getByLabelText("管理员邮箱")).toBeInTheDocument();
     expect(screen.getByLabelText("公司名称")).toBeInTheDocument();
-    expect(document.querySelectorAll(".arco-form-item-symbol")).toHaveLength(6);
+    expect(document.querySelectorAll(".arco-form-item-symbol")).toHaveLength(5);
     expect(screen.getByLabelText("管理员邮箱").closest("form")).toHaveClass("arco-form");
-    expect(container.querySelector('input[type="file"]')).toHaveAttribute("accept", "image/webp,.webp");
-    expect(screen.getByLabelText("点击或拖拽文件到此处上传")).toBeInTheDocument();
-    expect(screen.getByText("仅支持 WebP 格式，比例 1:1，文件不超过 2 MiB")).toBeInTheDocument();
     expect(screen.queryByLabelText("工作空间名称")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "完成初始化" })).toBeEnabled();
   });
@@ -66,45 +63,10 @@ describe("AuthEntry", () => {
     render(<AuthEntry initialMode="init" />, { wrapper });
 
     expect(await screen.findByText("初始化 ForgeAI")).toBeInTheDocument();
-    expect(screen.getByLabelText("点击或拖拽文件到此处上传")).toBeInTheDocument();
+    expect(screen.getByLabelText("公司短名")).toBeInTheDocument();
   });
 
-  it("点击 Logo 上传区域会打开文件选择器", async () => {
-    authApi.getSetupStatus.mockResolvedValue({ initialized: false });
-    const { container } = render(<AuthEntry />, { wrapper });
-    const user = userEvent.setup();
-    await screen.findByText("初始化 ForgeAI");
-    const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
-    expect(fileInput).not.toBeNull();
-    const openFilePicker = vi.spyOn(fileInput!, "click");
-
-    await user.click(screen.getByLabelText("点击或拖拽文件到此处上传"));
-
-    expect(openFilePicker).toHaveBeenCalledOnce();
-  });
-
-  it("选择 Logo 后在上传方块内显示图片和重新上传入口", async () => {
-    authApi.getSetupStatus.mockResolvedValue({ initialized: false });
-    const { container } = render(<AuthEntry />, { wrapper });
-    const user = userEvent.setup();
-    const logo = new File(["RIFF0000WEBP"], "company.webp", {
-      type: "image/webp",
-    });
-
-    await screen.findByText("初始化 ForgeAI");
-    const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
-    expect(fileInput).not.toBeNull();
-    await user.upload(fileInput!, logo);
-
-    expect(await screen.findByRole("img", { name: "company.webp Logo" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "重新上传公司 Logo" })).toBeInTheDocument();
-    expect(screen.getByText("重新上传")).toBeInTheDocument();
-    expect(screen.queryByText("已选择，将在完成初始化时上传")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "预览图片" })).not.toBeInTheDocument();
-    expect(container.querySelector(".arco-upload-list-start-icon")).not.toBeInTheDocument();
-  });
-
-  it("初始化校验使用中文字段提示并包含 Logo", async () => {
+  it("初始化校验使用中文字段提示", async () => {
     authApi.getSetupStatus.mockResolvedValue({ initialized: false });
     render(<AuthEntry />, { wrapper });
     const user = userEvent.setup();
@@ -115,7 +77,6 @@ describe("AuthEntry", () => {
     expect(screen.getByText("请输入密码")).toBeInTheDocument();
     expect(screen.getByText("请输入组织名称")).toBeInTheDocument();
     expect(screen.getByText("请输入公司短名")).toBeInTheDocument();
-    expect(screen.getByText("请选择公司 Logo")).toBeInTheDocument();
     expect(screen.queryByText(/Invalid input/)).not.toBeInTheDocument();
   });
 

@@ -56,10 +56,7 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
                         "adminDisplayName", "Owner",
                         "password", "correct-horse-42",
                         "organizationName", "独立开发者",
-                        "organizationSlug", "solo",
-                        "logoFileName", "logo.webp",
-                        "logoMediaType", "image/webp",
-                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
+                        "organizationSlug", "solo"),
                 null,
                 String.class);
 
@@ -154,10 +151,7 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
                         "adminDisplayName", "Owner",
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
-                        "organizationSlug", "forge",
-                        "logoFileName", "logo.webp",
-                        "logoMediaType", "image/webp",
-                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
+                        "organizationSlug", "forge"),
                 null,
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);

@@ -89,7 +89,6 @@ describe("AppShell", () => {
     expect(screen.getAllByRole("link", { name: /Agent 指令/ })[0]).toHaveAttribute("href", "/agent/command");
     expect(screen.getByRole("link", { name: /执行轨迹/ })).toHaveAttribute("href", "/agent/trace/demo-run");
     expect(screen.queryByText("全部项目")).not.toBeInTheDocument();
-    expect(screen.getByRole("presentation").getAttribute("src")).toMatch(/\/api\/v1\/branding\/company-logo$/);
   });
 
   it("顶栏 Agent 指令按钮在任意页面唤起全局抽屉而非跳转", async () => {

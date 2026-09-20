@@ -588,16 +588,6 @@ samp {
   }
   .slug-input { padding-right: 96px; }
   .field-hint { margin-top: 6px; font-size: 12px; line-height: 1.6; color: var(--forge-text-4); }
-  .logo-upload-area {
-    width: 100%; height: 80px; display: grid; place-items: center;
-    border: 1px dashed var(--forge-border-3); border-radius: var(--forge-radius-sm);
-    background: var(--forge-fill-1); cursor: pointer; transition: all .15s ease;
-  }
-  .logo-upload-area:hover { border-color: var(--forge-primary-5); background: var(--forge-primary-1); }
-  .logo-upload-placeholder { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  .logo-upload-placeholder .icon { width: 22px; height: 22px; color: var(--forge-text-4); }
-  .logo-upload-text { font-size: 13px; color: var(--forge-text-3); }
-  .logo-upload-format { font-size: 11px; color: var(--forge-text-4); }
         </style>
         <div class="arco-form-item">
           <label class="arco-form-label" for="init-name"><span><span class="req">*</span>姓名</span></label>
@@ -636,18 +626,6 @@ samp {
           <input id="init-company-slug" class="arco-input" type="text" value="forge-uat">
           <p class="field-hint">仅支持小写字母、数字与连字符，创建后不可修改，用于公司内唯一访问标识。</p>
         </div>
-        <div class="arco-form-item">
-          <label class="arco-form-label" for="init-company-logo"><span><span class="req">*</span>公司 Logo</span></label>
-          <div class="logo-upload-area" data-dom-id="logo-upload-zone">
-            <div class="logo-upload-placeholder">
-              <svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg>
-              <span class="logo-upload-text">点击或拖拽上传</span>
-              <span class="logo-upload-format">仅支持 WebP 格式，比例 1:1，文件不超过 2 MiB</span>
-            </div>
-          </div>
-          <p class="field-hint">用于展示到导航栏左侧顶层，透明背景的 WebP 图片效果最佳。</p>
-        </div>
-
         <div class="auth-alert init-alert">
           <svg class="icon" aria-hidden="true"><use href="#i-warning"></use></svg>
           <span>初始 Owner 为公司最高权限角色，实例仅允许初始化一次，请使用企业邮箱并妥善保管密码。</span>

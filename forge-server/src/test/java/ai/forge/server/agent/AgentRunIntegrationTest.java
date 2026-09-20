@@ -77,10 +77,7 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
                         "adminDisplayName", "Forge Owner",
                         "password", "correct-horse-42",
                         "organizationName", "Forge",
-                        "organizationSlug", "forge",
-                        "logoFileName", "logo.webp",
-                        "logoMediaType", "image/webp",
-                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"),
+                        "organizationSlug", "forge"),
                 null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);

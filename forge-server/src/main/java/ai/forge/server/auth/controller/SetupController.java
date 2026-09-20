@@ -3,7 +3,6 @@ package ai.forge.server.auth.controller;
 import ai.forge.server.auth.application.InstanceBootstrapService;
 import ai.forge.server.auth.domain.BootstrapCommand;
 import ai.forge.server.auth.domain.BootstrapResult;
-import ai.forge.server.auth.domain.CompanyLogoPolicy;
 import ai.forge.server.platform.web.RequestIdFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,7 +15,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
-import java.util.Base64;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -63,7 +61,7 @@ public class SetupController {
                 body.password(),
                 body.organizationName(),
                 body.organizationSlug(),
-                requestId), decodeLogo(body));
+                requestId));
         InitializeResponse response = new InitializeResponse(
                 result.userId(),
                 result.organizationId(),
@@ -81,13 +79,7 @@ public class SetupController {
             /* 默认组织的界面展示名称。 */
             @NotBlank @Size(max = 120) String organizationName,
             /* 默认组织的小写字母、数字和短横线路由短名。 */
-            @NotBlank @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String organizationSlug,
-            /* 公司 Logo 的原始文件名，仅允许使用 .webp 后缀。 */
-            @NotBlank @Pattern(regexp = ".+\\.[wW][eE][bB][pP]") String logoFileName,
-            /* 公司 Logo 的媒体类型，必须精确为 image/webp。 */
-            @NotBlank @Pattern(regexp = "image/webp") String logoMediaType,
-            /* 公司 Logo 的 Base64 内容；解码后上限为 2 MiB。 */
-            @NotBlank @Size(max = 2_796_204) String logoBase64) {}
+            @NotBlank @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String organizationSlug) {}
 
     public record InitializeResponse(
             /* 初始化创建的首个 Owner 用户标识。 */
@@ -100,15 +92,5 @@ public class SetupController {
     public record SetupStatusResponse(
             /* 为 true 时公开初始化入口已永久关闭，Web 应展示登录表单。 */
             boolean initialized) {}
-
-    private byte[] decodeLogo(InitializeRequest body) {
-        try {
-            byte[] content = Base64.getDecoder().decode(body.logoBase64());
-            CompanyLogoPolicy.validate(content);
-            return content;
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("Invalid WebP logo", exception);
-        }
-    }
 
 }

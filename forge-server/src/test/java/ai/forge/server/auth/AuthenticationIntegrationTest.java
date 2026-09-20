@@ -60,10 +60,7 @@ class AuthenticationIntegrationTest extends InfrastructureIntegrationTestBase {
                         "adminDisplayName", "Forge Owner",
                         "password", PASSWORD,
                         "organizationName", "Forge",
-                        "organizationSlug", "forge",
-                        "logoFileName", "logo.webp",
-                        "logoMediaType", "image/webp",
-                        "logoBase64", "UklGRgAAAABXRUJQVlA4WAAAAAAAAAAAGwAAGwAA"), null,
+                        "organizationSlug", "forge"), null,
                 String.class);
         assertThat(initialized.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }

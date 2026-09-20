@@ -14,7 +14,6 @@ describe("auth api", () => {
         password: "correct-horse-42",
         organizationName: "Forge",
         organizationSlug: "forge",
-        logo: new File(["RIFF0000WEBP"], "logo.webp", { type: "image/webp" }),
       },
       client,
     );
@@ -41,8 +40,8 @@ describe("auth api", () => {
     ]);
     const initializeBody = JSON.parse(client.request.mock.calls[1][1].body as string);
     expect(initializeBody).toMatchObject({
-      logoFileName: "logo.webp",
-      logoMediaType: "image/webp",
+      adminEmail: "owner@example.com",
+      organizationSlug: "forge",
     });
   });
 });
