@@ -16,9 +16,13 @@ import org.springframework.stereotype.Service;
 @Service
 @Profile("!test-unit")
 public class OrganizationMemberService {
-    /* 自助注册和管理员可分配的业务角色白名单。 */
+    /* 全局管理员与 Owner 可分配的业务角色白名单；含四个领域管理员。 */
     private static final Set<String> ASSIGNABLE_ROLES = Set.of(
-            "ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER");
+            "ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA",
+            "PRODUCT_ADMIN", "UX_ADMIN", "DEVELOPER_ADMIN", "QA_ADMIN");
+    /* 自助注册允许选择的岗位角色白名单；四个领域管理员只能由全局管理员或 Owner 分配。 */
+    private static final Set<String> SELF_REGISTER_ROLES =
+            Set.of("ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA");
     /* 读取当前会话所属公司的服务。 */
     private final OrganizationAccessService accessService;
     /* 持久化公司成员、状态和角色的端口。 */
@@ -77,7 +81,7 @@ public class OrganizationMemberService {
 
     private String normalizeRole(String roleCode) {
         String role = roleCode == null ? "" : roleCode.trim().toUpperCase(Locale.ROOT);
-        if (!Set.of("PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER").contains(role)) {
+        if (!SELF_REGISTER_ROLES.contains(role)) {
             throw new IllegalArgumentException("Unsupported role");
         }
         return role;

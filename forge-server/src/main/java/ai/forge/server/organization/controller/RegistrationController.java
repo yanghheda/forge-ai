@@ -46,8 +46,8 @@ public class RegistrationController {
             /* 新成员用于登录且全实例唯一的邮箱。 */ @NotBlank @Email @Size(max = 320) String email,
             /* 新成员在需求参与人等界面展示的名称。 */ @NotBlank @Size(max = 120) String displayName,
             /* 只用于生成 BCrypt 摘要且永不回显的密码。 */ @NotBlank String password,
-            /* 申请承担的业务角色代码。 */
-            @NotBlank @Pattern(regexp = "PRODUCT|UX|DEVELOPER|QA|RELEASE_APPROVER") String role) {}
+            /* 申请承担的业务角色代码；四个领域管理员不支持自助注册。 */
+            @NotBlank @Pattern(regexp = "ADMIN|PRODUCT|UX|DEVELOPER|QA") String role) {}
 
     public record RegisterResponse(
             /* 注册申请创建的稳定用户标识。 */ long userId,

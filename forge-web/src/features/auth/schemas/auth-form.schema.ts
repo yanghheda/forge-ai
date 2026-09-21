@@ -28,5 +28,5 @@ export const registerSchema = z.object({
     .string()
     .min(12, "密码至少 12 个字符")
     .refine((value) => /[A-Za-z]/.test(value) && /\d/.test(value), "密码必须包含字母和数字"),
-  role: z.enum(["PRODUCT", "UX", "DEVELOPER", "QA"]),
+  role: z.enum(["ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA"]),
 });

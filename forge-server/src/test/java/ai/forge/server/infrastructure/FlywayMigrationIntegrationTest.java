@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("7");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -67,7 +67,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForList(
                         "SELECT p.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
                                 + "JOIN permissions p ON p.id = rp.permission_id "
-                                + "WHERE r.code = 'RELEASE_APPROVER' AND p.code IN ('approval.decide','release.read') "
+                                + "WHERE r.code = 'DEVELOPER_ADMIN' AND p.code IN ('approval.decide','release.read') "
                                 + "ORDER BY p.code",
                         String.class))
                 .containsExactly("approval.decide", "release.read");
@@ -76,7 +76,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                                 + "JOIN permissions p ON p.id = rp.permission_id "
                                 + "WHERE p.code = 'approval.decide' ORDER BY r.code",
                         String.class))
-                .containsExactly("ADMIN", "OWNER", "RELEASE_APPROVER");
+                .containsExactly("ADMIN", "DEVELOPER_ADMIN", "OWNER");
     }
 
     @Test
@@ -139,7 +139,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
     @Test
     void rbacMigrationSeedsDefaultRolesAndCorePermissions() {
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM roles WHERE system_role = TRUE", Integer.class))
-                .isEqualTo(7);
+                .isEqualTo(10);
         assertThat(jdbcTemplate.queryForList(
                         "SELECT code FROM permissions ORDER BY code", String.class))
                 .contains(
@@ -152,7 +152,43 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                 Integer.class))
-                .isEqualTo(36);
+                .isEqualTo(38);
+    }
+
+    @Test
+    void domainAdminMigrationReplacesReleaseApproverWithDomainAdmins() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT code FROM roles WHERE organization_id IS NULL AND system_role = TRUE ORDER BY code",
+                        String.class))
+                .containsExactly(
+                        "ADMIN", "DEVELOPER", "DEVELOPER_ADMIN", "OWNER", "PRODUCT", "PRODUCT_ADMIN",
+                        "QA", "QA_ADMIN", "UX", "UX_ADMIN");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT name FROM roles WHERE code = 'ADMIN' AND organization_id IS NULL", String.class))
+                .isEqualTo("全局管理员");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM roles r WHERE r.code IN "
+                                + "('PRODUCT_ADMIN','UX_ADMIN','DEVELOPER_ADMIN','QA_ADMIN') "
+                                + "AND r.system_role = TRUE AND r.organization_id IS NULL "
+                                + "AND EXISTS(SELECT 1 FROM role_permissions rp WHERE rp.role_id = r.id)",
+                        Integer.class))
+                .isEqualTo(4);
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT code FROM permissions WHERE code IN ('requirement.approve','ux.approve') ORDER BY code",
+                        String.class))
+                .containsExactly("requirement.approve", "ux.approve");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE p.code = 'requirement.approve' ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "OWNER", "PRODUCT_ADMIN");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE p.code = 'ux.approve' ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "OWNER", "UX_ADMIN");
     }
 
     @Test
@@ -218,7 +254,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                         "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id=rp.role_id "
                                 + "JOIN permissions p ON p.id=rp.permission_id WHERE p.code='repo.write' ORDER BY r.code",
                         String.class))
-                .containsExactly("ADMIN", "DEVELOPER", "OWNER");
+                .containsExactly("ADMIN", "DEVELOPER", "DEVELOPER_ADMIN", "OWNER");
     }
 
     @Test
@@ -242,8 +278,8 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                         "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
                                 + "JOIN permissions p ON p.id = rp.permission_id WHERE p.code = 'agent.run' ORDER BY r.code",
                         String.class))
-                .containsExactly("ADMIN", "DEVELOPER", "OWNER", "PRODUCT", "QA",
-                        "RELEASE_APPROVER", "UX");
+                .containsExactly("ADMIN", "DEVELOPER", "DEVELOPER_ADMIN", "OWNER", "PRODUCT", "PRODUCT_ADMIN",
+                        "QA", "QA_ADMIN", "UX", "UX_ADMIN");
     }
 
     @Test
@@ -348,7 +384,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                                 + "JOIN permissions p ON p.id=rp.permission_id "
                                 + "WHERE p.code='development.submit' ORDER BY r.code",
                         String.class))
-                .containsExactly("ADMIN", "DEVELOPER", "OWNER");
+                .containsExactly("ADMIN", "DEVELOPER", "DEVELOPER_ADMIN", "OWNER");
     }
 
     @Test

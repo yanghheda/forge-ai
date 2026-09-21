@@ -238,6 +238,7 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
                 value={registerValues.role}
                 onChange={(role) => setRegisterValues((value) => ({ ...value, role }))}
                 options={[
+                  { label: "全局管理员", value: "ADMIN" },
                   { label: "产品", value: "PRODUCT" },
                   { label: "UX", value: "UX" },
                   { label: "开发", value: "DEVELOPER" },

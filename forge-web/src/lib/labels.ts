@@ -74,12 +74,15 @@ const priorityLabels: Record<string, string> = {
 /* Organization 成员角色的中文文案。 */
 const roleLabels: Record<string, string> = {
   OWNER: "所有者",
-  ADMIN: "管理员",
+  ADMIN: "全局管理员",
   PRODUCT: "产品",
   UX: "设计",
   DEVELOPER: "研发",
   QA: "测试",
-  RELEASE_APPROVER: "发布审批",
+  PRODUCT_ADMIN: "产品管理员",
+  UX_ADMIN: "UX 管理员",
+  DEVELOPER_ADMIN: "开发管理员",
+  QA_ADMIN: "测试管理员",
 };
 
 export function workflowActionLabel(value: string): string {

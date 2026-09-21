@@ -80,12 +80,12 @@ class MemberRegistrationIntegrationTest extends InfrastructureIntegrationTestBas
                 Map.of(
                         "displayName", "Dev Member",
                         "status", "ACTIVE",
-                        "roles", List.of("DEVELOPER", "ADMIN", "RELEASE_APPROVER"),
+                        "roles", List.of("DEVELOPER", "ADMIN", "DEVELOPER_ADMIN"),
                         "expectedVersion", 0),
                 ownerCookie,
                 String.class);
         assertThat(approved.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(approved.getBody()).contains("\"roles\":[\"ADMIN\",\"DEVELOPER\",\"RELEASE_APPROVER\"]");
+        assertThat(approved.getBody()).contains("\"roles\":[\"ADMIN\",\"DEVELOPER\",\"DEVELOPER_ADMIN\"]");
         ResponseEntity<String> login = csrf().post(
                 "/api/v1/auth/login",
                 Map.of("email", "dev@example.com", "password", "dev-password-42"), null, String.class);
@@ -113,6 +113,39 @@ class MemberRegistrationIntegrationTest extends InfrastructureIntegrationTestBas
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("VALIDATION_FAILED");
         assertThat(count("users")).isOne();
+    }
+
+    @Test
+    void createMemberRejectsDomainAdminSelfRegistration() {
+        ResponseEntity<String> response = register(
+                "product-admin@example.com", "Product Admin", "admin-password-42", "PRODUCT_ADMIN");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("VALIDATION_FAILED");
+        assertThat(count("users")).isOne();
+    }
+
+    @Test
+    void updateMemberRejectsRemovedReleaseApproverRole() throws Exception {
+        String ownerCookie = login("owner@example.com", "correct-horse-42");
+        ResponseEntity<String> created = register("dev@example.com", "Dev Member", "dev-password-42", "DEVELOPER");
+        long userId = objectMapper.readTree(created.getBody()).get("userId").asLong();
+
+        ResponseEntity<String> rejected = csrf().patch(
+                "/api/v1/members/" + userId,
+                Map.of(
+                        "displayName", "Dev Member",
+                        "status", "ACTIVE",
+                        "roles", List.of("RELEASE_APPROVER"),
+                        "expectedVersion", 0),
+                ownerCookie,
+                String.class);
+
+        assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(rejected.getBody()).contains("VALIDATION_FAILED");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM organization_members WHERE user_id = ?", String.class, userId))
+                .isEqualTo("PENDING");
     }
 
     @Test

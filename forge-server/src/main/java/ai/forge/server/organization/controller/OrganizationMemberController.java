@@ -57,8 +57,8 @@ public class OrganizationMemberController {
     public record UpdateMemberRequest(
             /* 成员在协作界面中展示的名称。 */ @NotBlank @Size(max = 120) String displayName,
             /* 审核后的成员状态。 */ @NotBlank @Pattern(regexp = "ACTIVE|DISABLED") String status,
-            /* 成员承担的管理与业务角色，不允许分配 Owner。 */
-            @NotEmpty List<@Pattern(regexp = "ADMIN|PRODUCT|UX|DEVELOPER|QA|RELEASE_APPROVER") String> roles,
+            /* 成员承担的管理与业务角色；含领域管理员，不允许分配 Owner。 */
+            @NotEmpty List<@Pattern(regexp = "ADMIN|PRODUCT|UX|DEVELOPER|QA|PRODUCT_ADMIN|UX_ADMIN|DEVELOPER_ADMIN|QA_ADMIN") String> roles,
             /* 客户端读取成员时获得的版本。 */ @Min(0) long expectedVersion) {}
 
 }

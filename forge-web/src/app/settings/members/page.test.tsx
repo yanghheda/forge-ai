@@ -103,7 +103,7 @@ describe("MembersPage", () => {
     const nameInput = screen.getByDisplayValue("李开发");
     expect(nameInput).not.toHaveAttribute("readonly");
     expect(screen.getByRole("combobox", { name: "岗位角色" })).toHaveTextContent("研发");
-    expect(screen.getByRole("combobox", { name: "岗位角色" })).toHaveTextContent("管理员");
+    expect(screen.getByRole("combobox", { name: "岗位角色" })).toHaveTextContent("全局管理员");
 
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "李研发");

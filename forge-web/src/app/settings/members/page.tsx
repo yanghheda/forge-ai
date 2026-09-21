@@ -11,7 +11,7 @@ import { formatRequestError } from "@/lib/api";
 import { roleLabel } from "@/lib/labels";
 import styles from "../settings.module.css";
 
-const roles = ["ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE_APPROVER"];
+const roles = ["ADMIN", "PRODUCT", "UX", "DEVELOPER", "QA", "PRODUCT_ADMIN", "UX_ADMIN", "DEVELOPER_ADMIN", "QA_ADMIN"];
 const assignableRoles = (member: CompanyMember) => member.roles.filter((role) => roles.includes(role));
 
 export default function MembersPage() {

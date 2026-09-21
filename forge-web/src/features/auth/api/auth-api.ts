@@ -20,7 +20,7 @@ export interface RegisterInput {
   email: string;
   displayName: string;
   password: string;
-  role: "PRODUCT" | "UX" | "DEVELOPER" | "QA";
+  role: "ADMIN" | "PRODUCT" | "UX" | "DEVELOPER" | "QA";
 }
 
 export interface LoginInput {

@@ -93,7 +93,7 @@ public interface ReleaseMapper {
     @Select("SELECT EXISTS(SELECT 1 FROM organization_members om "
             + "JOIN member_roles mr ON mr.organization_member_id=om.id "
             + "JOIN roles role ON role.id=mr.role_id WHERE om.organization_id=#{organizationId} "
-            + "AND om.status='ACTIVE' AND role.code='RELEASE_APPROVER')")
+            + "AND om.status='ACTIVE' AND role.code IN ('ADMIN','OWNER','DEVELOPER_ADMIN'))")
     boolean approverAvailable(@Param("organizationId") long organizationId);
 
     @Select("SELECT version FROM organization_policies WHERE organization_id = #{organizationId}")
