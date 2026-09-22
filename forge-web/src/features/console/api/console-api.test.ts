@@ -1,21 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createAgentConversation, deleteAgentConversation } from "./console-api";
+import { listBoardRequirements } from "./console-api";
 
-describe("conversation api", () => {
-  it("创建空白会话并由服务端负责默认标题", async () => {
-    const client = { request: vi.fn().mockResolvedValue({ id: 7, title: "新会话" }) };
+describe("task board requirement options API", () => {
+  it("不传负责人时读取公司全部需求选项", async () => {
+    const client = { request: vi.fn().mockResolvedValue([]) };
 
-    await createAgentConversation(client);
+    await listBoardRequirements(undefined, client);
 
-    expect(client.request).toHaveBeenCalledWith("/v1/agent-conversations", expect.objectContaining({ method: "POST", body: "{}" }));
+    expect(client.request).toHaveBeenCalledWith("/v1/task-board/requirements");
   });
 
-  it("删除指定会话", async () => {
-    const client = { request: vi.fn().mockResolvedValue(undefined) };
+  it("传入负责人时按负责人过滤需求选项", async () => {
+    const client = { request: vi.fn().mockResolvedValue([]) };
 
-    await deleteAgentConversation(7, client);
+    await listBoardRequirements(7, client);
 
-    expect(client.request).toHaveBeenCalledWith("/v1/agent-conversations/7", { method: "DELETE" });
+    expect(client.request).toHaveBeenCalledWith("/v1/task-board/requirements?assigneeUserId=7");
   });
 });

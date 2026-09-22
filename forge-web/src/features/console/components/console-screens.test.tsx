@@ -23,23 +23,6 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe("DeliveryScreen", () => {
   afterEach(cleanup);
 
-  it("展示需求上下文导航与任务看板", async () => {
-    render(<DeliveryScreen kind="tasks" requirementId="1" />, { wrapper });
-    expect(screen.getByRole("navigation", { name: "需求交付阶段" })).toBeInTheDocument();
-    expect(await screen.findByText(/测试中/)).toBeInTheDocument();
-    expect(screen.getByText("待处理")).toBeInTheDocument();
-    expect(screen.getByText("进行中")).toBeInTheDocument();
-    expect(screen.getByText("已完成")).toBeInTheDocument();
-  });
-
-  it("看板使用五个真实状态，创建入口引导到需求分配任务", async () => {
-    render(<DeliveryScreen kind="tasks" requirementId="1" />, { wrapper });
-    expect(screen.getByText("阻塞中")).toBeInTheDocument();
-    expect(screen.getByText("待验证")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "进入需求创建任务" })).toHaveAttribute("href", "/my-requirements");
-    expect(screen.queryByRole("button", { name: "新建任务" })).not.toBeInTheDocument();
-  });
-
   it("QA 页面按路由需求加载真实数据面板", () => {
     render(<DeliveryScreen kind="qa" requirementId="31" />, { wrapper });
 

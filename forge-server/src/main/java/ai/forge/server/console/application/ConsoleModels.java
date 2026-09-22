@@ -30,5 +30,14 @@ public final class ConsoleModels {
             /* 泳道内排序位置。 */ long position,
             /* 负责人标识；未分配时为空。 */ Long assigneeUserId,
             /* 任务真实状态的乐观锁版本。 */ long version,
-            /* 任务所属需求，用于打开对应阶段工作区。 */ Long requirementId) {}
+            /* 任务所属需求，用于打开对应阶段工作区。 */ Long requirementId,
+            /* 业务处理优先级，取值 URGENT/HIGH/MEDIUM/LOW。 */ String priority,
+            /* 期望完成时间；为空表示无截止日期。 */ Instant dueAt,
+            /* 执行人显示名；未分配时为空。 */ String assigneeName,
+            /* 阻塞原因；未阻塞时为空。 */ String blockedReason) {}
+
+    public record RequirementOption(
+            /* 需求工作项标识。 */ long id,
+            /* 公司内展示编号。 */ String itemKey,
+            /* 需求标题。 */ String title) {}
 }

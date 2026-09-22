@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import java.util.Map;
 import org.springframework.context.annotation.Profile;
@@ -25,6 +26,7 @@ public class ConsoleController {
     @GetMapping("/notifications/unread-count") public Map<String,Long> unread(HttpServletRequest request){return Map.of("count",service.unread(user(request)));}
     @PostMapping("/notifications/{id}/read") public ResponseEntity<Void> read(@PathVariable long id,HttpServletRequest request){service.markRead(user(request),id);return ResponseEntity.noContent().build();}
     @GetMapping("/task-board") public List<ConsoleModels.BoardItem> board(HttpServletRequest request){return service.board(user(request));}
+    @GetMapping("/task-board/requirements") public List<ConsoleModels.RequirementOption> boardRequirements(@RequestParam(required=false) @Positive Long assigneeUserId,HttpServletRequest request){return service.boardRequirements(user(request),assigneeUserId);}
     @PutMapping("/task-board/items/{id}/position") public ResponseEntity<Void> move(@PathVariable long id,@Valid @RequestBody MoveRequest body,HttpServletRequest request){service.move(user(request),id,body.lane(),body.position());return ResponseEntity.noContent().build();}
 
     private long user(HttpServletRequest request){return AuthController.requireContext(request).userId();}

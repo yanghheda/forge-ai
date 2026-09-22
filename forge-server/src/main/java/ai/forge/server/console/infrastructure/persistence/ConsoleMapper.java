@@ -34,10 +34,23 @@ public interface ConsoleMapper extends ConsoleStore {
     int markRead(@Param("organizationId") long organizationId, @Param("userId") long userId, @Param("id") long id);
 
     @Select("SELECT wi.id,wi.item_key,wi.type,wi.title,wi.assignee_user_id,wi.parent_id requirement_id,"
-            + "wi.status lane,COALESCE(bp.position,wi.id*1000) position,wi.version "
-            + "FROM work_items wi LEFT JOIN board_positions bp ON bp.work_item_id=wi.id AND bp.organization_id=#{organizationId} "
+            + "wi.status lane,COALESCE(bp.position,wi.id*1000) position,wi.version,"
+            + "wi.priority,wi.due_at,wi.blocked_reason,assignee.display_name assignee_name "
+            + "FROM work_items wi "
+            + "LEFT JOIN board_positions bp ON bp.work_item_id=wi.id AND bp.organization_id=#{organizationId} "
+            + "LEFT JOIN users assignee ON assignee.id=wi.assignee_user_id "
             + "WHERE wi.organization_id=#{organizationId} AND wi.deleted_at IS NULL AND wi.type IN ('UX_TASK','DEV_TASK','QA_TASK','BUG') ORDER BY lane,position,wi.id")
     List<Map<String, Object>> board(@Param("organizationId") long organizationId);
+
+    @Select("<script>SELECT wi.id, wi.item_key, wi.title FROM work_items wi "
+            + "WHERE wi.organization_id=#{organizationId} AND wi.type='REQUIREMENT' AND wi.deleted_at IS NULL "
+            + "<if test='userId != null'>AND (EXISTS(SELECT 1 FROM requirement_participants rp "
+            + "WHERE rp.requirement_id=wi.id AND rp.organization_id=#{organizationId} AND rp.user_id=#{userId}) "
+            + "OR EXISTS(SELECT 1 FROM requirement_executors re WHERE re.organization_id=#{organizationId} "
+            + "AND re.requirement_id=wi.id AND re.user_id=#{userId}))</if> "
+            + "ORDER BY wi.item_number DESC LIMIT 200</script>")
+    List<Map<String, Object>> requirementsByParticipant(@Param("organizationId") long organizationId,
+            @Param("userId") Long userId);
 
     @Select("SELECT COUNT(*) FROM work_items WHERE id=#{workItemId} AND organization_id=#{organizationId} AND deleted_at IS NULL")
     int workItemExists(@Param("organizationId") long organizationId, @Param("workItemId") long workItemId);

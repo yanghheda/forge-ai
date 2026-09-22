@@ -23,7 +23,24 @@ export interface BoardItem {
   lane: string;
   position: number;
   assigneeUserId: number | null;
+  /* 看板项优先级，取值 URGENT/HIGH/MEDIUM/LOW */
+  priority: "URGENT" | "HIGH" | "MEDIUM" | "LOW";
+  /* 期望完成时间的 ISO 字符串，未设置时为 null */
+  dueAt: string | null;
+  /* 负责人展示名，未指派时为 null */
+  assigneeName: string | null;
+  /* 阻塞原因说明，未被阻塞时为 null */
+  blockedReason: string | null;
   version: number;
+}
+
+export interface RequirementOption {
+  /* 需求主键 ID */
+  id: number;
+  /* 需求展示用业务编号 */
+  itemKey: string;
+  /* 需求标题 */
+  title: string;
 }
 
 export interface AgentConversation {
@@ -76,6 +93,11 @@ export const listCompanyMembers = (client: RequestClient = apiClient) => client.
 export const updateCompanyMember = (userId: number, input: { displayName: string; status: "ACTIVE" | "DISABLED"; roles: string[]; expectedVersion: number }, client: RequestClient = apiClient) => client.request<CompanyMember>(`/v1/members/${userId}`, json("PATCH", input));
 
 export const listBoardItems = (client: RequestClient = apiClient) => client.request<BoardItem[]>("/v1/task-board");
+
+export const listBoardRequirements = (assigneeUserId?: number | null, client: RequestClient = apiClient) => {
+  const suffix = assigneeUserId === undefined || assigneeUserId === null ? "" : `?assigneeUserId=${assigneeUserId}`;
+  return client.request<RequirementOption[]>(`/v1/task-board/requirements${suffix}`);
+};
 
 export const moveBoardItem = (id: number, lane: string, position: number, client: RequestClient = apiClient) => client.request<void>(`/v1/task-board/items/${id}/position`, json("PUT", { lane, position }));
 

@@ -227,69 +227,6 @@
   top: 22px;
   right: 0;
 }
-.board {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(230px, 1fr));
-  gap: 12px;
-  overflow: auto;
-}
-.column {
-  min-height: 600px;
-  padding: 10px;
-  border-radius: 4px;
-  background: var(--forge-fill-2);
-}
-.column > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 4px 12px;
-}
-.column > header strong {
-  font-size: 13px;
-}
-.column > header span {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  border-radius: 10px;
-  color: var(--forge-text-3);
-  background: #fff;
-  font-size: 11px;
-}
-.column article {
-  margin-bottom: 10px;
-  padding: 14px;
-  border: 1px solid var(--forge-border-2);
-  border-radius: 4px;
-  background: #fff;
-  box-shadow: var(--forge-shadow-1);
-}
-.column article code {
-  color: var(--forge-text-3);
-  font-size: 11px;
-}
-.column article h3 {
-  margin: 6px 0;
-  font-size: 13px;
-  font-weight: 500;
-}
-.column article p {
-  margin: 0;
-  color: var(--forge-text-3);
-  font-size: 12px;
-}
-.column article footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 14px;
-}
-.column time {
-  color: var(--forge-text-3);
-  font-size: 11px;
-}
 .pipeline h3 {
   font-size: 15px;
 }
@@ -931,9 +868,6 @@
   }
   .moreSession {
     opacity: 1;
-  }
-  .board {
-    grid-template-columns: repeat(4, 260px);
   }
   .commandGrid {
     grid-template-columns: 1fr;

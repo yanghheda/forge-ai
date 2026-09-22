@@ -47,7 +47,12 @@ public class ConsoleService {
 
     public List<ConsoleModels.BoardItem> board(long userId) {
         long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.read");
-        return mapper.board(organizationId).stream().map(row->new ConsoleModels.BoardItem(number(row,"id"),text(row,"item_key"),text(row,"type"),text(row,"title"),text(row,"lane"),number(row,"position"),nullableNumber(row,"assignee_user_id"),number(row,"version"),nullableNumber(row,"requirement_id"))).toList();
+        return mapper.board(organizationId).stream().map(row->new ConsoleModels.BoardItem(number(row,"id"),text(row,"item_key"),text(row,"type"),text(row,"title"),text(row,"lane"),number(row,"position"),nullableNumber(row,"assignee_user_id"),number(row,"version"),nullableNumber(row,"requirement_id"),text(row,"priority"),instant(row.get("due_at")),nullableText(row,"assignee_name"),nullableText(row,"blocked_reason"))).toList();
+    }
+
+    public List<ConsoleModels.RequirementOption> boardRequirements(long userId,Long assigneeUserId) {
+        long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.read");
+        return mapper.requirementsByParticipant(organizationId,assigneeUserId).stream().map(row->new ConsoleModels.RequirementOption(number(row,"id"),text(row,"item_key"),text(row,"title"))).toList();
     }
 
     public void move(long userId,long workItemId,String lane,long position) {

@@ -1,0 +1,29 @@
+# Checklist
+
+- [x] `/task-board` 由独立 `TaskBoard` 组件渲染，`DeliveryScreen` 不再包含 `tasks` 分支
+- [x] 页面渲染「任务看板」标题与说明，并展示顶部统计窄条与五列看板
+- [x] 看板五列依次为「待处理 / 进行中 / 阻塞中 / 待验证 / 已完成」，不出现设计稿中的「评审中」
+- [x] 阻塞列标题使用警示色、已完成列标题使用成功色
+- [x] 看板容器高度固定，列内卡片列表可独立滚动
+- [x] 卡片展示编号、优先级圆点、标题、类型标签、执行人首字头像与截止日期（`MM-DD`），逾期日期使用错误色
+- [x] 列标题计数与统计窄条中同一状态的计数一致，且均基于过滤后的集合
+- [x] `GET /api/v1/task-board` 返回 `priority`、`dueAt`、`assigneeName`、`blockedReason`
+- [x] 看板 SQL 仍显式包含 `organization_id`、`deleted_at IS NULL` 与 `type IN ('UX_TASK','DEV_TASK','QA_TASK','BUG')`
+- [x] 执行人下拉选项来自公司有效成员，支持按姓名/邮箱搜索，默认选中当前登录用户
+- [x] 执行人下拉提供「全部」选项，选中后不按执行人过滤
+- [x] 需求下拉选项来自 `GET /api/v1/task-board/requirements?assigneeUserId=`，仅包含该执行人作为 `requirement_participants` 或 `requirement_executors` 关联的需求
+- [x] 执行人为「全部」时需求选项为公司全部需求；执行人变化时需求筛选重置为「全部」
+- [x] 需求选项请求失败时下拉仅保留「全部」并有错误提示，看板仍可用
+- [x] 需求筛选默认「全部」表示不按需求过滤；选择具体需求后仅展示该需求下任务
+- [x] 优先级下拉提供 `URGENT/HIGH/MEDIUM/LOW`（中文文案）与「全部」，选择后过滤生效
+- [x] 三个筛选可同时生效，结果取交集
+- [x] 卡片点击按角色优先跳转：`PRODUCT`→`/requirements/{id}`、`UX`→`/ux`、`DEVELOPER`→`/dev`、`QA`→`/qa`
+- [x] 无匹配角色按任务类型兜底：`UX_TASK`→`/ux`、`DEV_TASK`→`/dev`、`QA_TASK`→`/qa`、`BUG`→`/dev`
+- [x] 任务无 `requirementId` 时卡片标题为纯文本，不产生跳转
+- [x] 同列拖拽仍调用 `PUT /v1/task-board/items/{id}/position`；跨列拖拽不调接口并提示「请进入任务工作区执行状态操作。」
+- [x] 需求选项接口与看板同权限（`task.read`），不出现「能看板但拿不到筛选项」的权限错配
+- [x] 新增/修改的 Mapper SQL 均显式携带 `organization_id` 条件
+- [x] 新增 Java 生产代码的 record 组件具备紧邻声明的中文块注释，Controller 之外未新增 Swagger 注解
+- [x] 集成测试覆盖：看板新字段、`assigneeName` 为空、排除 `REQUIREMENT` 与已删除项、需求选项按协作人过滤且不跨公司
+- [x] 前端测试覆盖：默认执行人、执行人切换后需求选项请求与重置、优先级过滤、组合过滤计数、角色命中与类型兜底跳转、无需求归属不跳转、五列标题
+- [x] `git diff --check` 通过；`make ci` 的 format-check、lint、contracts-check、test 门禁通过（如出现既有非本变更失败，须给出复现证据）

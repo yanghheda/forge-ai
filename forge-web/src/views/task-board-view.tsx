@@ -1,10 +1,10 @@
 import { ProtectedApp } from "@/features/auth";
-import { DeliveryScreen } from "@/features/console";
+import { TaskBoard } from "@/features/console";
 
 export function TaskBoardView() {
   return (
     <ProtectedApp>
-      <DeliveryScreen kind="tasks" />
+      <TaskBoard />
     </ProtectedApp>
   );
 }
