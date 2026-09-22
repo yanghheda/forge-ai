@@ -1,5 +1,3 @@
-"use client";
-
 import { Alert, Card, Spin, Typography } from "@arco-design/web-react";
 import { useQuery } from "@tanstack/react-query";
 import { getDeliveryGraph, type DeliveryGraph as Graph } from "../api/work-item-api";

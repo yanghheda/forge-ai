@@ -1,5 +1,3 @@
-"use client";
-
 import { Button, Drawer, Form, Input, Message, Select } from "@arco-design/web-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 

@@ -19,9 +19,8 @@ build/
 target/
 forge-server/data/
 
-# Node.js / Next.js
+# Node.js 与前端构建产物
 node_modules/
-.next/
 coverage/
 *.tsbuildinfo
 playwright-report/

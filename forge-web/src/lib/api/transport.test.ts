@@ -11,7 +11,7 @@ describe("resolveApiBaseUrl", () => {
   it("默认使用同源 API 前缀，并清理配置末尾斜线", () => {
     expect(resolveApiBaseUrl()).toBe("/api");
 
-    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://localhost:8080/api/");
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:8080/api/");
     expect(resolveApiBaseUrl()).toBe("http://localhost:8080/api");
   });
 });

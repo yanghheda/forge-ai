@@ -1,5 +1,3 @@
-"use client";
-
 import { Alert, Button, Empty, Message, Spin } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";

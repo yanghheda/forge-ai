@@ -1,9 +1,7 @@
-"use client";
-
 import { Card } from "@arco-design/web-react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
+import { useNavigate } from "react-router";
 
 import { isApiError } from "@/lib/api";
 import { getCurrentUser } from "../api/auth-api";
@@ -11,7 +9,7 @@ import { AuthErrorAlert } from "./auth-error-alert";
 import styles from "./protected-app.module.css";
 
 export function ProtectedApp({ children }: { children: ReactNode }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const currentUser = useQuery({
     queryKey: ["current-user"],
     queryFn: () => getCurrentUser(),
@@ -19,8 +17,8 @@ export function ProtectedApp({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (currentUser.isError && isApiError(currentUser.error) && currentUser.error.status === 401) router.replace("/login");
-  }, [currentUser.error, currentUser.isError, router]);
+    if (currentUser.isError && isApiError(currentUser.error) && currentUser.error.status === 401) navigate("/login", { replace: true });
+  }, [currentUser.error, currentUser.isError, navigate]);
 
   if (currentUser.isPending)
     return (

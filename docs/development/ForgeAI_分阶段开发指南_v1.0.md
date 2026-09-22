@@ -64,7 +64,7 @@ Codex 应当：
 - 使用真实依赖的测试容器或协议 Stub，避免把核心风险全部 mock 掉。
 - 编写 Flyway 建表或字段变更时，为每张表和每个字段提供写入 MySQL 元数据的中文 `COMMENT`，并用迁移集成测试抽查关键注释；不得用 SQL 行注释代替。
 - 只在本轮范围内重构；发现跨阶段问题时记录，不顺手扩大范围。
-- 前端变更按 Feature 拆分页面、组件、Hooks、Schema、API 与工具函数；不把业务逻辑集中到单个 `page.tsx` 或组件文件。
+- 前端变更按 Feature 拆分页面、组件、Hooks、Schema、API 与工具函数；不把业务逻辑集中到单个视图文件或组件文件。
 
 Codex 不应当：
 
@@ -163,13 +163,13 @@ docs(adr): record session authentication decision
 
 ### 会话 04：Web 骨架、设计系统与生成 Client 占位
 
-**结果：** Next.js 工作台外壳可运行，有登录/项目占位路由、错误边界和 API transport；UI 不手写重复 DTO。
+**结果：** Vite + React 工作台外壳可运行，有登录/项目占位路由、错误边界和 API transport；UI 不手写重复 DTO。
 
-**先掌握：** Server state 与 UI state 的不同；由 Swagger/OpenAPI 导出的 Client 如何减少前后端类型漂移；Next.js Server/Client Component 边界。
+**先掌握：** Server state 与 UI state 的不同；由 Swagger/OpenAPI 导出的 Client 如何减少前后端类型漂移；客户端路由与视图组合层的职责边界。
 
 **Codex 范围：** 建 `forge-web`、Arco provider、layout、TanStack Query、Zustand 空 store、API transport/error mapping、Vitest/Testing Library；同时建立 Feature 目录、公开 `index.ts`、组件/Hook/API/Schema 示例和 ESLint 模块边界规则。不要做真实登录。
 
-**你要检查：** Query Client 是否每次 render 重建；Zustand 是否存了服务端资源；API base URL 与 cookie credentials 是否正确；`page.tsx` 是否只做组合；示例业务是否已拆为组件、Hook 和 API 封装；是否存在万能 `components.tsx/hooks.ts/utils.ts`。
+**你要检查：** Query Client 是否每次 render 重建；Zustand 是否存了服务端资源；API base URL 与 cookie credentials 是否正确；视图文件是否只做组合；示例业务是否已拆为组件、Hook 和 API 封装；是否存在万能 `components.tsx/hooks.ts/utils.ts`。
 
 **验证：** lint/typecheck/unit/build；模块边界负向测试；Mock API 错误能显示 requestId；路由 loading/error/empty 状态可见；组件和 Hook 可分别测试。
 

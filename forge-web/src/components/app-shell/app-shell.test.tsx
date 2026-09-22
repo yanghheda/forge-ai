@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
@@ -25,12 +26,22 @@ const consoleApi = vi.hoisted(() => ({
 }));
 
 let testQueryClient: QueryClient;
-const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={testQueryClient}>{children}</QueryClientProvider>;
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <QueryClientProvider client={testQueryClient}>
+    <MemoryRouter initialEntries={["/overview"]}>{children}</MemoryRouter>
+  </QueryClientProvider>
+);
 
-vi.mock("next/navigation", () => ({
-  usePathname: () => "/overview",
-  useRouter: () => ({ replace }),
-}));
+// 仅覆盖需要替换为对象返回值的 react-router Hook，保留真实 Link 等其他导出；
+// Link 仍需路由上下文，因此渲染时由上面的 wrapper 提供 MemoryRouter。
+vi.mock("react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router")>();
+  return {
+    ...actual,
+    useLocation: () => ({ pathname: "/overview" }),
+    useNavigate: () => replace,
+  };
+});
 vi.mock("@/features/auth", () => authApi);
 vi.mock("@/features/console/api/console-api", () => consoleApi);
 
@@ -137,6 +148,6 @@ describe("AppShell", () => {
     fireEvent.click(await screen.findByText("退出登录"));
 
     await waitFor(() => expect(authApi.logout).toHaveBeenCalledOnce());
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login", { replace: true }));
   });
 });

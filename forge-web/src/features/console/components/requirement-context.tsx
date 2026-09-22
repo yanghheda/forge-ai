@@ -1,8 +1,6 @@
-"use client";
-
 import { IconBranch, IconBug, IconEdit, IconFile, IconLaunch } from "@arco-design/web-react/icon";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
+import { Link } from "react-router";
 
 import { getOrganizationRequirement, statusLabel } from "@/features/work-item";
 import styles from "./console.module.css";
@@ -31,7 +29,7 @@ export function RequirementContext({ active, requirementId }: { active: string; 
       </div>
       <nav aria-label="需求交付阶段">
         {items.map(([key, label, href, icon]) => (
-          <Link className={key === active ? styles.activeTab : ""} key={key} href={href}>
+          <Link className={key === active ? styles.activeTab : ""} key={key} to={href}>
             {icon}
             {label}
           </Link>

@@ -1,10 +1,8 @@
-"use client";
-
 import { Alert, Button, Checkbox, Drawer, Input, Message, Spin } from "@arco-design/web-react";
 import { IconCheckCircle, IconEdit, IconHistory, IconRobot, IconSend } from "@arco-design/web-react/icon";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useState } from "react";
+import { Link } from "react-router";
 
 import { createAgentRun } from "@/features/agent-run";
 import { canEditModule, getCurrentUser } from "@/features/auth";
@@ -308,7 +306,7 @@ export function UxWorkspaceView({
           </section>
         </main>
         <aside className={styles.stack}>
-          <Panel title="评审结论" extra={<Link href={`/agent/trace/${latestReview?.id ?? ""}`}>查看轨迹</Link>}>
+          <Panel title="评审结论" extra={<Link to={`/agent/trace/${latestReview?.id ?? ""}`}>查看轨迹</Link>}>
             <div className={approved ? styles.verdictSuccess : styles.verdict}>
               <IconCheckCircle />
               {approved ? "评审通过" : latestReview ? workflowActionLabel(latestReview.action ?? "") : "等待提交评审"}

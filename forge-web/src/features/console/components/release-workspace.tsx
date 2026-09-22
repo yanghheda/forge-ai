@@ -1,5 +1,3 @@
-"use client";
-
 import { Alert, Button, Input, Message, Select, Spin, Tag } from "@arco-design/web-react";
 import { IconCheck, IconClockCircle, IconClose, IconEdit, IconPlus, IconRefresh, IconRobot, IconSafe, IconThunderbolt } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

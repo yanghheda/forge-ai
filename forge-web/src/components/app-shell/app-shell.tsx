@@ -1,11 +1,8 @@
-"use client";
-
 import { Badge, Button, Drawer, Dropdown, Empty, Input, Menu, Message, Modal, Spin } from "@arco-design/web-react";
 import { IconApps, IconBranch, IconCommand, IconDashboard, IconFile, IconHistory, IconMenuFold, IconMenuUnfold, IconNotification, IconPoweroff, IconRobot, IconSearch, IconSettings, IconUser } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 
 import { AgentCommandDrawer, getUnreadNotificationCount, listNotifications, markNotificationRead, searchConsole } from "@/features/console";
 import { getCurrentUser, logout } from "@/features/auth";
@@ -25,8 +22,8 @@ interface NavItem {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const pathname = usePathname() ?? "/";
-  const router = useRouter();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   const publicPage = ["/", "/login", "/register", "/init"].includes(pathname);
   const navigationCollapsed = useShellStore((state) => state.navigationCollapsed);
   const toggleNavigation = useShellStore((state) => state.toggleNavigation);
@@ -69,7 +66,7 @@ export function AppShell({ children }: AppShellProps) {
     mutationFn: () => logout(),
     onSuccess: () => {
       queryClient.clear();
-      router.replace("/login");
+      navigate("/login", { replace: true });
     },
     onError: (error) => Message.error(formatRequestError(error)),
   });
@@ -122,7 +119,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className={`${styles.shell} ${navigationCollapsed ? styles.collapsed : ""}`}>
       <aside className={styles.sidebar}>
-        <Link className={styles.brand} href="/overview" aria-label="ForgeAI 首页">
+        <Link className={styles.brand} to="/overview" aria-label="ForgeAI 首页">
           <span className={styles.brandMark}>
             <b>F</b>
           </span>
@@ -136,32 +133,32 @@ export function AppShell({ children }: AppShellProps) {
         <nav className={styles.nav} aria-label="主导航">
           <p className={styles.navLabel}>{navigationCollapsed ? "" : "工作台"}</p>
           {items.map((item) => (
-            <Link key={item.label} href={item.href} className={`${styles.navItem} ${item.active ? styles.active : ""}`} title={navigationCollapsed ? item.label : undefined}>
+            <Link key={item.label} to={item.href} className={`${styles.navItem} ${item.active ? styles.active : ""}`} title={navigationCollapsed ? item.label : undefined}>
               <span className={styles.navIcon}>{item.icon}</span>
               {!navigationCollapsed && item.label}
             </Link>
           ))}
           <p className={styles.navLabel}>{navigationCollapsed ? "" : "Agent"}</p>
-          <Link href="/agent/command" className={`${styles.navItem} ${pathname === "/agent/command" ? styles.active : ""}`}>
+          <Link to="/agent/command" className={`${styles.navItem} ${pathname === "/agent/command" ? styles.active : ""}`}>
             <span className={styles.navIcon}>
               <IconCommand />
             </span>
             {!navigationCollapsed && "Agent 指令"}
           </Link>
-          <Link href="/agent/trace/demo-run" className={`${styles.navItem} ${pathname.startsWith("/agent/trace") ? styles.active : ""}`}>
+          <Link to="/agent/trace/demo-run" className={`${styles.navItem} ${pathname.startsWith("/agent/trace") ? styles.active : ""}`}>
             <span className={styles.navIcon}>
               <IconHistory />
             </span>
             {!navigationCollapsed && "执行轨迹"}
           </Link>
           <p className={styles.navLabel}>{navigationCollapsed ? "" : "系统设置"}</p>
-          <Link href="/settings/members" className={`${styles.navItem} ${pathname === "/settings/members" ? styles.active : ""}`}>
+          <Link to="/settings/members" className={`${styles.navItem} ${pathname === "/settings/members" ? styles.active : ""}`}>
             <span className={styles.navIcon}>
               <IconSettings />
             </span>
             {!navigationCollapsed && "成员管理"}
           </Link>
-          <Link href="/settings/integrations" className={`${styles.navItem} ${pathname === "/settings/integrations" ? styles.active : ""}`}>
+          <Link to="/settings/integrations" className={`${styles.navItem} ${pathname === "/settings/integrations" ? styles.active : ""}`}>
             <span className={styles.navIcon}>
               <IconApps />
             </span>
@@ -239,7 +236,7 @@ export function AppShell({ children }: AppShellProps) {
             {search.isFetching && <Spin />}
             {query.trim().length < 2 && <Empty description="输入至少两个字符" />}
             {search.data?.map((item) => (
-              <Link key={`${item.type}-${item.id}`} href={item.type === "REQUIREMENT" ? `/requirements/${item.id}` : "#"} onClick={() => setSearchOpen(false)}>
+              <Link key={`${item.type}-${item.id}`} to={item.type === "REQUIREMENT" ? `/requirements/${item.id}` : "#"} onClick={() => setSearchOpen(false)}>
                 <b>{item.title}</b>
                 <span>
                   {item.type} · {item.subtitle}

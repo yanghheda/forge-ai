@@ -28,7 +28,7 @@ export interface ApiTransport {
 }
 
 export function resolveApiBaseUrl(): string {
-  const configuredUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  const configuredUrl = import.meta.env.VITE_API_BASE_URL?.trim();
   return configuredUrl ? configuredUrl.replace(/\/$/, "") : "/api";
 }
 

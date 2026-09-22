@@ -27,7 +27,7 @@
 
 架构采用三个独立应用和三个数据基础设施：
 
-- **forge-web**：基于 Next.js 的团队工作台、交付视图、文档、Agent 过程与审批界面。
+- **forge-web**：基于 Vite + React 的团队工作台、交付视图、文档、Agent 过程与审批界面。
 - **forge-server**：基于 Spring Boot 的唯一业务权威，负责身份、权限、状态机、事务、集成、审计和持久化。
 - **forge-agent**：基于 FastAPI 的上下文构建、RAG、Deep Agents（基于 LangGraph）、Tool Calling、Checkpoint 和评测服务。
 - **MySQL**：业务事实、配置、Agent Trace、审批与审计。
@@ -77,7 +77,7 @@ MVP 采用模块化单体、REST + SSE、GitLab API 优先和 Docker Compose：�
 
 | 领域 | 决策 | 理由 |
 |---|---|---|
-| 前端 | Next.js、React、TypeScript、Arco Design | 适合企业工作台；组件完整；强化类型契约 |
+| 前端 | Vite + React、TypeScript、Arco Design（ADR-023） | 适合企业工作台；组件完整；强化类型契约 |
 | 服务端状态 | TanStack Query | 缓存、失效、重试、分页职责清晰 |
 | UI 状态 | Zustand | 仅保存抽屉、筛选器、草稿等局部状态 |
 | 编辑器 | Tiptap | 结构化富文本和扩展能力较好 |
@@ -100,7 +100,7 @@ MVP 采用模块化单体、REST + SSE、GitLab API 优先和 Docker Compose：�
 | 副标题 | `AI-Native Software Delivery Workbench` | 产品定位与品牌副标题 |
 | 仓库 | `forge-ai` | 本地目录、Compose Project 和制品命名基础 |
 | GitHub | `forge-ai/forge` | 官方远程仓库标识 |
-| Web | `forge-web` | Next.js 前端模块与镜像名 |
+| Web | `forge-web` | Vite + React 前端模块与镜像名 |
 | Server | `forge-server` | Spring Boot 业务服务模块与镜像名 |
 | Agent | `forge-agent` | FastAPI Agent 服务模块与镜像名 |
 
@@ -115,7 +115,7 @@ Java 根包建议使用 `ai.forge.server`；Python 包使用 `forge_agent`；前
 ```mermaid
 flowchart LR
     U[Product / UX / Developer / QA / Admin] -->|HTTPS| N[Nginx]
-    N --> W[forge-web / Next.js]
+    N --> W[forge-web / Vite + React]
     N -->|REST / SSE| B[forge-server / Spring Boot]
     subgraph I["/opt/infra · infra-net"]
         M[(MySQL)]
@@ -177,11 +177,14 @@ sequenceDiagram
 ```text
 forge-ai/
 ├── forge-web/
-│   ├── src/app/
+│   ├── index.html
+│   ├── src/views/
+│   ├── src/routing/
 │   ├── src/features/
 │   ├── src/components/
 │   ├── src/lib/api/
-│   └── src/stores/
+│   ├── src/stores/
+│   └── server/
 ├── forge-server/
 │   └── src/main/java/ai/forge/server/
 │       ├── auth/
@@ -968,7 +971,7 @@ GitLab 有 API 的能力全部使用 API。Playwright Browser Tool 只在后续�
 
 ### 16.4 组件、Hooks 与文件拆分规范
 
-前端代码按 Feature 组织，并以职责边界拆分组件与 Hooks。禁止把路由、数据请求、状态编排、表单校验、复杂 JSX、弹窗和工具函数集中在同一个 `page.tsx` 或业务组件文件中。
+前端代码按 Feature 组织，并以职责边界拆分组件与 Hooks。禁止把路由、数据请求、状态编排、表单校验、复杂 JSX、弹窗和工具函数集中在同一个视图文件或业务组件文件中。
 
 ```text
 features/work-items/
@@ -993,7 +996,7 @@ features/work-items/
 
 拆分规则：
 
-1. `app/**/page.tsx` 只负责读取路由参数、页面级权限/错误边界和 Feature 组合，不直接承载复杂业务实现。
+1. `src/views/**/*-view.tsx` 只负责读取路由参数、页面级权限/错误边界和 Feature 组合，不直接承载复杂业务实现。
 2. 展示组件通过 props 接收数据；查询、Mutation、SSE 订阅和跨组件状态编排进入对应 Feature Hook。
 3. 表单 Schema、默认值转换、表格列定义、Dialog/Drawer 和复杂 Timeline 独立成文件，避免主组件同时承担多种职责。
 4. 一个自定义 Hook 只负责一类状态或副作用；纯计算逻辑进入 `utils`，不能为了“复用”把所有逻辑塞进一个万能 Hook。
@@ -1002,7 +1005,7 @@ features/work-items/
 7. 测试与组件/Hook 就近放置；生成 Client 和生成类型不得手工拆改。
 8. 禁止出现万能 `components.tsx`、`hooks.ts`、`utils.ts` 或持续膨胀的 `types.ts`。文件名应表达具体领域职责。
 
-规模是评审信号而非机械目标：`page.tsx` 建议不超过 150 行，业务组件或 Hook 建议不超过 200 行；手写业务文件超过 300 行必须在合并前完成职责审查和拆分，确有不可拆理由时在 Review 中说明。生成代码、声明式配置和测试 Fixture 不受该行数规则限制。
+规模是评审信号而非机械目标：视图文件建议不超过 150 行，业务组件或 Hook 建议不超过 200 行；手写业务文件超过 300 行必须在合并前完成职责审查和拆分，确有不可拆理由时在 Review 中说明。生成代码、声明式配置和测试 Fixture 不受该行数规则限制。
 
 ---
 

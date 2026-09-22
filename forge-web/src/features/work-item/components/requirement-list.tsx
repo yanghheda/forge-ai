@@ -1,9 +1,7 @@
-"use client";
-
 import { Alert, Button, Card, DatePicker, Input, Message, Modal, Select, Spin, Tag } from "@arco-design/web-react";
 import { IconSearch } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import { Link } from "react-router";
 import { useState } from "react";
 
 import { formatRequestError } from "@/lib/api";
@@ -92,7 +90,7 @@ export function RequirementList({ mine = false }: { mine?: boolean }) {
       <div className={styles.list}>
         {requirements.data?.items.map((item) => (
           <div key={item.id} className={styles.row}>
-            <Link href={`/requirements/${item.id}`} className={styles.rowLink}>
+            <Link to={`/requirements/${item.id}`} className={styles.rowLink}>
               <div>
                 <small>{item.itemKey}</small>
                 <strong>{item.title}</strong>

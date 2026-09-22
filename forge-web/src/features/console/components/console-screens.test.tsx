@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/features/work-item", () => ({
@@ -13,7 +14,11 @@ vi.mock("@/features/work-item", () => ({
 
 import { DeliveryScreen } from "./delivery-screen";
 
-const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>;
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <MemoryRouter initialEntries={["/requirements/1/qa"]}>{children}</MemoryRouter>
+  </QueryClientProvider>
+);
 
 describe("DeliveryScreen", () => {
   afterEach(cleanup);

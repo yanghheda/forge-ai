@@ -1,8 +1,6 @@
-"use client";
-
 import { Alert, Button, Card, Form, Input, Message, Select, Space, Spin, Tag } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import { Link } from "react-router";
 import { useState, type Dispatch, type SetStateAction } from "react";
 
 import { formatRequestError } from "@/lib/api";
@@ -62,7 +60,7 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
     <section className={styles.page}>
       <div className={styles.head}>
         <div>
-          <Link href="/requirements" className={styles.back}>
+          <Link to="/requirements" className={styles.back}>
             ← 返回需求列表
           </Link>
           <div className={styles.titleLine}>

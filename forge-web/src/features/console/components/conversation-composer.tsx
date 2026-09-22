@@ -1,5 +1,3 @@
-"use client";
-
 import { Button, Input, Select } from "@arco-design/web-react";
 import { IconLink } from "@arco-design/web-react/icon";
 import { useQuery } from "@tanstack/react-query";

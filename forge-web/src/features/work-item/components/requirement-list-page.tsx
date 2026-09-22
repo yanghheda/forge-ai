@@ -1,5 +1,3 @@
-"use client";
-
 import { Button, Typography } from "@arco-design/web-react";
 import { IconPlus } from "@arco-design/web-react/icon";
 import { useState } from "react";

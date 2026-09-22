@@ -1,6 +1,6 @@
 .git
 .idea
-**/.next
+**/dist
 **/node_modules
 forge-server/target
 **/.venv

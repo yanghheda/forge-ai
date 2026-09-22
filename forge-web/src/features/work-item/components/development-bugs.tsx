@@ -1,5 +1,3 @@
-"use client";
-
 import { Alert, Message } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatRequestError } from "@/lib/api";

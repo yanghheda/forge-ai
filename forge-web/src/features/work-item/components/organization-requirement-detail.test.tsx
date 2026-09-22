@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Message } from "@arco-design/web-react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OrganizationRequirementDetail } from "./organization-requirement-detail";
@@ -23,7 +24,11 @@ vi.mock("../api/work-item-api", async () => ({
 }));
 
 function wrapper({ children }: { children: ReactNode }) {
-  return <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={["/requirements/1"]}>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
 }
 
 describe("OrganizationRequirementDetail", () => {

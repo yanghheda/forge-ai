@@ -1,6 +1,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
@@ -17,12 +18,19 @@ const workItemApi = vi.hoisted(() => ({ getOrganizationRequirement: vi.fn() }));
 const authApi = vi.hoisted(() => ({ getCurrentUser: vi.fn() }));
 let pathname = "/overview";
 
-vi.mock("next/navigation", () => ({ usePathname: () => pathname }));
+vi.mock("react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router")>();
+  return { ...actual, useLocation: () => ({ pathname }) };
+});
 vi.mock("../api/console-api", () => consoleApi);
 vi.mock("@/features/work-item", () => workItemApi);
 vi.mock("@/features/auth", () => authApi);
 
-const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>;
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <MemoryRouter initialEntries={[pathname]}>{children}</MemoryRouter>
+  </QueryClientProvider>
+);
 
 describe("AgentCommandDrawer", () => {
   beforeEach(() => {

@@ -1,5 +1,3 @@
-"use client";
-
 import { Alert, Button, Card, Form, Input } from "@arco-design/web-react";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";

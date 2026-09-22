@@ -3,6 +3,7 @@ import { Message } from "@arco-design/web-react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RequirementList } from "./requirement-list";
@@ -19,7 +20,11 @@ vi.mock("../api/work-item-api", async () => ({
 }));
 
 function wrapper({ children }: { children: ReactNode }) {
-  return <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={["/requirements"]}>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
 }
 
 const draftRequirement = {

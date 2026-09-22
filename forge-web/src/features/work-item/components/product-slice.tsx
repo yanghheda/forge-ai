@@ -1,8 +1,6 @@
-"use client";
-
 import { Alert, Button, Card, Input, Message, Select, Tag, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import { Link } from "react-router";
 import { useState } from "react";
 
 import ui from "@/components/workbench/workbench.module.css";
@@ -68,7 +66,7 @@ export function ProductSlice({ organizationId, organizationSlug, organizationKey
         )}
         <div className={ui.list}>
           {requirements.data?.items.map((item) => (
-            <Link className={ui.listItem} key={item.id} href={`/w/${organizationSlug}/p/${organizationKey}/requirements/${item.id}`}>
+            <Link className={ui.listItem} key={item.id} to={`/w/${organizationSlug}/p/${organizationKey}/requirements/${item.id}`}>
               <span className={ui.itemMain}>
                 <span className={ui.itemTitle}>{item.title}</span>
                 <span className={ui.itemMeta}>

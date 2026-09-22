@@ -1,11 +1,8 @@
-"use client";
-
 import { Drawer, Message, Select, Tag } from "@arco-design/web-react";
 import { IconFullscreen, IconPlus } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router";
 
 import { getOrganizationRequirement } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
@@ -17,7 +14,7 @@ import styles from "./console.module.css";
 
 export function AgentCommandDrawer() {
   const queryClient = useQueryClient();
-  const pathname = usePathname() ?? "/";
+  const { pathname } = useLocation();
   const open = useAgentPanelStore((state) => state.open);
   const setOpen = useAgentPanelStore((state) => state.setOpen);
   const activeId = useAgentPanelStore((state) => state.activeConversationId);
@@ -66,7 +63,7 @@ export function AgentCommandDrawer() {
           <button type="button" className={styles.drawerIconButton} aria-label="新建会话" disabled={create.isPending} onClick={() => create.mutate()}>
             <IconPlus />
           </button>
-          <Link className={styles.drawerIconButton} href="/agent/command" aria-label="在完整页面打开" onClick={() => setOpen(false)}>
+          <Link className={styles.drawerIconButton} to="/agent/command" aria-label="在完整页面打开" onClick={() => setOpen(false)}>
             <IconFullscreen />
           </Link>
         </div>

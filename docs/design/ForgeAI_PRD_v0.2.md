@@ -443,7 +443,7 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 
 | 组件 | 选型 | 用途 |
 |---|---|---|
-| `forge-web` | Next.js + React + TypeScript + Arco Design | Web 工作台 |
+| `forge-web` | Vite + React + TypeScript + Arco Design | Web 工作台 |
 | `forge-server` | Java 21 + Spring Boot 3.x | 业务权威、API、权限、工作流、集成 |
 | `forge-agent` | Python 3.12 + FastAPI + Deep Agents（基于 LangGraph） | Agent Runtime、RAG、Tool Calling |
 | 数据库 | MySQL 8 | 业务事实、配置、Trace、审计 |
@@ -470,7 +470,7 @@ Agent 的有效权限为：用户权限 ∩ Skill Tool Allowlist ∩ Project Pol
 | 组件 | 部署方式 | 说明 |
 |---|---|---|
 | Nginx | 本地可选 / 腾讯云必需 | 本地可简化；上线提供 HTTPS、反向代理、SSE |
-| forge-web | Docker Desktop / 腾讯云 Docker | Next.js |
+| forge-web | Docker Desktop / 腾讯云 Docker | Vite + React |
 | forge-server | Docker Desktop / 腾讯云 Docker | Spring Boot |
 | forge-agent | Docker Desktop / 腾讯云 Docker | FastAPI + Agent Runtime |
 | MySQL | 本机 Docker Desktop / 腾讯云 Docker | 业务事实，必须持久化和备份 |
@@ -664,7 +664,7 @@ MVP 以一条真实交付闭环能否运行定义完成：
 
 ```text
 forge-ai/
-├── forge-web/       # Next.js + TypeScript + Arco Design
+├── forge-web/       # Vite + React + TypeScript + Arco Design
 ├── forge-server/    # Java 21 + Spring Boot
 ├── forge-agent/     # Python 3.12 + FastAPI + Deep Agents（基于 LangGraph）
 ├── packages/

@@ -961,7 +961,7 @@ features/work-items/
 
 页面与组件职责：
 
-- `app/**/page.tsx` 只解析路由、建立页面边界并组合 Feature；不直接写大段表单、表格、弹窗、请求和 SSE 逻辑。
+- `src/views/**/*-view.tsx` 只解析路由、建立页面边界并组合 Feature；不直接写大段表单、表格、弹窗、请求和 SSE 逻辑。
 - 一个组件只承担一个可描述的 UI 职责。一个文件同时出现数据请求、复杂表单、表格列、多个弹窗和长 JSX 时必须拆分。
 - 容器组件调用 Feature Hook 并组合数据；展示组件通过 props 渲染，便于独立阅读和测试。
 - 表单主体、字段组、Schema/default mapping、Dialog/Drawer、表格列和 Timeline 分文件管理。
@@ -977,7 +977,7 @@ Hooks 职责：
 
 - Feature 仅从自身 `index.ts` 暴露稳定 API；外部禁止 deep import，ESLint 配置边界规则阻止循环和跨层引用。
 - 通用组件至少有两个真实调用方且不含领域语义后才进入 `src/components`，避免过早抽象。
-- `page.tsx` 建议不超过 150 行，业务组件/Hook 建议不超过 200 行。手写业务文件超过 300 行是阻断性 Review 信号：必须先拆分职责，确实不可拆时在 Review 中说明原因。
+- 视图文件建议不超过 150 行，业务组件/Hook 建议不超过 200 行。手写业务文件超过 300 行是阻断性 Review 信号：必须先拆分职责，确实不可拆时在 Review 中说明原因。
 - 行数不是唯一指标；即使不足 300 行，只要混合两个以上独立职责也应拆分。生成文件、声明式配置和 Fixture 排除。
 - 禁止万能 `components.tsx`、`hooks.ts`、`utils.ts` 和持续膨胀的 `types.ts`；使用能表达领域含义的文件名。
 

@@ -6,7 +6,7 @@ ForgeAI is an open-source, self-hosted AI-native software delivery workbench. It
 
 ForgeAI 采用 Monorepo 管理三个独立应用，使业务契约、应用实现与部署配置能够在同一个 commit 中一致演进：
 
-- `forge-web`：面向用户的 Next.js 工作台，只通过 `forge-server` 访问业务能力。
+- `forge-web`：面向用户的 Vite + React 工作台，只通过 `forge-server` 访问业务能力。
 - `forge-server`：Spring Boot 模块化单体，是业务事实、授权和事务的唯一权威。
 - `forge-agent`：FastAPI Agent Runtime，只能通过受控 Tool API 调用 `forge-server`。
 

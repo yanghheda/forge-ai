@@ -1,7 +1,7 @@
 # ForgeAI Console 设计稿 → 前端还原清单
 
 > 设计稿根目录：`docs/design/forgeai-console/`
-> 技术栈：Next.js + TypeScript + Arco Design
+> 技术栈：Vite + React、TypeScript、Arco Design（见 ADR-023）
 > 先读 `colors_and_type.css` 建立全局主题变量映射，再按分组逐页还原。
 
 ---

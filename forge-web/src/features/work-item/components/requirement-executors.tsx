@@ -1,5 +1,3 @@
-"use client";
-
 import { Button, Card, Message, Select, Space, Tag } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";

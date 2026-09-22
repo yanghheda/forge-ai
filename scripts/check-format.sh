@@ -24,7 +24,7 @@ is_ignored() {
 find "$check_root" -type f \
   ! -path '*/.git/*' \
   ! -path '*/node_modules/*' \
-  ! -path '*/.next/*' \
+  ! -path '*/dist/*' \
   ! -path '*/build/*' \
   ! -path '*/target/*' \
   ! -path '*/.venv/*' \

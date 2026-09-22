@@ -1,6 +1,6 @@
 import { IconCheckCircle, IconLock, IconRobot } from "@arco-design/web-react/icon";
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 
 import styles from "./auth-forms.module.css";
 
@@ -8,7 +8,7 @@ export function AuthLayout({ children, title, description }: { children: ReactNo
   return (
     <div className={styles.page}>
       <aside className={styles.story}>
-        <Link href="/" className={styles.logo}>
+        <Link to="/" className={styles.logo}>
           <span>F</span> ForgeAI
         </Link>
         <div className={styles.storyContent}>

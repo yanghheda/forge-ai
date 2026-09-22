@@ -1,10 +1,8 @@
-"use client";
-
 import { Alert, Button, Card, Form, Input, Select, Spin, Typography } from "@arco-design/web-react";
 import { IconLock } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import { getSetupStatus, initializeInstance, login, register, type InitializeInput, type RegisterInput } from "../api/auth-api";
 import { initializeSchema, loginSchema, registerSchema } from "../schemas/auth-form.schema";
@@ -29,7 +27,7 @@ const emptyRegistration: RegisterInput = {
 };
 
 export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "register" | "init" }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const status = useQuery({
     queryKey: ["setup-status"],
@@ -49,7 +47,7 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
     mutationFn: (input: InitializeInput) => initializeInstance(input),
     onSuccess: () => {
       if (initialMode === "init") {
-        router.replace("/login");
+        navigate("/login", { replace: true });
         return;
       }
       setInitializedLocally(true);
@@ -63,7 +61,7 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
       setLoginValues(emptyLogin);
       loginForm.resetFields();
       setFieldErrors({});
-      router.replace("/overview");
+      navigate("/overview", { replace: true });
     },
   });
   const registerMutation = useMutation({

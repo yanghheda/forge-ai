@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UxWorkspaceView, type UxWorkspaceModel } from "./ux-delivery";
@@ -19,7 +20,11 @@ describe("UxWorkspaceView", () => {
   afterEach(cleanup);
   it("按视觉稿三栏展示真实 UX 交付数据", () => {
     const onEdit = vi.fn();
-    render(<UxWorkspaceView model={model} checklist={{ userFlow: true, pageList: true, keyInteraction: true, exceptionState: true }} busy={false} reason="" onChecklistChange={vi.fn()} onReasonChange={vi.fn()} onAction={vi.fn()} onGenerate={vi.fn()} onEdit={onEdit} />);
+    render(
+      <MemoryRouter initialEntries={["/requirements/1/ux"]}>
+        <UxWorkspaceView model={model} checklist={{ userFlow: true, pageList: true, keyInteraction: true, exceptionState: true }} busy={false} reason="" onChecklistChange={vi.fn()} onReasonChange={vi.fn()} onAction={vi.fn()} onGenerate={vi.fn()} onEdit={onEdit} />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByRole("heading", { name: "UX 工作区" })).toBeInTheDocument();
     expect(screen.getByText("登录 UX Spec")).toBeInTheDocument();
@@ -31,7 +36,11 @@ describe("UxWorkspaceView", () => {
 
   it("退回评审必须填写原因", async () => {
     const onAction = vi.fn();
-    render(<UxWorkspaceView model={model} checklist={{ userFlow: true, pageList: true, keyInteraction: true, exceptionState: true }} busy={false} reason="" onChecklistChange={vi.fn()} onReasonChange={vi.fn()} onAction={onAction} onGenerate={vi.fn()} onEdit={vi.fn()} />);
+    render(
+      <MemoryRouter initialEntries={["/requirements/1/ux"]}>
+        <UxWorkspaceView model={model} checklist={{ userFlow: true, pageList: true, keyInteraction: true, exceptionState: true }} busy={false} reason="" onChecklistChange={vi.fn()} onReasonChange={vi.fn()} onAction={onAction} onGenerate={vi.fn()} onEdit={vi.fn()} />
+      </MemoryRouter>,
+    );
 
     const reject = screen.getByRole("button", { name: "驳回 UX 设计" });
     expect(reject).toBeDisabled();
@@ -40,7 +49,11 @@ describe("UxWorkspaceView", () => {
   });
 
   it("非设计角色只读：禁用编辑、AI 生成与设计检查点", () => {
-    render(<UxWorkspaceView model={model} checklist={{ userFlow: true, pageList: true, keyInteraction: true, exceptionState: true }} busy={false} reason="" readOnly onChecklistChange={vi.fn()} onReasonChange={vi.fn()} onAction={vi.fn()} onGenerate={vi.fn()} onEdit={vi.fn()} />);
+    render(
+      <MemoryRouter initialEntries={["/requirements/1/ux"]}>
+        <UxWorkspaceView model={model} checklist={{ userFlow: true, pageList: true, keyInteraction: true, exceptionState: true }} busy={false} reason="" readOnly onChecklistChange={vi.fn()} onReasonChange={vi.fn()} onAction={vi.fn()} onGenerate={vi.fn()} onEdit={vi.fn()} />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByRole("button", { name: "编辑 UX Spec" })).toBeDisabled();
     // 顶部与画板工具栏各有一个同名入口，二者都必须禁用。

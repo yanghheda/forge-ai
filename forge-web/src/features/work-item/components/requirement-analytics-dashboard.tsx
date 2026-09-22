@@ -1,9 +1,7 @@
-"use client";
-
 import { Alert, Button, Card, Radio, Spin, Tabs, Tag } from "@arco-design/web-react";
 import { IconPlus } from "@arco-design/web-react/icon";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
+import { Link } from "react-router";
 import { useMemo, useState } from "react";
 
 import { formatRequestError } from "@/lib/api";
@@ -273,7 +271,7 @@ export function RequirementAnalyticsDashboard() {
                 ) : (
                   <div className={styles.riskList}>
                     {risks.map((item) => (
-                      <Link key={item.id} href={`/requirements/${item.id}`} className={styles.riskRow}>
+                      <Link key={item.id} to={`/requirements/${item.id}`} className={styles.riskRow}>
                         <div>
                           <small>{item.itemKey}</small>
                           <strong>{item.title}</strong>

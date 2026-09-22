@@ -4,7 +4,7 @@
 
 - 用户可见结果：`forge-agent` 可以启动，三应用与 MySQL、Redis、Qdrant 可以通过 Compose 一起运行，`make smoke` 验证 Web、Server、Agent 的最小链路。
 - 建立 Pydantic Settings、公开 liveness、受保护的内部 readiness、空 `RuntimeGateway`、Tool/Skill 契约 Schema 和校验命令。
-- Web→Server 链路：访问 Web `/api/v1/system/status` → Next rewrite → Server 状态接口 → 结果返回 Web。
+- Web→Server 链路：访问 Web `/api/v1/system/status` → 同源 `/api` 代理 → Server 状态接口 → 结果返回 Web。
 - Server→Agent 链路：访问 Server `/actuator/health/agent` → `AgentHealthIndicator.health()` → `AgentServiceTokenProvider.createToken()` → 请求 Agent `/internal/v1/health/ready` → `require_internal_credential()` 校验 JWT → `readiness()` 返回 `READY`。
 
 ## 我理解的核心设计

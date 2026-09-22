@@ -1,8 +1,6 @@
-"use client";
-
 import { Alert, Button, Card, Input, Space, Spin, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import { Link } from "react-router";
 import { useState } from "react";
 import { getCurrentUser } from "@/features/auth";
 import { listProjects } from "@/features/project";
@@ -16,7 +14,7 @@ export function UxTaskList({ organizationSlug, organizationKey, tasks }: { organ
   return (
     <div className={ui.list}>
       {tasks.map((task) => (
-        <Link aria-label={`${task.itemKey} · ${task.title} · ${task.status}`} className={ui.listItem} key={task.id} href={`/w/${organizationSlug}/p/${organizationKey}/ux/${task.id}`}>
+        <Link aria-label={`${task.itemKey} · ${task.title} · ${task.status}`} className={ui.listItem} key={task.id} to={`/w/${organizationSlug}/p/${organizationKey}/ux/${task.id}`}>
           <span className={ui.itemMain}>
             <span className={ui.itemTitle}>{task.title}</span>
             <span className={ui.itemMeta}>
@@ -125,7 +123,7 @@ export function UxTaskRoute({ organizationSlug, organizationKey, workItemId }: {
           <p>{task.data.title}</p>
         </div>
       </header>
-      <Link href={`/w/${organizationSlug}/p/${organizationKey}/ux`}>返回 UX 工作台</Link>
+      <Link to={`/w/${organizationSlug}/p/${organizationKey}/ux`}>返回 UX 工作台</Link>
       <UxTaskDetailView task={task.data} busy={transition.isPending} reason={reason} error={error} onReasonChange={setReason} onTransition={(action) => transition.mutate(action)} />
     </section>
   );

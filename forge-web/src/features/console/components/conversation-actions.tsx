@@ -1,5 +1,3 @@
-"use client";
-
 import { Button, Dropdown, Input, Menu, Modal } from "@arco-design/web-react";
 import { IconDelete, IconEdit, IconMore } from "@arco-design/web-react/icon";
 import { useState } from "react";

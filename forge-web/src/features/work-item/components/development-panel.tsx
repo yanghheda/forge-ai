@@ -1,5 +1,3 @@
-"use client";
-
 import { Alert, Button, Card, Space, Tag, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
