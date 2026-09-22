@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge, Button, Drawer, Dropdown, Empty, Input, Menu, Message, Modal, Spin } from "@arco-design/web-react";
-import { IconApps, IconBranch, IconCommand, IconDashboard, IconHistory, IconMenuFold, IconMenuUnfold, IconNotification, IconPoweroff, IconRobot, IconSearch, IconSettings, IconUser } from "@arco-design/web-react/icon";
+import { IconApps, IconBranch, IconCommand, IconDashboard, IconFile, IconHistory, IconMenuFold, IconMenuUnfold, IconNotification, IconPoweroff, IconRobot, IconSearch, IconSettings, IconUser } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -98,6 +98,12 @@ export function AppShell({ children }: AppShellProps) {
       href: "/overview",
       icon: <IconDashboard />,
       active: pathname === "/overview",
+    },
+    {
+      label: "需求列表",
+      href: "/requirements",
+      icon: <IconFile />,
+      active: pathname === "/requirements" || pathname.startsWith("/requirements/"),
     },
     {
       label: "我的需求",
@@ -274,6 +280,7 @@ function avatarText(displayName?: string) {
 
 function pageName(pathname: string) {
   if (pathname === "/overview") return "全局仪表盘";
+  if (pathname === "/requirements") return "需求列表";
   if (pathname === "/my-requirements") return "我的需求";
   if (pathname === "/task-board") return "任务看板";
   if (pathname.startsWith("/agent/command")) return "Agent 指令中心";

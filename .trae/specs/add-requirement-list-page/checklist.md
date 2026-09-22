@@ -1,0 +1,22 @@
+# Checklist
+
+- [x] 主导航存在「需求列表」项，指向 `/requirements`，且在 `/requirements` 及其子路径下保持高亮
+- [x] `/requirements` 页面标题为「需求列表」，数据仅为 `type = REQUIREMENT` 的需求，不出现任务或 Bug
+- [x] 需求列表支持关键字搜索与状态筛选，并展示需求总数
+- [x] 列表行点击跳转到 `/requirements/{id}` 需求详情
+- [x] 列表行操作区可修改优先级与期望发布时间，请求携带该行 `version` 作为 `expectedVersion`
+- [x] 修改成功后列表数据刷新并提示成功；版本冲突时提示错误并刷新列表
+- [x] 仅 `DRAFT` 状态需求出现删除入口
+- [x] 删除需求需二次确认，调用 `DELETE /api/v1/requirements/{id}?expectedVersion=`，成功后列表刷新
+- [x] 后端删除接口校验 `requirement.edit` 权限、`type = REQUIREMENT`、状态为 `DRAFT` 与 `expectedVersion`
+- [x] 非草稿删除返回 409 且不修改数据；不存在或已删除需求返回 404
+- [x] 删除为软删除（写入 `deleted_at`），删除后需求在列表、详情、统计中不可见
+- [x] 新增/修改的 Mapper SQL 显式包含 `organization_id`、`type = 'REQUIREMENT'` 与 `deleted_at IS NULL` 条件
+- [x] 需求列表未引入任何公司切换/多租户筛选入口
+- [x] 需求详情返回入口为「← 返回需求列表」并指向 `/requirements`
+- [x] 面包屑在详情及其下游阶段页显示「工作台 / 需求详情」
+- [x] 「我的需求」页本轮未被改动（除共享组件必要的兼容修复外）
+- [x] 新增/修改的 Java 生产代码成员具备紧邻声明的中文块注释，Controller 之外未新增 Swagger 注解
+- [x] 新增集成测试覆盖：草稿删除成功、非草稿 409、版本过期 409、不存在/重复删除 404
+- [x] 前端新增测试覆盖：行跳转、修改提交载荷、删除确认调用、非草稿无删除入口
+- [x] `git diff --check` 通过；`make ci` 的 format-check、lint、contracts-check、test 门禁全部通过。`make ci` 的 `next build` 环节未通过（`/_not-found` 预渲染报 `ReferenceError: Cannot access 'am' before initialization`），已确认是既有问题、非本变更引入：将 `app-shell.tsx` 回退到 HEAD 版本并清除 `.next` 缓存后同样复现。

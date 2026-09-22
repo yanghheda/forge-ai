@@ -81,6 +81,21 @@ public class OrganizationRequirementService {
         return store.findRequirement(scope.organizationId(), item.id()).orElseThrow();
     }
 
+    @Transactional
+    public void delete(long userId, long requirementId, long expectedVersion) {
+        OrganizationContext scope = accessService.requireContext(userId);
+        permissionEvaluator.requireOrganization(userId, scope.organizationId(), "requirement.edit");
+        if (workflow.lockRequirement(scope.organizationId(), requirementId) == null)
+            throw new ai.forge.server.common.domain.ResourceNotFoundException();
+        WorkItem item = queryService.get(userId, scope.organizationId(), requirementId);
+        if (item.type() != WorkItemType.REQUIREMENT)
+            throw new ai.forge.server.common.domain.ResourceNotFoundException();
+        if (item.status() != WorkItemStatus.DRAFT)
+            throw new ai.forge.server.workitem.domain.InvalidTransitionException();
+        if (!store.softDelete(scope.organizationId(), requirementId, expectedVersion))
+            throw new ai.forge.server.common.domain.VersionConflictException();
+    }
+
     public OrganizationRequirementPage list(
             long userId, boolean mine, String query, WorkItemStatus status, int page, int pageSize) {
         OrganizationContext scope = accessService.requireContext(userId);

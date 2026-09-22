@@ -160,7 +160,17 @@ export const createOrganizationRequirement = (input: { title: string; descriptio
 
 export const getOrganizationRequirement = (id: number, client: RequestClient = apiClient) => client.request<OrganizationRequirement>(`/v1/requirements/${id}`);
 
-export const updateWorkItem = (id: number, input: { description: string; expectedVersion: number }, client: RequestClient = apiClient) => client.request<{ id: number; description: string; version: number }>(`/v1/work-items/${id}`, json("PATCH", input));
+export const updateWorkItem = (id: number, input: { description?: string; priority?: string; dueAt?: string; expectedVersion: number }, client: RequestClient = apiClient) => {
+  // 请求体只携带本次实际提交的字段，避免把未变更字段写回并覆盖他人修改。
+  const body: Record<string, unknown> = {};
+  if (input.description !== undefined) body.description = input.description;
+  if (input.priority !== undefined) body.priority = input.priority;
+  if (input.dueAt !== undefined) body.dueAt = input.dueAt;
+  body.expectedVersion = input.expectedVersion;
+  return client.request<{ id: number; description: string; version: number }>(`/v1/work-items/${id}`, json("PATCH", body));
+};
+
+export const deleteRequirement = (id: number, expectedVersion: number, client: RequestClient = apiClient) => client.request<void>(`/v1/requirements/${id}?expectedVersion=${expectedVersion}`, { method: "DELETE" });
 
 export const getRequirementDetails = (id: number, client: RequestClient = apiClient) => client.request<RequirementDetails>(`/v1/work-items/${id}/details`);
 

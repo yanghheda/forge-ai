@@ -35,6 +35,8 @@ public interface OrganizationRequirementStore {
 
     List<RequirementMemberView> findMembers(long organizationId);
 
+    boolean softDelete(long organizationId, long requirementId, long expectedVersion);
+
     record ParticipantAssignment(
             /* 被设置的固定需求角色。 */ RequirementParticipantRole role,
             /* 承担该需求角色的组织成员标识。 */ long userId) {}

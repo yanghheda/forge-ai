@@ -126,6 +126,11 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
                 .toList();
     }
 
+    @Override
+    public boolean softDelete(long organizationId, long requirementId, long expectedVersion) {
+        return mapper.softDelete(organizationId, requirementId, expectedVersion) > 0;
+    }
+
     private OrganizationRequirementView requirement(Map<String, Object> row) {
         return new OrganizationRequirementView(
                 number(row, "id"),

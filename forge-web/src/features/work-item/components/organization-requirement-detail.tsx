@@ -62,8 +62,8 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
     <section className={styles.page}>
       <div className={styles.head}>
         <div>
-          <Link href="/overview" className={styles.back}>
-            ← 返回列表
+          <Link href="/requirements" className={styles.back}>
+            ← 返回需求列表
           </Link>
           <div className={styles.titleLine}>
             <code>{item.itemKey}</code>

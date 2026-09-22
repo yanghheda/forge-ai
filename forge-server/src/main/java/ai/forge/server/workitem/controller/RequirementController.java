@@ -22,12 +22,14 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -92,6 +94,22 @@ public class RequirementController {
     @GetMapping("/{requirementId}")
     public OrganizationRequirementView get(@PathVariable long requirementId, HttpServletRequest request) {
         return service.get(AuthController.requireContext(request).userId(), requirementId);
+    }
+
+    @DeleteMapping("/{requirementId}")
+    @Operation(summary = "删除需求", description = "权限：Owner 或 Product；仅草稿状态的需求可软删除，需回传 current version。")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "需求已删除"),
+        @ApiResponse(responseCode = "404", description = "需求不存在、已被删除或类型不匹配"),
+        @ApiResponse(responseCode = "409", description = "需求状态不允许删除或 expectedVersion 已过期")
+    })
+    public ResponseEntity<Void> delete(
+            @PathVariable long requirementId,
+            @RequestParam @PositiveOrZero long expectedVersion,
+            HttpServletRequest request) {
+        service.delete(
+                AuthController.requireContext(request).userId(), requirementId, expectedVersion);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{requirementId}/participants")

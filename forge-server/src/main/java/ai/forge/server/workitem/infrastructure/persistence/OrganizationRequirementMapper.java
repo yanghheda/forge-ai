@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface OrganizationRequirementMapper {
@@ -121,4 +122,12 @@ public interface OrganizationRequirementMapper {
             + "GROUP BY u.id, u.display_name, u.email ORDER BY u.display_name, u.id")
     List<Map<String, Object>> findMembers(
             @Param("organizationId") long organizationId);
+
+    @Update("UPDATE work_items SET deleted_at = UTC_TIMESTAMP(6), updated_at = UTC_TIMESTAMP(6), "
+            + "version = version + 1 WHERE id = #{requirementId} AND organization_id = #{organizationId} "
+            + "AND type = 'REQUIREMENT' AND deleted_at IS NULL AND version = #{expectedVersion}")
+    int softDelete(
+            @Param("organizationId") long organizationId,
+            @Param("requirementId") long requirementId,
+            @Param("expectedVersion") long expectedVersion);
 }
