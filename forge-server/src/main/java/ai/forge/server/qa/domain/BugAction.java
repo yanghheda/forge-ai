@@ -1,6 +1,8 @@
 package ai.forge.server.qa.domain;
 
 public enum BugAction {
+    /* 记录修复过程中遇到的阻塞。 */ BLOCK,
+    /* 解除阻塞并继续修复。 */ UNBLOCK,
     /* 研发领取 Bug 并开始修复。 */ START_FIX,
     /* 研发提交带修复证据的解决结果。 */ RESOLVE,
     /* QA 或管理员独立验证修复结果。 */ VERIFY,

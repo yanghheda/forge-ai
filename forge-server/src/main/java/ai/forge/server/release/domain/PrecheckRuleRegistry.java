@@ -9,7 +9,7 @@ public final class PrecheckRuleRegistry {
     /* 会阻断发布的高严重级别集合。 */
     private static final Set<String> BLOCKING_SEVERITIES = Set.of("BLOCKER", "CRITICAL");
     /* 表示缺陷仍未消除的状态集合。 */
-    private static final Set<String> BLOCKING_STATUSES = Set.of("OPEN", "REOPENED");
+    private static final Set<String> BLOCKING_STATUSES = Set.of("TODO", "IN_PROGRESS", "BLOCKED", "WAITING_VERIFICATION");
 
     public PrecheckDecision evaluate(PrecheckFacts facts) {
         List<PrecheckResult> results = List.of(

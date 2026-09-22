@@ -60,5 +60,5 @@ export function syncText(value: string | null | undefined) {
   return value ? `同步于 ${new Date(value).toLocaleString("zh-CN")}` : "暂无同步记录";
 }
 export function statusLabel(value: string) {
-  return ({ TODO: "待处理", IN_PROGRESS: "进行中", DONE: "已完成", running: "运行中", success: "成功", failed: "失败", canceled: "已取消" } as Record<string, string>)[value] ?? value;
+  return ({ TODO: "待处理", IN_PROGRESS: "进行中", BLOCKED: "阻塞中", WAITING_VERIFICATION: "待验证", DONE: "已完成", running: "运行中", success: "成功", failed: "失败", canceled: "已取消" } as Record<string, string>)[value] ?? value;
 }

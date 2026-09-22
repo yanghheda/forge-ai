@@ -58,9 +58,11 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
     void initializeOrganization() throws Exception {
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
+        jdbcTemplate.update("UPDATE work_items SET parent_id=NULL");
         for (String table : List.of(
                 "comments", "work_item_relations", "work_item_labels", "organization_policies", "work_item_events",
-                "review_records", "requirement_details", "work_items", "organization_item_sequences",
+                "review_records", "requirement_review_votes", "requirement_executors", "requirement_participants",
+                "requirement_details", "work_items", "organization_item_sequences",
                 "organization_policies", "audit_logs", "member_roles",
                 "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
@@ -168,7 +170,7 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void typePermissionsAreEnforcedInsideTheApplicationService() {
+    void rootEndpointRejectsTaskCreation() {
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password_hash FROM users WHERE normalized_email = 'owner@example.com'", String.class);
         jdbcTemplate.update(
@@ -198,7 +200,8 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
 
         assertThat(requirement.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(requirement.getBody()).contains("RESOURCE_NOT_FOUND");
-        assertThat(devTask.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(devTask.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(devTask.getBody()).contains("VALIDATION_FAILED");
     }
 
     @Test
@@ -301,6 +304,15 @@ class WorkItemIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     private JsonNode create(String type, String title, String priority) throws Exception {
+        if (!"REQUIREMENT".equals(type)) {
+            long userId = jdbcTemplate.queryForObject("SELECT owner_user_id FROM organizations WHERE id=?", Long.class, organizationId);
+            long requirementId = jdbcTemplate.queryForObject("SELECT MIN(id) FROM work_items WHERE organization_id=? AND type='REQUIREMENT'", Long.class, organizationId);
+            ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(jdbcTemplate, organizationId, requirementId, userId);
+            String preparation = type.equals("UX_TASK") ? "READY_FOR_UX" : type.equals("DEV_TASK") ? "READY_FOR_DEV" : "READY_FOR_QA";
+            jdbcTemplate.update("UPDATE work_items SET status=? WHERE id=?",preparation,requirementId);
+            var task = commandService.createTask(userId, organizationId, requirementId, WorkItemType.valueOf(type), title, "description", WorkItemPriority.valueOf(priority), userId);
+            return objectMapper.valueToTree(task);
+        }
         ResponseEntity<String> response = createResponse(ownerCookie, type, title, priority);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return objectMapper.readTree(response.getBody());

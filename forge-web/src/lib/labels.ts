@@ -1,23 +1,34 @@
 /* 工作项流转动作的中文按钮文案；未命中时回退英文原值。 */
 const workflowActionLabels: Record<string, string> = {
-  SUBMIT_PRODUCT_REVIEW: "提交产品评审",
-  APPROVE_PRODUCT_REVIEW: "通过产品评审",
+  SUBMIT_PRODUCT_REVIEW: "提交需求审核",
+  APPROVE_REQUIREMENT: "需求审核通过",
+  REJECT_REQUIREMENT: "驳回到草稿",
+  START_PRODUCT_REVIEW: "开始四方评审",
+  START_UX: "开始 UX 设计",
+  START_DEVELOPMENT: "开始开发阶段",
+  ACCEPT_REQUIREMENT: "验收通过",
+  QA_FAIL: "进入验证修复",
+  BLOCK: "标记阻塞",
+  UNBLOCK: "解除阻塞",
+  APPROVE_PRODUCT_REVIEW: "确认评审通过",
   REJECT_PRODUCT_REVIEW: "退回产品评审",
-  SUBMIT_UX_REVIEW: "提交 UX 评审",
-  APPROVE_UX_REVIEW: "通过 UX 评审",
-  REJECT_UX_REVIEW: "退回 UX 评审",
+  SUBMIT_UX_REVIEW: "提交 UX 审核",
+  APPROVE_UX_REVIEW: "UX 审核通过",
+  REJECT_UX_REVIEW: "驳回 UX 设计",
   SKIP_UX: "跳过 UX",
   SUBMIT_FOR_QA: "提交测试",
   START_QA: "开始测试",
   QA_PASS: "测试通过",
   START: "开始处理",
-  SUBMIT_REVIEW: "提交评审",
-  APPROVE: "批准",
+  SUBMIT_REVIEW: "提交验证",
+  APPROVE: "验证通过",
   REJECT: "退回修改",
 };
 
 /* Bug 流转动作的中文按钮文案。 */
 const bugActionLabels: Record<string, string> = {
+  BLOCK: "标记阻塞",
+  UNBLOCK: "解除阻塞",
   START_FIX: "开始修复",
   RESOLVE: "提交修复",
   VERIFY: "验证",
@@ -27,6 +38,14 @@ const bugActionLabels: Record<string, string> = {
 
 /* 流程 Guard 缺失项的中文提示文案。 */
 const guardHintLabels: Record<string, string> = {
+  allTestCasesExecuted: "全部测试用例执行完毕并完成当前测试轮次",
+  unfinishedBugs: "全部缺陷修复并验证通过",
+  unfinishedUxTasks: "全部设计任务验证通过",
+  unfinishedQaTasks: "全部测试任务验证通过",
+  activeTaskStage: "需求进入对应执行阶段",
+  "task:UX_TASK": "至少一个设计任务",
+  "task:DEV_TASK": "至少一个开发任务",
+  "task:QA_TASK": "至少一个测试任务",
   description: "需求描述",
   goal: "业务目标",
   inScope: "纳入范围",
@@ -94,6 +113,8 @@ export function bugActionLabel(value: string): string {
 }
 
 export function guardHintLabel(value: string): string {
+  if (value.startsWith("leader:")) return `${roleLabel(value.slice(7))}负责人`;
+  if (value.startsWith("executor:")) return `${roleLabel(value.slice(9))}执行人`;
   return guardHintLabels[value] ?? value;
 }
 

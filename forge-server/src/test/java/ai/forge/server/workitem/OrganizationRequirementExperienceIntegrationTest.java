@@ -75,7 +75,7 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
         String ownerCookie = login("owner@example.com", "correct-horse-42");
         JsonNode product = register("product@example.com", "产品同学", "member-password-42", "PRODUCT");
         long productUserId = product.get("userId").asLong();
-        approveMember(ownerCookie, productUserId, "产品同学", "PRODUCT");
+        approveMember(ownerCookie, productUserId, "产品同学", "PRODUCT_ADMIN");
 
         ResponseEntity<String> created = csrf.post(
                 "/api/v1/requirements",
@@ -100,8 +100,8 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
 
         JsonNode product = register("product@example.com", "产品同学", "member-password-42", "PRODUCT");
         JsonNode developer = register("dev@example.com", "开发同学", "member-password-84", "DEVELOPER");
-        approveMember(ownerCookie, product.get("userId").asLong(), "产品同学", "PRODUCT");
-        approveMember(ownerCookie, developer.get("userId").asLong(), "开发同学", "DEVELOPER");
+        approveMember(ownerCookie, product.get("userId").asLong(), "产品同学", "PRODUCT_ADMIN");
+        approveMember(ownerCookie, developer.get("userId").asLong(), "开发同学", "DEVELOPER_ADMIN");
         ResponseEntity<String> forbiddenOwner = csrf.post(
                 "/api/v1/auth/register",
                 Map.of("email", "other-owner@example.com", "displayName", "Other", "password", "member-password-21", "role", "OWNER"),

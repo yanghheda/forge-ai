@@ -13,17 +13,18 @@ class BugWorkflowRegistryTest {
 
     @Test
     void followsFixVerifyCloseLifecycleWithRoleSpecificPermissions() {
-        assertTransition(WorkItemStatus.OPEN, BugAction.START_FIX, WorkItemStatus.IN_PROGRESS, "bug.resolve");
-        assertTransition(WorkItemStatus.IN_PROGRESS, BugAction.RESOLVE, WorkItemStatus.RESOLVED, "bug.resolve");
-        assertTransition(WorkItemStatus.RESOLVED, BugAction.VERIFY, WorkItemStatus.VERIFIED, "bug.verify");
-        assertTransition(WorkItemStatus.VERIFIED, BugAction.CLOSE, WorkItemStatus.CLOSED, "bug.verify");
+        assertTransition(WorkItemStatus.TODO, BugAction.START_FIX, WorkItemStatus.IN_PROGRESS, "bug.resolve");
+        assertTransition(WorkItemStatus.IN_PROGRESS, BugAction.RESOLVE, WorkItemStatus.WAITING_VERIFICATION, "bug.resolve");
+        assertTransition(WorkItemStatus.WAITING_VERIFICATION, BugAction.VERIFY, WorkItemStatus.DONE, "bug.verify");
+        assertTransition(WorkItemStatus.IN_PROGRESS, BugAction.BLOCK, WorkItemStatus.BLOCKED, "bug.resolve");
+        assertTransition(WorkItemStatus.BLOCKED, BugAction.UNBLOCK, WorkItemStatus.IN_PROGRESS, "bug.resolve");
     }
 
     @Test
     void reopensResolvedOrVerifiedBugButCannotSkipVerification() {
-        assertTransition(WorkItemStatus.RESOLVED, BugAction.REOPEN, WorkItemStatus.OPEN, "bug.verify");
-        assertTransition(WorkItemStatus.VERIFIED, BugAction.REOPEN, WorkItemStatus.OPEN, "bug.verify");
-        assertThatThrownBy(() -> registry.require(WorkItemStatus.RESOLVED, BugAction.CLOSE))
+        assertTransition(WorkItemStatus.WAITING_VERIFICATION, BugAction.REOPEN, WorkItemStatus.IN_PROGRESS, "bug.verify");
+        assertTransition(WorkItemStatus.DONE, BugAction.REOPEN, WorkItemStatus.IN_PROGRESS, "bug.verify");
+        assertThatThrownBy(() -> registry.require(WorkItemStatus.WAITING_VERIFICATION, BugAction.CLOSE))
                 .isInstanceOf(InvalidTransitionException.class);
     }
 

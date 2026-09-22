@@ -47,7 +47,7 @@ public class BugController {
     public ResponseEntity<BugView> create(@Valid @RequestBody CreateBugRequest body,
             HttpServletRequest request) {
         BugView bug = service.create(AuthController.requireContext(request).userId(), organizationId(request), body.requirementId(), body.testRunId(), body.testResultId(), body.devTaskId(),
-                body.title(), body.severity(), body.reproductionSteps(), body.expectedResult(), body.actualResult());
+                body.title(), body.severity(), body.reproductionSteps(), body.expectedResult(), body.actualResult(), body.assigneeUserId());
         return ResponseEntity.created(URI.create("/api/v1/bugs/" + bug.id())).body(bug);
     }
 
@@ -73,6 +73,7 @@ public class BugController {
             /* 来源 Test Run；人工草稿为空。 */ Long testRunId,
             /* 来源失败 Test Result；人工草稿为空。 */ Long testResultId,
             /* 可选关联修复 Dev Task。 */ Long devTaskId,
+            /* 当前需求已关联的开发执行人，负责修复该缺陷。 */ @NotNull @Positive Long assigneeUserId,
             /* Bug 标题。 */ @NotBlank @Size(max = 255) String title,
             /* 缺陷严重级别。 */ @NotNull BugSeverity severity,
             /* 可执行复现步骤。 */ @NotEmpty List<@NotBlank @Size(max = 2000) String> reproductionSteps,

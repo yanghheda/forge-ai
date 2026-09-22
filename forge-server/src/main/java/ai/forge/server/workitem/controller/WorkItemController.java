@@ -96,6 +96,29 @@ public class WorkItemController {
         this.organizations = organizations;
     }
 
+    @PostMapping("/{workItemId}/tasks")
+    @Operation(summary = "为需求创建阶段任务", description = "仅该需求领域负责人可在准备阶段为已关联执行人创建任务。")
+    public WorkItem createTask(@PathVariable long workItemId, @Valid @RequestBody CreateTaskRequest body, HttpServletRequest request) {
+        if (body.type() == WorkItemType.BUG || body.type() == WorkItemType.REQUIREMENT)
+            throw new IllegalArgumentException("Use the requirement or bug creation endpoint");
+        return commandService.createTask(AuthController.requireContext(request).userId(), organizationId(request), workItemId,
+                body.type(), body.title(), body.description(), body.priority(), body.assigneeUserId());
+    }
+
+    @GetMapping("/{workItemId}/tasks")
+    public List<WorkItemDetailResponse> tasks(@PathVariable long workItemId, HttpServletRequest request) {
+        long userId = AuthController.requireContext(request).userId();
+        return commandService.tasks(userId, organizationId(request), workItemId).stream()
+                .map(item -> WorkItemDetailResponse.from(item, transitionService.hints(userId, item))).toList();
+    }
+
+    public record CreateTaskRequest(
+            /* 设计、开发或测试任务类型。 */ @NotNull WorkItemType type,
+            /* 执行人理解的任务目标。 */ @NotBlank @Size(max = 255) String title,
+            /* 任务范围和交付要求。 */ @Size(max = 10000) String description,
+            /* 任务处理优先级。 */ WorkItemPriority priority,
+            /* 已关联到需求对应领域的执行人。 */ @NotNull @Positive Long assigneeUserId) {}
+
     @GetMapping("/{workItemId}/details")
     public RequirementDetails details(
             @PathVariable long workItemId, HttpServletRequest request) {

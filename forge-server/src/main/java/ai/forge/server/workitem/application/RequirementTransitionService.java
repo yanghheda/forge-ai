@@ -36,15 +36,19 @@ public class RequirementTransitionService {
     /* 原子写入状态、评审记录和追加活动事件。 */
     private final RequirementTransitionStore transitionStore;
 
+    /* 对所有调用入口执行需求内职责与阶段准入校验。 */
+    private final DeliveryWorkflowPolicy policy;
+
     public RequirementTransitionService(
             WorkItemStore workItemStore,
             PermissionEvaluator permissionEvaluator,
             RequirementWorkflowRegistry workflowRegistry,
-            RequirementTransitionStore transitionStore) {
+            RequirementTransitionStore transitionStore, DeliveryWorkflowPolicy policy) {
         this.workItemStore = workItemStore;
         this.permissionEvaluator = permissionEvaluator;
         this.workflowRegistry = workflowRegistry;
         this.transitionStore = transitionStore;
+        this.policy = policy;
     }
 
     @Transactional
@@ -77,6 +81,7 @@ public class RequirementTransitionService {
             String idempotencyKey,
             String reason,
             List<String> checklist) {
+        policy.lock(organizationId, workItemId);
         WorkItem current = workItemStore.findByIdAndScope(organizationId, workItemId)
                 .orElseThrow(ResourceNotFoundException::new);
         Optional<RequirementTransitionStore.TransitionResult> previous =
@@ -88,11 +93,15 @@ public class RequirementTransitionService {
             TransitionDefinition replayDefinition = workflowRegistry.requireAction(current.type(), action);
             permissionEvaluator.requireOrganization(
                     userId, organizationId, replayDefinition.requiredPermission());
+            policy.requireAction(userId, current, action == WorkflowAction.APPROVE_PRODUCT_REVIEW
+                    ? WorkflowAction.REJECT_PRODUCT_REVIEW : action);
             return previous.get();
         }
+        if (current.version() != expectedVersion) throw new ai.forge.server.common.domain.VersionConflictException();
         TransitionDefinition definition = workflowRegistry.require(current.type(), current.status(), action);
         permissionEvaluator.requireOrganization(userId, organizationId, definition.requiredPermission());
-        LinkedHashSet<String> missing = new LinkedHashSet<>();
+        policy.requireAction(userId, current, action);
+        LinkedHashSet<String> missing = new LinkedHashSet<>(policy.missing(current, action));
         TransitionContext context = new TransitionContext(current, normalizeReason(reason), checklist);
         for (var guard : definition.guards()) {
             GuardResult result = guard.evaluate(context);
@@ -108,7 +117,7 @@ public class RequirementTransitionService {
                 expectedVersion,
                 idempotencyKey,
                 context.reason(),
-                definition,
+                policy.recordReview(userId, current, definition),
                 context.checklist());
     }
 
@@ -126,12 +135,13 @@ public class RequirementTransitionService {
         Map<WorkflowAction, List<String>> guardHints = new LinkedHashMap<>();
         for (TransitionDefinition definition : workflowRegistry.definitions()) {
             if (definition.type() != item.type() || definition.from() != item.status()
+                    || !policy.canAct(userId, item, definition.action())
                     || !permissionEvaluator.hasOrganizationPermission(
                             userId, item.organizationId(), definition.requiredPermission())) {
                 continue;
             }
             actions.add(definition.action());
-            LinkedHashSet<String> missing = new LinkedHashSet<>();
+            LinkedHashSet<String> missing = new LinkedHashSet<>(policy.missing(item, definition.action()));
             TransitionContext context = new TransitionContext(item, null, null);
             definition.guards().forEach(guard -> missing.addAll(guard.evaluate(context).missing()));
             if (!missing.isEmpty()) {

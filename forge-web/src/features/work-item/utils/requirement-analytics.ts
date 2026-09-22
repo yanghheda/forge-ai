@@ -3,7 +3,26 @@ import type { RequirementBugBucket, RequirementPriorityBucket, RequirementStatus
 import { statusLabel } from "./requirement-detail-display";
 
 /* 状态漏斗按需求生命周期推进顺序展示，终结状态排在末尾以便一眼看出流失去向。 */
-export const funnelOrder = ["DRAFT", "PRODUCT_REVIEW", "UX_IN_PROGRESS", "UX_REVIEW", "READY_FOR_DEV", "IN_DEVELOPMENT", "READY_FOR_QA", "IN_QA", "READY_FOR_RELEASE", "RELEASED", "DONE", "REJECTED", "CANCELLED"] as const;
+export const funnelOrder = [
+  "DRAFT",
+  "REQUIREMENT_APPROVAL",
+  "READY_FOR_REVIEW",
+  "PRODUCT_REVIEW",
+  "READY_FOR_UX",
+  "UX_IN_PROGRESS",
+  "UX_REVIEW",
+  "READY_FOR_DEV",
+  "IN_DEVELOPMENT",
+  "READY_FOR_QA",
+  "IN_QA",
+  "IN_FIX_VERIFICATION",
+  "IN_ACCEPTANCE",
+  "READY_FOR_RELEASE",
+  "RELEASED",
+  "DONE",
+  "REJECTED",
+  "CANCELLED",
+] as const;
 
 /* 优先级按紧迫度降序排列，保证环形图扇区顺序稳定。 */
 export const priorityOrder = ["URGENT", "HIGH", "MEDIUM", "LOW"] as const;
@@ -29,7 +48,7 @@ export const bugStatusLabel: Record<string, string> = {
 };
 
 /* 缺陷状态按「待处理到关闭」的推进顺序排列，保证堆叠图横轴稳定。 */
-export const bugStatusOrder = ["OPEN", "IN_PROGRESS", "REOPENED", "RESOLVED", "VERIFIED", "CLOSED", "CANCELLED"] as const;
+export const bugStatusOrder = ["TODO", "IN_PROGRESS", "BLOCKED", "WAITING_VERIFICATION", "DONE"] as const;
 
 /* 严重级别降序，用于缺陷分布图例与堆叠顺序。 */
 const severityOrder = ["BLOCKER", "CRITICAL", "MAJOR", "MINOR", ""];

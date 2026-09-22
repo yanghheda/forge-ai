@@ -24,11 +24,18 @@ public class WorkItemCommandService {
     /* 在一个本地事务中分配编号并持久化工作项聚合。 */
     private final WorkItemStore workItemStore;
 
+    /* 限制领域负责人创建任务及执行人操作范围。 */
+    private final DeliveryWorkflowPolicy policy;
+    /* 读取任务的需求归属和子任务列表。 */
+    private final DeliveryWorkflowStore workflow;
+
     public WorkItemCommandService(
-            PermissionEvaluator permissionEvaluator, OrganizationStore organizationStore, WorkItemStore workItemStore) {
+            PermissionEvaluator permissionEvaluator, OrganizationStore organizationStore, WorkItemStore workItemStore, DeliveryWorkflowPolicy policy, DeliveryWorkflowStore workflow) {
         this.permissionEvaluator = permissionEvaluator;
         this.organizationStore = organizationStore;
         this.workItemStore = workItemStore;
+        this.policy = policy;
+        this.workflow = workflow;
     }
 
     public WorkItem create(
@@ -40,6 +47,7 @@ public class WorkItemCommandService {
             WorkItemPriority priority,
             Long assigneeUserId,
             Instant dueAt) {
+        if (type != WorkItemType.REQUIREMENT) throw new IllegalArgumentException("Tasks must be created under a requirement");
         permissionEvaluator.requireOrganization(userId, organizationId, type.permissionResource() + ".create");
         requireActiveAssignee(organizationId, assigneeUserId);
         return workItemStore.create(
@@ -56,6 +64,7 @@ public class WorkItemCommandService {
     }
 
     /* 在既有 Requirement 下创建带 parent 关系的 UX Task；Agent Tool 与人工入口共用同一防线。 */
+    @org.springframework.transaction.annotation.Transactional
     public WorkItem createUxTask(
             long userId,
             long organizationId,
@@ -64,27 +73,30 @@ public class WorkItemCommandService {
             String description,
             WorkItemPriority priority,
             Long assigneeUserId) {
-        permissionEvaluator.requireOrganization(
-                userId, organizationId, WorkItemType.UX_TASK.permissionResource() + ".create");
-        WorkItem parent = workItemStore.findByIdAndScope(organizationId, requirementId)
-                .orElseThrow(ResourceNotFoundException::new);
-        if (parent.type() != WorkItemType.REQUIREMENT) {
-            throw new IllegalArgumentException("UX task can only be created under a requirement");
-        }
-        requireActiveAssignee(organizationId, assigneeUserId);
-        return workItemStore.createChild(
-                organizationId,
-                userId,
-                WorkItemType.UX_TASK,
-                requirementId,
-                normalizeTitle(title),
-                normalizeDescription(description),
-                WorkItemType.UX_TASK.initialStatus(),
-                priority == null ? WorkItemPriority.MEDIUM : priority,
-                assigneeUserId,
-                null);
+        return createTask(userId, organizationId, requirementId, WorkItemType.UX_TASK, title, description, priority, assigneeUserId);
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public WorkItem createTask(long userId, long organizationId, long requirementId, WorkItemType type,
+            String title, String description, WorkItemPriority priority, Long assigneeUserId) {
+        permissionEvaluator.requireOrganization(userId, organizationId, type.permissionResource() + ".create");
+        policy.lock(organizationId, requirementId);
+        WorkItem parent = workItemStore.findByIdAndScope(organizationId, requirementId).orElseThrow(ResourceNotFoundException::new);
+        policy.requireCreation(userId, parent, type, assigneeUserId);
+        return workItemStore.createChild(organizationId, userId, type, requirementId, normalizeTitle(title),
+                normalizeDescription(description), type.initialStatus(), priority == null ? WorkItemPriority.MEDIUM : priority,
+                assigneeUserId, null);
+    }
+
+    public java.util.List<WorkItem> tasks(long userId, long organizationId, long requirementId) {
+        permissionEvaluator.requireOrganization(userId, organizationId, "requirement.read");
+        workItemStore.findByIdAndScope(organizationId, requirementId).filter(w -> w.type() == WorkItemType.REQUIREMENT)
+                .orElseThrow(ResourceNotFoundException::new);
+        return workflow.taskIds(organizationId, requirementId).stream()
+                .map(id -> workItemStore.findByIdAndScope(organizationId, id).orElseThrow(ResourceNotFoundException::new)).toList();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
     public WorkItem update(
             long userId,
             long organizationId,
@@ -95,11 +107,18 @@ public class WorkItemCommandService {
             Long assigneeUserId,
             Instant dueAt,
             long expectedVersion) {
+        long requirementId = policy.lock(organizationId, workItemId);
         WorkItem current = workItemStore.findByIdAndScope(organizationId, workItemId)
                 .orElseThrow(ResourceNotFoundException::new);
         permissionEvaluator.requireOrganization(
                 userId, organizationId, current.type().permissionResource() + ".edit");
         Long resolvedAssignee = assigneeUserId == null ? current.assigneeUserId() : assigneeUserId;
+        if (current.type() != WorkItemType.REQUIREMENT) {
+            if (!policy.leader(organizationId, requirementId, DeliveryWorkflowPolicy.role(current.type()), userId)
+                    && !(current.type() == WorkItemType.BUG && policy.member(organizationId, requirementId, "QA", userId)))
+                throw new ResourceNotFoundException();
+            policy.requireAssignee(organizationId, requirementId, current.type(), resolvedAssignee);
+        }
         requireActiveAssignee(organizationId, resolvedAssignee);
         boolean updated = workItemStore.update(
                 organizationId,

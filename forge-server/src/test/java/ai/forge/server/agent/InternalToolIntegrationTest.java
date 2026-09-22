@@ -71,7 +71,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 "outbox_events", "agent_tool_calls", "approvals", "agent_events", "agent_steps", "agent_runs", "comments",
                 "document_versions", "documents",
                 "work_item_relations", "work_item_labels", "organization_policies", "work_item_events",
-                "review_records", "requirement_details", "work_items", "organization_item_sequences",
+                "review_records", "requirement_participants", "requirement_details", "work_items", "organization_item_sequences",
                 "organization_policies", "audit_logs", "member_roles", "organization_members",                 "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
@@ -364,7 +364,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         var requirement = workItemCommandService.create(ownerId, organizationId,
                 WorkItemType.REQUIREMENT, "待设计需求", null, WorkItemPriority.MEDIUM, null, null);
         String runId = insertRunningRun("UX", "ASK");
-        Map<String, Object> arguments = Map.of("requirementId", requirement.id(), "title", "UX 任务");
+        Map<String, Object> arguments = Map.of("requirementId", requirement.id(), "title", "UX 任务", "assigneeUserId", ownerId);
         JsonNode waiting = objectMapper.readTree(
                 executeTool("create_ux_task", runToken(runId), "call-1", arguments).getBody());
         jdbcTemplate.update("UPDATE approvals SET status = 'APPROVED' WHERE id = ?",
@@ -459,6 +459,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                         + "(?, ?, 'PRD', 'Agent PRD', 'PUBLISHED', 'ORGANIZATION', ?, "
                         + "UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)",
                 organizationId, requirement.id(), ownerId);
+        ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(jdbcTemplate, organizationId, requirement.id(), ownerId);
         String productRunId = insertRunningRun(ownerId, "PRODUCT", "ALLOW", requirement.id());
 
         JsonNode submitted = objectMapper.readTree(executeTool(
@@ -474,26 +475,30 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 Map.of("requirementId", anotherRequirement.id(), "action", "SUBMIT_PRODUCT_REVIEW",
                         "expectedVersion", 0));
 
-        assertThat(submitted.at("/result/status").asText()).isEqualTo("PRODUCT_REVIEW");
+        assertThat(submitted.at("/result/status").asText()).isEqualTo("REQUIREMENT_APPROVAL");
         assertThat(wrongRole.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(wrongRole.getBody()).contains("ACTION_NOT_ALLOWED_FOR_SKILL");
         assertThat(wrongRequirement.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(wrongRequirement.getBody()).contains("RUN_WORK_ITEM_MISMATCH");
 
+        assertThat(executeTool("advance_requirement",runToken(productRunId),"requirement-approve",
+                Map.of("requirementId",requirement.id(),"action","APPROVE_REQUIREMENT","expectedVersion",1)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(executeTool("advance_requirement",runToken(productRunId),"review-start",
+                Map.of("requirementId",requirement.id(),"action","START_PRODUCT_REVIEW","expectedVersion",2)).getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode approved = objectMapper.readTree(executeTool(
                 "advance_requirement", runToken(productRunId), "product-approve",
                 Map.of("requirementId", requirement.id(), "action", "APPROVE_PRODUCT_REVIEW",
-                        "expectedVersion", 1)).getBody());
+                        "expectedVersion", 3)).getBody());
 
-        assertThat(approved.at("/result/status").asText()).isEqualTo("UX_IN_PROGRESS");
+        assertThat(approved.at("/result/status").asText()).isEqualTo("READY_FOR_UX");
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT status FROM work_items WHERE id = ?", String.class, requirement.id()))
-                .isEqualTo("UX_IN_PROGRESS");
+                .isEqualTo("READY_FOR_UX");
 
         String uxRunId = insertRunningRun(ownerId, "UX", "ALLOW", requirement.id());
         ResponseEntity<String> uxCannotRepeatProductApproval = executeTool(
                 "advance_requirement", runToken(uxRunId), "ux-product-action",
-                Map.of("requirementId", requirement.id(), "action", "APPROVE_PRODUCT_REVIEW",
+                Map.of("requirementId", requirement.id(), "action", "APPROVE_REQUIREMENT",
                         "expectedVersion", 2));
         assertThat(uxCannotRepeatProductApproval.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(uxCannotRepeatProductApproval.getBody()).contains("ACTION_NOT_ALLOWED_FOR_SKILL");
@@ -535,13 +540,15 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 WorkItemPriority.MEDIUM,
                 null,
                 null);
+        ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(jdbcTemplate, organizationId, requirement.id(), ownerId);
+        jdbcTemplate.update("UPDATE work_items SET status='READY_FOR_UX' WHERE id=?",requirement.id());
         String runId = insertRunningRun("UX", "ALLOW");
 
         ResponseEntity<String> response = executeTool(
                 "create_ux_task",
                 runToken(runId),
                 "call-1",
-                Map.of("requirementId", requirement.id(), "title", "首页体验任务"));
+                Map.of("requirementId", requirement.id(), "title", "首页体验任务", "assigneeUserId", ownerId));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode execution = objectMapper.readTree(response.getBody());

@@ -19,6 +19,7 @@ export interface BoardItem {
   itemKey: string;
   title: string;
   type: string;
+  requirementId?: number | null;
   lane: string;
   position: number;
   assigneeUserId: number | null;

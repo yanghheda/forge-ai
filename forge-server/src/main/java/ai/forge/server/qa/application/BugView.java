@@ -22,4 +22,11 @@ public record BugView(
         /* 实际失败结果。 */ String actualResult,
         /* 研发修复说明；未解决为空。 */ String fixNote,
         /* MR、Commit 等修复证据。 */ List<String> fixEvidence,
-        /* Work Item 乐观锁版本。 */ long version) {}
+        /* Work Item 乐观锁版本。 */ long version,
+        /* 服务端按当前用户、缺陷状态和需求职责计算的可用动作。 */ List<ai.forge.server.qa.domain.BugAction> availableActions) {
+    public BugView withActions(List<ai.forge.server.qa.domain.BugAction> actions) {
+        return new BugView(id, itemKey, title, status, severity, requirementId, testRunId, testResultId, devTaskId,
+                devTaskKey, assigneeUserId, assigneeName, reproductionSteps, expectedResult, actualResult, fixNote,
+                fixEvidence, version, actions);
+    }
+}

@@ -15,13 +15,16 @@ import org.springframework.stereotype.Service;
 @Profile("!test-unit")
 public class ConsoleService {
     /* 看板允许持久化的固定泳道。 */
-    private static final Set<String> LANES = Set.of("TODO", "IN_PROGRESS", "BLOCKED", "DONE");
+    private static final Set<String> LANES = Set.of("TODO", "IN_PROGRESS", "BLOCKED", "WAITING_VERIFICATION", "DONE");
     /* 解析当前用户唯一公司上下文。 */ private final OrganizationAccessService access;
     /* 执行公司权限校验。 */ private final PermissionEvaluator permissions;
     /* 执行控制台聚合查询与看板写入。 */ private final ConsoleStore mapper;
 
-    public ConsoleService(OrganizationAccessService access, PermissionEvaluator permissions, ConsoleStore mapper) {
-        this.access = access; this.permissions = permissions; this.mapper = mapper;
+    /* 看板排序不能伪造工作项业务状态。 */
+    private final ai.forge.server.workitem.application.WorkItemStore workItems;
+
+    public ConsoleService(OrganizationAccessService access, PermissionEvaluator permissions, ConsoleStore mapper, ai.forge.server.workitem.application.WorkItemStore workItems) {
+        this.access = access; this.permissions = permissions; this.mapper = mapper; this.workItems = workItems;
     }
 
     public List<ConsoleModels.SearchResult> search(long userId, String query) {
@@ -44,13 +47,15 @@ public class ConsoleService {
 
     public List<ConsoleModels.BoardItem> board(long userId) {
         long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.read");
-        return mapper.board(organizationId).stream().map(row->new ConsoleModels.BoardItem(number(row,"id"),text(row,"item_key"),text(row,"type"),text(row,"title"),text(row,"lane"),number(row,"position"),nullableNumber(row,"assignee_user_id"),number(row,"version"))).toList();
+        return mapper.board(organizationId).stream().map(row->new ConsoleModels.BoardItem(number(row,"id"),text(row,"item_key"),text(row,"type"),text(row,"title"),text(row,"lane"),number(row,"position"),nullableNumber(row,"assignee_user_id"),number(row,"version"),nullableNumber(row,"requirement_id"))).toList();
     }
 
     public void move(long userId,long workItemId,String lane,long position) {
         long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.edit");
         if(!LANES.contains(lane)||position<0) throw new IllegalArgumentException("invalid board position");
         if(mapper.workItemExists(organizationId,workItemId)!=1) throw new ResourceNotFoundException();
+        var item = workItems.findByIdAndScope(organizationId,workItemId).orElseThrow(ResourceNotFoundException::new);
+        if (!item.status().name().equals(lane)) throw new IllegalArgumentException("Use task actions to change status before sorting");
         mapper.savePosition(organizationId,userId,workItemId,lane,position);
     }
 

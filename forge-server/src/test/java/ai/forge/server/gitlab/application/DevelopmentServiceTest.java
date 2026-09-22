@@ -22,19 +22,17 @@ import org.junit.jupiter.api.Test;
 class DevelopmentServiceTest {
 
     @Test
-    void createsDevTaskOnlyBelowReadyRequirement() {
+    void delegatesTaskCreationToTheSharedAssignmentAndStageRules() {
         FakeStore store = new FakeStore();
-        DevelopmentService service = service(store, new FakeProvider());
-
-        WorkItem created = service.createDevTask(1L, 7L, 11L, "Implement API", "Details", null);
-
-        assertThat(created.type()).isEqualTo(WorkItemType.DEV_TASK);
-        assertThat(created.status()).isEqualTo(WorkItemStatus.TODO);
-        assertThat(store.parentId).isEqualTo(11L);
-
-        store.requirement = item(WorkItemType.REQUIREMENT, WorkItemStatus.UX_IN_PROGRESS);
-        assertThatThrownBy(() -> service.createDevTask(1L, 7L, 11L, "Too early", "", null))
-                .isInstanceOf(DevelopmentStateException.class);
+        var commands = org.mockito.Mockito.mock(ai.forge.server.workitem.application.WorkItemCommandService.class);
+        var policy = org.mockito.Mockito.mock(ai.forge.server.workitem.application.DeliveryWorkflowPolicy.class);
+        var transitions = org.mockito.Mockito.mock(ai.forge.server.workitem.application.RequirementTransitionService.class);
+        var expected = item(WorkItemType.DEV_TASK, WorkItemStatus.TODO);
+        org.mockito.Mockito.when(commands.createTask(1,7,11,WorkItemType.DEV_TASK,"Implement API","Details",WorkItemPriority.MEDIUM,2L)).thenReturn(expected);
+        var service = new DevelopmentService(permissions(true),store,new FakeProvider(),commands,policy,transitions);
+        assertThat(service.createDevTask(1,7,11,"Implement API","Details",2L)).isEqualTo(expected);
+        org.mockito.Mockito.verify(commands).createTask(1,7,11,WorkItemType.DEV_TASK,"Implement API","Details",WorkItemPriority.MEDIUM,2L);
+        assertThat(store.parentId).isNull();
     }
 
     @Test
@@ -101,7 +99,9 @@ class DevelopmentServiceTest {
         assertThat(store.completed).isFalse();
 
         DevelopmentService denied = new DevelopmentService(
-                permissions(false), store, provider);
+                permissions(false), store, provider, org.mockito.Mockito.mock(ai.forge.server.workitem.application.WorkItemCommandService.class),
+                org.mockito.Mockito.mock(ai.forge.server.workitem.application.DeliveryWorkflowPolicy.class),
+                org.mockito.Mockito.mock(ai.forge.server.workitem.application.RequirementTransitionService.class));
         int reads = store.reads;
         assertThatThrownBy(() -> denied.start(2L, 7L, 12L, "main", "idem-2"))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -109,14 +109,15 @@ class DevelopmentServiceTest {
     }
 
     @Test
-    void completesAnInProgressDevTaskThroughTheScopedStore() {
+    void completionDelegatesToVerificationWithoutWritingDoneDirectly() {
         FakeStore store = new FakeStore();
-
-        WorkItem completed = service(store, new FakeProvider())
-                .completeTask(1L, 7L, 12L, 3L);
-
-        assertThat(completed.status()).isEqualTo(WorkItemStatus.DONE);
-        assertThat(store.completedTaskExpectedVersion).isEqualTo(3L);
+        var transitions = org.mockito.Mockito.mock(ai.forge.server.workitem.application.RequirementTransitionService.class);
+        var service = new DevelopmentService(permissions(true),store,new FakeProvider(),
+                org.mockito.Mockito.mock(ai.forge.server.workitem.application.WorkItemCommandService.class),
+                org.mockito.Mockito.mock(ai.forge.server.workitem.application.DeliveryWorkflowPolicy.class),transitions);
+        service.completeTask(1,7,12,3);
+        org.mockito.Mockito.verify(transitions).transition(1,7,12,ai.forge.server.workitem.domain.WorkflowAction.SUBMIT_REVIEW,3,"dev-submit-12-3",null);
+        assertThat(store.completedTaskExpectedVersion).isNull();
     }
 
     @Test
@@ -156,7 +157,9 @@ class DevelopmentServiceTest {
     }
 
     private static DevelopmentService service(FakeStore store, FakeProvider provider) {
-        return new DevelopmentService(permissions(true), store, provider);
+        return new DevelopmentService(permissions(true), store, provider, org.mockito.Mockito.mock(ai.forge.server.workitem.application.WorkItemCommandService.class),
+                org.mockito.Mockito.mock(ai.forge.server.workitem.application.DeliveryWorkflowPolicy.class),
+                org.mockito.Mockito.mock(ai.forge.server.workitem.application.RequirementTransitionService.class));
     }
 
     private static PermissionEvaluator permissions(boolean allowed) {

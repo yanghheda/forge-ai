@@ -1,6 +1,22 @@
 package ai.forge.server.workitem.domain;
 
 public enum WorkflowAction {
+    /* 产品负责人审核通过，等待发起评审。 */
+    APPROVE_REQUIREMENT,
+    /* 产品负责人退回需求草稿。 */
+    REJECT_REQUIREMENT,
+    /* 发起四个领域负责人的联合评审。 */
+    START_PRODUCT_REVIEW,
+    /* UX负责人确认已有设计任务并开始设计。 */
+    START_UX,
+    /* 开发负责人确认已有开发任务并开始实施。 */
+    START_DEVELOPMENT,
+    /* 产品负责人确认验收并进入发布准备。 */
+    ACCEPT_REQUIREMENT,
+    /* 执行人记录任务阻塞原因。 */
+    BLOCK,
+    /* 执行人确认障碍消除并继续处理。 */
+    UNBLOCK,
     /* 将材料完整的草稿提交给产品角色评审。 */
     SUBMIT_PRODUCT_REVIEW,
     /* 批准已具备发布 PRD 的产品评审并进入 UX 阶段。 */

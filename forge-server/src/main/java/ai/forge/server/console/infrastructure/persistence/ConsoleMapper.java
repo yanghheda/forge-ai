@@ -33,12 +33,10 @@ public interface ConsoleMapper extends ConsoleStore {
             + "AND organization_id=#{organizationId} AND user_id=#{userId}")
     int markRead(@Param("organizationId") long organizationId, @Param("userId") long userId, @Param("id") long id);
 
-    @Select("SELECT wi.id,wi.item_key,wi.type,wi.title,wi.assignee_user_id,"
-            + "COALESCE(bp.lane,CASE WHEN wi.status IN ('DONE','RELEASED') THEN 'DONE' "
-            + "WHEN wi.status='BLOCKED' THEN 'BLOCKED' WHEN wi.status IN ('TODO','DRAFT','OPEN') THEN 'TODO' "
-            + "ELSE 'IN_PROGRESS' END) lane,COALESCE(bp.position,wi.id*1000) position,COALESCE(bp.version,0) version "
-            + "FROM work_items wi LEFT JOIN board_positions bp ON bp.work_item_id=wi.id "
-            + "WHERE wi.organization_id=#{organizationId} AND wi.deleted_at IS NULL ORDER BY lane,position,wi.id")
+    @Select("SELECT wi.id,wi.item_key,wi.type,wi.title,wi.assignee_user_id,wi.parent_id requirement_id,"
+            + "wi.status lane,COALESCE(bp.position,wi.id*1000) position,wi.version "
+            + "FROM work_items wi LEFT JOIN board_positions bp ON bp.work_item_id=wi.id AND bp.organization_id=#{organizationId} "
+            + "WHERE wi.organization_id=#{organizationId} AND wi.deleted_at IS NULL AND wi.type IN ('UX_TASK','DEV_TASK','QA_TASK','BUG') ORDER BY lane,position,wi.id")
     List<Map<String, Object>> board(@Param("organizationId") long organizationId);
 
     @Select("SELECT COUNT(*) FROM work_items WHERE id=#{workItemId} AND organization_id=#{organizationId} AND deleted_at IS NULL")

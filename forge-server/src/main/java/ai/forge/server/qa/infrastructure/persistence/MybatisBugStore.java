@@ -47,7 +47,7 @@ public class MybatisBugStore implements BugStore {
                 testRunId, testResultId) != 1) {
             throw new IllegalArgumentException("bug source must be a FAIL or BLOCKED result in the requirement");
         }
-        if (devTaskId != null && mapper.countDevTask(item.organizationId(), devTaskId) != 1) {
+        if (devTaskId != null && mapper.countDevTask(item.organizationId(), devTaskId, requirementId) != 1) {
             throw new ResourceNotFoundException();
         }
         mapper.setSeverity(item.organizationId(), item.id(), severity.name());
@@ -102,7 +102,7 @@ public class MybatisBugStore implements BugStore {
                 nullableText(row.get("assignee_name")), readList(row.get("reproduction_steps_json")),
                 text(row.get("expected_result")), text(row.get("actual_result")),
                 nullableText(row.get("fix_note")), readList(row.get("fix_evidence_json")),
-                number(row.get("version")));
+                number(row.get("version")), List.of());
     }
 
     private String write(Object value) {

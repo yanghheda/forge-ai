@@ -32,8 +32,12 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
     /* 将数据库 JSON 验收标准还原为稳定响应结构。 */
     private final ObjectMapper objectMapper;
 
-    public MybatisOrganizationRequirementStore(OrganizationRequirementMapper mapper, ObjectMapper objectMapper) {
+    /* 读取执行人和四方会签结果。 */
+    private final ai.forge.server.workitem.application.DeliveryWorkflowStore workflow;
+
+    public MybatisOrganizationRequirementStore(OrganizationRequirementMapper mapper, ObjectMapper objectMapper, ai.forge.server.workitem.application.DeliveryWorkflowStore workflow) {
         this.mapper = mapper;
+        this.workflow = workflow;
         this.objectMapper = objectMapper;
     }
 
@@ -74,7 +78,9 @@ public class MybatisOrganizationRequirementStore implements OrganizationRequirem
                         RequirementParticipantRole.valueOf(text(row, "role_code")),
                         number(row, "user_id"),
                         text(row, "display_name"),
-                        text(row, "email")))
+                        text(row, "email"),
+                        workflow.executors(organizationId, requirementId, text(row, "role_code")),
+                        workflow.hasVote(organizationId, requirementId, text(row, "role_code"))))
                 .toList();
     }
 

@@ -1,13 +1,12 @@
 "use client";
 
-import { Alert, Button, Drawer, Input, Message, Space, Spin, Tag } from "@arco-design/web-react";
+import { Alert, Button, Message, Space, Spin, Tag } from "@arco-design/web-react";
 import { IconBranch, IconLaunch, IconLink, IconRefresh, IconSafe, IconThunderbolt } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 
 import { triggerPipeline } from "@/features/gitlab";
 import { canEditModule, getCurrentUser } from "@/features/auth";
-import { completeDevTask, createDevTask, getDevelopmentSummary, getRequirementWorkflow, startDevelopment, type DevelopmentQaSummary, type DevelopmentQaTask, type RequirementWorkflow } from "@/features/work-item";
+import { completeDevTask, getDevelopmentSummary, getRequirementWorkflow, startDevelopment, type DevelopmentQaSummary, type DevelopmentQaTask, type RequirementWorkflow } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
 import { ChainNode, Empty, Guard, Panel, Stat, shortSha, statusLabel, syncText } from "./development-workspace-parts";
 import styles from "./development-workspace.module.css";
@@ -22,11 +21,6 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
   const refresh = async () => {
     await Promise.all([queryClient.invalidateQueries({ queryKey: summaryKey }), queryClient.invalidateQueries({ queryKey: workflowKey }), queryClient.invalidateQueries({ queryKey: ["requirements", requirementId] })]);
   };
-  const create = useMutation({
-    mutationFn: ({ title, description }: { title: string; description: string }) => createDevTask({ organizationId: 0, requirementId, title, description }),
-    onSuccess: refresh,
-    onError: (error) => Message.error(formatRequestError(error)),
-  });
   const start = useMutation({ mutationFn: (taskId: number) => startDevelopment({ organizationId: 0, taskId, idempotencyKey: crypto.randomUUID() }), onSuccess: refresh, onError: (error) => Message.error(formatRequestError(error)) });
   const pipeline = useMutation({
     mutationFn: ({ taskId, ref }: { taskId: number; ref: string }) => triggerPipeline({ devTaskId: taskId, ref }),
@@ -42,22 +36,13 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
       </div>
     );
   if (!summary.data || !workflow.data || summary.isError || workflow.isError) return <Alert type="error" content={formatRequestError(summary.error ?? workflow.error)} />;
-  const pending: DevelopmentPendingAction | undefined = create.isPending
-    ? { action: "create" }
-    : pipeline.isPending
-      ? { action: "pipeline", taskId: pipeline.variables?.taskId }
-      : start.isPending
-        ? { action: "start", taskId: start.variables }
-        : complete.isPending
-          ? { action: "complete", taskId: complete.variables?.taskId }
-          : undefined;
+  const pending: DevelopmentPendingAction | undefined = pipeline.isPending ? { action: "pipeline", taskId: pipeline.variables?.taskId } : start.isPending ? { action: "start", taskId: start.variables } : complete.isPending ? { action: "complete", taskId: complete.variables?.taskId } : undefined;
   return (
     <DevelopmentWorkspaceView
       summary={summary.data}
       workflow={workflow.data}
       pending={pending}
       readOnly={!canEditModule(user.data?.organization.roles, "development")}
-      onCreate={(title, description) => create.mutateAsync({ title, description }).then(() => undefined)}
       onStart={(taskId) => start.mutate(taskId)}
       onTriggerPipeline={(taskId, ref) => pipeline.mutate({ taskId, ref })}
       onComplete={(taskId, version) => complete.mutate({ taskId, version })}
@@ -74,7 +59,6 @@ export function DevelopmentWorkspaceView({
   workflow,
   pending,
   readOnly = false,
-  onCreate,
   onStart,
   onTriggerPipeline,
   onComplete,
@@ -84,31 +68,19 @@ export function DevelopmentWorkspaceView({
   workflow: RequirementWorkflow;
   pending?: DevelopmentPendingAction;
   readOnly?: boolean;
-  onCreate: (title: string, description: string) => Promise<void>;
   onStart: (taskId: number) => void;
   onTriggerPipeline: (taskId: number, ref: string) => void;
   onComplete: (taskId: number, version: number) => void;
   onRefresh: () => void;
 }) {
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskDescription, setTaskDescription] = useState("");
-  const [creatorOpen, setCreatorOpen] = useState(false);
   const tasks = summary.tasks;
   const completed = tasks.filter((task) => task.status === "DONE").length;
-  const canCreateTask = tasks.every((task) => task.status === "TODO");
   const mrCount = tasks.filter((task) => task.mergeRequestId != null).length;
   const ciPassed = tasks.filter((task) => checkTaskCi(task).ok).length;
   const pipelineOk = !summary.ciRequired || (tasks.length > 0 && ciPassed === tasks.length);
   const missing = workflow.guardHints.SUBMIT_FOR_QA ?? [];
   const guardPassed = tasks.length > 0 && completed === tasks.length && pipelineOk && (summary.repositoryConfigured || !summary.ciRequired) && missing.length === 0;
   const isBusy = (action: DevelopmentPendingAction["action"], taskId?: number) => pending?.action === action && pending.taskId === taskId;
-
-  const submitTask = async () => {
-    await onCreate(taskTitle.trim(), taskDescription.trim());
-    setTaskTitle("");
-    setTaskDescription("");
-    setCreatorOpen(false);
-  };
 
   return (
     <>
@@ -148,11 +120,6 @@ export function DevelopmentWorkspaceView({
                   <span className={styles.muted}>
                     {completed}/{tasks.length} 已完成
                   </span>
-                  {canCreateTask && !readOnly && (
-                    <Button type="primary" size="small" onClick={() => setCreatorOpen(true)}>
-                      新建 Dev Task
-                    </Button>
-                  )}
                 </Space>
               }
             >
@@ -207,8 +174,8 @@ export function DevelopmentWorkspaceView({
                                 {task.pipelineId ? "重新触发 Pipeline" : "触发 Pipeline"}
                               </Button>
                               {task.status === "IN_PROGRESS" && (
-                                <Button size="small" type="primary" loading={isBusy("complete", task.id)} disabled={summary.ciRequired && !check.ok} title={summary.ciRequired && !check.ok ? `Pipeline 通过后才能完成任务：${check.detail}` : undefined} onClick={() => onComplete(task.id, task.version)}>
-                                  完成任务
+                                <Button size="small" type="primary" loading={isBusy("complete", task.id)} disabled={summary.ciRequired && !check.ok} title={summary.ciRequired && !check.ok ? `Pipeline 通过后才能提交验证：${check.detail}` : undefined} onClick={() => onComplete(task.id, task.version)}>
+                                  提交验证
                                 </Button>
                               )}
                             </>
@@ -263,36 +230,11 @@ export function DevelopmentWorkspaceView({
           </aside>
         </div>
       </div>
-      <Drawer
-        visible={creatorOpen}
-        width={480}
-        title="新建 Dev Task"
-        onCancel={() => setCreatorOpen(false)}
-        footer={
-          <>
-            <Button onClick={() => setCreatorOpen(false)}>取消</Button>
-            <Button type="primary" loading={isBusy("create")} disabled={!taskTitle.trim()} onClick={() => void submitTask()}>
-              创建 Dev Task
-            </Button>
-          </>
-        }
-      >
-        <Space direction="vertical" size="large" style={{ width: "100%" }}>
-          <label>
-            <span className={styles.fieldLabel}>任务标题</span>
-            <Input aria-label="Dev Task 标题" value={taskTitle} onChange={setTaskTitle} placeholder="输入 Dev Task 标题" maxLength={255} />
-          </label>
-          <label>
-            <span className={styles.fieldLabel}>任务说明</span>
-            <Input.TextArea aria-label="Dev Task 说明" value={taskDescription} onChange={setTaskDescription} placeholder="实现范围与约束（可选）" autoSize={{ minRows: 5, maxRows: 12 }} maxLength={20000} showWordLimit />
-          </label>
-        </Space>
-      </Drawer>
     </>
   );
 }
 
-/* MR 合并状态文案；完成任务要求该 Dev Task 的 MR 已合并。 */
+/* MR 合并状态文案；提交验证要求该 Dev Task 的 MR 已合并。 */
 function mergeStateLabel(task: DevelopmentQaTask) {
   const state = task.mergeRequestState?.toLowerCase();
   if (!state) return "合并请求";

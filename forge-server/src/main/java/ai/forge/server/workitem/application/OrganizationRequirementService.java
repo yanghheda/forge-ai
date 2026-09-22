@@ -33,17 +33,21 @@ public class OrganizationRequirementService {
     /* 承载组织需求列表、统计和角色参与人持久化。 */
     private final OrganizationRequirementStore store;
 
+    /* 串行化需求人员调整，并校验领域负责人身份。 */
+    private final DeliveryWorkflowStore workflow;
+
     public OrganizationRequirementService(
             OrganizationAccessService accessService,
             WorkItemCommandService commandService,
             WorkItemQueryService queryService,
             PermissionEvaluator permissionEvaluator,
-            OrganizationRequirementStore store) {
+            OrganizationRequirementStore store, DeliveryWorkflowStore workflow) {
         this.accessService = accessService;
         this.commandService = commandService;
         this.queryService = queryService;
         this.permissionEvaluator = permissionEvaluator;
         this.store = store;
+        this.workflow = workflow;
     }
 
     @Transactional
@@ -59,7 +63,7 @@ public class OrganizationRequirementService {
                 priority,
                 null,
                 null);
-        if (store.memberHasRole(
+        if (store.memberCanFillRole(
                 scope.organizationId(), userId, RequirementParticipantRole.PRODUCT)) {
             store.replaceParticipants(
                     scope.organizationId(),
@@ -105,14 +109,17 @@ public class OrganizationRequirementService {
         return store.findParticipants(scope.organizationId(), requirementId);
     }
 
+    @Transactional
     public List<RequirementParticipantView> replaceParticipants(
             long userId,
             long requirementId,
             List<OrganizationRequirementStore.ParticipantAssignment> assignments) {
         OrganizationContext scope = accessService.requireContext(userId);
-        requireRequirement(userId, scope, requirementId);
-        permissionEvaluator.requireOrganization(
-                userId, scope.organizationId(), "requirement.edit");
+        WorkItem requirement = lockEditable(userId, scope, requirementId);
+        permissionEvaluator.requireOrganization(userId, scope.organizationId(), "requirement.edit");
+        if (requirement.reporterUserId() != userId && !workflow.isLeader(scope.organizationId(), requirementId, "PRODUCT", userId)) {
+            throw new ai.forge.server.common.domain.ResourceNotFoundException();
+        }
         if (assignments.size() > RequirementParticipantRole.values().length
                 || new HashSet<>(assignments.stream().map(OrganizationRequirementStore.ParticipantAssignment::role).toList())
                         .size() != assignments.size()) {
@@ -124,8 +131,43 @@ public class OrganizationRequirementService {
                 throw new IllegalArgumentException("Member does not hold the selected requirement role");
             }
         }
-        return store.replaceParticipants(
-                scope.organizationId(), requirementId, userId, assignments);
+        for (RequirementParticipantRole role : RequirementParticipantRole.values()) {
+            Long previous = store.findParticipants(scope.organizationId(), requirementId).stream()
+                    .filter(p -> p.role() == role).map(RequirementParticipantView::userId).findFirst().orElse(null);
+            Long next = assignments.stream().filter(p -> p.role() == role).map(OrganizationRequirementStore.ParticipantAssignment::userId).findFirst().orElse(null);
+            if (!java.util.Objects.equals(previous, next)) workflow.deleteExecutors(scope.organizationId(), requirementId, role.name());
+        }
+        workflow.clearVotes(scope.organizationId(), requirementId);
+        workflow.touchRequirement(scope.organizationId(), requirementId);
+        return store.replaceParticipants(scope.organizationId(), requirementId, userId, assignments);
+    }
+
+    @Transactional
+    public List<RequirementParticipantView> replaceExecutors(long userId, long requirementId,
+            RequirementParticipantRole role, List<Long> userIds) {
+        OrganizationContext scope = accessService.requireContext(userId);
+        lockEditable(userId, scope, requirementId);
+        if (!workflow.isLeader(scope.organizationId(), requirementId, role.name(), userId))
+            throw new ai.forge.server.common.domain.ResourceNotFoundException();
+        if (new HashSet<>(userIds).size() != userIds.size()) throw new IllegalArgumentException("Executors must be unique");
+        for (Long executor : userIds) {
+            if (!store.memberHasRole(scope.organizationId(), executor, role))
+                throw new IllegalArgumentException("Executor must hold the corresponding domain role");
+        }
+        workflow.deleteExecutors(scope.organizationId(), requirementId, role.name());
+        for (Long executor : userIds) workflow.addExecutor(scope.organizationId(), requirementId, role.name(), executor, userId);
+        workflow.clearVotes(scope.organizationId(), requirementId);
+        workflow.touchRequirement(scope.organizationId(), requirementId);
+        return store.findParticipants(scope.organizationId(), requirementId);
+    }
+
+    private WorkItem lockEditable(long userId, OrganizationContext scope, long requirementId) {
+        if (workflow.lockRequirement(scope.organizationId(), requirementId) == null)
+            throw new ai.forge.server.common.domain.ResourceNotFoundException();
+        WorkItem item = queryService.get(userId, scope.organizationId(), requirementId);
+        if (item.status() != WorkItemStatus.DRAFT && item.status() != WorkItemStatus.REQUIREMENT_APPROVAL
+                && item.status() != WorkItemStatus.READY_FOR_REVIEW) throw new ai.forge.server.workitem.domain.InvalidTransitionException();
+        return item;
     }
 
     public List<RequirementMemberView> members(long userId) {

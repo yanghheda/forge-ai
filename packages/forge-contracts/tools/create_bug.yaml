@@ -3,8 +3,9 @@ version: 1
 description: 创建关联 Requirement 的 Bug 草稿；状态、关系与租户范围由 forge-server 校验。
 input_schema:
   type: object
-  required: [requirementId, title, severity, reproductionSteps, expectedResult, actualResult]
+  required: [requirementId, assigneeUserId, title, severity, reproductionSteps, expectedResult, actualResult]
   properties:
+    assigneeUserId: { type: integer, minimum: 1 }
     requirementId: { type: integer, minimum: 1 }
     testRunId: { type: integer, minimum: 1 }
     testResultId: { type: integer, minimum: 1 }

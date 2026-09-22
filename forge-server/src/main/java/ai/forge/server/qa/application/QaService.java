@@ -30,18 +30,24 @@ public class QaService {
     /* 通过统一状态机推进 Requirement，保留权限与审计语义。 */
     private final RequirementTransitionService transitions;
 
+    /* 限定需求测试成员并锁定阶段，避免执行结果与需求推进竞态。 */
+    private final ai.forge.server.workitem.application.DeliveryWorkflowPolicy policy;
+
     public QaService(PermissionEvaluator permissions, QaStore store, WorkItemStore workItems,
-            RequirementTransitionService transitions) {
+            RequirementTransitionService transitions, ai.forge.server.workitem.application.DeliveryWorkflowPolicy policy) {
         this.permissions = permissions;
         this.store = store;
         this.workItems = workItems;
         this.transitions = transitions;
+        this.policy = policy;
     }
 
+    @Transactional
     public TestCaseView createCase(long userId, long organizationId, long requirementId,
             String title, String preconditions, List<String> steps, String expectedResult, TestCasePriority priority,
             TestCaseType caseType) {
         permissions.requireOrganization(userId, organizationId, "qa.manage");
+        requireMember(userId, organizationId, requirementId);
         List<String> normalizedSteps = steps.stream().map(String::trim).filter(step -> !step.isBlank()).toList();
         if (normalizedSteps.isEmpty()) {
             throw new IllegalArgumentException("steps must not be empty");
@@ -55,9 +61,11 @@ public class QaService {
         return store.findCases(organizationId, requirementId);
     }
 
+    @Transactional
     public TestRunView createRun(long userId, long organizationId, long requirementId,
             String environment) {
         permissions.requireOrganization(userId, organizationId, "qa.manage");
+        requireTestingStage(userId, organizationId, requirementId, true);
         return store.createRun(organizationId, requirementId, userId, environment.trim());
     }
 
@@ -77,28 +85,41 @@ public class QaService {
             TestResultStatus status, String actualResult, List<String> evidence, long expectedVersion) {
         permissions.requireOrganization(userId, organizationId, "qa.execute");
         TestRunView run = store.findRun(organizationId, runId).orElseThrow(ResourceNotFoundException::new);
-        var requirement = workItems.findByIdAndScope(organizationId, run.requirementId())
-                .orElseThrow(ResourceNotFoundException::new);
+        requireTestingStage(userId, organizationId, run.requirementId(), false);
         TestResultView updated = store.updateResult(organizationId, runId, resultId, userId, status,
                 normalize(actualResult), evidence.stream().map(String::trim).filter(value -> !value.isBlank()).toList(),
                 expectedVersion);
-        if (requirement.status() == WorkItemStatus.READY_FOR_QA) {
-            transitions.transition(userId, organizationId, requirement.id(), WorkflowAction.START_QA,
-                    requirement.version(), "qa-run-" + runId + "-start", null);
-        }
         return updated;
     }
 
+    @Transactional
     public TestRunView completeRun(long userId, long organizationId, long runId,
             long expectedVersion) {
         permissions.requireOrganization(userId, organizationId, "qa.execute");
+        TestRunView run = store.findRun(organizationId, runId).orElseThrow(ResourceNotFoundException::new);
+        requireTestingStage(userId, organizationId, run.requirementId(), false);
         return store.completeRun(organizationId, runId, userId, expectedVersion);
     }
 
+    @Transactional
     public TestRunView reopenRun(long userId, long organizationId, long runId, long expectedVersion,
             String reason, String requestId) {
         permissions.requireOrganization(userId, organizationId, "qa.execute");
+        TestRunView run = store.findRun(organizationId, runId).orElseThrow(ResourceNotFoundException::new);
+        requireTestingStage(userId, organizationId, run.requirementId(), false);
         return store.reopenRun(organizationId, runId, userId, expectedVersion, reason, requestId);
+    }
+
+    private void requireMember(long userId, long organizationId, long requirementId) {
+        policy.lock(organizationId, requirementId);
+        if (!policy.member(organizationId, requirementId, "QA", userId)) throw new ResourceNotFoundException();
+    }
+
+    private void requireTestingStage(long userId, long organizationId, long requirementId, boolean preparationAllowed) {
+        requireMember(userId, organizationId, requirementId);
+        var item = workItems.findByIdAndScope(organizationId, requirementId).orElseThrow(ResourceNotFoundException::new);
+        if (item.status() != WorkItemStatus.IN_QA && item.status() != WorkItemStatus.IN_FIX_VERIFICATION
+                && !(preparationAllowed && item.status() == WorkItemStatus.READY_FOR_QA)) throw new QaStateException();
     }
 
     private static String normalize(String value) {

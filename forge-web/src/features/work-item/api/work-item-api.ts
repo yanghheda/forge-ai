@@ -112,6 +112,8 @@ export type RequirementRole = "PRODUCT" | "UX" | "DEVELOPER" | "QA";
 
 export interface RequirementParticipant {
   role: RequirementRole;
+  executorUserIds?: number[];
+  reviewApproved?: boolean;
   userId: number;
   displayName: string;
   email: string;
@@ -173,7 +175,24 @@ export const getRequirementParticipants = (id: number, client: RequestClient = a
 
 export const replaceRequirementParticipants = (id: number, participants: Array<{ role: RequirementRole; userId: number }>, client: RequestClient = apiClient) => client.request<RequirementParticipant[]>(`/v1/requirements/${id}/participants`, json("PUT", { participants }));
 
-export type RequirementWorkflowAction = "SUBMIT_PRODUCT_REVIEW" | "APPROVE_PRODUCT_REVIEW" | "REJECT_PRODUCT_REVIEW" | "SUBMIT_UX_REVIEW" | "APPROVE_UX_REVIEW" | "REJECT_UX_REVIEW" | "SKIP_UX" | "SUBMIT_FOR_QA" | "START_QA" | "QA_PASS" | "QA_FAIL";
+export type RequirementWorkflowAction =
+  | "APPROVE_REQUIREMENT"
+  | "REJECT_REQUIREMENT"
+  | "START_PRODUCT_REVIEW"
+  | "START_UX"
+  | "START_DEVELOPMENT"
+  | "ACCEPT_REQUIREMENT"
+  | "SUBMIT_PRODUCT_REVIEW"
+  | "APPROVE_PRODUCT_REVIEW"
+  | "REJECT_PRODUCT_REVIEW"
+  | "SUBMIT_UX_REVIEW"
+  | "APPROVE_UX_REVIEW"
+  | "REJECT_UX_REVIEW"
+  | "SKIP_UX"
+  | "SUBMIT_FOR_QA"
+  | "START_QA"
+  | "QA_PASS"
+  | "QA_FAIL";
 
 export interface RequirementWorkflow {
   version: number;
@@ -298,11 +317,14 @@ export interface TestRunView {
   version: number;
 }
 
+export type BugAction = "START_FIX" | "RESOLVE" | "VERIFY" | "REOPEN" | "BLOCK" | "UNBLOCK";
+
 export interface BugView {
+  availableActions?: BugAction[];
   id: number;
   itemKey: string;
   title: string;
-  status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "VERIFIED" | "CLOSED" | "REOPENED" | "CANCELLED";
+  status: "TODO" | "IN_PROGRESS" | "BLOCKED" | "WAITING_VERIFICATION" | "DONE";
   severity: "MINOR" | "MAJOR" | "CRITICAL" | "BLOCKER";
   requirementId: number;
   testRunId: number | null;
@@ -338,7 +360,10 @@ export const reopenTestRun = (input: { organizationId: number; runId: number; ex
 
 export const listBugs = (_organizationId: number, requirementId: number, client: RequestClient = apiClient) => client.request<BugView[]>(`/v1/bugs?${new URLSearchParams({ requirementId: String(requirementId) })}`);
 
-export const createBug = (input: { organizationId: number; requirementId: number; testRunId?: number | null; testResultId?: number | null; title: string; severity: BugView["severity"]; reproductionSteps: string[]; expectedResult: string; actualResult: string }, client: RequestClient = apiClient) =>
+export const createBug = (
+  input: { organizationId: number; requirementId: number; assigneeUserId: number; testRunId?: number | null; testResultId?: number | null; title: string; severity: BugView["severity"]; reproductionSteps: string[]; expectedResult: string; actualResult: string },
+  client: RequestClient = apiClient,
+) =>
   client.request<BugView>(
     "/v1/bugs",
     json("POST", {
@@ -346,6 +371,7 @@ export const createBug = (input: { organizationId: number; requirementId: number
       testRunId: input.testRunId ?? null,
       testResultId: input.testResultId ?? null,
       devTaskId: null,
+      assigneeUserId: input.assigneeUserId,
       title: input.title,
       severity: input.severity,
       reproductionSteps: input.reproductionSteps,
@@ -354,7 +380,7 @@ export const createBug = (input: { organizationId: number; requirementId: number
     }),
   );
 
-export const transitionBug = (input: { organizationId: number; bugId: number; action: "START_FIX" | "RESOLVE" | "VERIFY" | "CLOSE" | "REOPEN"; expectedVersion: number; reason?: string; fixEvidence?: string[]; idempotencyKey: string }, client: RequestClient = apiClient) =>
+export const transitionBug = (input: { organizationId: number; bugId: number; action: "START_FIX" | "RESOLVE" | "VERIFY" | "REOPEN" | "BLOCK" | "UNBLOCK"; expectedVersion: number; reason?: string; fixEvidence?: string[]; idempotencyKey: string }, client: RequestClient = apiClient) =>
   client.request<BugView>(`/v1/bugs/${input.bugId}/transitions`, json("POST", { action: input.action, expectedVersion: input.expectedVersion, reason: input.reason ?? null, fixEvidence: input.fixEvidence ?? [], idempotencyKey: input.idempotencyKey }));
 
 export interface RequirementActivity {
@@ -370,3 +396,9 @@ export interface RequirementActivity {
 export const getRequirementActivity = (id: number, client: RequestClient = apiClient) => client.request<RequirementActivity[]>(`/v1/work-items/${id}/activity`);
 
 export const createRequirementComment = (id: number, body: string, client: RequestClient = apiClient) => client.request<RequirementActivity>(`/v1/work-items/${id}/comments`, json("POST", { body }));
+
+export type TaskType = "UX_TASK" | "DEV_TASK" | "QA_TASK";
+export const replaceRequirementExecutors = (id: number, role: RequirementRole, userIds: number[], client: RequestClient = apiClient) => client.request<RequirementParticipant[]>(`/v1/requirements/${id}/executors/${role}`, json("PUT", { userIds }));
+export const listRequirementTasks = (id: number, client: RequestClient = apiClient) => client.request<WorkItemDetail[]>(`/v1/work-items/${id}/tasks`);
+export const createStageTask = (id: number, input: { type: TaskType; title: string; description?: string; assigneeUserId: number }, client: RequestClient = apiClient) => client.request<WorkItemDetail>(`/v1/work-items/${id}/tasks`, json("POST", input));
+export const transitionTask = (id: number, action: string, expectedVersion: number, reason?: string, client: RequestClient = apiClient) => client.request(`/v1/work-items/${id}/transitions`, json("POST", { action, expectedVersion, reason, idempotencyKey: crypto.randomUUID() }));

@@ -100,9 +100,9 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
             throw new VersionConflictException();
         }
         if (isReviewAction(definition.action())) {
-            boolean rejection = definition.action() == WorkflowAction.REJECT_PRODUCT_REVIEW
+            boolean rejection = definition.action() == WorkflowAction.REJECT_REQUIREMENT || definition.action() == WorkflowAction.REJECT_PRODUCT_REVIEW
                     || definition.action() == WorkflowAction.REJECT_UX_REVIEW;
-            boolean approval = definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW
+            boolean approval = definition.action() == WorkflowAction.APPROVE_REQUIREMENT || definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW
                     || definition.action() == WorkflowAction.APPROVE_UX_REVIEW;
             mapper.insertReview(
                     organizationId,
@@ -113,18 +113,6 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
                     rejection ? reason : null,
                     checklistJson(checklist),
                     mapper.publishedArtifactVersions(organizationId, workItemId));
-        }
-        if (definition.action() == WorkflowAction.APPROVE_PRODUCT_REVIEW
-                && mapper.countUxTaskForRequirement(organizationId, workItemId) == 0) {
-            long itemNumber = mapper.lockNextItemNumber(organizationId);
-            mapper.advanceItemNumber(organizationId);
-            mapper.insertUxTask(
-                    organizationId,
-                    workItemId,
-                    actorId,
-                    itemNumber,
-                    "REQ-" + itemNumber,
-                    "UX: " + mapper.requirementTitle(organizationId, workItemId));
         }
         long nextVersion = expectedVersion + 1;
         mapper.insertEvent(
@@ -194,7 +182,8 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
     }
 
     private boolean isReviewAction(WorkflowAction action) {
-        return action == WorkflowAction.SUBMIT_PRODUCT_REVIEW
+        return action == WorkflowAction.APPROVE_REQUIREMENT || action == WorkflowAction.REJECT_REQUIREMENT
+                || action == WorkflowAction.START_PRODUCT_REVIEW || action == WorkflowAction.SUBMIT_PRODUCT_REVIEW
                 || action == WorkflowAction.APPROVE_PRODUCT_REVIEW
                 || action == WorkflowAction.REJECT_PRODUCT_REVIEW
                 || action == WorkflowAction.SUBMIT_UX_REVIEW

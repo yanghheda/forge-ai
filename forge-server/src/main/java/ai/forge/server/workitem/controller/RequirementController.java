@@ -101,7 +101,7 @@ public class RequirementController {
     }
 
     @PutMapping("/{requirementId}/participants")
-    @Operation(summary = "设置需求参与人", description = "权限：Owner 或 Product；每个业务角色最多关联一名持有该角色的成员。")
+    @Operation(summary = "设置需求参与人", description = "权限：Owner 或 Product；由产品设置每个领域的管理员负责人。")
     public List<RequirementParticipantView> replaceParticipants(
             @PathVariable long requirementId,
             @Valid @RequestBody ReplaceParticipantsRequest body,
@@ -113,6 +113,17 @@ public class RequirementController {
                         .map(item -> new OrganizationRequirementStore.ParticipantAssignment(item.role(), item.userId()))
                         .toList());
     }
+
+    @PutMapping("/{requirementId}/executors/{role}")
+    @Operation(summary = "设置领域执行人", description = "仅该需求的对应领域负责人可操作，评审开始后人员配置冻结。")
+    public List<RequirementParticipantView> replaceExecutors(@PathVariable long requirementId,
+            @PathVariable RequirementParticipantRole role, @Valid @RequestBody ExecutorRequest body,
+            HttpServletRequest request) {
+        return service.replaceExecutors(AuthController.requireContext(request).userId(), requirementId, role, body.userIds());
+    }
+
+    public record ExecutorRequest(
+            /* 当前领域关联的有效执行人，空集合表示尚未完成分配。 */ @NotNull @Size(max = 100) List<@NotNull @Positive Long> userIds) {}
 
     public record CreateRequirementRequest(
             /* 需求列表与详情展示的简短标题。 */ @NotBlank @Size(max = 255) String title,

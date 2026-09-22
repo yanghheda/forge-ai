@@ -29,5 +29,6 @@ public final class ConsoleModels {
             /* 看板泳道。 */ String lane,
             /* 泳道内排序位置。 */ long position,
             /* 负责人标识；未分配时为空。 */ Long assigneeUserId,
-            /* 拖拽事实的乐观锁版本。 */ long version) {}
+            /* 任务真实状态的乐观锁版本。 */ long version,
+            /* 任务所属需求，用于打开对应阶段工作区。 */ Long requirementId) {}
 }

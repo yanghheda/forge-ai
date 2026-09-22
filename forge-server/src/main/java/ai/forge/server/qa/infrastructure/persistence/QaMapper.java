@@ -13,7 +13,7 @@ import org.apache.ibatis.annotations.Update;
 public interface QaMapper {
 
     @Select("SELECT COUNT(*) FROM work_items WHERE id=#{requirementId} AND organization_id=#{organizationId} "
-            + "AND organization_id=#{organizationId} AND type='REQUIREMENT' AND status IN ('READY_FOR_QA','IN_QA') "
+            + "AND organization_id=#{organizationId} AND type='REQUIREMENT' AND status IN ('READY_FOR_QA','IN_QA','IN_FIX_VERIFICATION') "
             + "AND deleted_at IS NULL")
     int countQaRequirement(@Param("organizationId") long organizationId,
             @Param("requirementId") long requirementId);

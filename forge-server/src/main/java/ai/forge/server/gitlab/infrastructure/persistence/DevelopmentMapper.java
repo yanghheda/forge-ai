@@ -19,7 +19,7 @@ public interface DevelopmentMapper {
             + "JOIN secrets s ON s.id=c.credential_secret_id AND s.organization_id=w.organization_id "
             + "WHERE w.id=#{workItemId} AND w.organization_id=#{organizationId} "
             + "AND w.type='DEV_TASK' AND w.status IN ('TODO','IN_PROGRESS') AND w.deleted_at IS NULL "
-            + "AND parent.type='REQUIREMENT' AND parent.status IN ('READY_FOR_DEV','IN_DEVELOPMENT')")
+            + "AND parent.type='REQUIREMENT' AND parent.status='IN_DEVELOPMENT'")
     List<Map<String, Object>> findContext(
             @Param("organizationId") long organizationId,
             @Param("workItemId") long workItemId);
@@ -146,7 +146,7 @@ public interface DevelopmentMapper {
 
     @Update("UPDATE work_items SET version=version+IF(status='READY_FOR_DEV',1,0),status='IN_DEVELOPMENT',"
             + "updated_at=UTC_TIMESTAMP(6) "
-            + "WHERE id=#{requirementId} AND organization_id=#{organizationId} AND status IN ('READY_FOR_DEV','IN_DEVELOPMENT')")
+            + "WHERE id=#{requirementId} AND organization_id=#{organizationId} AND status='IN_DEVELOPMENT'")
     int startRequirement(@Param("organizationId") long organizationId, @Param("requirementId") long requirementId);
 
     @Update("UPDATE source_control_operations SET status='COMPLETED',branch_id=#{branchId},"
@@ -162,7 +162,7 @@ public interface DevelopmentMapper {
 
     @Update("UPDATE work_items t JOIN work_items r ON r.id=t.parent_id "
             + "AND r.organization_id=t.organization_id "
-            + "SET t.status='DONE',t.version=t.version+1,t.updated_at=UTC_TIMESTAMP(6) "
+            + "SET t.status='WAITING_VERIFICATION',t.version=t.version+1,t.updated_at=UTC_TIMESTAMP(6) "
             + "WHERE t.id=#{taskId} AND t.organization_id=#{organizationId} "
             + "AND t.type='DEV_TASK' AND t.status='IN_PROGRESS' AND t.version=#{expectedVersion} "
             + "AND r.type='REQUIREMENT' AND r.status='IN_DEVELOPMENT'")

@@ -55,7 +55,7 @@ class PrecheckRuleRegistryTest {
     @Test
     void openAndReopenedCriticalBugsBlockRelease() {
         PrecheckDecision decision = registry.evaluate(passingFacts().withBugs(List.of(
-                new PrecheckFacts.Bug("BUG-3", "CRITICAL", "REOPENED", 2),
+                new PrecheckFacts.Bug("BUG-3", "CRITICAL", "IN_PROGRESS", 2),
                 new PrecheckFacts.Bug("BUG-4", "BLOCKER", "CLOSED", 5))));
 
         assertThat(decision.result(PrecheckRule.NO_BLOCKING_BUGS).details()).containsExactly("BUG-3");

@@ -47,7 +47,9 @@ describe("QaPanel", () => {
       results: [{ id: 3, testCaseId: 1, title: "真实登录回归", priority: "P0", status: "PASS", actualResult: "成功", evidence: [], version: 1 }],
       version: 2,
     });
-    api.listBugs.mockResolvedValue([{ id: 7, itemKey: "BUG-7", title: "真实接口缺陷", status: "OPEN", severity: "MAJOR", requirementId: 2, testRunId: 9, testResultId: 3, reproductionSteps: ["登录"], expectedResult: "成功", actualResult: "失败", fixNote: null, fixEvidence: [], version: 0 }]);
+    api.listBugs.mockResolvedValue([
+      { id: 7, itemKey: "BUG-7", title: "真实接口缺陷", status: "TODO", availableActions: ["START_FIX"], severity: "MAJOR", requirementId: 2, testRunId: 9, testResultId: 3, reproductionSteps: ["登录"], expectedResult: "成功", actualResult: "失败", fixNote: null, fixEvidence: [], version: 0 },
+    ]);
 
     render(<QaPanel organizationId={0} requirementId={2} onChanged={async () => undefined} />, { wrapper });
 
@@ -136,7 +138,8 @@ describe("BugList", () => {
             id: 9,
             itemKey: "QA-9",
             title: "支付失败",
-            status: "RESOLVED",
+            status: "WAITING_VERIFICATION",
+            availableActions: ["VERIFY"],
             severity: "BLOCKER",
             requirementId: 2,
             testRunId: 1,

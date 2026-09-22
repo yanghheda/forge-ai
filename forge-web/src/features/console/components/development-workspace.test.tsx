@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DevelopmentWorkspaceView } from "./development-workspace";
@@ -56,7 +56,7 @@ describe("DevelopmentWorkspaceView", () => {
   it("按视觉稿的信息层级展示真实开发汇总并触发同步与任务完成", () => {
     const complete = vi.fn();
     const refresh = vi.fn();
-    render(<DevelopmentWorkspaceView summary={summary} workflow={{ version: 5, availableActions: [], guardHints: { SUBMIT_FOR_QA: ["pipelineSuccess"] } }} onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={complete} onRefresh={refresh} />);
+    render(<DevelopmentWorkspaceView summary={summary} workflow={{ version: 5, availableActions: [], guardHints: { SUBMIT_FOR_QA: ["pipelineSuccess"] } }} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={complete} onRefresh={refresh} />);
 
     expect(screen.getByRole("heading", { name: "开发" })).toBeInTheDocument();
     expect(screen.getByText("Dev Task 交付链路")).toBeInTheDocument();
@@ -64,30 +64,30 @@ describe("DevelopmentWorkspaceView", () => {
     expect(screen.getAllByText("feature/demo-2-agent-review").length).toBeGreaterThan(0);
     expect(screen.getByText("pipelineSuccess")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "同步状态" }));
-    expect(screen.getByRole("button", { name: "完成任务" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "提交验证" })).toBeDisabled();
     expect(refresh).toHaveBeenCalledOnce();
     expect(complete).not.toHaveBeenCalled();
   });
 
-  it("Pipeline 成功后允许完成任务，并可按任务分支重新触发", () => {
+  it("Pipeline 成功后允许提交验证，并可按任务分支重新触发", () => {
     const complete = vi.fn();
     const trigger = vi.fn();
     const passed = { ...summary, tasks: [{ ...summary.tasks[0], pipelineStatus: "success" }] };
-    render(<DevelopmentWorkspaceView summary={passed} workflow={{ version: 5, availableActions: [], guardHints: {} }} onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={trigger} onComplete={complete} onRefresh={vi.fn()} />);
+    render(<DevelopmentWorkspaceView summary={passed} workflow={{ version: 5, availableActions: [], guardHints: {} }} onStart={vi.fn()} onTriggerPipeline={trigger} onComplete={complete} onRefresh={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "重新触发 Pipeline" }));
-    fireEvent.click(screen.getByRole("button", { name: "完成任务" }));
+    fireEvent.click(screen.getByRole("button", { name: "提交验证" }));
     expect(trigger).toHaveBeenCalledWith(40, "feature/demo-2-agent-review");
     expect(complete).toHaveBeenCalledWith(40, 3);
   });
 
-  it("MR 未合并时卡片展示待合并，但仍可点击完成任务交由服务端拦截", () => {
+  it("MR 未合并时卡片展示待合并，但仍可点击提交验证交由服务端拦截", () => {
     const complete = vi.fn();
     const opened = { ...summary, tasks: [{ ...summary.tasks[0], pipelineStatus: "success", mergeRequestState: "opened" }] };
-    render(<DevelopmentWorkspaceView summary={opened} workflow={{ version: 5, availableActions: [], guardHints: {} }} onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={complete} onRefresh={vi.fn()} />);
+    render(<DevelopmentWorkspaceView summary={opened} workflow={{ version: 5, availableActions: [], guardHints: {} }} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={complete} onRefresh={vi.fn()} />);
 
     expect(screen.getByText("合并请求 · 待合并")).toBeInTheDocument();
-    const button = screen.getByRole("button", { name: "完成任务" });
+    const button = screen.getByRole("button", { name: "提交验证" });
     expect(button).not.toBeDisabled();
     fireEvent.click(button);
     expect(complete).toHaveBeenCalledWith(40, 3);
@@ -95,7 +95,7 @@ describe("DevelopmentWorkspaceView", () => {
 
   it("开发门禁通过后不再提供推进 QA 按钮（推进流程已统一到需求详情页）", () => {
     const passed = { ...summary, tasks: [{ ...summary.tasks[0], status: "DONE", pipelineStatus: "success" }] };
-    render(<DevelopmentWorkspaceView summary={passed} workflow={{ version: 5, availableActions: ["SUBMIT_FOR_QA"], guardHints: {} }} onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
+    render(<DevelopmentWorkspaceView summary={passed} workflow={{ version: 5, availableActions: ["SUBMIT_FOR_QA"], guardHints: {} }} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: "提交开发评审" })).not.toBeInTheDocument();
     expect(screen.getByText("已通过")).toBeInTheDocument();
@@ -104,22 +104,22 @@ describe("DevelopmentWorkspaceView", () => {
 
   it("门禁事实通过时不误报为门禁失败", () => {
     const passed = { ...summary, tasks: [{ ...summary.tasks[0], status: "DONE", pipelineStatus: "success" }] };
-    render(<DevelopmentWorkspaceView summary={passed} workflow={{ version: 5, availableActions: [], guardHints: {} }} onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
+    render(<DevelopmentWorkspaceView summary={passed} workflow={{ version: 5, availableActions: [], guardHints: {} }} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
 
     expect(screen.getByText("已通过")).toBeInTheDocument();
   });
 
-  it("已完成任务仍可补触发 Pipeline", () => {
+  it("已提交验证仍可补触发 Pipeline", () => {
     const trigger = vi.fn();
     const completed = { ...summary, tasks: [{ ...summary.tasks[0], status: "DONE", pipelineId: null, pipelineStatus: null }] };
-    render(<DevelopmentWorkspaceView summary={completed} workflow={{ version: 5, availableActions: [], guardHints: {} }} onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={trigger} onComplete={vi.fn()} onRefresh={vi.fn()} />);
+    render(<DevelopmentWorkspaceView summary={completed} workflow={{ version: 5, availableActions: [], guardHints: {} }} onStart={vi.fn()} onTriggerPipeline={trigger} onComplete={vi.fn()} onRefresh={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "触发 Pipeline" }));
     expect(trigger).toHaveBeenCalledWith(40, "feature/demo-2-agent-review");
   });
 
   it("多任务时按 Dev Task 分组展示各自的源分支、MR 与 Pipeline，并逐任务校验门禁", () => {
-    render(<DevelopmentWorkspaceView summary={twoTasks} workflow={{ version: 5, availableActions: ["SUBMIT_FOR_QA"], guardHints: {} }} onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
+    render(<DevelopmentWorkspaceView summary={twoTasks} workflow={{ version: 5, availableActions: ["SUBMIT_FOR_QA"], guardHints: {} }} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
 
     expect(screen.getByText("feature/demo-2-agent-review")).toBeInTheDocument();
     expect(screen.getByText("feature/demo-3-export-queue")).toBeInTheDocument();
@@ -133,7 +133,7 @@ describe("DevelopmentWorkspaceView", () => {
   });
 
   it("只有被操作的那个任务的按钮进入加载态", () => {
-    render(<DevelopmentWorkspaceView summary={twoTasks} pending={{ action: "pipeline", taskId: 41 }} workflow={{ version: 5, availableActions: [], guardHints: {} }} onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
+    render(<DevelopmentWorkspaceView summary={twoTasks} pending={{ action: "pipeline", taskId: 41 }} workflow={{ version: 5, availableActions: [], guardHints: {} }} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
 
     const triggerButtons = screen.getAllByRole("button", { name: "重新触发 Pipeline" });
     expect(triggerButtons).toHaveLength(2);
@@ -141,26 +141,17 @@ describe("DevelopmentWorkspaceView", () => {
     expect(triggerButtons[1]).toHaveClass("arco-btn-loading");
   });
 
-  it("从 Dev Task 卡片打开抽屉并创建研发任务", async () => {
-    const create = vi.fn().mockResolvedValue(undefined);
-    render(<DevelopmentWorkspaceView summary={{ ...summary, tasks: [] }} workflow={{ version: 5, availableActions: [], guardHints: {} }} onCreate={create} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "新建 Dev Task" }));
-    expect(screen.getByLabelText("Dev Task 标题")).toBeInTheDocument();
-    const button = screen.getByRole("button", { name: "创建 Dev Task" });
-    expect(button).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Dev Task 标题"), { target: { value: "实现登录接口" } });
-    fireEvent.change(screen.getByLabelText("Dev Task 说明"), { target: { value: "覆盖验证码和 Session" } });
-    fireEvent.click(button);
-    await waitFor(() => expect(create).toHaveBeenCalledWith("实现登录接口", "覆盖验证码和 Session"));
+  it("GitLab 面板不再提供缺少执行人分配的旧创建入口", () => {
+    render(<DevelopmentWorkspaceView summary={{ ...summary, tasks: [] }} workflow={{ version: 5, availableActions: [], guardHints: {} }} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "新建 Dev Task" })).not.toBeInTheDocument();
   });
 
   it("非研发角色只读：隐藏新建与任务操作", () => {
-    render(<DevelopmentWorkspaceView summary={summary} workflow={{ version: 5, availableActions: [], guardHints: {} }} readOnly onCreate={vi.fn()} onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
+    render(<DevelopmentWorkspaceView summary={summary} workflow={{ version: 5, availableActions: [], guardHints: {} }} readOnly onStart={vi.fn()} onTriggerPipeline={vi.fn()} onComplete={vi.fn()} onRefresh={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: "新建 Dev Task" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "重新触发 Pipeline" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "完成任务" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "提交验证" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "同步状态" })).toBeInTheDocument();
   });
 });

@@ -3,12 +3,12 @@ version: 1
 description: 在指定 Requirement 下创建 UX Task 工作项；MEDIUM 过程动作默认直接执行。
 input_schema:
   type: object
-  required: [requirementId, title]
+  required: [requirementId, assigneeUserId, title]
   properties:
+    assigneeUserId: { type: integer, minimum: 1 }
     requirementId: { type: integer, minimum: 1 }
     title: { type: string, minLength: 1, maxLength: 255 }
     description: { type: string, maxLength: 10000 }
-    assigneeId: { type: [integer, "null"], minimum: 1 }
   additionalProperties: false
 output_schema:
   type: object

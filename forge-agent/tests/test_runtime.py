@@ -209,12 +209,12 @@ def test_fake_ux_progress_uses_server_checklist_contract_keys() -> None:
 def test_fake_ux_creates_task_and_spec_from_explicit_commands() -> None:
     model = FakeLanguageModel()
 
-    task = model.select_tool("UX", "创建 UX 任务", 42, [], [])
+    task = model.select_tool("UX", "创建 UX 任务，执行人 5", 42, [], [])
     document = model.select_tool("UX", "创建 UX 文档", 42, [], [])
 
     assert task == ToolSelection(
         tool_name="create_ux_task",
-        arguments={"requirementId": 42, "title": "Fake UX Task"},
+        arguments={"requirementId": 42, "title": "Fake UX Task", "assigneeUserId": 5},
     )
     assert document == ToolSelection(
         tool_name="create_ux_document",
@@ -233,9 +233,9 @@ def test_fake_ux_creates_task_and_spec_from_explicit_commands() -> None:
         ),
         (
             "DEVELOPER",
-            "创建开发任务",
+            "创建开发任务，执行人 5",
             "create_dev_task",
-            {"requirementId": 42, "title": "Fake Dev Task"},
+            {"requirementId": 42, "title": "Fake Dev Task", "assigneeUserId": 5},
         ),
         (
             "QA",
@@ -251,11 +251,12 @@ def test_fake_ux_creates_task_and_spec_from_explicit_commands() -> None:
         ),
         (
             "QA",
-            "创建缺陷",
+            "创建缺陷，执行人 5",
             "create_bug",
             {
                 "requirementId": 42,
                 "title": "Fake Bug",
+                "assigneeUserId": 5,
                 "severity": "MAJOR",
                 "reproductionSteps": ["执行黄金流程操作"],
                 "expectedResult": "操作成功",
@@ -845,3 +846,10 @@ def test_tool_calls_are_not_replayed_after_completed_run(tmp_path) -> None:
     assert len(transport.requests) == 1
     assert repeated.tool_calls == first.tool_calls
     assert repeated.tool_calls[0].replayed is False
+
+
+def test_fake_model_never_invents_task_assignees() -> None:
+    model = FakeLanguageModel()
+    requests = [("UX", "创建 UX 任务"), ("DEVELOPER", "创建开发任务"), ("QA", "创建缺陷")]
+    for skill, message in requests:
+        assert model.select_tool(skill, message, 42, [], []) is None

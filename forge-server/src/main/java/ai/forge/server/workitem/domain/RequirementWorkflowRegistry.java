@@ -1,162 +1,73 @@
 package ai.forge.server.workitem.domain;
 
-import java.util.EnumMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public final class RequirementWorkflowRegistry {
+    /* 类型、来源状态与动作共同确定唯一转换，避免任务之间相互覆盖。 */
+    private final List<TransitionDefinition> definitions;
 
-    /* 本轮可执行的产品动作；后续会话按交付物依赖继续注册。 */
-    private final Map<WorkflowAction, TransitionDefinition> definitions;
-
-    public RequirementWorkflowRegistry(
-        TransitionGuard requirementMaterialGuard,
-        TransitionGuard publishedPrdGuard,
-        TransitionGuard publishedUxSpecGuard,
-        TransitionGuard uxChecklistGuard,
-        TransitionGuard skipUxPolicyGuard,
-        TransitionGuard reasonGuard,
-        TransitionGuard developmentQaGuard,
-        TransitionGuard qaPassGuard) {
-        EnumMap<WorkflowAction, TransitionDefinition> registered = new EnumMap<>(WorkflowAction.class);
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.PRODUCT_REVIEW,
-            WorkflowAction.APPROVE_PRODUCT_REVIEW,
-            WorkItemStatus.UX_IN_PROGRESS,
-            "requirement.review",
-            List.of(publishedPrdGuard)));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.DRAFT,
-            WorkflowAction.SUBMIT_PRODUCT_REVIEW,
-            WorkItemStatus.PRODUCT_REVIEW,
-            "requirement.edit",
-            List.of(requirementMaterialGuard)));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.PRODUCT_REVIEW,
-            WorkflowAction.REJECT_PRODUCT_REVIEW,
-            WorkItemStatus.DRAFT,
-            "requirement.review",
-            List.of(reasonGuard)));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.UX_IN_PROGRESS,
-            WorkflowAction.SUBMIT_UX_REVIEW,
-            WorkItemStatus.UX_REVIEW,
-            "ux.edit",
-            List.of(publishedUxSpecGuard, uxChecklistGuard)));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.UX_REVIEW,
-            WorkflowAction.APPROVE_UX_REVIEW,
-            WorkItemStatus.READY_FOR_DEV,
-            "ux.review",
-            List.of()));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.UX_REVIEW,
-            WorkflowAction.REJECT_UX_REVIEW,
-            WorkItemStatus.UX_IN_PROGRESS,
-            "ux.review",
-            List.of(reasonGuard)));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.PRODUCT_REVIEW,
-            WorkflowAction.SKIP_UX,
-            WorkItemStatus.READY_FOR_DEV,
-            "ux.skip",
-            List.of(skipUxPolicyGuard, reasonGuard)));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.IN_DEVELOPMENT,
-            WorkflowAction.SUBMIT_FOR_QA,
-            WorkItemStatus.READY_FOR_QA,
-            "development.submit",
-            List.of(developmentQaGuard)));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.READY_FOR_QA,
-            WorkflowAction.START_QA,
-            WorkItemStatus.IN_QA,
-            "qa.execute",
-            List.of()));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.IN_QA,
-            WorkflowAction.QA_PASS,
-            WorkItemStatus.READY_FOR_RELEASE,
-            "qa.execute",
-            List.of(qaPassGuard)));
-        register(registered, new TransitionDefinition(
-            WorkItemType.REQUIREMENT,
-            WorkItemStatus.IN_QA,
-            WorkflowAction.QA_FAIL,
-            WorkItemStatus.IN_DEVELOPMENT,
-            "qa.execute",
-            List.of()));
-        register(registered, new TransitionDefinition(
-            WorkItemType.UX_TASK,
-            WorkItemStatus.TODO,
-            WorkflowAction.START,
-            WorkItemStatus.IN_PROGRESS,
-            "ux.edit",
-            List.of()));
-        register(registered, new TransitionDefinition(
-            WorkItemType.UX_TASK,
-            WorkItemStatus.IN_PROGRESS,
-            WorkflowAction.SUBMIT_REVIEW,
-            WorkItemStatus.IN_REVIEW,
-            "ux.edit",
-            List.of()));
-        register(registered, new TransitionDefinition(
-            WorkItemType.UX_TASK,
-            WorkItemStatus.IN_REVIEW,
-            WorkflowAction.APPROVE,
-            WorkItemStatus.DONE,
-            "ux.review",
-            List.of()));
-        register(registered, new TransitionDefinition(
-            WorkItemType.UX_TASK,
-            WorkItemStatus.IN_REVIEW,
-            WorkflowAction.REJECT,
-            WorkItemStatus.IN_PROGRESS,
-            "ux.review",
-            List.of(reasonGuard)));
-        definitions = Map.copyOf(registered);
+    public RequirementWorkflowRegistry(TransitionGuard requirementMaterialGuard, TransitionGuard publishedPrdGuard,
+            TransitionGuard publishedUxSpecGuard, TransitionGuard uxChecklistGuard, TransitionGuard skipUxPolicyGuard,
+            TransitionGuard reasonGuard, TransitionGuard developmentQaGuard, TransitionGuard qaPassGuard) {
+        List<TransitionDefinition> rules = new ArrayList<>();
+        requirement(rules, WorkItemStatus.DRAFT, WorkflowAction.SUBMIT_PRODUCT_REVIEW, WorkItemStatus.REQUIREMENT_APPROVAL,
+                "requirement.edit", requirementMaterialGuard);
+        requirement(rules, WorkItemStatus.REQUIREMENT_APPROVAL, WorkflowAction.APPROVE_REQUIREMENT, WorkItemStatus.READY_FOR_REVIEW,
+                "requirement.approve", publishedPrdGuard);
+        requirement(rules, WorkItemStatus.REQUIREMENT_APPROVAL, WorkflowAction.REJECT_REQUIREMENT, WorkItemStatus.DRAFT,
+                "requirement.approve", reasonGuard);
+        requirement(rules, WorkItemStatus.READY_FOR_REVIEW, WorkflowAction.START_PRODUCT_REVIEW, WorkItemStatus.PRODUCT_REVIEW,
+                "requirement.edit", publishedPrdGuard);
+        requirement(rules, WorkItemStatus.PRODUCT_REVIEW, WorkflowAction.APPROVE_PRODUCT_REVIEW, WorkItemStatus.READY_FOR_UX,
+                "requirement.read", publishedPrdGuard);
+        requirement(rules, WorkItemStatus.PRODUCT_REVIEW, WorkflowAction.REJECT_PRODUCT_REVIEW, WorkItemStatus.DRAFT,
+                "requirement.read", reasonGuard);
+        requirement(rules, WorkItemStatus.READY_FOR_UX, WorkflowAction.START_UX, WorkItemStatus.UX_IN_PROGRESS, "ux.edit");
+        requirement(rules, WorkItemStatus.UX_IN_PROGRESS, WorkflowAction.SUBMIT_UX_REVIEW, WorkItemStatus.UX_REVIEW,
+                "ux.edit", publishedUxSpecGuard, uxChecklistGuard);
+        requirement(rules, WorkItemStatus.UX_REVIEW, WorkflowAction.APPROVE_UX_REVIEW, WorkItemStatus.READY_FOR_DEV, "ux.approve");
+        requirement(rules, WorkItemStatus.UX_REVIEW, WorkflowAction.REJECT_UX_REVIEW, WorkItemStatus.UX_IN_PROGRESS,
+                "ux.approve", reasonGuard);
+        requirement(rules, WorkItemStatus.READY_FOR_DEV, WorkflowAction.START_DEVELOPMENT, WorkItemStatus.IN_DEVELOPMENT, "task.edit");
+        requirement(rules, WorkItemStatus.IN_DEVELOPMENT, WorkflowAction.SUBMIT_FOR_QA, WorkItemStatus.READY_FOR_QA,
+                "development.submit", developmentQaGuard);
+        requirement(rules, WorkItemStatus.READY_FOR_QA, WorkflowAction.START_QA, WorkItemStatus.IN_QA, "qa.execute");
+        requirement(rules, WorkItemStatus.IN_QA, WorkflowAction.QA_FAIL, WorkItemStatus.IN_FIX_VERIFICATION, "qa.execute");
+        requirement(rules, WorkItemStatus.IN_QA, WorkflowAction.QA_PASS, WorkItemStatus.IN_ACCEPTANCE, "qa.execute", qaPassGuard);
+        requirement(rules, WorkItemStatus.IN_FIX_VERIFICATION, WorkflowAction.QA_PASS, WorkItemStatus.IN_ACCEPTANCE, "qa.execute", qaPassGuard);
+        requirement(rules, WorkItemStatus.IN_ACCEPTANCE, WorkflowAction.ACCEPT_REQUIREMENT, WorkItemStatus.READY_FOR_RELEASE, "requirement.approve");
+        for (WorkItemType type : List.of(WorkItemType.UX_TASK, WorkItemType.DEV_TASK, WorkItemType.QA_TASK)) {
+            String permission = type.permissionResource() + ".edit";
+            task(rules, type, WorkItemStatus.TODO, WorkflowAction.START, WorkItemStatus.IN_PROGRESS, permission);
+            task(rules, type, WorkItemStatus.IN_PROGRESS, WorkflowAction.SUBMIT_REVIEW, WorkItemStatus.WAITING_VERIFICATION, permission);
+            task(rules, type, WorkItemStatus.WAITING_VERIFICATION, WorkflowAction.APPROVE, WorkItemStatus.DONE, permission);
+            task(rules, type, WorkItemStatus.WAITING_VERIFICATION, WorkflowAction.REJECT, WorkItemStatus.IN_PROGRESS, permission, reasonGuard);
+            task(rules, type, WorkItemStatus.IN_PROGRESS, WorkflowAction.BLOCK, WorkItemStatus.BLOCKED, permission, reasonGuard);
+            task(rules, type, WorkItemStatus.BLOCKED, WorkflowAction.UNBLOCK, WorkItemStatus.IN_PROGRESS, permission, reasonGuard);
+        }
+        definitions = List.copyOf(rules);
     }
 
     public TransitionDefinition require(WorkItemType type, WorkItemStatus from, WorkflowAction action) {
-        TransitionDefinition definition = findByAction(action);
-        if (definition == null || definition.type() != type || definition.from() != from) {
-            throw new InvalidTransitionException();
-        }
-        return definition;
+        return definitions.stream().filter(d -> d.type() == type && d.from() == from && d.action() == action)
+                .findFirst().orElseThrow(InvalidTransitionException::new);
     }
 
     public TransitionDefinition requireAction(WorkItemType type, WorkflowAction action) {
-        TransitionDefinition definition = findByAction(action);
-        if (definition == null || definition.type() != type) {
-            throw new InvalidTransitionException();
-        }
-        return definition;
+        return definitions.stream().filter(d -> d.type() == type && d.action() == action)
+                .findFirst().orElseThrow(InvalidTransitionException::new);
     }
 
-    public List<TransitionDefinition> definitions() {
-        return List.copyOf(definitions.values());
+    public List<TransitionDefinition> definitions() { return definitions; }
+
+    private void requirement(List<TransitionDefinition> rules, WorkItemStatus from, WorkflowAction action,
+            WorkItemStatus to, String permission, TransitionGuard... guards) {
+        task(rules, WorkItemType.REQUIREMENT, from, action, to, permission, guards);
     }
 
-    private void register(EnumMap<WorkflowAction, TransitionDefinition> registered, TransitionDefinition definition) {
-        if (definition.requiredPermission() == null || definition.requiredPermission().isBlank()) {
-            throw new IllegalArgumentException("Workflow permission must not be blank");
-        }
-        if (registered.putIfAbsent(definition.action(), definition) != null) {
-            throw new IllegalArgumentException("Workflow action must be unique");
-        }
-    }
-
-    private TransitionDefinition findByAction(WorkflowAction action) {
-        return definitions.get(action);
+    private void task(List<TransitionDefinition> rules, WorkItemType type, WorkItemStatus from,
+            WorkflowAction action, WorkItemStatus to, String permission, TransitionGuard... guards) {
+        rules.add(new TransitionDefinition(type, from, action, to, permission, List.of(guards)));
     }
 }

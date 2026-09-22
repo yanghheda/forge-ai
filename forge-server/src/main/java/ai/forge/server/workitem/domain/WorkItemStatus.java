@@ -3,6 +3,20 @@ package ai.forge.server.workitem.domain;
 public enum WorkItemStatus {
     /* Requirement 刚创建且尚未进入产品评审的初始状态。 */
     DRAFT,
+    /* 产品负责人审核需求材料。 */
+    REQUIREMENT_APPROVAL,
+    /* 审核通过，等待发起四方评审。 */
+    READY_FOR_REVIEW,
+    /* 四方评审通过，等待负责人创建和启动设计任务。 */
+    READY_FOR_UX,
+    /* 测试用例执行完毕，正在修复并验证剩余缺陷。 */
+    IN_FIX_VERIFICATION,
+    /* 测试通过，等待产品负责人确认验收。 */
+    IN_ACCEPTANCE,
+    /* 四类任务已提交结果，等待责任人验证。 */
+    WAITING_VERIFICATION,
+    /* 任务处理遇到障碍，解除后恢复处理。 */
+    BLOCKED,
     /* Requirement 正等待产品角色评审结构化需求材料。 */
     PRODUCT_REVIEW,
     /* Requirement 已通过产品评审并进入体验设计阶段。 */

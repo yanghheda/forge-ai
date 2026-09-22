@@ -28,7 +28,7 @@ import org.mockito.InOrder;
 class QaServiceTest {
 
     @Test
-    void firstExecutedResultAutomaticallyStartsQa() {
+    void executorCannotStartTestingBeforeLeaderStartsStage() {
         PermissionEvaluator permissions = mock(PermissionEvaluator.class);
         QaStore qaStore = mock(QaStore.class);
         WorkItemStore workItems = mock(WorkItemStore.class);
@@ -39,16 +39,13 @@ class QaServiceTest {
         when(workItems.findByIdAndScope(7, 5)).thenReturn(Optional.of(requirement(WorkItemStatus.READY_FOR_QA, 4)));
         when(qaStore.updateResult(7, 9, 3, 1, TestResultStatus.IN_PROGRESS, "", List.of(), 0))
                 .thenReturn(executing);
-        QaService service = new QaService(permissions, qaStore, workItems, transitions);
+        QaService service = new QaService(permissions, qaStore, workItems, transitions, policy());
 
-        TestResultView updated = service.updateResult(
-                1, 7, 9, 3, TestResultStatus.IN_PROGRESS, "", List.of(), 0);
-
-        assertThat(updated.status()).isEqualTo(TestResultStatus.IN_PROGRESS);
-        InOrder ordered = inOrder(qaStore, transitions);
-        ordered.verify(qaStore).updateResult(7, 9, 3, 1, TestResultStatus.IN_PROGRESS, "", List.of(), 0);
-        ordered.verify(transitions).transition(1, 7, 5, WorkflowAction.START_QA, 4, "qa-run-9-start", null);
-        verify(permissions).requireOrganization(1, 7, "qa.execute");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.updateResult(
+                1, 7, 9, 3, TestResultStatus.IN_PROGRESS, "", List.of(), 0)).isInstanceOf(QaStateException.class);
+        verifyNoInteractions(transitions);
+        org.mockito.Mockito.verify(qaStore, org.mockito.Mockito.never()).updateResult(
+                7, 9, 3, 1, TestResultStatus.IN_PROGRESS, "", List.of(), 0);
     }
 
     @Test
@@ -62,11 +59,17 @@ class QaServiceTest {
         when(workItems.findByIdAndScope(7, 5)).thenReturn(Optional.of(requirement(WorkItemStatus.IN_QA, 5)));
         when(qaStore.updateResult(7, 9, 3, 1, TestResultStatus.PASS, "通过", List.of(), 0))
                 .thenReturn(result(TestResultStatus.PASS, 1));
-        QaService service = new QaService(permissions, qaStore, workItems, transitions);
+        QaService service = new QaService(permissions, qaStore, workItems, transitions, policy());
 
         service.updateResult(1, 7, 9, 3, TestResultStatus.PASS, "通过", List.of(), 0);
 
         verifyNoInteractions(transitions);
+    }
+
+    private static ai.forge.server.workitem.application.DeliveryWorkflowPolicy policy() {
+        var policy = mock(ai.forge.server.workitem.application.DeliveryWorkflowPolicy.class);
+        when(policy.member(7, 5, "QA", 1)).thenReturn(true);
+        return policy;
     }
 
     private static TestRunView run(TestResultView result) {

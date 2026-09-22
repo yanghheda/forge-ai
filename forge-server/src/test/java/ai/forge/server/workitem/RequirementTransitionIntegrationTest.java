@@ -67,7 +67,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 "git_repositories", "gitlab_connections", "secrets", "outbox_events", "document_versions",
                 "documents", "comments", "work_item_relations",
                 "work_item_labels", "organization_policies", "work_item_events", "review_records",
-                "requirement_details", "work_items", "organization_item_sequences",
+                "requirement_participants", "requirement_details", "work_items", "organization_item_sequences",
                 "organization_policies", "audit_logs", "member_roles", "organization_members",                 "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
@@ -97,6 +97,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 ownerCookie,
                 String.class);
         requirementId = objectMapper.readTree(requirement.getBody()).get("id").asLong();
+        ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(jdbcTemplate, organizationId, requirementId, ownerId);
     }
 
     @Test
@@ -119,10 +120,10 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "submit-1", null)
                 .getBody());
         JsonNode rejected = objectMapper.readTree(transition(
-                        WorkflowAction.REJECT_PRODUCT_REVIEW, 1, "reject-1", "  clarify scope  ")
+                        WorkflowAction.REJECT_REQUIREMENT, 1, "reject-1", "  clarify scope  ")
                 .getBody());
 
-        assertThat(submitted.get("status").asText()).isEqualTo("PRODUCT_REVIEW");
+        assertThat(submitted.get("status").asText()).isEqualTo("REQUIREMENT_APPROVAL");
         assertThat(submitted.get("version").asLong()).isEqualTo(1);
         assertThat(rejected.get("status").asText()).isEqualTo("DRAFT");
         assertThat(rejected.get("version").asLong()).isEqualTo(2);
@@ -152,7 +153,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "submit-before-reject", null);
 
         ResponseEntity<String> response = transition(
-                WorkflowAction.REJECT_PRODUCT_REVIEW, 1, "reject-without-reason", "  ");
+                WorkflowAction.REJECT_REQUIREMENT, 1, "reject-without-reason", "  ");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(objectMapper.readTree(response.getBody()).at("/details/missing/0").asText()).isEqualTo("reason");
@@ -160,7 +161,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         "SELECT CONCAT(status, ':', version) FROM work_items WHERE id = ?",
                         String.class,
                         requirementId))
-                .isEqualTo("PRODUCT_REVIEW:1");
+                .isEqualTo("REQUIREMENT_APPROVAL:1");
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM work_item_events WHERE work_item_id = ?", Integer.class, requirementId))
                 .isOne();
@@ -200,7 +201,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         ownerId,
                         organizationId,
                         requirementId,
-                        WorkflowAction.REJECT_PRODUCT_REVIEW,
+                        WorkflowAction.REJECT_REQUIREMENT,
                         1,
                         "one-purpose-only",
                         "reject"))
@@ -224,7 +225,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         ownerId,
                         organizationId,
                         requirementId,
-                        WorkflowAction.REJECT_PRODUCT_REVIEW,
+                        WorkflowAction.REJECT_REQUIREMENT,
                         1,
                         "force-write-failure",
                         oversizedReason))
@@ -233,7 +234,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                         "SELECT CONCAT(status, ':', version) FROM work_items WHERE id = ?",
                         String.class,
                         requirementId))
-                .isEqualTo("PRODUCT_REVIEW:1");
+                .isEqualTo("REQUIREMENT_APPROVAL:1");
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM work_item_events WHERE work_item_id = ?", Integer.class, requirementId))
                 .isOne();
@@ -330,27 +331,33 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         assertThat(transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "product-submit", null).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
 
+        assertThat(transition(WorkflowAction.APPROVE_REQUIREMENT, 1, "requirement-approve", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(transition(WorkflowAction.START_PRODUCT_REVIEW, 2, "review-start", null).getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode approved = objectMapper.readTree(transition(
-                WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "product-approve", null).getBody());
-        assertThat(approved.get("status").asText()).isEqualTo("UX_IN_PROGRESS");
+                WorkflowAction.APPROVE_PRODUCT_REVIEW, 3, "product-approve", null).getBody());
+        assertThat(approved.get("status").asText()).isEqualTo("READY_FOR_UX");
         JsonNode refreshed = objectMapper.readTree(get("/api/v1/work-items/" + requirementId
                         + "?organizationId=" + organizationId + "&organizationId=" + organizationId).getBody());
-        assertThat(refreshed.get("status").asText()).isEqualTo("UX_IN_PROGRESS");
-        assertThat(refreshed.get("availableActions").get(0).asText()).isEqualTo("SUBMIT_UX_REVIEW");
+        assertThat(refreshed.get("status").asText()).isEqualTo("READY_FOR_UX");
+        assertThat(refreshed.get("availableActions").get(0).asText()).isEqualTo("START_UX");
         assertThat(jdbcTemplate.queryForList(
                         "SELECT status FROM review_records WHERE work_item_id=? ORDER BY id",
                         String.class, requirementId))
-                .containsExactly("SUBMITTED", "APPROVED");
+                .containsExactly("SUBMITTED", "APPROVED", "SUBMITTED", "APPROVED");
     }
 
     @Test
     void uxReviewFreezesPublishedSpecAndDoesNotLetUxTaskCompletionBypassRequirementReview() throws Exception {
         completeProductReviewPrerequisites();
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "ux-product-submit", null);
-        transition(WorkflowAction.APPROVE_PRODUCT_REVIEW, 1, "ux-product-approve", null);
-
-        long uxTaskId = jdbcTemplate.queryForObject(
-                "SELECT id FROM work_items WHERE parent_id = ? AND type = 'UX_TASK'", Long.class, requirementId);
+        transition(WorkflowAction.APPROVE_REQUIREMENT, 1, "ux-requirement-approve", null);
+        transition(WorkflowAction.START_PRODUCT_REVIEW, 2, "ux-review-start", null);
+        transition(WorkflowAction.APPROVE_PRODUCT_REVIEW, 3, "ux-product-approve", null);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM work_items WHERE parent_id=?", Integer.class, requirementId)).isZero();
+        JsonNode createdTask = objectMapper.readTree(csrf().post("/api/v1/work-items/" + requirementId + "/tasks",
+                Map.of("type", "UX_TASK", "title", "UX design", "assigneeUserId", ownerId), ownerCookie, String.class).getBody());
+        long uxTaskId = createdTask.get("id").asLong();
+        transition(WorkflowAction.START_UX, 4, "ux-stage-start", null);
         transition(WorkflowAction.START, 0, "ux-task-start", null, uxTaskId);
         transition(WorkflowAction.SUBMIT_REVIEW, 1, "ux-task-submit", null, uxTaskId);
         transition(WorkflowAction.APPROVE, 2, "ux-task-approve", null, uxTaskId);
@@ -359,7 +366,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 .isEqualTo("UX_IN_PROGRESS");
 
         ResponseEntity<String> missingSpec = transition(
-                WorkflowAction.SUBMIT_UX_REVIEW, 2, "ux-requirement-missing-spec", null);
+                WorkflowAction.SUBMIT_UX_REVIEW, 5, "ux-requirement-missing-spec", null);
         assertThat(missingSpec.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(objectMapper.readTree(missingSpec.getBody()).at("/details/missing/0").asText())
                 .isEqualTo("publishedUxSpec");
@@ -367,7 +374,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         JsonNode spec = publishDocument("UX_SPEC", "Login UX Spec", "User flow and exception states");
         JsonNode submitted = objectMapper.readTree(transition(
                         WorkflowAction.SUBMIT_UX_REVIEW,
-                        2,
+                        5,
                         "ux-requirement-submit",
                         null,
                         requirementId,
@@ -375,7 +382,7 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 .getBody());
         assertThat(submitted.get("status").asText()).isEqualTo("UX_REVIEW");
         JsonNode approved = objectMapper.readTree(transition(
-                        WorkflowAction.APPROVE_UX_REVIEW, 3, "ux-requirement-approve", null)
+                        WorkflowAction.APPROVE_UX_REVIEW, 6, "ux-final-approve", null)
                 .getBody());
         assertThat(approved.get("status").asText()).isEqualTo("READY_FOR_DEV");
         assertThat(jdbcTemplate.queryForObject(
@@ -395,50 +402,14 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     }
 
     @Test
-    void skipUxRequiresEnabledPolicyEligibleLabelAndAuditReason() throws Exception {
+    void legacySkipUxCannotBypassTheNewWorkflow() throws Exception {
         completeProductReviewPrerequisites();
         transition(WorkflowAction.SUBMIT_PRODUCT_REVIEW, 0, "skip-submit", null);
-
-        ResponseEntity<String> disabled = transition(
-                WorkflowAction.SKIP_UX, 1, "skip-disabled", "No user interface");
-        assertThat(disabled.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(objectMapper.readTree(disabled.getBody()).at("/details/missing/0").asText())
-                .isEqualTo("organizationPolicy.allowSkipUx");
-
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT allow_skip_ux FROM organization_policies WHERE organization_id=?",
-                Boolean.class, organizationId)).isFalse();
-        jdbcTemplate.update(
-                "UPDATE organization_policies SET allow_skip_ux=TRUE,version=version+1 WHERE organization_id=?",
-                organizationId);
-        ResponseEntity<String> ordinary = transition(
-                WorkflowAction.SKIP_UX, 1, "skip-ordinary", "No user interface");
-        assertThat(ordinary.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(objectMapper.readTree(ordinary.getBody()).at("/details/missing/0").asText())
-                .isEqualTo("eligibleSkipUxLabel");
-
-        ResponseEntity<String> labelAdded = csrf().post(
-                "/api/v1/work-items/" + requirementId + "/labels?organizationId=" + organizationId
-                        + "&organizationId=" + organizationId,
-                Map.of("label", "BACKEND_ONLY"),
-                ownerCookie,
-                String.class);
-        assertThat(labelAdded.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        ResponseEntity<String> missingReason = transition(
-                WorkflowAction.SKIP_UX, 1, "skip-no-reason", "  ");
-        assertThat(missingReason.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(objectMapper.readTree(missingReason.getBody()).at("/details/missing/0").asText())
-                .isEqualTo("reason");
-
-        JsonNode skipped = objectMapper.readTree(transition(
-                        WorkflowAction.SKIP_UX, 1, "skip-success", "  API-only change  ")
-                .getBody());
-        assertThat(skipped.get("status").asText()).isEqualTo("READY_FOR_DEV");
-        assertThat(jdbcTemplate.queryForObject(
-                        "SELECT reason FROM work_item_events WHERE work_item_id = ? AND event_type = 'SKIP_UX'",
-                        String.class,
-                        requirementId))
-                .isEqualTo("API-only change");
+        jdbcTemplate.update("UPDATE organization_policies SET allow_skip_ux=TRUE WHERE organization_id=?", organizationId);
+        ResponseEntity<String> rejected = transition(WorkflowAction.SKIP_UX, 1, "skip-disabled", "API only");
+        assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM work_items WHERE id=?", String.class, requirementId)).isEqualTo("REQUIREMENT_APPROVAL");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM work_item_events WHERE work_item_id=? AND event_type='SKIP_UX'", Integer.class, requirementId)).isZero();
     }
 
     @Test
@@ -505,7 +476,8 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         insertMergeRequest(taskId, "merged", "task-head");
         ResponseEntity<String> completed = completeDevTask(taskId);
         assertThat(completed.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(objectMapper.readTree(completed.getBody()).get("status").asText()).isEqualTo("DONE");
+        assertThat(objectMapper.readTree(completed.getBody()).get("status").asText()).isEqualTo("WAITING_VERIFICATION");
+        assertThat(transition(WorkflowAction.APPROVE, 1, "verify-dev", null, taskId).getStatusCode()).isEqualTo(HttpStatus.OK);
         jdbcTemplate.update(
                 "UPDATE organization_policies SET ci_required=FALSE WHERE organization_id=?",
                 organizationId);
@@ -632,7 +604,8 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
         assertThat(graph.get("nodes")).extracting(node -> node.get("id").asText())
                 .containsExactly("work-item:" + requirementId, "work-item:" + uxTaskId,
                         "document:" + prd.get("id").asLong());
-        assertThat(graph.get("edges")).hasSize(3);
+        assertThat(graph.get("edges")).hasSize(4);
+        assertThat(graph.get("edges")).extracting(edge -> edge.get("type").asText()).contains("PARENT", "HAS_DOCUMENT", "RELATES_TO", "DEPENDS_ON");
         assertThat(graph.get("truncated").asBoolean()).isFalse();
 
     }
@@ -677,12 +650,13 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
                 requirementId);
         jdbcTemplate.update(
                 "INSERT INTO work_items (organization_id,item_number,item_key,type,title,description,status,"
-                        + "priority,parent_id,reporter_user_id,created_at,updated_at,version) "
-                        + "VALUES (?,2,'FORGE-2','DEV_TASK','Implement','',?,'MEDIUM',?,?,"
+                        + "priority,parent_id,reporter_user_id,assignee_user_id,created_at,updated_at,version) "
+                        + "VALUES (?,2,'FORGE-2','DEV_TASK','Implement','',?,'MEDIUM',?,?,?,"
                         + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
                 organizationId,
                 taskStatus,
                 requirementId,
+                ownerId,
                 ownerId);
         return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
@@ -810,6 +784,12 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     }
 
     private long createWorkItem(long ignoredOrganizationId, String title, String type) throws Exception {
+        if (!"REQUIREMENT".equals(type)) {
+            long number = jdbcTemplate.queryForObject("SELECT next_value FROM organization_item_sequences WHERE organization_id=?", Long.class, organizationId);
+            jdbcTemplate.update("UPDATE organization_item_sequences SET next_value=next_value+1 WHERE organization_id=?", organizationId);
+            jdbcTemplate.update("INSERT INTO work_items(organization_id,item_number,item_key,type,title,description,status,priority,parent_id,reporter_user_id,assignee_user_id,created_at,updated_at,version) VALUES(?,?,?,?,?,'','TODO','MEDIUM',?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)", organizationId, number, "REQ-"+number, type, title, requirementId, ownerId, ownerId);
+            return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        }
         ResponseEntity<String> response = csrf().post(
                 "/api/v1/work-items",
                 Map.of(

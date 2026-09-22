@@ -28,6 +28,8 @@ ADR 用于记录影响多个模块、长期演进或安全边界的架构决策�
 | [ADR-020](ADR-020-shared-server-infrastructure.md) | Accepted | 单机多项目共享服务器级基础设施 |
 | [ADR-021](ADR-021-role-model-global-and-domain-admins.md) | Accepted | 全局管理员与四个领域管理员的角色模型 |
 
+| [ADR-022](ADR-022-requirement-leads-and-task-lifecycle.md) | Accepted | 需求负责人、执行人、四方会签与统一任务生命周期 |
+
 ## 何时新增 ADR
 
 更换事实数据库、会话或向量库；引入消息队列或微服务；修改认证模式、核心建模、Agent Tool 安全边界、实时协议、SCM 或自托管拓扑时，必须先新增 ADR，再同步设计、契约与测试。

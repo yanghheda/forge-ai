@@ -57,12 +57,13 @@ class BugPersistenceIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void createsRelationsThenPersistsFixVerifyAndReopenHistory() {
+        jdbc.update("UPDATE work_items SET parent_id=2905 WHERE id=2906");
         WorkItem item = workItems.create(2903, 2901, WorkItemType.BUG, "Checkout fails", "HTTP 500",
-                WorkItemStatus.OPEN, WorkItemPriority.HIGH, null, null);
+                WorkItemStatus.TODO, WorkItemPriority.HIGH, 2901L, null);
         BugView created = bugs.create(item, BugSeverity.BLOCKER, 2905, null, null,
                 List.of("Open checkout", "Submit order"), "Order succeeds", "HTTP 500", 2906L);
 
-        assertThat(created.status()).isEqualTo(WorkItemStatus.OPEN);
+        assertThat(created.status()).isEqualTo(WorkItemStatus.TODO);
         assertThat(created.severity()).isEqualTo(BugSeverity.BLOCKER);
         assertThat(created.devTaskId()).isEqualTo(2906);
         assertThat(created.devTaskKey()).isEqualTo("BUG-2");
@@ -73,14 +74,14 @@ class BugPersistenceIntegrationTest extends InfrastructureIntegrationTestBase {
         BugView fixing = bugs.transition(2903, created.id(), 2901, BugAction.START_FIX,
                 "IN_PROGRESS", "", List.of(), 0, "bug-start");
         BugView resolved = bugs.transition(2903, created.id(), 2901, BugAction.RESOLVE,
-                "RESOLVED", "Handle null cart", List.of("mr://42", "commit://abc"), fixing.version(), "bug-resolve");
+                "WAITING_VERIFICATION", "Handle null cart", List.of("mr://42", "commit://abc"), fixing.version(), "bug-resolve");
         BugView verified = bugs.transition(2903, created.id(), 2901, BugAction.VERIFY,
-                "VERIFIED", "Retested", List.of(), resolved.version(), "bug-verify");
+                "DONE", "Retested", List.of(), resolved.version(), "bug-verify");
         BugView reopened = bugs.transition(2903, created.id(), 2901, BugAction.REOPEN,
-                "OPEN", "Regression reproduced", List.of(), verified.version(), "bug-reopen");
+                "IN_PROGRESS", "Regression reproduced", List.of(), verified.version(), "bug-reopen");
 
         assertThat(resolved.fixEvidence()).containsExactly("mr://42", "commit://abc");
-        assertThat(reopened.status()).isEqualTo(WorkItemStatus.OPEN);
+        assertThat(reopened.status()).isEqualTo(WorkItemStatus.IN_PROGRESS);
         assertThat(jdbc.queryForObject("SELECT verified_by FROM bug_details WHERE work_item_id=?",
                 Long.class, created.id())).isNull();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM work_item_events WHERE work_item_id=?",

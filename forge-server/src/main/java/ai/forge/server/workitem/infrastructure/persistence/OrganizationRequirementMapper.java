@@ -18,9 +18,9 @@ public interface OrganizationRequirementMapper {
             + "JOIN users reporter ON reporter.id = wi.reporter_user_id "
             + "WHERE wi.organization_id = #{organizationId} "
             + "AND wi.type = 'REQUIREMENT' AND wi.deleted_at IS NULL "
-            + "<if test='participantUserId != null'>AND EXISTS (SELECT 1 FROM requirement_participants rp "
+            + "<if test='participantUserId != null'>AND (EXISTS (SELECT 1 FROM requirement_participants rp "
             + "WHERE rp.requirement_id = wi.id AND rp.organization_id = #{organizationId} "
-            + "AND rp.user_id = #{participantUserId})</if> "
+            + "AND rp.user_id = #{participantUserId}) OR EXISTS (SELECT 1 FROM requirement_executors re WHERE re.organization_id=#{organizationId} AND re.requirement_id=wi.id AND re.user_id=#{participantUserId}))</if> "
             + "<if test='query != null and query != &quot;&quot;'>AND (wi.title LIKE CONCAT('%', #{query}, '%') "
             + "OR wi.item_key LIKE CONCAT('%', #{query}, '%') OR wi.description LIKE CONCAT('%', #{query}, '%'))</if> "
             + "<if test='status != null'>AND wi.status = #{status}</if> "
@@ -49,9 +49,9 @@ public interface OrganizationRequirementMapper {
     @Select("<script>SELECT COUNT(*) FROM work_items wi "
             + "WHERE wi.organization_id = #{organizationId} "
             + "AND wi.type = 'REQUIREMENT' AND wi.deleted_at IS NULL "
-            + "<if test='participantUserId != null'>AND EXISTS (SELECT 1 FROM requirement_participants rp "
+            + "<if test='participantUserId != null'>AND (EXISTS (SELECT 1 FROM requirement_participants rp "
             + "WHERE rp.requirement_id = wi.id AND rp.organization_id = #{organizationId} "
-            + "AND rp.user_id = #{participantUserId})</if> "
+            + "AND rp.user_id = #{participantUserId}) OR EXISTS (SELECT 1 FROM requirement_executors re WHERE re.organization_id=#{organizationId} AND re.requirement_id=wi.id AND re.user_id=#{participantUserId}))</if> "
             + "<if test='query != null and query != &quot;&quot;'>AND (wi.title LIKE CONCAT('%', #{query}, '%') "
             + "OR wi.item_key LIKE CONCAT('%', #{query}, '%') OR wi.description LIKE CONCAT('%', #{query}, '%'))</if> "
             + "<if test='status != null'>AND wi.status = #{status}</if></script>")
@@ -80,7 +80,7 @@ public interface OrganizationRequirementMapper {
             + "JOIN member_roles mr ON mr.organization_member_id = om.id "
             + "JOIN roles r ON r.id = mr.role_id "
             + "WHERE om.organization_id = #{organizationId} AND om.user_id = #{userId} AND om.status = 'ACTIVE' "
-            + "AND r.code IN (#{role}, 'OWNER'))")
+            + "AND r.code = CONCAT(#{role}, '_ADMIN'))")
     boolean memberCanFillRole(
             @Param("organizationId") long organizationId,
             @Param("userId") long userId,
@@ -90,7 +90,7 @@ public interface OrganizationRequirementMapper {
             + "JOIN member_roles mr ON mr.organization_member_id = om.id "
             + "JOIN roles r ON r.id = mr.role_id "
             + "WHERE om.organization_id = #{organizationId} AND om.user_id = #{userId} AND om.status = 'ACTIVE' "
-            + "AND r.code = #{role})")
+            + "AND r.code IN (#{role}, CONCAT(#{role}, '_ADMIN')))")
     boolean memberHasRole(
             @Param("organizationId") long organizationId,
             @Param("userId") long userId,

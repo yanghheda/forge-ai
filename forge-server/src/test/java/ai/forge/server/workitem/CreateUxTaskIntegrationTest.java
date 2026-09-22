@@ -51,7 +51,7 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
         jdbcTemplate.update("UPDATE work_items SET parent_id = NULL");
         for (String table : List.of(
                 "outbox_events", "work_item_relations", "work_item_labels", "organization_policies", "work_item_events",
-                "review_records", "requirement_details", "work_items", "organization_item_sequences",                 "organization_policies", "audit_logs", "member_roles", "organization_members", "organizations",
+                "review_records", "requirement_participants", "requirement_details", "work_items", "organization_item_sequences",                 "organization_policies", "audit_logs", "member_roles", "organization_members", "organizations",
                 "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }
@@ -81,12 +81,14 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
                 ownerCookie,
                 String.class);
         requirementId = objectMapper.readTree(requirement.getBody()).get("id").asLong();
+        ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(jdbcTemplate, organizationId, requirementId, ownerId);
+        jdbcTemplate.update("UPDATE work_items SET status='READY_FOR_UX' WHERE id=?",requirementId);
     }
 
     @Test
     void createUxTaskPersistsParentLinkAndServerControlledDefaults() {
         var uxTask = commandService.createUxTask(
-                ownerId, organizationId, requirementId, "注册流程重设计", "降低放弃率", null, null);
+                ownerId, organizationId, requirementId, "注册流程重设计", "降低放弃率", null, ownerId);
 
         assertThat(uxTask.type().name()).isEqualTo("UX_TASK");
         assertThat(uxTask.status().name()).isEqualTo("TODO");
@@ -104,11 +106,11 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
         long nonRequirementParent = createNonRequirementParent();
 
         assertThatThrownBy(() -> commandService.createUxTask(
-                ownerId, organizationId, 999_999L, "孤儿", null, null, null))
+                ownerId, organizationId, 999_999L, "孤儿", null, null, ownerId))
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> commandService.createUxTask(
-                ownerId, organizationId, nonRequirementParent, "错误父项", null, null, null))
-                .isInstanceOf(IllegalArgumentException.class);
+                ownerId, organizationId, nonRequirementParent, "错误父项", null, null, ownerId))
+                .isInstanceOf(ai.forge.server.workitem.domain.InvalidTransitionException.class);
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM work_items WHERE type = 'UX_TASK'", Long.class))
                 .isZero();
@@ -117,21 +119,21 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
     @Test
     void createUxTaskRejectsNonRequirementParent() {
         var firstUxTask = commandService.createUxTask(
-                ownerId, organizationId, requirementId, "第一个 UX Task", null, null, null);
+                ownerId, organizationId, requirementId, "第一个 UX Task", null, null, ownerId);
 
         assertThatThrownBy(() -> commandService.createUxTask(
-                ownerId, organizationId, firstUxTask.id(), "嵌套 UX Task", null, null, null))
-                .isInstanceOf(IllegalArgumentException.class);
+                ownerId, organizationId, firstUxTask.id(), "嵌套 UX Task", null, null, ownerId))
+                .isInstanceOf(ai.forge.server.workitem.domain.InvalidTransitionException.class);
     }
 
     @Test
     void createUxTaskFailsWhenUxCreatePermissionIsRevoked() {
         jdbcTemplate.update(
-                "DELETE FROM role_permissions WHERE role_id = (SELECT id FROM roles WHERE code = 'OWNER') "
+                "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE code IN ('OWNER','UX_ADMIN')) "
                         + "AND permission_id = (SELECT id FROM permissions WHERE code = 'ux.create')");
 
         assertThatThrownBy(() -> commandService.createUxTask(
-                ownerId, organizationId, requirementId, "权限撤回后的创建", null, null, null))
+                ownerId, organizationId, requirementId, "权限撤回后的创建", null, null, ownerId))
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM work_items WHERE type = 'UX_TASK'", Long.class))
@@ -141,26 +143,12 @@ class CreateUxTaskIntegrationTest extends InfrastructureIntegrationTestBase {
     @org.junit.jupiter.api.AfterEach
     void restoreOwnerUxCreatePermissionForTheNextTestMethod() {
         jdbcTemplate.update(
-                "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES "
-                        + "((SELECT id FROM roles WHERE code = 'OWNER'), "
-                        + "(SELECT id FROM permissions WHERE code = 'ux.create'))");
+                "INSERT IGNORE INTO role_permissions (role_id, permission_id) SELECT r.id,p.id FROM roles r JOIN permissions p ON p.code='ux.create' WHERE r.code IN ('OWNER','UX_ADMIN')");
     }
 
     private long createNonRequirementParent() {
-        try {
-            ResponseEntity<String> task = csrf().post(
-                    "/api/v1/work-items",
-                    Map.of(
-                            "type", "DEV_TASK",
-                            "title", "不能作为 UX 父项的开发任务",
-                            "description", "invalid parent fact",
-                            "priority", "MEDIUM"),
-                    ownerCookie,
-                    String.class);
-            return objectMapper.readTree(task.getBody()).get("id").asLong();
-        } catch (Exception exception) {
-            throw new IllegalStateException("Non-requirement parent was not created", exception);
-        }
+        jdbcTemplate.update("INSERT INTO work_items(organization_id,item_number,item_key,type,title,description,status,priority,parent_id,reporter_user_id,created_at,updated_at,version) VALUES(?,999,'REQ-999','DEV_TASK','Other task','','TODO','MEDIUM',?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",organizationId,requirementId,ownerId);
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
     }
 
     private String login(String email) {

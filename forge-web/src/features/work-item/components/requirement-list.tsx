@@ -12,7 +12,7 @@ import { listOrganizationRequirements } from "../api/work-item-api";
 import { statusLabel } from "../utils/requirement-detail-display";
 import styles from "./requirement-list.module.css";
 
-const statuses = ["DRAFT", "PRODUCT_REVIEW", "UX_IN_PROGRESS", "UX_REVIEW", "READY_FOR_DEV", "IN_DEVELOPMENT", "READY_FOR_QA", "IN_QA", "READY_FOR_RELEASE", "RELEASED", "DONE"];
+const statuses = ["DRAFT", "REQUIREMENT_APPROVAL", "READY_FOR_REVIEW", "PRODUCT_REVIEW", "READY_FOR_UX", "UX_IN_PROGRESS", "UX_REVIEW", "READY_FOR_DEV", "IN_DEVELOPMENT", "READY_FOR_QA", "IN_QA", "IN_FIX_VERIFICATION", "IN_ACCEPTANCE", "READY_FOR_RELEASE", "RELEASED", "DONE"];
 
 /* 需求列表是「我的需求」唯一的浏览入口；全局仪表盘不再承担列表职责。 */
 export function RequirementList({ mine = false }: { mine?: boolean }) {

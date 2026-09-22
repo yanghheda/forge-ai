@@ -215,7 +215,7 @@ export function UxWorkspaceView({
   const currentVersion = model.versions[0];
   const latestReview = [...model.activity].reverse().find((item) => item.action?.includes("UX_REVIEW"));
   const missing = model.workflow.guardHints.SUBMIT_UX_REVIEW ?? [];
-  const approved = ["READY_FOR_DEV", "IN_DEVELOPMENT", "READY_FOR_QA", "IN_QA", "READY_FOR_RELEASE", "RELEASED", "DONE"].includes(model.requirement.status);
+  const approved = ["READY_FOR_DEV", "IN_DEVELOPMENT", "READY_FOR_QA", "IN_QA", "IN_FIX_VERIFICATION", "IN_ACCEPTANCE", "READY_FOR_RELEASE", "RELEASED", "DONE"].includes(model.requirement.status);
   return (
     <div className={styles.workspace}>
       <header className={styles.head}>
@@ -249,7 +249,7 @@ export function UxWorkspaceView({
               <Row label="关联需求" value={model.requirement.itemKey} />
             </dl>
             <div className={styles.progress}>
-              <span style={{ width: approved ? "100%" : model.task?.status === "IN_REVIEW" ? "80%" : "40%" }} />
+              <span style={{ width: approved ? "100%" : model.task?.status === "WAITING_VERIFICATION" ? "80%" : "40%" }} />
             </div>
           </Panel>
           <Panel title="文档版本" extra={`共 ${model.versions.length} 个版本`}>

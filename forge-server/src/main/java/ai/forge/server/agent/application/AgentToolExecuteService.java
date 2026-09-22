@@ -22,6 +22,7 @@ import ai.forge.server.workitem.application.WorkItemCommandService;
 import ai.forge.server.workitem.application.WorkItemQueryService;
 import ai.forge.server.workitem.application.RequirementTransitionService;
 import ai.forge.server.workitem.application.RequirementTransitionStore;
+import ai.forge.server.workitem.domain.WorkItemType;
 import ai.forge.server.workitem.domain.WorkflowAction;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -99,6 +100,9 @@ public class AgentToolExecuteService {
     /* 确保 MEDIUM 写副作用与幂等成功记录在同一个本地事务内提交。 */
     private final TransactionTemplate transactionTemplate;
 
+    /* 向受控模型提供已核验的负责人及执行人，禁止凭空指派。 */
+    private final ai.forge.server.workitem.application.OrganizationRequirementStore participants;
+
     public AgentToolExecuteService(
             ToolContractRegistry toolContractRegistry,
             AgentRunStore runStore,
@@ -119,7 +123,8 @@ public class AgentToolExecuteService {
             ReleaseService releaseService,
             DeploymentService deploymentService,
             ObjectMapper objectMapper,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager, ai.forge.server.workitem.application.OrganizationRequirementStore participants) {
+        this.participants = participants;
         this.toolContractRegistry = toolContractRegistry;
         this.runStore = runStore;
         this.toolCallStore = toolCallStore;
@@ -465,6 +470,12 @@ public class AgentToolExecuteService {
         if (item.assigneeUserId() != null) {
             result.put("assigneeUserId", item.assigneeUserId());
         }
+        if (item.type() == WorkItemType.REQUIREMENT) {
+            result.set("participants", objectMapper.valueToTree(participants.findParticipants(organizationId, item.id())));
+            var hints = requirementTransitionService.hints(run.userId(), item);
+            result.set("availableActions", objectMapper.valueToTree(hints.availableActions()));
+            result.set("guardHints", objectMapper.valueToTree(hints.guardHints()));
+        }
         result.put("version", item.version());
         return result;
     }
@@ -554,7 +565,7 @@ public class AgentToolExecuteService {
                 arguments.path("title").asText(),
                 textOrNull(arguments, "description"),
                 enumOrNull(arguments, "priority"),
-                longOrNull(arguments, "assigneeId"));
+                longOrNull(arguments, "assigneeUserId"));
         ObjectNode result = objectMapper.createObjectNode();
         result.put("id", item.id());
         result.put("itemKey", item.itemKey());
@@ -571,7 +582,7 @@ public class AgentToolExecuteService {
                 arguments.path("requirementId").asLong(),
                 arguments.path("title").asText(),
                 textOrNull(arguments, "description"),
-                longOrNull(arguments, "assigneeId"));
+                longOrNull(arguments, "assigneeUserId"));
         ObjectNode result = objectMapper.createObjectNode();
         result.put("id", item.id());
         result.put("itemKey", item.itemKey());
@@ -637,7 +648,7 @@ public class AgentToolExecuteService {
                 longOrNull(arguments, "testResultId"), longOrNull(arguments, "devTaskId"),
                 arguments.path("title").asText(),
                 ai.forge.server.qa.domain.BugSeverity.valueOf(arguments.path("severity").asText()), steps,
-                arguments.path("expectedResult").asText(), arguments.path("actualResult").asText());
+                arguments.path("expectedResult").asText(), arguments.path("actualResult").asText(), longOrNull(arguments, "assigneeUserId"));
         ObjectNode result = objectMapper.createObjectNode();
         result.put("id", created.id());
         result.put("itemKey", created.itemKey());

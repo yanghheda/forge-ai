@@ -1,12 +1,10 @@
 "use client";
 
-import { Alert, Button, Drawer, Form, Input, Message, Select, Spin } from "@arco-design/web-react";
-import { IconPlus } from "@arco-design/web-react/icon";
+import { Alert, Button, Message, Spin } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 
 import { formatRequestError } from "@/lib/api";
-import { QaPanel } from "@/features/work-item";
+import { QaPanel, StageTasks, RequirementWorkflowControls, DevelopmentBugs } from "@/features/work-item";
 import { listBoardItems, moveBoardItem } from "../api/console-api";
 import { RequirementContext } from "./requirement-context";
 import styles from "./console.module.css";
@@ -17,54 +15,34 @@ import { ReleaseWorkspace } from "./release-workspace";
 type DeliveryKind = "document" | "ux" | "tasks" | "development" | "qa" | "release";
 
 export function DeliveryScreen({ kind, requirementId }: { kind: DeliveryKind; requirementId?: string }) {
-  const [drawer, setDrawer] = useState(false);
-  const [form] = Form.useForm();
-  const closeDrawer = () => {
-    form.resetFields();
-    setDrawer(false);
-  };
   return (
     <section className={styles.page} data-page={kind}>
       {requirementId && <RequirementContext active={kind === "tasks" ? "development" : kind} requirementId={requirementId} />}
       {kind === "document" && <Document />}
-      {kind === "ux" && requirementId && <UxDelivery requirementId={Number(requirementId)} />}
-      {kind === "tasks" && <Tasks open={() => setDrawer(true)} />}
-      {kind === "development" && requirementId && <DevelopmentWorkspace requirementId={Number(requirementId)} />}
-      {kind === "qa" && requirementId && <Qa requirementId={Number(requirementId)} />}
+      {kind === "ux" && requirementId && (
+        <>
+          <StageTasks requirementId={Number(requirementId)} type="UX_TASK" />
+          <RequirementWorkflowControls requirementId={Number(requirementId)} />
+          <UxDelivery requirementId={Number(requirementId)} />
+        </>
+      )}
+      {kind === "tasks" && <Tasks />}
+      {kind === "development" && requirementId && (
+        <>
+          <StageTasks requirementId={Number(requirementId)} type="DEV_TASK" />
+          <RequirementWorkflowControls requirementId={Number(requirementId)} />
+          <DevelopmentWorkspace requirementId={Number(requirementId)} />
+          <DevelopmentBugs requirementId={Number(requirementId)} />
+        </>
+      )}
+      {kind === "qa" && requirementId && (
+        <>
+          <StageTasks requirementId={Number(requirementId)} type="QA_TASK" />
+          <RequirementWorkflowControls requirementId={Number(requirementId)} />
+          <Qa requirementId={Number(requirementId)} />
+        </>
+      )}
       {kind === "release" && requirementId && <ReleaseWorkspace requirementId={Number(requirementId)} />}
-      <Drawer
-        width={520}
-        visible={drawer}
-        title={kind === "qa" ? "新建测试用例" : "新建任务"}
-        footer={
-          <>
-            <Button onClick={closeDrawer}>取消</Button>
-            <Button type="primary" onClick={() => form.submit()}>
-              {kind === "qa" ? "创建测试用例" : "创建任务"}
-            </Button>
-          </>
-        }
-        onCancel={closeDrawer}
-      >
-        <div role="dialog" aria-label={kind === "qa" ? "新建测试用例" : "新建任务"}>
-          <Form form={form} className={styles.form} layout="vertical" initialValues={{ type: kind === "qa" ? "功能测试" : "开发任务" }} onSubmit={closeDrawer}>
-            <Form.Item field="title" label="标题" required rules={[{ required: true, message: "请输入标题" }]}>
-              <Input placeholder="请输入清晰、可执行的标题" />
-            </Form.Item>
-            <Form.Item field="type" label="类型" required>
-              <Select
-                options={["功能测试", "回归测试", "开发任务", "技术调研"].map((value) => ({
-                  label: value,
-                  value,
-                }))}
-              />
-            </Form.Item>
-            <Form.Item field="description" label="描述">
-              <Input.TextArea rows={7} placeholder="补充范围、前置条件与验收标准" />
-            </Form.Item>
-          </Form>
-        </div>
-      </Drawer>
     </section>
   );
 }
@@ -139,7 +117,7 @@ function Document() {
     </>
   );
 }
-function Tasks({ open }: { open: () => void }) {
+function Tasks() {
   const queryClient = useQueryClient();
   const board = useQuery({ queryKey: ["task-board"], queryFn: () => listBoardItems() });
   const move = useMutation({
@@ -150,21 +128,13 @@ function Tasks({ open }: { open: () => void }) {
   const lanes = [
     ["TODO", "待处理"],
     ["IN_PROGRESS", "进行中"],
-    ["BLOCKED", "已阻塞"],
+    ["BLOCKED", "阻塞中"],
+    ["WAITING_VERIFICATION", "待验证"],
     ["DONE", "已完成"],
   ] as const;
   return (
     <>
-      <Head
-        title="任务看板"
-        description="公司全部需求的交付任务与阻塞状态"
-        action={
-          <Button type="primary" onClick={open}>
-            <IconPlus />
-            新建任务
-          </Button>
-        }
-      />
+      <Head title="任务看板" description="公司全部需求的交付任务与阻塞状态" action={<a href="/my-requirements">进入需求创建任务</a>} />
       {board.isPending && <Spin tip="正在加载看板…" />}
       {board.isError && <Alert type="error" content={formatRequestError(board.error)} />}
       <div className={styles.board}>
@@ -177,7 +147,8 @@ function Tasks({ open }: { open: () => void }) {
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 const id = Number(event.dataTransfer.getData("text/work-item-id"));
-                if (id) move.mutate({ id, lane, position: items.length * 1000 + 1000 });
+                if (id && board.data?.find((item) => item.id === id)?.lane === lane) move.mutate({ id, lane, position: items.length * 1000 + 1000 });
+                else Message.info("请进入任务工作区执行状态操作。");
               }}
             >
               <header>
@@ -187,8 +158,8 @@ function Tasks({ open }: { open: () => void }) {
               {items.map((item) => (
                 <article draggable key={item.id} onDragStart={(event) => event.dataTransfer.setData("text/work-item-id", String(item.id))}>
                   <code>{item.itemKey}</code>
-                  <h3>{item.title}</h3>
-                  <p>{item.type} · 拖拽到其他泳道可更新状态投影</p>
+                  <h3>{item.requirementId ? <a href={`/requirements/${item.requirementId}/${item.type === "UX_TASK" ? "ux" : item.type === "QA_TASK" ? "qa" : "development"}`}>{item.title}</a> : item.title}</h3>
+                  <p>{{ UX_TASK: "设计任务", DEV_TASK: "开发任务", QA_TASK: "测试任务", BUG: "缺陷任务" }[item.type] ?? item.type} · 同列拖拽排序</p>
                   <footer>
                     <span className={styles.avatar}>{item.assigneeUserId ?? "—"}</span>
                     <time>#{item.position}</time>
@@ -208,13 +179,5 @@ function Qa({ requirementId }: { requirementId: number }) {
       <Head title="QA 测试" description="测试用例、执行结果与质量门禁" />
       <QaPanel organizationId={0} requirementId={requirementId} onChanged={async () => undefined} />
     </>
-  );
-}
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className={styles.stat}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }

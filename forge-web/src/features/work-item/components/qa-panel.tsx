@@ -8,7 +8,25 @@ import { useState } from "react";
 import { canEditModule, getCurrentUser } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
 import { bugActionLabel, guardHintLabel, testResultLabel } from "@/lib/labels";
-import { completeTestRun, createBug, createTestCase, createTestRun, getLatestTestRun, listBugs, listTestCases, transitionBug, updateTestResult, type BugView, type TestCasePriority, type TestCaseType, type TestRunView } from "../api/work-item-api";
+import {
+  completeTestRun,
+  createBug,
+  createTestCase,
+  createTestRun,
+  getLatestTestRun,
+  listBugs,
+  listTestCases,
+  transitionBug,
+  updateTestResult,
+  type BugView,
+  type BugAction,
+  getRequirementParticipants,
+  listRequirementMembers,
+  type TestCasePriority,
+  type TestCaseType,
+  type TestRunView,
+} from "../api/work-item-api";
+import { statusLabel } from "../utils/requirement-detail-display";
 import styles from "./qa-panel.module.css";
 
 type ResultChoice = "IN_PROGRESS" | "PASS" | "FAIL" | "BLOCKED" | "SKIPPED";
@@ -18,6 +36,8 @@ export function QaPanel({ organizationId, requirementId, onChanged }: { organiza
   const client = useQueryClient();
   const key = ["qa", organizationId, requirementId];
   const user = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
+  const participants = useQuery({ queryKey: ["requirements", requirementId, "participants"], queryFn: () => getRequirementParticipants(requirementId) });
+  const members = useQuery({ queryKey: ["requirements", "members"], queryFn: () => listRequirementMembers() });
   const cases = useQuery({ queryKey: [...key, "cases"], queryFn: () => listTestCases(organizationId, requirementId) });
   const run = useQuery({ queryKey: [...key, "run"], queryFn: () => getLatestTestRun(organizationId, requirementId), retry: false });
   const bugs = useQuery({ queryKey: [...key, "bugs"], queryFn: () => listBugs(organizationId, requirementId) });
@@ -62,7 +82,7 @@ export function QaPanel({ organizationId, requirementId, onChanged }: { organiza
   });
   const complete = useMutation({ mutationFn: () => completeTestRun({ organizationId, runId: run.data!.id, expectedVersion: run.data!.version }), onSuccess: refresh });
   const createManualBug = useMutation({
-    mutationFn: (value: { title: string; severity: BugView["severity"]; reproductionSteps: string; expectedResult: string; actualResult: string }) =>
+    mutationFn: (value: { assigneeUserId: number; title: string; severity: BugView["severity"]; reproductionSteps: string; expectedResult: string; actualResult: string }) =>
       createBug({
         organizationId,
         requirementId,
@@ -74,6 +94,7 @@ export function QaPanel({ organizationId, requirementId, onChanged }: { organiza
           .filter(Boolean),
         expectedResult: value.expectedResult,
         actualResult: value.actualResult,
+        assigneeUserId: value.assigneeUserId,
       }),
     onSuccess: () => {
       setBugDrawer(false);
@@ -88,7 +109,7 @@ export function QaPanel({ organizationId, requirementId, onChanged }: { organiza
   });
   const error = cases.error ?? bugs.error ?? createCase.error ?? createRun.error ?? update.error ?? complete.error ?? createManualBug.error ?? moveBug.error;
   const stats = runStats(run.data);
-  const blockingBugs = (bugs.data ?? []).filter((bug) => ["BLOCKER", "CRITICAL"].includes(bug.severity) && !["VERIFIED", "CLOSED", "CANCELLED"].includes(bug.status));
+  const blockingBugs = (bugs.data ?? []).filter((bug) => ["BLOCKER", "CRITICAL"].includes(bug.severity) && bug.status !== "DONE");
 
   if (cases.isPending || bugs.isPending)
     return (
@@ -197,6 +218,9 @@ export function QaPanel({ organizationId, requirementId, onChanged }: { organiza
       >
         <div role="dialog" aria-label="创建缺陷">
           <Form form={bugForm} layout="vertical" initialValues={{ severity: "MAJOR" }} onSubmit={(value) => createManualBug.mutate(value)}>
+            <Form.Item field="assigneeUserId" label="修复执行人" rules={[{ required: true, message: "请选择需求开发执行人" }]}>
+              <Select aria-label="缺陷修复执行人" placeholder="选择开发执行人" options={(members.data ?? []).filter((m) => participants.data?.find((p) => p.role === "DEVELOPER")?.executorUserIds?.includes(m.userId)).map((m) => ({ value: m.userId, label: m.displayName }))} />
+            </Form.Item>
             <Form.Item field="title" label="缺陷标题" required rules={[{ required: true }]}>
               <Input />
             </Form.Item>
@@ -390,19 +414,17 @@ function GatePanel({ run, blockingBugs }: { run?: TestRunView; blockingBugs: Bug
   );
 }
 
-type BugAction = "START_FIX" | "RESOLVE" | "VERIFY" | "CLOSE" | "REOPEN";
 export function BugList({ bugs, readOnly = false, onAction }: { bugs: BugView[]; readOnly?: boolean; onAction: (bug: BugView, action: BugAction, reason?: string, evidence?: string) => void }) {
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [evidence, setEvidence] = useState<Record<number, string>>({});
   const [selected, setSelected] = useState<BugView>();
-  const actions = { OPEN: "START_FIX", IN_PROGRESS: "RESOLVE", RESOLVED: "VERIFY", VERIFIED: "CLOSE", CLOSED: "REOPEN", REOPENED: "START_FIX" } as const;
   return (
     <section className={styles.panel}>
       <header className={styles.sectionHead}>
         <strong>
           <IconExclamationCircle /> 缺陷
         </strong>
-        <span>OPEN → IN_PROGRESS → RESOLVED → VERIFIED → CLOSED</span>
+        <span>待处理 → 进行中 → 待验证 → 已完成 · 支持阻塞</span>
       </header>
       <div className={styles.tableWrap}>
         <table>
@@ -419,7 +441,7 @@ export function BugList({ bugs, readOnly = false, onAction }: { bugs: BugView[];
           </thead>
           <tbody>
             {bugs.map((bug) => {
-              const action = actions[bug.status as keyof typeof actions];
+              const actions = bug.availableActions ?? [];
               return (
                 <tr key={bug.id}>
                   <td>
@@ -437,7 +459,7 @@ export function BugList({ bugs, readOnly = false, onAction }: { bugs: BugView[];
                   <td>{bug.devTaskKey ?? "—"}</td>
                   <td>{bug.assigneeName ?? "—"}</td>
                   <td>
-                    {bug.status === "IN_PROGRESS" && !readOnly ? (
+                    {actions.length > 0 && !readOnly ? (
                       <div className={styles.fixInputs}>
                         <Input aria-label={`${bug.itemKey} 修复说明`} placeholder="修复说明" value={notes[bug.id] ?? ""} onChange={(value) => setNotes((current) => ({ ...current, [bug.id]: value }))} />
                         <Input aria-label={`${bug.itemKey} 修复证据`} placeholder="MR 或 Commit" value={evidence[bug.id] ?? ""} onChange={(value) => setEvidence((current) => ({ ...current, [bug.id]: value }))} />
@@ -447,13 +469,12 @@ export function BugList({ bugs, readOnly = false, onAction }: { bugs: BugView[];
                     )}
                   </td>
                   <td>
-                    {action && !readOnly ? (
-                      <Button type="text" disabled={action === "RESOLVE" && (!notes[bug.id]?.trim() || !evidence[bug.id]?.trim())} onClick={() => onAction(bug, action, notes[bug.id], evidence[bug.id])}>
-                        {bugActionLabel(action)}
-                      </Button>
-                    ) : (
-                      "—"
-                    )}
+                    {!readOnly &&
+                      actions.map((action) => (
+                        <Button key={action} type="text" disabled={(action === "RESOLVE" && (!notes[bug.id]?.trim() || !evidence[bug.id]?.trim())) || (["REOPEN", "BLOCK", "UNBLOCK"].includes(action) && !notes[bug.id]?.trim())} onClick={() => onAction(bug, action, notes[bug.id], evidence[bug.id])}>
+                          {bugActionLabel(action)}
+                        </Button>
+                      ))}
                   </td>
                 </tr>
               );
@@ -511,5 +532,5 @@ function ResultStatus({ value }: { value: string }) {
   );
 }
 function Status({ value }: { value: string }) {
-  return <span className={styles.status}>{value}</span>;
+  return <span className={styles.status}>{statusLabel[value] ?? value}</span>;
 }

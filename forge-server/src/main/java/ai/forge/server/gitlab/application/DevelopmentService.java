@@ -26,37 +26,38 @@ public class DevelopmentService {
     /* 隔离远端 GitLab 写入、查询与标准 DTO。 */
     private final SourceControlProvider sourceControl;
 
+    /* 统一任务创建和状态转换入口。 */
+    private final ai.forge.server.workitem.application.WorkItemCommandService commands;
+    /* 校验开发执行人的需求内职责。 */
+    private final ai.forge.server.workitem.application.DeliveryWorkflowPolicy policy;
+    /* 任务提交待验证必须经过通用状态机。 */
+    private final ai.forge.server.workitem.application.RequirementTransitionService transitions;
+
     public DevelopmentService(
             PermissionEvaluator permissions,
             DevelopmentStore store,
-            SourceControlProvider sourceControl) {
+            SourceControlProvider sourceControl, ai.forge.server.workitem.application.WorkItemCommandService commands,
+            ai.forge.server.workitem.application.DeliveryWorkflowPolicy policy, ai.forge.server.workitem.application.RequirementTransitionService transitions) {
         this.permissions = permissions;
         this.store = store;
         this.sourceControl = sourceControl;
+        this.commands = commands;
+        this.policy = policy;
+        this.transitions = transitions;
     }
 
     public WorkItem createDevTask(long userId, long organizationId, long requirementId,
             String title, String description, Long assigneeUserId) {
-        permissions.requireOrganization(userId, organizationId, "task.create");
-        WorkItem requirement = store.findWorkItem(organizationId, requirementId)
-                .orElseThrow(ResourceNotFoundException::new);
-        if (requirement.type() != WorkItemType.REQUIREMENT
-                || requirement.status() != WorkItemStatus.READY_FOR_DEV) {
-            throw new DevelopmentStateException();
-        }
-        if (assigneeUserId != null
-                && !store.hasActiveOrganizationMember(organizationId, assigneeUserId)) {
-            throw new ResourceNotFoundException();
-        }
-        return store.createDevTask(
-                organizationId, userId, requirementId, normalizeTitle(title), normalizeDescription(description),
-                assigneeUserId);
+        return commands.createTask(userId, organizationId, requirementId, WorkItemType.DEV_TASK, title, description,
+                ai.forge.server.workitem.domain.WorkItemPriority.MEDIUM, assigneeUserId);
     }
 
     public DevelopmentResult start(long userId, long organizationId, long devTaskId,
             String requestedTargetBranch, String idempotencyKey) {
         permissions.requireOrganization(userId, organizationId, "task.edit");
         permissions.requireOrganization(userId, organizationId, "repo.read");
+        WorkItem task = store.findWorkItem(organizationId, devTaskId).orElseThrow(ResourceNotFoundException::new);
+        policy.requireAction(userId, task, ai.forge.server.workitem.domain.WorkflowAction.START);
         return startScoped(organizationId, devTaskId, requestedTargetBranch, idempotencyKey);
     }
 
@@ -165,7 +166,9 @@ public class DevelopmentService {
         if (!store.hasMergedMergeRequest(organizationId, devTaskId)) {
             throw new MergeRequestNotMergedException();
         }
-        return store.completeTask(organizationId, devTaskId, expectedVersion);
+        transitions.transition(userId, organizationId, devTaskId, ai.forge.server.workitem.domain.WorkflowAction.SUBMIT_REVIEW,
+                expectedVersion, "dev-submit-" + devTaskId + "-" + expectedVersion, null);
+        return store.findWorkItem(organizationId, devTaskId).orElseThrow(ResourceNotFoundException::new);
     }
 
     static String branchName(WorkItem task) {

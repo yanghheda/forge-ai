@@ -69,12 +69,12 @@ describe("OrganizationRequirementDetail", () => {
 
     render(<OrganizationRequirementDetail requirementId={1} />, { wrapper });
 
-    expect(await screen.findByText("产品评审决策")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "通过产品评审" })).toBeInTheDocument();
+    expect(await screen.findByText("需求阶段操作")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "确认评审通过" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("退回原因"), { target: { value: "补充异常场景" } });
-    fireEvent.click(screen.getByRole("button", { name: "退回修改" }));
+    fireEvent.click(screen.getByRole("button", { name: "退回产品评审" }));
 
-    await waitFor(() => expect(api.transitionRequirementWorkflow).toHaveBeenCalledWith(1, "REJECT_PRODUCT_REVIEW", 4, { reason: "补充异常场景" }));
+    await waitFor(() => expect(api.transitionRequirementWorkflow).toHaveBeenCalledWith(1, "REJECT_PRODUCT_REVIEW", 4, { reason: "补充异常场景", checklist: [] }));
   });
 
   it("按照设计稿展示标题、六阶段、基本信息、描述、动态时间线与右侧协作成员", async () => {
@@ -135,7 +135,7 @@ describe("OrganizationRequirementDetail", () => {
 
     expect(await screen.findByText("黄金 Demo：AI 需求交付全流程演示")).toBeInTheDocument();
     const stages = screen.getByRole("list", { name: "需求交付阶段" });
-    expect(stages.querySelectorAll("li")[5]).toHaveTextContent("发布已完成");
+    expect(stages.querySelectorAll("li")[6]).toHaveTextContent("发布已完成");
     expect(screen.queryByText("已完成 · 进行中")).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from collections.abc import Iterable
 from datetime import UTC, datetime
@@ -203,6 +204,14 @@ class FakeLanguageModel:
         asset_selection = self._asset_selection(skill, message, work_item_id)
         if asset_selection is not None:
             if asset_selection.tool_name not in executed_tool_names:
+                if asset_selection.tool_name in {"create_dev_task", "create_bug"}:
+                    assignee = self._explicit_assignee(message)
+                    if assignee is None:
+                        return None
+                    return ToolSelection(
+                        tool_name=asset_selection.tool_name,
+                        arguments={**asset_selection.arguments, "assigneeUserId": assignee},
+                    )
                 return asset_selection
             return None
         if skill == "PRODUCT" and "PRD" in message.upper():
@@ -223,9 +232,16 @@ class FakeLanguageModel:
             return None
         if skill == "UX" and "创建" in message and "任务" in message:
             if "create_ux_task" not in executed_tool_names:
+                assignee = self._explicit_assignee(message)
+                if assignee is None:
+                    return None
                 return ToolSelection(
                     tool_name="create_ux_task",
-                    arguments={"requirementId": work_item_id, "title": "Fake UX Task"},
+                    arguments={
+                        "requirementId": work_item_id,
+                        "title": "Fake UX Task",
+                        "assigneeUserId": assignee,
+                    },
                 )
             return None
         if skill == "UX" and "创建" in message and ("文档" in message or "SPEC" in message.upper()):
@@ -329,9 +345,24 @@ class FakeLanguageModel:
         return None
 
     @staticmethod
+    def _explicit_assignee(message: str) -> int | None:
+        # Fake 模型也只使用用户明确提供的执行人，不生成虚构用户标识。
+        match = re.search(r"(?:执行人|assigneeUserId)\s*[:：=]?\s*([1-9][0-9]*)", message)
+        return int(match.group(1)) if match else None
+
+    @staticmethod
     def _transition_for(skill: str, status: str) -> str | None:
         transitions = {
             ("PRODUCT", "DRAFT"): "SUBMIT_PRODUCT_REVIEW",
+            ("PRODUCT", "REQUIREMENT_APPROVAL"): "APPROVE_REQUIREMENT",
+            ("PRODUCT", "READY_FOR_REVIEW"): "START_PRODUCT_REVIEW",
+            ("PRODUCT", "IN_ACCEPTANCE"): "ACCEPT_REQUIREMENT",
+            ("UX", "PRODUCT_REVIEW"): "APPROVE_PRODUCT_REVIEW",
+            ("DEVELOPER", "PRODUCT_REVIEW"): "APPROVE_PRODUCT_REVIEW",
+            ("QA", "PRODUCT_REVIEW"): "APPROVE_PRODUCT_REVIEW",
+            ("UX", "READY_FOR_UX"): "START_UX",
+            ("DEVELOPER", "READY_FOR_DEV"): "START_DEVELOPMENT",
+            ("QA", "IN_FIX_VERIFICATION"): "QA_PASS",
             ("PRODUCT", "PRODUCT_REVIEW"): "APPROVE_PRODUCT_REVIEW",
             ("UX", "UX_IN_PROGRESS"): "SUBMIT_UX_REVIEW",
             ("UX", "UX_REVIEW"): "APPROVE_UX_REVIEW",

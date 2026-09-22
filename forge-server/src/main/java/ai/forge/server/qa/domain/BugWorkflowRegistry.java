@@ -8,15 +8,13 @@ public final class BugWorkflowRegistry {
 
     /* Bug 唯一允许的固定迁移集合。 */
     private final List<BugTransition> transitions = List.of(
-            transition(WorkItemStatus.OPEN, BugAction.START_FIX, WorkItemStatus.IN_PROGRESS, "bug.resolve"),
-            transition(WorkItemStatus.IN_PROGRESS, BugAction.RESOLVE, WorkItemStatus.RESOLVED, "bug.resolve"),
-            transition(WorkItemStatus.RESOLVED, BugAction.VERIFY, WorkItemStatus.VERIFIED, "bug.verify"),
-            transition(WorkItemStatus.VERIFIED, BugAction.CLOSE, WorkItemStatus.CLOSED, "bug.verify"),
-            transition(WorkItemStatus.RESOLVED, BugAction.REOPEN, WorkItemStatus.OPEN, "bug.verify"),
-            transition(WorkItemStatus.VERIFIED, BugAction.REOPEN, WorkItemStatus.OPEN, "bug.verify"),
-            transition(WorkItemStatus.CLOSED, BugAction.REOPEN, WorkItemStatus.OPEN, "bug.verify"),
-            transition(WorkItemStatus.OPEN, BugAction.CANCEL, WorkItemStatus.CANCELLED, "bug.edit"),
-            transition(WorkItemStatus.IN_PROGRESS, BugAction.CANCEL, WorkItemStatus.CANCELLED, "bug.edit"));
+            transition(WorkItemStatus.TODO, BugAction.START_FIX, WorkItemStatus.IN_PROGRESS, "bug.resolve"),
+            transition(WorkItemStatus.IN_PROGRESS, BugAction.RESOLVE, WorkItemStatus.WAITING_VERIFICATION, "bug.resolve"),
+            transition(WorkItemStatus.WAITING_VERIFICATION, BugAction.VERIFY, WorkItemStatus.DONE, "bug.verify"),
+            transition(WorkItemStatus.WAITING_VERIFICATION, BugAction.REOPEN, WorkItemStatus.IN_PROGRESS, "bug.verify"),
+            transition(WorkItemStatus.DONE, BugAction.REOPEN, WorkItemStatus.IN_PROGRESS, "bug.verify"),
+            transition(WorkItemStatus.IN_PROGRESS, BugAction.BLOCK, WorkItemStatus.BLOCKED, "bug.resolve"),
+            transition(WorkItemStatus.BLOCKED, BugAction.UNBLOCK, WorkItemStatus.IN_PROGRESS, "bug.resolve"));
 
     public BugTransition require(WorkItemStatus from, BugAction action) {
         return transitions.stream()

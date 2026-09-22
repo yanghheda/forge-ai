@@ -1,11 +1,13 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/features/work-item", () => ({
   getOrganizationRequirement: vi.fn().mockResolvedValue({ itemKey: "REQ-1", status: "IN_QA" }),
   statusLabel: { IN_QA: "测试中" },
+  StageTasks: () => <div>阶段任务</div>,
+  RequirementWorkflowControls: () => <div>阶段操作</div>,
+  DevelopmentBugs: () => null,
   QaPanel: ({ requirementId }: { requirementId: number }) => <div>真实 QA 数据面板 · {requirementId}</div>,
 }));
 
@@ -25,10 +27,12 @@ describe("DeliveryScreen", () => {
     expect(screen.getByText("已完成")).toBeInTheDocument();
   });
 
-  it("新建任务使用抽屉承载表单", async () => {
+  it("看板使用五个真实状态，创建入口引导到需求分配任务", async () => {
     render(<DeliveryScreen kind="tasks" requirementId="1" />, { wrapper });
-    await userEvent.click(screen.getByRole("button", { name: "新建任务" }));
-    expect(screen.getByRole("dialog", { name: "新建任务" })).toBeInTheDocument();
+    expect(screen.getByText("阻塞中")).toBeInTheDocument();
+    expect(screen.getByText("待验证")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "进入需求创建任务" })).toHaveAttribute("href", "/my-requirements");
+    expect(screen.queryByRole("button", { name: "新建任务" })).not.toBeInTheDocument();
   });
 
   it("QA 页面按路由需求加载真实数据面板", () => {
