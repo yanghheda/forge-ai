@@ -1,9 +1,9 @@
 import type { RequirementRole } from "../api/work-item-api";
 
+/* UX 评审状态并入 UX 设计阶段，与设计稿的六阶段进度条保持一致。 */
 export const stages = [
   { title: "产品评审", statuses: ["DRAFT", "REQUIREMENT_APPROVAL", "READY_FOR_REVIEW", "PRODUCT_REVIEW"] },
-  { title: "UX 设计", statuses: ["READY_FOR_UX", "UX_IN_PROGRESS"] },
-  { title: "UX 评审", statuses: ["UX_REVIEW"] },
+  { title: "UX 设计", statuses: ["READY_FOR_UX", "UX_IN_PROGRESS", "UX_REVIEW"] },
   { title: "开发", statuses: ["READY_FOR_DEV", "IN_DEVELOPMENT"] },
   { title: "QA 测试", statuses: ["READY_FOR_QA", "IN_QA", "IN_FIX_VERIFICATION"] },
   { title: "验收", statuses: ["IN_ACCEPTANCE"] },

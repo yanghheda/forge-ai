@@ -88,7 +88,8 @@ describe("OrganizationRequirementDetail", () => {
     expect(await screen.findByText("黄金 Demo：AI 需求交付全流程演示")).toBeInTheDocument();
     expect(screen.getAllByText("产品评审").length).toBeGreaterThan(0);
     expect(screen.getByText("UX 设计")).toBeInTheDocument();
-    expect(screen.getByText("UX 评审")).toBeInTheDocument();
+    expect(screen.queryByText("UX 评审")).not.toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "需求交付阶段" }).querySelectorAll("li")).toHaveLength(6);
     expect(screen.getByText("QA 测试")).toBeInTheDocument();
     expect(screen.getByText("基本信息")).toBeInTheDocument();
     expect(screen.getByText("需求描述")).toBeInTheDocument();
@@ -97,7 +98,7 @@ describe("OrganizationRequirementDetail", () => {
     expect(screen.getByText("动态时间线")).toBeInTheDocument();
     expect(screen.getByText("协作成员")).toBeInTheDocument();
     expect(screen.getByText("张产品")).toBeInTheDocument();
-    expect(screen.getByText("王开发")).toBeInTheDocument();
+    expect(screen.getAllByText("王开发").length).toBeGreaterThan(0);
   });
 
   it("允许人工编辑需求描述并携带最新聚合版本", async () => {
@@ -140,7 +141,7 @@ describe("OrganizationRequirementDetail", () => {
 
     expect(await screen.findByText("黄金 Demo：AI 需求交付全流程演示")).toBeInTheDocument();
     const stages = screen.getByRole("list", { name: "需求交付阶段" });
-    expect(stages.querySelectorAll("li")[6]).toHaveTextContent("发布已完成");
+    expect(stages.querySelectorAll("li")[5]).toHaveTextContent("发布已完成");
     expect(screen.queryByText("已完成 · 进行中")).not.toBeInTheDocument();
   });
 });
