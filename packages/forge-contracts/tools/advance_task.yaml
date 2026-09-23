@@ -1,0 +1,27 @@
+name: advance_task
+version: 1
+description: 执行角色任务的生命周期动作；目标状态与准入条件由 forge-server 五态任务状态机决定，审核动作永不开放。
+input_schema:
+  type: object
+  required: [taskId, action, expectedVersion]
+  properties:
+    taskId: { type: integer, minimum: 1 }
+    action: { type: string, enum: [START, SUBMIT_REVIEW, BLOCK, UNBLOCK] }
+    expectedVersion: { type: integer, minimum: 0 }
+    reason: { type: [string, "null"], maxLength: 1000 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: task.edit
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/advance_task:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4

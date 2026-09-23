@@ -220,6 +220,12 @@
 .tagBug {
   color: var(--forge-error);
 }
+/* 卡片内「交给 Agent」入口：靠右对齐，弱化为文本按钮。 */
+.cardAgent {
+  margin-left: auto;
+  padding: 0;
+  font-size: 12px;
+}
 .cardFoot {
   display: flex;
   align-items: center;

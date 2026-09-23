@@ -82,6 +82,7 @@ class ContextManifest(BaseModel):
     expires_at: datetime
     prompt_version: str | None = None
     context_template: str | None = None
+    guidance: str | None = None
 
     def require_active(self, now: datetime | None = None) -> None:
         """拒绝无时区或过期 Manifest，避免恢复时沿用陈旧上下文。"""
@@ -119,7 +120,13 @@ class ToolSelection(BaseModel):
 class LanguageModel(Protocol):
     """图节点依赖的窄模型接口。"""
 
-    def create_plan(self, skill: str, message: str) -> list[str]: ...
+    def create_plan(
+        self,
+        skill: str,
+        message: str,
+        guidance: str | None = None,
+        effective_tools: list[str] | None = None,
+    ) -> list[str]: ...
 
     def select_tool(
         self,
@@ -128,6 +135,7 @@ class LanguageModel(Protocol):
         work_item_id: int | None,
         tool_definitions: list[dict[str, Any]],
         tool_calls: list[dict[str, Any]],
+        guidance: str | None = None,
     ) -> ToolSelection | None: ...
 
     def finalize(
@@ -136,6 +144,7 @@ class LanguageModel(Protocol):
         message: str,
         resource_count: int,
         tool_calls: list[dict[str, Any]],
+        guidance: str | None = None,
     ) -> str: ...
 
     def stream_final(
@@ -144,6 +153,7 @@ class LanguageModel(Protocol):
         message: str,
         resource_count: int,
         tool_calls: list[dict[str, Any]],
+        guidance: str | None = None,
     ) -> Iterable[str]: ...
 
 
@@ -156,7 +166,13 @@ class FakeLanguageModel:
         self.finalize_calls = 0
         self._fail_finalize_once = fail_finalize_once
 
-    def create_plan(self, skill: str, message: str) -> list[str]:
+    def create_plan(
+        self,
+        skill: str,
+        message: str,
+        guidance: str | None = None,
+        effective_tools: list[str] | None = None,
+    ) -> list[str]:
         self.plan_calls += 1
         return [f"理解 {skill} 请求", "整理受控上下文", "形成可回溯结果"]
 
@@ -167,6 +183,7 @@ class FakeLanguageModel:
         work_item_id: int | None,
         tool_definitions: list[dict[str, Any]],
         tool_calls: list[dict[str, Any]],
+        guidance: str | None = None,
     ) -> ToolSelection | None:
         """消息同时含“创建”和“需求”且尚未执行过时选择 create_requirement。"""
 
@@ -288,6 +305,7 @@ class FakeLanguageModel:
         message: str,
         resource_count: int,
         tool_calls: list[dict[str, Any]],
+        guidance: str | None = None,
     ) -> Iterable[str]:
         """Fake 模型也按多个片段输出，用于覆盖真实流式链路。"""
 
@@ -352,20 +370,14 @@ class FakeLanguageModel:
 
     @staticmethod
     def _transition_for(skill: str, status: str) -> str | None:
+        # 只映射非领导审批动作：会签票、需求审核与驳回、UX 评审通过与驳回、验收都不在 Agent 边界内。
         transitions = {
             ("PRODUCT", "DRAFT"): "SUBMIT_PRODUCT_REVIEW",
-            ("PRODUCT", "REQUIREMENT_APPROVAL"): "APPROVE_REQUIREMENT",
             ("PRODUCT", "READY_FOR_REVIEW"): "START_PRODUCT_REVIEW",
-            ("PRODUCT", "IN_ACCEPTANCE"): "ACCEPT_REQUIREMENT",
-            ("UX", "PRODUCT_REVIEW"): "APPROVE_PRODUCT_REVIEW",
-            ("DEVELOPER", "PRODUCT_REVIEW"): "APPROVE_PRODUCT_REVIEW",
-            ("QA", "PRODUCT_REVIEW"): "APPROVE_PRODUCT_REVIEW",
             ("UX", "READY_FOR_UX"): "START_UX",
             ("DEVELOPER", "READY_FOR_DEV"): "START_DEVELOPMENT",
             ("QA", "IN_FIX_VERIFICATION"): "QA_PASS",
-            ("PRODUCT", "PRODUCT_REVIEW"): "APPROVE_PRODUCT_REVIEW",
             ("UX", "UX_IN_PROGRESS"): "SUBMIT_UX_REVIEW",
-            ("UX", "UX_REVIEW"): "APPROVE_UX_REVIEW",
             ("DEVELOPER", "IN_DEVELOPMENT"): "SUBMIT_FOR_QA",
             ("QA", "READY_FOR_QA"): "START_QA",
             ("QA", "IN_QA"): "QA_PASS",
@@ -378,6 +390,7 @@ class FakeLanguageModel:
         message: str,
         resource_count: int,
         tool_calls: list[dict[str, Any]],
+        guidance: str | None = None,
     ) -> str:
         self.finalize_calls += 1
         if self._fail_finalize_once:
@@ -413,6 +426,7 @@ class AgentState(TypedDict, total=False):
     run_id: str
     skill: str
     message: str
+    guidance: str | None
     effective_tools: list[str]
     tool_definitions: list[dict[str, Any]]
     max_tool_calls: int
@@ -540,6 +554,7 @@ class LangGraphRuntimeGateway:
                         "run_id": request.manifest.run_id,
                         "skill": request.manifest.skill,
                         "message": request.message,
+                        "guidance": request.manifest.guidance,
                         "effective_tools": list(request.manifest.effective_tool_names),
                         "tool_definitions": [
                             definition.model_dump(by_alias=True)
@@ -569,7 +584,12 @@ class LangGraphRuntimeGateway:
 
     def _create_plan(self, state: AgentState) -> AgentState:
         self._require_not_cancelled()
-        plan = self._model.create_plan(state["skill"], state["message"])
+        plan = self._model.create_plan(
+            state["skill"],
+            state["message"],
+            state.get("guidance"),
+            list(state.get("effective_tools", [])),
+        )
         run_token = str(get_config()["configurable"].get("run_token", ""))
         if self._answer_stream is not None:
             for item in plan:
@@ -597,6 +617,7 @@ class LangGraphRuntimeGateway:
             state.get("work_item_id"),
             state.get("tool_definitions", []),
             state.get("tool_calls", []),
+            state.get("guidance"),
         )
         if selection is None:
             return {"pending_selection": None, "state_version": state["state_version"] + 1}
@@ -717,6 +738,8 @@ class LangGraphRuntimeGateway:
             answer = f"发布预检已完成{suffix}。"
         else:
             details = []
+            if result.get("action") is not None:
+                details.append(f"动作 {result['action']}")
             if result.get("status") is not None:
                 details.append(f"状态 {result['status']}")
             if result.get("version") is not None:
@@ -750,6 +773,7 @@ class LangGraphRuntimeGateway:
                 state["message"],
                 state["resource_count"],
                 state.get("tool_calls", []),
+                state.get("guidance"),
             )
             if stream_final is not None
             else [
@@ -758,6 +782,7 @@ class LangGraphRuntimeGateway:
                     state["message"],
                     state["resource_count"],
                     state.get("tool_calls", []),
+                    state.get("guidance"),
                 )
             ]
         )
@@ -805,6 +830,9 @@ class LangGraphRuntimeGateway:
             if last_call.get("status") == "SUCCEEDED" and last_call.get("toolName") in {
                 "create_prd_document",
                 "advance_requirement",
+                "advance_task",
+                "advance_bug",
+                "complete_test_run",
                 "run_release_precheck",
             }:
                 return "complete_action"

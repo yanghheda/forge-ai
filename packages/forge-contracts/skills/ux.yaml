@@ -1,13 +1,20 @@
 name: ux
-version: 1
-description: UX Skill：读取项目、工作项与交付图上下文，检索文档，并创建 UX Task 与 UX Spec 文档。
+version: 3
+description: UX Skill：读取需求、任务与交付图上下文，检索文档，创建 UX Task 与 UX Spec 文档并发布版本，维护 UX 任务字段并推进 UX 阶段。
+guidance: 本阶段聚焦 UX 交付：可创建 UX 任务与 UX Spec、发布 UX Spec 版本、维护任务字段、按执行人身份推进任务（开始/提交待验证/阻塞/恢复）并提交 UX 评审。UX 评审通过与驳回属人工专属；提交 UX 评审要求已发布 UX Spec 与完整交付检查清单，缺失时先向用户说明。
 allowed_tools:
   - get_organization
   - get_work_item
+  - list_requirements
+  - list_tasks
+  - list_members
   - get_delivery_graph
   - search_documents
   - create_ux_task
   - create_ux_document
+  - publish_document
+  - update_task
+  - advance_task
   - advance_requirement
 limits:
-  max_tool_calls: 15
+  max_tool_calls: 20

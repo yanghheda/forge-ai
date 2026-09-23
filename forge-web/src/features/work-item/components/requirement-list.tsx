@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { formatRequestError } from "@/lib/api";
 import { priorityLabel } from "@/lib/labels";
+import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
 import { deleteRequirement, listOrganizationRequirements, updateWorkItem, type OrganizationRequirement } from "../api/work-item-api";
 import { statusLabel } from "../utils/requirement-detail-display";
 import styles from "./requirement-list.module.css";
@@ -16,6 +17,8 @@ const priorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 /* 需求列表是全局需求浏览入口，只列需求，不含 UX/DEV/QA 任务与 Bug。 */
 export function RequirementList() {
   const queryClient = useQueryClient();
+  const setContext = useAgentPanelStore((state) => state.setContext);
+  const setAgentOpen = useAgentPanelStore((state) => state.setOpen);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>();
   const [editing, setEditing] = useState<OrganizationRequirement | null>(null);
@@ -100,6 +103,16 @@ export function RequirementList() {
               <time>{new Date(item.updatedAt).toLocaleDateString("zh-CN")}</time>
             </Link>
             <div className={styles.rowActions}>
+              <Button
+                type="text"
+                size="small"
+                onClick={() => {
+                  setContext({ kind: "requirement", id: item.id, label: `${item.itemKey} ${item.title}` });
+                  setAgentOpen(true);
+                }}
+              >
+                交给 Agent
+              </Button>
               <Button type="text" size="small" onClick={() => openEdit(item)}>
                 修改
               </Button>

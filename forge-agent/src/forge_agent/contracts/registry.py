@@ -24,12 +24,25 @@ class ToolContract:
     risk_level: str
     backend_path: str
     timeout_ms: int
+    requires_confirmation: bool = False
 
     @property
     def medium_risk(self) -> bool:
         """MEDIUM 风险 Tool 受 Run 确认策略约束。"""
 
         return self.risk_level == "MEDIUM"
+
+    @property
+    def high_risk(self) -> bool:
+        """HIGH 风险 Tool 永远需要他人人工审批。"""
+
+        return self.risk_level == "HIGH"
+
+    @property
+    def forced_confirmation(self) -> bool:
+        """契约强制确认或 HIGH 风险的 Tool 无视 Run 策略，必须人工审批。"""
+
+        return self.requires_confirmation or self.high_risk
 
 
 @dataclass(frozen=True)
@@ -41,6 +54,7 @@ class SkillContract:
     max_tool_calls: int
     prompt_version: str | None
     context_template: str | None
+    guidance: str | None = None
 
 
 class ToolContractRegistry:
@@ -88,6 +102,7 @@ class ToolContractRegistry:
                 risk_level=str(document.get("risk_level", "")),
                 backend_path=str(mapping.get("path", "")),
                 timeout_ms=int(document.get("timeout_ms", 0)),
+                requires_confirmation=bool(document.get("requires_confirmation", False)),
             )
 
     def _load_skills(self, directory: Path) -> None:
@@ -113,6 +128,7 @@ class ToolContractRegistry:
                 context_template=(
                     str(document["context_template"]) if "context_template" in document else None
                 ),
+                guidance=(str(document["guidance"]) if "guidance" in document else None),
             )
 
     def _validate_skill_references(self) -> None:

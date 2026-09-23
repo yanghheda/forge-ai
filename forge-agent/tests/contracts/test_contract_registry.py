@@ -51,12 +51,20 @@ def test_developer_skill_excludes_qa_and_deployment_writes() -> None:
     assert allowed == [
         "get_organization",
         "get_work_item",
+        "list_requirements",
+        "list_tasks",
+        "list_bugs",
+        "list_members",
         "get_delivery_graph",
         "search_documents",
         "create_tech_design",
         "create_dev_task",
         "start_development",
         "get_pipeline_log",
+        "update_task",
+        "advance_task",
+        "update_bug",
+        "advance_bug",
         "advance_requirement",
     ]
     assert "deploy_release" not in allowed
@@ -66,7 +74,7 @@ def test_developer_skill_excludes_qa_and_deployment_writes() -> None:
     assert developer.context_template == "developer-context-v1"
 
 
-def test_qa_skill_cannot_write_test_results_but_can_request_guarded_transition() -> None:
+def test_qa_skill_can_run_tests_but_conclusions_require_confirmation() -> None:
     registry = ToolContractRegistry(REPO_CONTRACTS)
 
     allowed = registry.effective_tool_names("QA")
@@ -74,15 +82,56 @@ def test_qa_skill_cannot_write_test_results_but_can_request_guarded_transition()
     assert allowed == [
         "get_organization",
         "get_work_item",
+        "list_requirements",
+        "list_tasks",
+        "list_bugs",
+        "list_members",
+        "get_test_run",
         "get_delivery_graph",
         "search_documents",
         "create_test_case",
         "create_bug",
+        "update_task",
+        "advance_task",
+        "update_bug",
+        "advance_bug",
+        "start_test_run",
+        "record_test_result",
+        "complete_test_run",
+        "reopen_test_run",
         "advance_requirement",
     ]
     assert "update_test_result" not in allowed
     assert registry.find_tool("create_test_case").medium_risk
     assert registry.find_tool("create_bug").medium_risk
+    # 测试执行对 QA 开放，但执行结论与运行收尾必须强制人工确认后才落库（ADR-023 §3）。
+    for name in ("record_test_result", "complete_test_run"):
+        contract = registry.find_tool(name)
+        assert contract is not None
+        assert contract.requires_confirmation
+        assert contract.medium_risk
+        assert contract.forced_confirmation
+    # 创建测试运行只是建立执行容器，可以按 Run 策略自动执行。
+    start_run = registry.find_tool("start_test_run")
+    assert start_run is not None
+    assert start_run.medium_risk
+    assert not start_run.requires_confirmation
+    # 重开已完成的测试运行是受控写操作，但可由 QA Agent 在 Run 策略允许时直接执行。
+    reopen_run = registry.find_tool("reopen_test_run")
+    assert reopen_run is not None
+    assert reopen_run.medium_risk
+    assert not reopen_run.requires_confirmation
+
+
+def test_every_skill_declares_stage_guidance() -> None:
+    registry = ToolContractRegistry(REPO_CONTRACTS)
+
+    for skill_name in ("PRODUCT", "UX", "DEVELOPER", "QA", "RELEASE"):
+        skill = registry.find_skill(skill_name)
+        assert skill is not None
+        # 阶段能力说明会被注入模型提示词，用于约束本阶段可做什么与哪些动作属人工专属。
+        assert skill.guidance is not None
+        assert "人工专属" in skill.guidance
 
 
 def test_release_deployment_is_high_risk_and_never_available_to_developer() -> None:

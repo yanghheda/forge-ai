@@ -1,0 +1,29 @@
+name: assign_executors
+version: 1
+description: 覆盖设置某个领域在 Requirement 内的执行人集合；调用者必须是该领域负责人，服务端按最新事实复核。
+input_schema:
+  type: object
+  required: [requirementId, role, executorUserIds]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    role: { type: string, enum: [PRODUCT, UX, DEVELOPER, QA] }
+    executorUserIds:
+      type: array
+      maxItems: 20
+      items: { type: integer, minimum: 1 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: requirement.edit
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/assign_executors:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4

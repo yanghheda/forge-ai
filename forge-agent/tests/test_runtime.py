@@ -405,7 +405,9 @@ def test_selected_tool_is_executed_and_observed_with_run_token(tmp_path) -> None
 
 def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:
     class TwoToolModel(FakeLanguageModel):
-        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+        def select_tool(
+            self, skill, message, work_item_id, tool_definitions, tool_calls, guidance=None
+        ):
             self.select_calls += 1
             executed_tool_names = [call.get("toolName") for call in tool_calls]
             if "get_organization" not in executed_tool_names:
@@ -449,7 +451,9 @@ def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:
 
 def test_successful_prd_write_completes_without_another_model_decision(tmp_path) -> None:
     class PrdModel(FakeLanguageModel):
-        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+        def select_tool(
+            self, skill, message, work_item_id, tool_definitions, tool_calls, guidance=None
+        ):
             self.select_calls += 1
             if not tool_calls:
                 return ToolSelection(
@@ -511,7 +515,9 @@ def test_successful_prd_write_completes_without_another_model_decision(tmp_path)
 
 def test_successful_release_precheck_completes_without_another_model_decision(tmp_path) -> None:
     class ReleaseModel(FakeLanguageModel):
-        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+        def select_tool(
+            self, skill, message, work_item_id, tool_definitions, tool_calls, guidance=None
+        ):
             self.select_calls += 1
             if not tool_calls:
                 return ToolSelection(
@@ -550,7 +556,9 @@ def test_successful_release_precheck_completes_without_another_model_decision(tm
 
 def test_stage_agent_reads_authoritative_version_before_requesting_transition(tmp_path) -> None:
     class StageProgressModel(FakeLanguageModel):
-        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+        def select_tool(
+            self, skill, message, work_item_id, tool_definitions, tool_calls, guidance=None
+        ):
             self.select_calls += 1
             if not tool_calls:
                 return ToolSelection(
@@ -648,7 +656,9 @@ def test_guard_rejects_tool_when_call_budget_is_exhausted(tmp_path) -> None:
 
 def test_stubborn_model_stops_after_tool_budget_rejection(tmp_path) -> None:
     class StubbornModel(FakeLanguageModel):
-        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+        def select_tool(
+            self, skill, message, work_item_id, tool_definitions, tool_calls, guidance=None
+        ):
             self.select_calls += 1
             return ToolSelection(
                 tool_name="search_documents",
@@ -685,7 +695,9 @@ def test_stubborn_model_stops_after_tool_budget_rejection(tmp_path) -> None:
 
 def test_graph_recursion_limit_scales_with_tool_call_budget(tmp_path) -> None:
     class BoundedModel(FakeLanguageModel):
-        def select_tool(self, skill, message, work_item_id, tool_definitions, tool_calls):
+        def select_tool(
+            self, skill, message, work_item_id, tool_definitions, tool_calls, guidance=None
+        ):
             self.select_calls += 1
             if len(tool_calls) < 7:
                 return ToolSelection(

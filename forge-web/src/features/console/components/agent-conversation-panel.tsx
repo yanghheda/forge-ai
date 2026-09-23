@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cancelAgentRun, cancelApproval, decideApproval, getAgentRun, getRunApproval, type ApprovalSnapshot } from "@/features/agent-run";
 import { getCurrentUser } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
-import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
+import { useAgentPanelStore, type AgentContext } from "@/stores/use-agent-panel-store";
 import { listAgentConversations, listAgentMessages, sendAgentMessage } from "../api/console-api";
 import { useConversationStream } from "../hooks/use-conversation-stream";
 import { isLiveRunPlaybackEnabled, isStreamPlaybackVisible } from "../utils/conversation-answer-playback";
@@ -14,7 +14,7 @@ import { AgentMessageBody } from "./agent-message-body";
 import { ConversationComposer } from "./conversation-composer";
 import styles from "./console.module.css";
 
-export function AgentConversationPanel({ header, contextRequirementId }: { header?: ReactNode; contextRequirementId?: number }) {
+export function AgentConversationPanel({ header, context }: { header?: ReactNode; context?: AgentContext }) {
   const queryClient = useQueryClient();
   const storedId = useAgentPanelStore((state) => state.activeConversationId);
   const setActiveConversation = useAgentPanelStore((state) => state.setActiveConversation);
@@ -36,14 +36,16 @@ export function AgentConversationPanel({ header, contextRequirementId }: { heade
     if (activeId !== storedId) setActiveConversation(activeId);
   }, [activeId, storedId, setActiveConversation]);
   const active = conversations.data?.find((item) => item.id === activeId);
-  const selectedRequirementId = active?.requirementId ?? requirementId ?? contextRequirementId;
+  /* 会话已绑定的需求最优先；其次用户手动选择的需求；最后才是页面上下文。 */
+  const boundWorkItemId = active?.requirementId ?? requirementId ?? context?.id;
+  const selectedRequirementId = active?.requirementId ?? requirementId ?? (context?.kind === "requirement" ? context.id : undefined);
   const messages = useQuery({
     queryKey: ["agent-conversations", activeId, "messages"],
     queryFn: () => listAgentMessages(activeId!),
     enabled: Boolean(activeId),
   });
   const send = useMutation({
-    mutationFn: () => sendAgentMessage(activeId!, draft, selectedRequirementId),
+    mutationFn: () => sendAgentMessage(activeId!, draft, boundWorkItemId),
     onSuccess: (run) => {
       setLatestRunId(run.id);
       setLatestRunConversationId(activeId);

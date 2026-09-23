@@ -1,0 +1,31 @@
+name: advance_bug
+version: 1
+description: 执行缺陷的修复与验证动作；修复类动作要求当前用户是缺陷修复人，验证类动作要求 QA 领域成员。
+input_schema:
+  type: object
+  required: [bugId, action, expectedVersion]
+  properties:
+    bugId: { type: integer, minimum: 1 }
+    action: { type: string, enum: [START_FIX, RESOLVE, VERIFY, REOPEN, BLOCK, UNBLOCK] }
+    expectedVersion: { type: integer, minimum: 0 }
+    reason: { type: [string, "null"], maxLength: 20000 }
+    fixEvidence:
+      type: array
+      maxItems: 20
+      items: { type: string, minLength: 1, maxLength: 2000 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: bug.read
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/advance_bug:execute
+sensitive_fields: []
+requirement_ids:
+  - QA-005

@@ -1,0 +1,26 @@
+name: complete_test_run
+version: 1
+description: 完成测试运行并冻结汇总；该动作决定质量结论，因此无论 Run 策略都强制人工确认后落库。
+input_schema:
+  type: object
+  required: [runId, expectedVersion]
+  properties:
+    runId: { type: integer, minimum: 1 }
+    expectedVersion: { type: integer, minimum: 0 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: qa.execute
+risk_level: MEDIUM
+requires_confirmation: true
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/complete_test_run:execute
+sensitive_fields: []
+requirement_ids:
+  - QA-002

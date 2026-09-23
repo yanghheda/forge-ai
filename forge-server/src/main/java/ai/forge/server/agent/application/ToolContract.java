@@ -15,6 +15,8 @@ public record ToolContract(
         String riskLevel,
         /* 是否声明写副作用并要求幂等；为 true 时成功结果按幂等键重放。 */
         boolean idempotencyRequired,
+        /* 是否无视 Run 的 MEDIUM 确认策略强制人工确认；用于改变授权图或质量结论的动作。 */
+        boolean requiresConfirmation,
         /* 契约输入 JSON Schema；服务端在执行前用它拒绝非法参数。 */
         Map<String, Object> inputSchema,
         /* 内部执行端点的 HTTP 方法。 */
@@ -30,5 +32,10 @@ public record ToolContract(
     /* HIGH 风险工具无条件进入人工审批，不受 Run 的 MEDIUM 策略影响。 */
     public boolean highRisk() {
         return "HIGH".equals(riskLevel);
+    }
+
+    /* 契约强制确认的工具即使 Run 策略为 ALLOW 也必须先经人工审批。 */
+    public boolean forcedConfirmation() {
+        return requiresConfirmation || highRisk();
     }
 }

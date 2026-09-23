@@ -40,7 +40,7 @@ describe("AgentCommandDrawer", () => {
     consoleApi.listAgentMessages.mockResolvedValue([]);
     authApi.getCurrentUser.mockResolvedValue({ id: 1, organization: { id: 2 } });
     workItemApi.getOrganizationRequirement.mockResolvedValue({ id: 31, itemKey: "REQ-31", title: "找回密码" });
-    useAgentPanelStore.setState({ open: false, activeConversationId: undefined, running: false, awaitingApproval: false, contextDismissed: false });
+    useAgentPanelStore.setState({ open: false, activeConversationId: undefined, running: false, awaitingApproval: false, contextDismissed: false, context: undefined });
   });
   afterEach(cleanup);
 
@@ -79,5 +79,25 @@ describe("AgentCommandDrawer", () => {
     await waitFor(() => expect(consoleApi.listAgentConversations).toHaveBeenCalledOnce());
     expect(workItemApi.getOrganizationRequirement).not.toHaveBeenCalled();
     expect(screen.queryByText(/REQ-/)).not.toBeInTheDocument();
+  });
+
+  it("列表页显式交给 Agent 的需求在抽屉挂载后仍然生效", async () => {
+    pathname = "/requirements";
+    useAgentPanelStore.setState({ open: true, context: { kind: "requirement", id: 31, label: "REQ-31 找回密码" } });
+
+    render(<AgentCommandDrawer />, { wrapper });
+
+    expect(await screen.findByText(/当前需求 · REQ-31 找回密码/)).toBeInTheDocument();
+    await waitFor(() => expect(workItemApi.getOrganizationRequirement).toHaveBeenCalledWith(31));
+  });
+
+  it("缺陷列表页交给 Agent 时展示缺陷上下文且不查询需求", async () => {
+    pathname = "/defects";
+    useAgentPanelStore.setState({ open: true, context: { kind: "defect", id: 5, label: "BUG-5 登录报错" } });
+
+    render(<AgentCommandDrawer />, { wrapper });
+
+    expect(await screen.findByText(/当前缺陷 · BUG-5 登录报错/)).toBeInTheDocument();
+    expect(workItemApi.getOrganizationRequirement).not.toHaveBeenCalled();
   });
 });

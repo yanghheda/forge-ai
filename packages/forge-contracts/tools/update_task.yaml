@@ -1,0 +1,30 @@
+name: update_task
+version: 1
+description: 修改角色任务的标题、说明、优先级、负责人或截止时间；任务类型必须与当前 Run 的角色一致。
+input_schema:
+  type: object
+  required: [taskId, expectedVersion]
+  properties:
+    taskId: { type: integer, minimum: 1 }
+    title: { type: [string, "null"], minLength: 1, maxLength: 255 }
+    description: { type: [string, "null"], maxLength: 20000 }
+    priority: { type: [string, "null"], enum: [LOW, MEDIUM, HIGH, URGENT, null] }
+    assigneeUserId: { type: [integer, "null"], minimum: 1 }
+    dueAt: { type: [string, "null"], maxLength: 40 }
+    expectedVersion: { type: integer, minimum: 0 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: task.edit
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/update_task:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4

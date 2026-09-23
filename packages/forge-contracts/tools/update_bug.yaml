@@ -1,0 +1,30 @@
+name: update_bug
+version: 1
+description: 修正缺陷的标题、说明、优先级或修复负责人；严重级别在创建时固定，不由该工具修改。
+input_schema:
+  type: object
+  required: [bugId, expectedVersion]
+  properties:
+    bugId: { type: integer, minimum: 1 }
+    title: { type: [string, "null"], minLength: 1, maxLength: 255 }
+    description: { type: [string, "null"], maxLength: 20000 }
+    priority: { type: [string, "null"], enum: [LOW, MEDIUM, HIGH, URGENT, null] }
+    assigneeUserId: { type: [integer, "null"], minimum: 1 }
+    dueAt: { type: [string, "null"], maxLength: 40 }
+    expectedVersion: { type: integer, minimum: 0 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: bug.edit
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/update_bug:execute
+sensitive_fields: []
+requirement_ids:
+  - QA-005

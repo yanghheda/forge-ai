@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
+
 import { RequirementList } from "./requirement-list";
 
 const api = vi.hoisted(() => ({
@@ -51,12 +53,24 @@ describe("RequirementList", () => {
     vi.spyOn(Message, "success").mockImplementation(() => () => undefined);
     vi.spyOn(Message, "error").mockImplementation(() => () => undefined);
     api.listOrganizationRequirements.mockResolvedValue({ items: [draftRequirement], page: 1, pageSize: 20, total: 1 });
+    useAgentPanelStore.setState({ open: false, context: undefined, contextDismissed: false });
   });
 
   it("行信息区链接到需求详情", async () => {
     render(<RequirementList />, { wrapper });
 
     expect(await screen.findByRole("link", { name: /登录页改版/ })).toHaveAttribute("href", "/requirements/1");
+  });
+
+  it("行内「交给 Agent」写入需求上下文并展开指令抽屉", async () => {
+    const user = userEvent.setup();
+    render(<RequirementList />, { wrapper });
+    await screen.findByText("登录页改版");
+
+    await user.click(screen.getByRole("button", { name: "交给 Agent" }));
+
+    expect(useAgentPanelStore.getState().context).toEqual({ kind: "requirement", id: 1, label: "REQ-1 登录页改版" });
+    expect(useAgentPanelStore.getState().open).toBe(true);
   });
 
   it("修改弹窗提交时携带当前行版本与变更字段", async () => {

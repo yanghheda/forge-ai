@@ -14,7 +14,7 @@ class ConversationServiceTest {
     void renameValidatesTitleAndScopesUpdateToOwner() {
         var access = mock(OrganizationAccessService.class);
         var store = mock(ConversationStore.class);
-        var service = new ConversationService(access, store, null, null);
+        var service = new ConversationService(access, store, null, null, null);
         when(access.requireContext(anyLong())).thenReturn(new ai.forge.server.organization.domain.OrganizationContext(3L, "测试公司", false));
         when(store.owns(3, 7, 12)).thenReturn(1);
         when(store.rename(3, 7, 12, "需求讨论")).thenReturn(1);

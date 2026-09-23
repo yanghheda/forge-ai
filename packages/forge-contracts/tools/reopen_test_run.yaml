@@ -1,0 +1,26 @@
+name: reopen_test_run
+version: 1
+description: 重新打开已完成的测试运行；清空固化统计并追加审计记录，必须说明重开原因。
+input_schema:
+  type: object
+  required: [runId, reason, expectedVersion]
+  properties:
+    runId: { type: integer, minimum: 1 }
+    reason: { type: string, minLength: 1, maxLength: 1000 }
+    expectedVersion: { type: integer, minimum: 0 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: qa.execute
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/reopen_test_run:execute
+sensitive_fields: []
+requirement_ids:
+  - QA-005

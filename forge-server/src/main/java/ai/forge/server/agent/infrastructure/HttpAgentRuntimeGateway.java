@@ -127,6 +127,7 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
                 requested.skill(),
                 contract.promptVersion(),
                 contract.contextTemplate(),
+                contract.guidance(),
                 toolContractRegistry.effectiveToolNames(skill),
                 toolContractRegistry.effectiveTools(skill).stream()
                         .map(tool -> new ToolDefinition(tool.name(), tool.description(), tool.inputSchema()))
@@ -159,6 +160,8 @@ public class HttpAgentRuntimeGateway implements AgentRuntimeGateway {
             String promptVersion,
             /* 最小上下文模板版本。 */
             String contextTemplate,
+            /* 阶段能力说明，供模型判断本阶段可做什么与哪些动作属人工专属。 */
+            String guidance,
             /* Skill 白名单与运行时策略共同裁剪后的 Tool 名称。 */
             List<String> effectiveToolNames,
             /* 模型生成结构化参数所需的裁剪 Tool 契约，不承载权限。 */

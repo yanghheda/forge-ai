@@ -1,4 +1,4 @@
-import { Alert, Message, Select, Spin } from "@arco-design/web-react";
+import { Alert, Button, Message, Select, Spin } from "@arco-design/web-react";
 import { IconClockCircle, IconExclamationCircle } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/features/auth";
 import { listRequirementMembers } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
 import { priorityLabel } from "@/lib/labels";
+import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
 import { listBoardItems, listBoardRequirements, moveBoardItem, type BoardItem } from "../api/console-api";
 import styles from "./task-board.module.css";
 
@@ -95,6 +96,8 @@ function isOverdue(value: string): boolean {
 
 export function TaskBoard() {
   const queryClient = useQueryClient();
+  const setContext = useAgentPanelStore((state) => state.setContext);
+  const setAgentOpen = useAgentPanelStore((state) => state.setOpen);
   const [assigneeSelection, setAssigneeSelection] = useState<AssigneeFilter | null>(null);
   const [requirementSelection, setRequirementSelection] = useState<number | typeof ALL>(ALL);
   const [prioritySelection, setPrioritySelection] = useState<string>(ALL);
@@ -122,12 +125,7 @@ export function TaskBoard() {
 
   const memberByValue = new Map((members.data ?? []).map((member) => [String(member.userId), member]));
   const roles = user.data?.organization.roles;
-  const items = (board.data ?? []).filter(
-    (item) =>
-      (assignee === ALL || item.assigneeUserId === assignee) &&
-      (requirementSelection === ALL || item.requirementId === requirementSelection) &&
-      (prioritySelection === ALL || item.priority === prioritySelection),
-  );
+  const items = (board.data ?? []).filter((item) => (assignee === ALL || item.assigneeUserId === assignee) && (requirementSelection === ALL || item.requirementId === requirementSelection) && (prioritySelection === ALL || item.priority === prioritySelection));
   const countIn = (lane: string) => items.filter((item) => item.lane === lane).length;
 
   return (
@@ -146,10 +144,7 @@ export function TaskBoard() {
         {stats.map((stat) => (
           <div className={styles.stat} key={stat.lane}>
             <span className={styles.statLabel}>{stat.label}</span>
-            <b
-              className={`${styles.statNum}${stat.tone === "error" ? ` ${styles.statError}` : stat.tone === "success" ? ` ${styles.statSuccess}` : ""}`}
-              data-testid={`stat-${stat.lane}`}
-            >
+            <b className={`${styles.statNum}${stat.tone === "error" ? ` ${styles.statError}` : stat.tone === "success" ? ` ${styles.statSuccess}` : ""}`} data-testid={`stat-${stat.lane}`}>
               {countIn(stat.lane)}
             </b>
           </div>
@@ -172,7 +167,10 @@ export function TaskBoard() {
             if (!keyword) return true;
             const props = option.props as { value?: unknown; children?: unknown };
             const member = memberByValue.get(String(props.value));
-            if (!member) return String(props.children ?? "").toLowerCase().includes(keyword);
+            if (!member)
+              return String(props.children ?? "")
+                .toLowerCase()
+                .includes(keyword);
             return member.displayName.toLowerCase().includes(keyword) || member.email.toLowerCase().includes(keyword);
           }}
           options={[{ value: ALL, label: "全部" }, ...(members.data ?? []).map((member) => ({ value: member.userId, label: member.displayName }))]}
@@ -185,13 +183,7 @@ export function TaskBoard() {
           onChange={(value) => setRequirementSelection(value as number | typeof ALL)}
           options={[{ value: ALL, label: "全部" }, ...(requirements.data ?? []).map((option) => ({ value: option.id, label: `${option.itemKey} ${option.title}` }))]}
         />
-        <Select
-          className={styles.select}
-          aria-label="优先级"
-          value={prioritySelection}
-          onChange={(value) => setPrioritySelection(String(value))}
-          options={[{ value: ALL, label: "全部" }, ...(["URGENT", "HIGH", "MEDIUM", "LOW"] as const).map((value) => ({ value, label: priorityLabel(value) }))]}
-        />
+        <Select className={styles.select} aria-label="优先级" value={prioritySelection} onChange={(value) => setPrioritySelection(String(value))} options={[{ value: ALL, label: "全部" }, ...(["URGENT", "HIGH", "MEDIUM", "LOW"] as const).map((value) => ({ value, label: priorityLabel(value) }))]} />
       </div>
       {requirements.isError && <Alert type="error" content={formatRequestError(requirements.error)} />}
 
@@ -226,13 +218,7 @@ export function TaskBoard() {
                   const target = taskTarget(roles, item);
                   const typeMeta = taskTypeMeta[item.type];
                   return (
-                    <article
-                      className={styles.card}
-                      key={item.id}
-                      draggable
-                      data-testid={`card-${item.id}`}
-                      onDragStart={(event) => event.dataTransfer.setData("text/work-item-id", String(item.id))}
-                    >
+                    <article className={styles.card} key={item.id} draggable data-testid={`card-${item.id}`} onDragStart={(event) => event.dataTransfer.setData("text/work-item-id", String(item.id))}>
                       <div className={styles.cardTop}>
                         <code className={styles.cardKey}>{item.itemKey}</code>
                         <span className={`${styles.priority} ${priorityMeta[item.priority] ?? styles.prioLow}`} title={priorityLabel(item.priority)} />
@@ -240,6 +226,17 @@ export function TaskBoard() {
                       <h3 className={styles.cardTitle}>{target ? <Link to={target}>{item.title}</Link> : item.title}</h3>
                       <div className={styles.cardTags}>
                         <span className={`${styles.tag} ${typeMeta ? typeMeta.className : styles.tagDev}`}>{typeMeta ? typeMeta.label : item.type}</span>
+                        <Button
+                          className={styles.cardAgent}
+                          type="text"
+                          size="mini"
+                          onClick={() => {
+                            setContext({ kind: "task", id: item.id, label: `${item.itemKey} ${item.title}` });
+                            setAgentOpen(true);
+                          }}
+                        >
+                          交给 Agent
+                        </Button>
                       </div>
                       <div className={styles.cardFoot}>
                         {item.assigneeName && <span className={styles.assignee}>{item.assigneeName.slice(0, 1)}</span>}

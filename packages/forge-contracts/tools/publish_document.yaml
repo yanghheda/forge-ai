@@ -1,0 +1,26 @@
+name: publish_document
+version: 1
+description: 发布需求关联文档的当前版本；发布后的 PRD 与 UX Spec 才是产品评审与 UX 评审的准入材料。
+input_schema:
+  type: object
+  required: [documentId, expectedVersion]
+  properties:
+    documentId: { type: integer, minimum: 1 }
+    versionId: { type: [integer, "null"], minimum: 1 }
+    expectedVersion: { type: integer, minimum: 0 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: document.publish
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/publish_document:execute
+sensitive_fields: []
+requirement_ids:
+  - WI-004

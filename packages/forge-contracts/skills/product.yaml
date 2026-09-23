@@ -1,13 +1,24 @@
 name: product
-version: 1
-description: Product Skill：读取项目、工作项与交付图上下文，检索文档，并创建 Requirement 与 PRD 文档。
+version: 3
+description: Product Skill：读取需求、任务、缺陷与交付图上下文，检索文档，创建与维护 Requirement、PRD 文档并发布版本，维护需求详情与需求内人员配置，并推进产品阶段。
+guidance: 本阶段聚焦需求定义与产品评审前的材料准备：可创建与编辑需求、维护需求详情（目标/范围/验收标准）、生成并发布 PRD、配置四领域负责人与执行人、提交产品评审、软删除草稿需求。四领域会签票、需求审核与驳回、验收属人工专属，不得代为执行；需求评审要求已发布 PRD，缺失时先说明再补全；删除需求必须经人工确认。
 allowed_tools:
   - get_organization
   - get_work_item
+  - list_requirements
+  - list_tasks
+  - list_bugs
+  - list_members
   - get_delivery_graph
   - search_documents
   - create_requirement
   - create_prd_document
+  - publish_document
+  - update_requirement
+  - update_requirement_details
+  - delete_requirement
+  - assign_executors
+  - assign_participants
   - advance_requirement
 limits:
-  max_tool_calls: 15
+  max_tool_calls: 20

@@ -1,0 +1,30 @@
+name: list_requirements
+version: 1
+description: 按关键词、状态与归属筛选当前公司的 Requirement 列表；分页上限由契约固定，服务端按最新权限再校验。
+input_schema:
+  type: object
+  required: []
+  properties:
+    mine: { type: boolean }
+    query: { type: [string, "null"], maxLength: 100 }
+    status:
+      type: [string, "null"]
+      enum: [DRAFT, REQUIREMENT_APPROVAL, READY_FOR_REVIEW, PRODUCT_REVIEW, READY_FOR_UX, UX_IN_PROGRESS, UX_REVIEW, READY_FOR_DEV, IN_DEVELOPMENT, READY_FOR_QA, IN_QA, IN_FIX_VERIFICATION, IN_ACCEPTANCE, READY_FOR_RELEASE, RELEASED, DONE, REJECTED, CANCELLED, null]
+    page: { type: integer, minimum: 1, maximum: 100 }
+    pageSize: { type: integer, minimum: 1, maximum: 50 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: requirement.read
+risk_level: LOW
+idempotency:
+  required: false
+timeout_ms: 5000
+retry:
+  max_attempts: 2
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/list_requirements:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4

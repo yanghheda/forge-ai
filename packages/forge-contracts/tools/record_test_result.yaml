@@ -1,0 +1,33 @@
+name: record_test_result
+version: 1
+description: 记录单条测试用例的执行结论与证据；结论不能由模型单独决定，因此无论 Run 策略都强制人工确认后落库。
+input_schema:
+  type: object
+  required: [runId, resultId, status, expectedVersion]
+  properties:
+    runId: { type: integer, minimum: 1 }
+    resultId: { type: integer, minimum: 1 }
+    status: { type: string, enum: [NOT_RUN, IN_PROGRESS, PASS, FAIL, BLOCKED, SKIPPED] }
+    actualResult: { type: [string, "null"], maxLength: 20000 }
+    evidence:
+      type: array
+      maxItems: 20
+      items: { type: string, minLength: 1, maxLength: 2000 }
+    expectedVersion: { type: integer, minimum: 0 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: qa.execute
+risk_level: MEDIUM
+requires_confirmation: true
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/record_test_result:execute
+sensitive_fields: []
+requirement_ids:
+  - QA-002

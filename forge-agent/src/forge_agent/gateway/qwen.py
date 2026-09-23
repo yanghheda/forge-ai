@@ -64,11 +64,23 @@ class QwenLanguageModel:
         self._max_attempts = max_attempts
         self._retry_backoff_seconds = retry_backoff_seconds
 
-    def create_plan(self, skill: str, message: str) -> list[str]:
+    def create_plan(
+        self,
+        skill: str,
+        message: str,
+        guidance: str | None = None,
+        effective_tools: list[str] | None = None,
+    ) -> list[str]:
         payload = self._complete_json(
             "你是 ForgeAI 的计划节点。只返回 JSON："
-            '{"steps":["步骤"]}。步骤必须简短、可执行；计划不代表授权。',
-            f"Skill: {skill}\n用户指令: {message}",
+            '{"steps":["步骤"]}。步骤必须简短、可执行；计划不代表授权。'
+            "计划中的每一步都必须能由当前阶段允许的 Tool 完成，不得规划人工审批动作。",
+            (
+                f"Skill: {skill}\n"
+                f"阶段能力说明: {guidance or '（未声明）'}\n"
+                f"本阶段允许的 Tool: {json.dumps(effective_tools or [], ensure_ascii=False)}\n"
+                f"用户指令: {message}"
+            ),
         )
         return _PlanResponse.model_validate(payload).steps
 
@@ -79,6 +91,7 @@ class QwenLanguageModel:
         work_item_id: int | None,
         tool_definitions: list[dict[str, Any]],
         tool_calls: list[dict[str, Any]],
+        guidance: str | None = None,
     ) -> ToolSelection | None:
         payload = self._complete_json(
             "你是 ForgeAI 的 Tool 选择节点。只返回 JSON："
@@ -95,9 +108,17 @@ class QwenLanguageModel:
             "search_documents，必须选择 create_prd_document 并生成完整正文。"
             "当用户要求推进当前阶段，且结构化 Tool 观察中已有成功的 get_work_item、"
             "尚无成功的 advance_requirement 时，不得再次调用 get_work_item，必须选择 "
-            "advance_requirement，并使用观察结果中的最新 version 作为 expectedVersion。",
+            "advance_requirement，并使用观察结果中的最新 version 作为 expectedVersion。"
+            "\n\n阶段边界：只选择阶段能力说明允许的动作；人工专属动作（会签票、审核与驳回、"
+            "验收、部署审批、缺陷取消）没有对应 Tool，不得尝试绕过。"
+            "当观察结果含 guardHints（缺失项）时，必须先用自然语言向用户说明缺失什么，"
+            "不得重复选择同一动作；当观察结果含 availableActions 时，只能从中选择动作。"
+            "当 Tool 因强制确认进入 WAITING_APPROVAL 时，说明该动作已提交人工确认，"
+            "不得再次选择同一 Tool。",
             (
-                f"Skill: {skill}\n用户指令: {message}\n"
+                f"Skill: {skill}\n"
+                f"阶段能力说明: {guidance or '（未声明）'}\n"
+                f"用户指令: {message}\n"
                 f"当前 Requirement ID: {work_item_id}\n"
                 f"允许 Tool 契约: {json.dumps(tool_definitions, ensure_ascii=False)}\n"
                 f"结构化 Tool 观察: {json.dumps(tool_calls, ensure_ascii=False)}"
@@ -114,12 +135,15 @@ class QwenLanguageModel:
         message: str,
         resource_count: int,
         tool_calls: list[dict[str, Any]],
+        guidance: str | None = None,
     ) -> str:
         payload = self._complete_json(
             "你是 ForgeAI 的结果收尾节点。只返回 JSON："
-            '{"answer":"简洁结果"}。不得声称未由 Tool 结果证实的业务写入已成功。',
+            '{"answer":"简洁结果"}。不得声称未由 Tool 结果证实的业务写入已成功。'
+            "若存在 WAITING_APPROVAL 的 Tool，必须说明该动作已提交人工确认、等待审批后生效。",
             (
-                f"Skill: {skill}\n用户指令: {message}\n"
+                f"Skill: {skill}\n阶段能力说明: {guidance or '（未声明）'}\n"
+                f"用户指令: {message}\n"
                 f"可回溯资源引用数: {resource_count}\n"
                 f"结构化 Tool 观察: {json.dumps(tool_calls, ensure_ascii=False)}"
             ),
@@ -132,15 +156,18 @@ class QwenLanguageModel:
         message: str,
         resource_count: int,
         tool_calls: list[dict[str, Any]],
+        guidance: str | None = None,
     ) -> Iterable[str]:
         """使用 Provider 的 SSE Chat Completion，逐片段输出最终自然语言答案。"""
 
         system_prompt = (
             "你是 ForgeAI 的结果收尾节点。直接输出简洁自然语言结果，不要输出 JSON。"
             "不得声称未由 Tool 结果证实的业务写入已成功。"
+            "若存在 WAITING_APPROVAL 的 Tool，必须说明该动作已提交人工确认、等待审批后生效。"
         )
         user_prompt = (
-            f"Skill: {skill}\n用户指令: {message}\n"
+            f"Skill: {skill}\n阶段能力说明: {guidance or '（未声明）'}\n"
+            f"用户指令: {message}\n"
             f"可回溯资源引用数: {resource_count}\n"
             f"结构化 Tool 观察: {json.dumps(tool_calls, ensure_ascii=False)}"
         )

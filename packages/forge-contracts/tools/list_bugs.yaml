@@ -1,0 +1,24 @@
+name: list_bugs
+version: 1
+description: 读取指定 Requirement 下的缺陷清单；未显式给出 requirementId 时使用 Run 绑定的根需求。
+input_schema:
+  type: object
+  required: []
+  properties:
+    requirementId: { type: [integer, "null"], minimum: 1 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: qa.read
+risk_level: LOW
+idempotency:
+  required: false
+timeout_ms: 5000
+retry:
+  max_attempts: 2
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/list_bugs:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4

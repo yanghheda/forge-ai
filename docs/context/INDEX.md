@@ -78,8 +78,8 @@
 | 文档、版本、附件、编辑器 | `DETAIL` 4.5、8.3、13.4、14.3 |
 | API、DTO、错误、分页、幂等 | `ARCH` 10；`DETAIL` 3.2–3.3、8 |
 | MySQL、Flyway、Mapper、事务、锁、Outbox | `DETAIL` 3.3–3.4、4.1、7 |
-| Agent Run、Deep Agents、Checkpoint、Skill | `ARCH` 12；`DETAIL` 4.8、9.1–9.5 |
-| Tool、风险、审批、暂停与恢复 | `ARCH` 13；`DETAIL` 8.4、9.6–9.7 |
+| Agent Run、Deep Agents、Checkpoint、Skill | `ARCH` 12；`DETAIL` 4.8、9.1–9.5；ADR-023 |
+| Tool、风险、审批、暂停与恢复 | `ARCH` 13；`DETAIL` 8.4、9.6–9.7；ADR-023 |
 | RAG、Embedding、Qdrant、索引 | `ARCH` 14；`DETAIL` 4.5、9.8 |
 | SSE、事件重放、Reducer | `ARCH` 11；`DETAIL` 10 |
 | GitLab、Secret、Branch、MR、Pipeline、Webhook | `ARCH` 15；`DETAIL` 3.5、4.6、11 |

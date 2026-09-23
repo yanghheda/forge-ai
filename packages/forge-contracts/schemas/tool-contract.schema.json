@@ -27,6 +27,7 @@
     "output_schema": { "$ref": "#/$defs/jsonSchema" },
     "required_permission": { "type": "string", "pattern": "^[a-z][a-z0-9_.]*$" },
     "risk_level": { "enum": ["LOW", "MEDIUM", "HIGH"] },
+    "requires_confirmation": { "type": "boolean" },
     "idempotency": {
       "type": "object",
       "additionalProperties": false,

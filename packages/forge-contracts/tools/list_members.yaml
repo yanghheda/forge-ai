@@ -1,0 +1,23 @@
+name: list_members
+version: 1
+description: 读取当前公司可被指派为负责人或执行人的成员清单，供 Agent 使用真实用户标识而不是猜测。
+input_schema:
+  type: object
+  required: []
+  properties: {}
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: requirement.read
+risk_level: LOW
+idempotency:
+  required: false
+timeout_ms: 5000
+retry:
+  max_attempts: 2
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/list_members:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4

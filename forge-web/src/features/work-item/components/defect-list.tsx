@@ -1,10 +1,11 @@
-import { Alert, Radio, Select, Spin, Tag } from "@arco-design/web-react";
+import { Alert, Button, Radio, Select, Spin, Tag } from "@arco-design/web-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
 
 import { getCurrentUser } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
+import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
 import { listCompanyBugs, listRequirementMembers } from "../api/work-item-api";
 import { bugStatusLabel, severityLabel } from "../utils/requirement-analytics";
 import styles from "./defect-list.module.css";
@@ -17,6 +18,8 @@ const ALL = "ALL";
 
 /* 缺陷列表是公司范围缺陷的统一入口，只读展示，状态流转仍在需求工作区完成。 */
 export function DefectList() {
+  const setContext = useAgentPanelStore((state) => state.setContext);
+  const setAgentOpen = useAgentPanelStore((state) => state.setOpen);
   const [scope, setScope] = useState<"ALL" | "MINE">("ALL");
   const [status, setStatus] = useState<string>();
   const [assignee, setAssignee] = useState<number | typeof ALL>(ALL);
@@ -87,25 +90,40 @@ export function DefectList() {
         <span>修复人</span>
         <span>创建人</span>
         <span>创建时间</span>
+        <span>操作</span>
       </div>
       <div className={styles.list}>
         {bugs.data && filtered.length === 0 && <div className={styles.empty}>没有匹配的缺陷。</div>}
         {filtered.map((bug) => (
-          <Link key={bug.id} to={`/defects/${bug.id}`} className={`${styles.row}${bug.status === "BLOCKED" ? ` ${styles.rowBlocked}` : ""}`} data-testid={`defect-row-${bug.id}`}>
-            <div className={styles.titleCell}>
-              <code>{bug.itemKey}</code>
-              <strong>{bug.title}</strong>
+          <div key={bug.id} className={`${styles.row}${bug.status === "BLOCKED" ? ` ${styles.rowBlocked}` : ""}`}>
+            <Link to={`/defects/${bug.id}`} className={styles.rowLink} data-testid={`defect-row-${bug.id}`}>
+              <div className={styles.titleCell}>
+                <code>{bug.itemKey}</code>
+                <strong>{bug.title}</strong>
+              </div>
+              <Tag className={styles.tag} color={bug.severity === "BLOCKER" || bug.severity === "CRITICAL" ? "red" : bug.severity === "MAJOR" ? "orange" : "gray"}>
+                {severityLabel[bug.severity] ?? bug.severity}
+              </Tag>
+              <Tag className={styles.tag} color={bug.status === "DONE" ? "green" : bug.status === "BLOCKED" ? "red" : "arcoblue"}>
+                {bugStatusLabel[bug.status] ?? bug.status}
+              </Tag>
+              <span className={styles.assignee}>{bug.assigneeName ?? "—"}</span>
+              <span className={styles.reporter}>{bug.reporterName ?? "—"}</span>
+              <time className={styles.createdAt}>{new Date(bug.createdAt).toLocaleDateString("zh-CN")}</time>
+            </Link>
+            <div className={styles.rowActions}>
+              <Button
+                type="text"
+                size="small"
+                onClick={() => {
+                  setContext({ kind: "defect", id: bug.id, label: `${bug.itemKey} ${bug.title}` });
+                  setAgentOpen(true);
+                }}
+              >
+                交给 Agent
+              </Button>
             </div>
-            <Tag className={styles.tag} color={bug.severity === "BLOCKER" || bug.severity === "CRITICAL" ? "red" : bug.severity === "MAJOR" ? "orange" : "gray"}>
-              {severityLabel[bug.severity] ?? bug.severity}
-            </Tag>
-            <Tag className={styles.tag} color={bug.status === "DONE" ? "green" : bug.status === "BLOCKED" ? "red" : "arcoblue"}>
-              {bugStatusLabel[bug.status] ?? bug.status}
-            </Tag>
-            <span className={styles.assignee}>{bug.assigneeName ?? "—"}</span>
-            <span className={styles.reporter}>{bug.reporterName ?? "—"}</span>
-            <time className={styles.createdAt}>{new Date(bug.createdAt).toLocaleDateString("zh-CN")}</time>
-          </Link>
+          </div>
         ))}
       </div>
       {bugs.data && <div className={styles.total}>共 {filtered.length} 条缺陷</div>}

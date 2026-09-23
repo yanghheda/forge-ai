@@ -1,0 +1,26 @@
+name: delete_requirement
+version: 1
+description: 软删除仍处于草稿状态的需求；删除不可逆，必须经人工确认后执行。
+input_schema:
+  type: object
+  required: [requirementId, expectedVersion]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    expectedVersion: { type: integer, minimum: 0 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: requirement.edit
+risk_level: MEDIUM
+requires_confirmation: true
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/delete_requirement:execute
+sensitive_fields: []
+requirement_ids:
+  - WI-004

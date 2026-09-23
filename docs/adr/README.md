@@ -29,6 +29,7 @@ ADR 用于记录影响多个模块、长期演进或安全边界的架构决策�
 | [ADR-021](ADR-021-role-model-global-and-domain-admins.md) | Accepted | 全局管理员与四个领域管理员的角色模型 |
 
 | [ADR-022](ADR-022-requirement-leads-and-task-lifecycle.md) | Accepted | 需求负责人、执行人、四方会签与统一任务生命周期 |
+| [ADR-023](ADR-023-agent-action-coverage-and-forced-confirmation.md) | Accepted | Agent 动作覆盖范围与强制人工确认 |
 
 ## 何时新增 ADR
 

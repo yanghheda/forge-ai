@@ -1,0 +1,33 @@
+name: update_requirement_details
+version: 1
+description: 维护需求详情的业务目标、范围、验收标准与业务价值；这些材料是需求评审与流转的依据。
+input_schema:
+  type: object
+  required: [requirementId, expectedVersion]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    goal: { type: [string, "null"], maxLength: 20000 }
+    inScope: { type: [string, "null"], maxLength: 20000 }
+    outOfScope: { type: [string, "null"], maxLength: 20000 }
+    acceptanceCriteria:
+      type: [array, "null"]
+      maxItems: 20
+      items: { type: string, minLength: 1, maxLength: 500 }
+    businessValue: { type: [string, "null"], maxLength: 20000 }
+    expectedVersion: { type: integer, minimum: 0 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: requirement.edit
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/update_requirement_details:execute
+sensitive_fields: []
+requirement_ids:
+  - WI-004

@@ -1,15 +1,29 @@
 name: qa
-version: 1
-description: QA Skill：读取交付上下文并生成 Test Case 或 Bug 草稿，执行结论始终由人工入口记录。
+version: 3
+description: QA Skill：读取需求、任务、缺陷与测试运行上下文，生成 Test Case 与 Bug 草稿，维护 QA 任务与缺陷验证动作，执行并重开测试运行；执行结论必须经人工确认后落库。
+guidance: 本阶段聚焦测试与缺陷验证：可创建用例与缺陷、维护 QA 任务、开始修复/验证/重开缺陷、创建测试运行、记录执行结论并重开已完成的测试运行。执行结论与运行收尾必须经人工确认，不得声称已落库；缺陷取消与任务负责人审核属人工专属；测试前置条件未满足时先向用户说明。
 prompt_version: qa-system-v1
 context_template: qa-context-v1
 allowed_tools:
   - get_organization
   - get_work_item
+  - list_requirements
+  - list_tasks
+  - list_bugs
+  - list_members
+  - get_test_run
   - get_delivery_graph
   - search_documents
   - create_test_case
   - create_bug
+  - update_task
+  - advance_task
+  - update_bug
+  - advance_bug
+  - start_test_run
+  - record_test_result
+  - complete_test_run
+  - reopen_test_run
   - advance_requirement
 limits:
-  max_tool_calls: 15
+  max_tool_calls: 20

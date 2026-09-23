@@ -1,0 +1,35 @@
+name: assign_participants
+version: 1
+description: 覆盖设置 Requirement 四个领域的负责人；改变的是授权图，因此无论 Run 策略都强制人工确认后落库。
+input_schema:
+  type: object
+  required: [requirementId, assignments]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    assignments:
+      type: array
+      maxItems: 4
+      items:
+        type: object
+        required: [role, userId]
+        properties:
+          role: { type: string, enum: [PRODUCT, UX, DEVELOPER, QA] }
+          userId: { type: integer, minimum: 1 }
+        additionalProperties: false
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: requirement.edit
+risk_level: MEDIUM
+requires_confirmation: true
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/assign_participants:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4

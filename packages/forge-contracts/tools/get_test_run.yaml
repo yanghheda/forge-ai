@@ -1,0 +1,25 @@
+name: get_test_run
+version: 1
+description: 读取 Test Run 及其用例执行结果；未给出 testRunId 时返回该 Requirement 最近一次运行。
+input_schema:
+  type: object
+  required: []
+  properties:
+    testRunId: { type: [integer, "null"], minimum: 1 }
+    requirementId: { type: [integer, "null"], minimum: 1 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: qa.read
+risk_level: LOW
+idempotency:
+  required: false
+timeout_ms: 5000
+retry:
+  max_attempts: 2
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/get_test_run:execute
+sensitive_fields: []
+requirement_ids:
+  - PRD-10-4

@@ -11,6 +11,8 @@ public record SkillContract(
         String promptVersion,
         /* 最小上下文模板版本；旧 Skill 未声明时为空。 */
         String contextTemplate,
+        /* 阶段能力说明，用于向模型解释本阶段能做什么与哪些动作属人工专属；未声明时为空。 */
+        String guidance,
         /* 该 Skill 允许调用的 Tool 名称白名单；是入口上限而非执行授权。 */
         List<String> allowedTools,
         /* 单次图执行的 Tool 调用硬上限。 */

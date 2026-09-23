@@ -104,6 +104,8 @@ public class ToolContractRegistry {
         }
         boolean idempotencyRequired = idempotency instanceof Map<?, ?> mapping
                 && Boolean.TRUE.equals(mapping.get("required"));
+        /* 缺省为 false，保证既有契约行为不变；仅显式声明的动作强制人工确认。 */
+        boolean requiresConfirmation = Boolean.TRUE.equals(document.get("requires_confirmation"));
         @SuppressWarnings("unchecked")
         Map<String, Object> inputSchema = requireMap(document.get("input_schema"), "input_schema");
         return new ToolContract(
@@ -113,6 +115,7 @@ public class ToolContractRegistry {
                 text(document, "required_permission"),
                 riskLevel,
                 idempotencyRequired,
+                requiresConfirmation,
                 inputSchema,
                 text(backend, "method"),
                 backendPath);
@@ -138,6 +141,7 @@ public class ToolContractRegistry {
                 version.intValue(),
                 nullableText(document, "prompt_version"),
                 nullableText(document, "context_template"),
+                nullableText(document, "guidance"),
                 toolNames.stream().map(String::valueOf).toList(),
                 calls.intValue());
     }

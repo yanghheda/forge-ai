@@ -11,7 +11,7 @@
 .tableHead,
 .row {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 80px 110px 110px 96px;
+  grid-template-columns: minmax(240px, 1fr) 80px 110px 110px 168px;
   align-items: center;
   gap: 12px;
 }

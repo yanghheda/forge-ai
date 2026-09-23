@@ -6,6 +6,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api";
+import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
 import type { BugView } from "../api/work-item-api";
 
 const api = vi.hoisted(() => ({
@@ -180,6 +181,18 @@ describe("DefectList", () => {
 
     expect(screen.getByTestId("defect-row-1")).toHaveAttribute("href", "/defects/1");
     expect(screen.getByTestId("defect-row-3")).toHaveAttribute("href", "/defects/3");
+  });
+
+  it("行内「交给 Agent」写入缺陷上下文并展开指令抽屉", async () => {
+    const user = userEvent.setup();
+    useAgentPanelStore.setState({ open: false, context: undefined, contextDismissed: false });
+    render(<DefectList />, { wrapper });
+    await screen.findByText("登录接口报错");
+
+    await user.click(screen.getAllByRole("button", { name: "交给 Agent" })[0]);
+
+    expect(useAgentPanelStore.getState().context).toEqual({ kind: "defect", id: 1, label: "BUG-1 登录接口报错" });
+    expect(useAgentPanelStore.getState().open).toBe(true);
   });
 
   it("接口失败时展示错误提示", async () => {

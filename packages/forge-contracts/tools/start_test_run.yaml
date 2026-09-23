@@ -1,0 +1,25 @@
+name: start_test_run
+version: 1
+description: 在 READY_FOR_QA 或测试中的 Requirement 上创建新的测试运行；用例执行结论仍需单独记录并强制人工确认。
+input_schema:
+  type: object
+  required: [requirementId, environment]
+  properties:
+    requirementId: { type: integer, minimum: 1 }
+    environment: { type: string, minLength: 1, maxLength: 255 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: qa.manage
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/start_test_run:execute
+sensitive_fields: []
+requirement_ids:
+  - QA-002

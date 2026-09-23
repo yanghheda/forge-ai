@@ -70,6 +70,7 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         for (String table : List.of(
                 "outbox_events", "agent_tool_calls", "approvals", "agent_events", "agent_steps", "agent_runs", "comments",
                 "document_versions", "documents",
+                "test_results", "test_runs", "test_cases",
                 "work_item_relations", "work_item_labels", "organization_policies", "work_item_events",
                 "review_records", "requirement_participants", "requirement_details", "work_items", "organization_item_sequences",
                 "organization_policies", "audit_logs", "member_roles", "organization_members",                 "organizations", "users")) {
@@ -447,7 +448,35 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
-    void stageBoundRunsAdvanceProductToUxAndRejectCrossRoleOrCrossRequirementActions() throws Exception {
+    void forcedConfirmationToolPausesEvenWhenRunPolicyAllows() throws Exception {
+        var requirement = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "测试结论需求", "用于验证执行结论的强制确认",
+                WorkItemPriority.HIGH, null, null);
+        String runId = insertRunningRun(ownerId, "QA", "ALLOW", requirement.id());
+
+        /* 契约声明 requires_confirmation，因此即使 Run 策略为 ALLOW 也不得自动落库执行结论（ADR-023 §3）。 */
+        ResponseEntity<String> response = executeTool(
+                "record_test_result", runToken(runId), "call-1",
+                Map.of("runId", 1, "resultId", 1, "status", "PASS", "expectedVersion", 0));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode execution = objectMapper.readTree(response.getBody());
+        assertThat(execution.get("status").asText()).isEqualTo("WAITING_APPROVAL");
+        assertThat(execution.get("approvalId").asText()).hasSize(26);
+        assertThat(execution.get("result").isNull()).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT status FROM agent_runs WHERE id = ?", String.class, runId))
+                .isEqualTo("WAITING_APPROVAL");
+        Map<String, Object> approval = jdbcTemplate.queryForMap(
+                "SELECT risk_level, status FROM approvals WHERE run_id = ?", runId);
+        assertThat(approval.get("risk_level")).isEqualTo("MEDIUM");
+        assertThat(approval.get("status")).isEqualTo("PENDING");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM agent_tool_calls", Long.class))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void stageBoundRunsAdvanceProductStageAndRejectLeaderApprovalsOrCrossScopeActions() throws Exception {
         var requirement = workItemCommandService.create(ownerId, organizationId,
                 WorkItemType.REQUIREMENT, "Agent 推进需求", "已具备评审材料",
                 WorkItemPriority.HIGH, null, null);
@@ -481,27 +510,80 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(wrongRequirement.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(wrongRequirement.getBody()).contains("RUN_WORK_ITEM_MISMATCH");
 
-        assertThat(executeTool("advance_requirement",runToken(productRunId),"requirement-approve",
-                Map.of("requirementId",requirement.id(),"action","APPROVE_REQUIREMENT","expectedVersion",1)).getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(executeTool("advance_requirement",runToken(productRunId),"review-start",
-                Map.of("requirementId",requirement.id(),"action","START_PRODUCT_REVIEW","expectedVersion",2)).getStatusCode()).isEqualTo(HttpStatus.OK);
-        JsonNode approved = objectMapper.readTree(executeTool(
-                "advance_requirement", runToken(productRunId), "product-approve",
+        /* 领导审批动作已从 advance_requirement 契约枚举移除，因此先被 schema 校验拒绝（ADR-023 §1）。 */
+        ResponseEntity<String> requirementApprove = executeTool(
+                "advance_requirement", runToken(productRunId), "requirement-approve",
+                Map.of("requirementId", requirement.id(), "action", "APPROVE_REQUIREMENT",
+                        "expectedVersion", 1));
+        ResponseEntity<String> productReviewApprove = executeTool(
+                "advance_requirement", runToken(productRunId), "product-review-approve",
                 Map.of("requirementId", requirement.id(), "action", "APPROVE_PRODUCT_REVIEW",
-                        "expectedVersion", 3)).getBody());
+                        "expectedVersion", 1));
 
-        assertThat(approved.at("/result/status").asText()).isEqualTo("READY_FOR_UX");
+        assertThat(requirementApprove.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(requirementApprove.getBody()).contains("SCHEMA_INVALID");
+        assertThat(productReviewApprove.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(productReviewApprove.getBody()).contains("SCHEMA_INVALID");
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT status FROM work_items WHERE id = ?", String.class, requirement.id()))
-                .isEqualTo("READY_FOR_UX");
+                .isEqualTo("REQUIREMENT_APPROVAL");
 
         String uxRunId = insertRunningRun(ownerId, "UX", "ALLOW", requirement.id());
-        ResponseEntity<String> uxCannotRepeatProductApproval = executeTool(
-                "advance_requirement", runToken(uxRunId), "ux-product-action",
-                Map.of("requirementId", requirement.id(), "action", "APPROVE_REQUIREMENT",
-                        "expectedVersion", 2));
-        assertThat(uxCannotRepeatProductApproval.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(uxCannotRepeatProductApproval.getBody()).contains("ACTION_NOT_ALLOWED_FOR_SKILL");
+        for (Map.Entry<String, String> leaderAction : Map.of(
+                        "ux-requirement-approve", "APPROVE_REQUIREMENT",
+                        "ux-product-approve", "APPROVE_PRODUCT_REVIEW",
+                        "ux-review-approve", "APPROVE_UX_REVIEW",
+                        "ux-accept", "ACCEPT_REQUIREMENT")
+                .entrySet()) {
+            ResponseEntity<String> rejected = executeTool(
+                    "advance_requirement", runToken(uxRunId), leaderAction.getKey(),
+                    Map.of("requirementId", requirement.id(), "action", leaderAction.getValue(),
+                            "expectedVersion", 1));
+            assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(rejected.getBody()).contains("SCHEMA_INVALID");
+        }
+    }
+
+    @Test
+    void readToolsExposeScopedListsAndRejectForeignRequirementScope() throws Exception {
+        var requirement = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "读取范围需求", "用于验证读取工具的公司范围",
+                WorkItemPriority.HIGH, null, null);
+        var foreign = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "其他范围需求", "不应被当前 Run 读取",
+                WorkItemPriority.MEDIUM, null, null);
+        ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(
+                jdbcTemplate, organizationId, requirement.id(), ownerId);
+        /* 任务级动作由五态任务生命周期决定，与需求级流转分开（ADR-023 §5）。 */
+        long taskId = insertTask(requirement.id(), "DEV_TASK", "读取工具任务", "IN_PROGRESS");
+        String runId = insertRunningRun(ownerId, "DEVELOPER", "ALLOW", requirement.id());
+
+        JsonNode requirements = objectMapper.readTree(executeTool(
+                "list_requirements", runToken(runId), "call-1", Map.of("query", "读取范围")).getBody());
+        assertThat(requirements.at("/result/total").asLong()).isEqualTo(1);
+        assertThat(requirements.at("/result/items/0/id").asLong()).isEqualTo(requirement.id());
+
+        JsonNode tasks = objectMapper.readTree(executeTool(
+                "list_tasks", runToken(runId), "call-2", Map.of()).getBody());
+        assertThat(tasks.at("/result/requirementId").asLong()).isEqualTo(requirement.id());
+        assertThat(tasks.at("/result/items/0/id").asLong()).isEqualTo(taskId);
+
+        JsonNode task = objectMapper.readTree(executeTool(
+                "get_work_item", runToken(runId), "call-3", Map.of("workItemId", taskId)).getBody());
+        assertThat(task.at("/result/type").asText()).isEqualTo("DEV_TASK");
+        assertThat(task.at("/result/parentRequirementId").asLong()).isEqualTo(requirement.id());
+        assertThat(task.at("/result/availableActions").toString()).contains("SUBMIT_REVIEW");
+        /* 根需求尚未进入开发阶段，guardHints 必须显式暴露缺失的阶段前置条件。 */
+        assertThat(task.at("/result/guardHints").toString()).contains("activeTaskStage");
+
+        JsonNode members = objectMapper.readTree(executeTool(
+                "list_members", runToken(runId), "call-4", Map.of()).getBody());
+        assertThat(members.at("/result/items/0/userId").asLong()).isEqualTo(ownerId);
+
+        ResponseEntity<String> foreignScope = executeTool(
+                "list_bugs", runToken(runId), "call-5", Map.of("requirementId", foreign.id()));
+        assertThat(foreignScope.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(foreignScope.getBody()).contains("RUN_WORK_ITEM_MISMATCH");
     }
 
     @Test
@@ -676,6 +758,164 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 requirement.id())).isEqualTo(1);
     }
 
+    /* publish_document 是需求评审的准入前提：未发布 PRD 时评审被 Guard 拒绝，发布后即可推进。 */
+    @Test
+    void productRunPublishesPrdAndUnlocksRequirementReview() throws Exception {
+        var requirement = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "评审材料需求", "需要已发布 PRD 才能进入产品评审",
+                WorkItemPriority.HIGH, null, null);
+        ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(
+                jdbcTemplate, organizationId, requirement.id(), ownerId);
+        String runId = insertRunningRun(ownerId, "PRODUCT", "ALLOW", requirement.id());
+
+        JsonNode created = objectMapper.readTree(executeTool(
+                "create_prd_document", runToken(runId), "prd-1",
+                Map.of("requirementId", requirement.id(), "title", "评审用 PRD",
+                        "contentMarkdown", "# 背景与目标\n\nAgent 生成的 PRD 正文，用于解锁产品评审。")).getBody());
+        long documentId = created.at("/result/id").asLong();
+        assertThat(created.at("/result/status").asText()).isEqualTo("DRAFT");
+
+        ResponseEntity<String> beforePublish = executeTool(
+                "advance_requirement", runToken(runId), "submit-before-publish",
+                Map.of("requirementId", requirement.id(), "action", "SUBMIT_PRODUCT_REVIEW",
+                        "expectedVersion", 0));
+        assertThat(beforePublish.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(beforePublish.getBody()).contains("WORKFLOW_GUARD_FAILED");
+
+        JsonNode published = objectMapper.readTree(executeTool(
+                "publish_document", runToken(runId), "publish-1",
+                Map.of("documentId", documentId, "expectedVersion", created.at("/result/version").asLong())).getBody());
+        assertThat(published.at("/result/status").asText()).isEqualTo("PUBLISHED");
+        assertThat(published.at("/result/documentType").asText()).isEqualTo("PRD");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT status FROM documents WHERE id = ?", String.class, documentId))
+                .isEqualTo("PUBLISHED");
+
+        JsonNode submitted = objectMapper.readTree(executeTool(
+                "advance_requirement", runToken(runId), "submit-after-publish",
+                Map.of("requirementId", requirement.id(), "action", "SUBMIT_PRODUCT_REVIEW",
+                        "expectedVersion", 0)).getBody());
+        assertThat(submitted.at("/result/status").asText()).isEqualTo("REQUIREMENT_APPROVAL");
+    }
+
+    /* 发布只能作用于 Run 绑定需求下的文档，越界文档一律拒绝。 */
+    @Test
+    void publishDocumentRejectsDocumentOutsideRunRequirement() throws Exception {
+        var requirement = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "范围内需求", null, WorkItemPriority.MEDIUM, null, null);
+        var foreign = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "范围外需求", null, WorkItemPriority.MEDIUM, null, null);
+        jdbcTemplate.update(
+                "INSERT INTO documents (organization_id, work_item_id, type, title, status, visibility, "
+                        + "created_by, created_at, updated_at, version) VALUES "
+                        + "(?, ?, 'PRD', '范围外 PRD', 'DRAFT', 'ORGANIZATION', ?, "
+                        + "UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)",
+                organizationId, foreign.id(), ownerId);
+        long foreignDocumentId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        String runId = insertRunningRun(ownerId, "PRODUCT", "ALLOW", requirement.id());
+
+        ResponseEntity<String> rejected = executeTool(
+                "publish_document", runToken(runId), "publish-foreign",
+                Map.of("documentId", foreignDocumentId, "expectedVersion", 0));
+
+        assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(rejected.getBody()).contains("RUN_WORK_ITEM_MISMATCH");
+    }
+
+    /* 需求详情按字段合并写入，局部更新不得清空既有材料。 */
+    @Test
+    void productRunUpdatesRequirementDetailsWithPartialMerge() throws Exception {
+        var requirement = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "详情需求", "用于验证详情材料合并",
+                WorkItemPriority.MEDIUM, null, null);
+        ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(
+                jdbcTemplate, organizationId, requirement.id(), ownerId);
+        String runId = insertRunningRun(ownerId, "PRODUCT", "ALLOW", requirement.id());
+
+        JsonNode first = objectMapper.readTree(executeTool(
+                "update_requirement_details", runToken(runId), "details-1",
+                Map.of("requirementId", requirement.id(), "goal", "降低下单失败率",
+                        "inScope", "结算页", "acceptanceCriteria", List.of("失败率低于 1%"),
+                        "expectedVersion", 0)).getBody());
+        assertThat(first.at("/result/goal").asText()).isEqualTo("降低下单失败率");
+        assertThat(first.at("/result/version").asLong()).isEqualTo(1);
+
+        JsonNode second = objectMapper.readTree(executeTool(
+                "update_requirement_details", runToken(runId), "details-2",
+                Map.of("requirementId", requirement.id(), "businessValue", "提升转化",
+                        "expectedVersion", 1)).getBody());
+        assertThat(second.at("/result/goal").asText()).isEqualTo("降低下单失败率");
+        assertThat(second.at("/result/inScope").asText()).isEqualTo("结算页");
+        assertThat(second.at("/result/acceptanceCriteria/0").asText()).isEqualTo("失败率低于 1%");
+        assertThat(second.at("/result/businessValue").asText()).isEqualTo("提升转化");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT business_value FROM requirement_details WHERE work_item_id = ?",
+                        String.class, requirement.id()))
+                .isEqualTo("提升转化");
+    }
+
+    /* 需求删除不可逆，因此即使 Run 策略为 ALLOW 也先暂停等人工确认，确认后才软删除草稿。 */
+    @Test
+    void deleteRequirementAlwaysPausesForConfirmationThenSoftDeletesDraft() throws Exception {
+        var requirement = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "待删除草稿", "仅草稿允许软删除",
+                WorkItemPriority.LOW, null, null);
+        String runId = insertRunningRun(ownerId, "PRODUCT", "ALLOW", requirement.id());
+        Map<String, Object> arguments = Map.of("requirementId", requirement.id(), "expectedVersion", 0);
+
+        JsonNode waiting = objectMapper.readTree(
+                executeTool("delete_requirement", runToken(runId), "delete-1", arguments).getBody());
+        assertThat(waiting.get("status").asText()).isEqualTo("WAITING_APPROVAL");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM work_items WHERE id = ? AND deleted_at IS NULL",
+                        Long.class, requirement.id()))
+                .isEqualTo(1);
+
+        jdbcTemplate.update("UPDATE approvals SET status = 'APPROVED' WHERE id = ?",
+                waiting.get("approvalId").asText());
+        jdbcTemplate.update("UPDATE agent_runs SET status = 'RUNNING' WHERE id = ?", runId);
+
+        JsonNode executed = objectMapper.readTree(
+                executeTool("delete_requirement", runToken(runId), "delete-1", arguments).getBody());
+        assertThat(executed.get("status").asText()).isEqualTo("SUCCEEDED");
+        assertThat(executed.at("/result/deleted").asBoolean()).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM work_items WHERE id = ? AND deleted_at IS NULL",
+                        Long.class, requirement.id()))
+                .isZero();
+    }
+
+    /* 重开测试运行会清空固化统计并追加审计记录，属 QA Skill 可达的受控写操作。 */
+    @Test
+    void qaRunReopensCompletedTestRunWithReason() throws Exception {
+        var requirement = workItemCommandService.create(ownerId, organizationId,
+                WorkItemType.REQUIREMENT, "重开测试需求", "用于验证重开测试运行",
+                WorkItemPriority.HIGH, null, null);
+        ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(
+                jdbcTemplate, organizationId, requirement.id(), ownerId);
+        jdbcTemplate.update("UPDATE work_items SET status = 'IN_QA' WHERE id = ?", requirement.id());
+        jdbcTemplate.update(
+                "INSERT INTO test_runs (organization_id, requirement_id, environment, status, started_by, "
+                        + "started_at, finished_at, summary_json, version) VALUES "
+                        + "(?, ?, 'staging', 'COMPLETED', ?, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), "
+                        + "JSON_OBJECT('total', 1), 3)",
+                organizationId, requirement.id(), ownerId);
+        long testRunId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        String runId = insertRunningRun(ownerId, "QA", "ALLOW", requirement.id());
+
+        JsonNode reopened = objectMapper.readTree(executeTool(
+                "reopen_test_run", runToken(runId), "reopen-1",
+                Map.of("runId", testRunId, "reason", "发现漏测场景", "expectedVersion", 3)).getBody());
+
+        assertThat(reopened.at("/result/status").asText()).isEqualTo("IN_PROGRESS");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT status FROM test_runs WHERE id = ?", String.class, testRunId))
+                .isEqualTo("IN_PROGRESS");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT summary_json IS NULL FROM test_runs WHERE id = ?", Boolean.class, testRunId))
+                .isTrue();
+    }
+
     /* 插入一条 RUNNING 状态的 Run 事实；绕过 Fake Dispatcher 避免状态竞态。 */
     private String insertRunningRun(String skill, String mediumToolConfirmation) {
         return insertRunningRunForUser(ownerId, skill, mediumToolConfirmation);
@@ -708,6 +948,22 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
 
     private String runToken(String runId) {
         return tokenProvider.createRunToken(Instant.now(), runId, organizationId);
+    }
+
+    /* 直接搭建角色 Task 事实，避免在读取工具测试中耦合创建阶段的准入 Guard。 */
+    private long insertTask(long requirementId, String type, String title, String status) {
+        long itemNumber = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(MAX(item_number), 0) + 1 FROM work_items WHERE organization_id = ?",
+                Long.class, organizationId);
+        jdbcTemplate.update(
+                "INSERT INTO work_items (organization_id, item_number, item_key, type, title, description, "
+                        + "status, priority, parent_id, assignee_user_id, reporter_user_id, created_at, updated_at, version) "
+                        + "VALUES (?, ?, ?, ?, ?, '', ?, 'MEDIUM', ?, ?, ?, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 0)",
+                organizationId, itemNumber, "FORGE-" + itemNumber, type, title, status,
+                requirementId, ownerId, ownerId);
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM work_items WHERE organization_id = ? AND item_number = ?",
+                Long.class, organizationId, itemNumber);
     }
 
     private ResponseEntity<String> executeTool(

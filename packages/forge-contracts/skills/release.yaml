@@ -1,15 +1,21 @@
 name: release
 version: 1
-description: Release Skill：解释 Backend Precheck、编辑 Release Note，并在 HIGH 人工审批后发起模拟部署。
+description: Release Skill：读取需求、任务与缺陷上下文，解释 Backend Precheck、编辑 Release Note，并在 HIGH 人工审批后发起模拟部署。
+guidance: 本阶段聚焦发布准备：可创建 Release、执行并读取 Precheck、编辑 Release Note。部署属 HIGH 风险，必须经他人人工审批后执行，属人工专属；Precheck 未通过时先向用户说明阻塞项，不得跳过。
 prompt_version: release-system-v1
 context_template: release-context-v1
 allowed_tools:
   - get_organization
+  - get_work_item
+  - list_requirements
+  - list_tasks
+  - list_bugs
+  - list_members
+  - get_delivery_graph
   - create_release
   - run_release_precheck
   - get_release_precheck
-  - get_delivery_graph
   - update_release_note
   - deploy_release
 limits:
-  max_tool_calls: 12
+  max_tool_calls: 16

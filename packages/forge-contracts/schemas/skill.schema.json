@@ -11,6 +11,7 @@
     "description": { "type": "string", "minLength": 1 },
     "prompt_version": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "context_template": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "guidance": { "type": "string", "minLength": 1, "maxLength": 1000 },
     "allowed_tools": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
 import type { BoardItem } from "../api/console-api";
 
 const api = vi.hoisted(() => ({
@@ -96,6 +97,18 @@ describe("TaskBoard", () => {
     api.moveBoardItem.mockResolvedValue(undefined);
     vi.spyOn(Message, "info").mockImplementation(() => () => undefined);
     vi.spyOn(Message, "error").mockImplementation(() => () => undefined);
+    useAgentPanelStore.setState({ open: false, context: undefined, contextDismissed: false });
+  });
+
+  it("卡片「交给 Agent」写入任务上下文并展开指令抽屉", async () => {
+    const user = userEvent.setup();
+    render(<TaskBoard />, { wrapper });
+    await screen.findByText("登录接口");
+
+    await user.click(within(screen.getByTestId("card-1")).getByRole("button", { name: "交给 Agent" }));
+
+    expect(useAgentPanelStore.getState().context).toEqual({ kind: "task", id: 1, label: "REQ-1-DEV-1 登录接口" });
+    expect(useAgentPanelStore.getState().open).toBe(true);
   });
 
   it("展示五个真实状态列，且不含评审中", async () => {
