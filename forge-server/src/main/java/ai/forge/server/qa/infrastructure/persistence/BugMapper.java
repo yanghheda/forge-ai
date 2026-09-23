@@ -55,11 +55,13 @@ public interface BugMapper {
     @Select("SELECT item.id,item.item_key,item.title,item.status,item.severity,item.version,details.requirement_id,"
             + "details.test_run_id,details.test_result_id,details.reproduction_steps_json,details.expected_result,"
             + "details.actual_result,details.fix_note,details.fix_evidence_json,dev.id dev_task_id,dev.item_key dev_task_key,"
-            + "item.assignee_user_id,assignee.display_name assignee_name FROM work_items item "
+            + "item.assignee_user_id,assignee.display_name assignee_name,item.reporter_user_id,"
+            + "reporter.display_name reporter_name,item.created_at,item.updated_at FROM work_items item "
             + "JOIN bug_details details ON details.work_item_id=item.id AND details.organization_id=item.organization_id "
             + "LEFT JOIN work_item_relations relation ON relation.organization_id=item.organization_id AND relation.source_id=item.id AND relation.relation_type='FIXED_BY' "
             + "LEFT JOIN work_items dev ON dev.organization_id=item.organization_id AND dev.id=relation.target_id AND dev.type='DEV_TASK' "
             + "LEFT JOIN users assignee ON assignee.id=item.assignee_user_id "
+            + "LEFT JOIN users reporter ON reporter.id=item.reporter_user_id "
             + "WHERE item.id=#{bugId} AND item.organization_id=#{organizationId} "
             + "AND item.type='BUG' AND item.deleted_at IS NULL")
     List<Map<String, Object>> find(@Param("organizationId") long organizationId,
@@ -68,14 +70,30 @@ public interface BugMapper {
     @Select("SELECT item.id,item.item_key,item.title,item.status,item.severity,item.version,details.requirement_id,"
             + "details.test_run_id,details.test_result_id,details.reproduction_steps_json,details.expected_result,"
             + "details.actual_result,details.fix_note,details.fix_evidence_json,dev.id dev_task_id,dev.item_key dev_task_key,"
-            + "item.assignee_user_id,assignee.display_name assignee_name FROM work_items item "
+            + "item.assignee_user_id,assignee.display_name assignee_name,item.reporter_user_id,"
+            + "reporter.display_name reporter_name,item.created_at,item.updated_at FROM work_items item "
             + "JOIN bug_details details ON details.work_item_id=item.id AND details.organization_id=item.organization_id "
             + "LEFT JOIN work_item_relations relation ON relation.organization_id=item.organization_id AND relation.source_id=item.id AND relation.relation_type='FIXED_BY' "
             + "LEFT JOIN work_items dev ON dev.organization_id=item.organization_id AND dev.id=relation.target_id AND dev.type='DEV_TASK' "
             + "LEFT JOIN users assignee ON assignee.id=item.assignee_user_id "
+            + "LEFT JOIN users reporter ON reporter.id=item.reporter_user_id "
             + "WHERE item.organization_id=#{organizationId} "
             + "AND details.requirement_id=#{requirementId} AND item.deleted_at IS NULL ORDER BY item.id")
     List<Map<String, Object>> findByRequirement(@Param("organizationId") long organizationId, @Param("requirementId") long requirementId);
+
+    @Select("SELECT item.id,item.item_key,item.title,item.status,item.severity,item.version,details.requirement_id,"
+            + "details.test_run_id,details.test_result_id,details.reproduction_steps_json,details.expected_result,"
+            + "details.actual_result,details.fix_note,details.fix_evidence_json,dev.id dev_task_id,dev.item_key dev_task_key,"
+            + "item.assignee_user_id,assignee.display_name assignee_name,item.reporter_user_id,"
+            + "reporter.display_name reporter_name,item.created_at,item.updated_at FROM work_items item "
+            + "JOIN bug_details details ON details.work_item_id=item.id AND details.organization_id=item.organization_id "
+            + "LEFT JOIN work_item_relations relation ON relation.organization_id=item.organization_id AND relation.source_id=item.id AND relation.relation_type='FIXED_BY' "
+            + "LEFT JOIN work_items dev ON dev.organization_id=item.organization_id AND dev.id=relation.target_id AND dev.type='DEV_TASK' "
+            + "LEFT JOIN users assignee ON assignee.id=item.assignee_user_id "
+            + "LEFT JOIN users reporter ON reporter.id=item.reporter_user_id "
+            + "WHERE item.organization_id=#{organizationId} AND item.type='BUG' AND item.deleted_at IS NULL "
+            + "ORDER BY item.item_number DESC")
+    List<Map<String, Object>> findAll(@Param("organizationId") long organizationId);
 
     @Update("UPDATE work_items SET status=#{toStatus},updated_at=UTC_TIMESTAMP(6),version=version+1 "
             + "WHERE id=#{bugId} AND organization_id = #{organizationId} "

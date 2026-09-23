@@ -13,8 +13,8 @@ import styles from "./requirement-list.module.css";
 const statuses = ["DRAFT", "REQUIREMENT_APPROVAL", "READY_FOR_REVIEW", "PRODUCT_REVIEW", "READY_FOR_UX", "UX_IN_PROGRESS", "UX_REVIEW", "READY_FOR_DEV", "IN_DEVELOPMENT", "READY_FOR_QA", "IN_QA", "IN_FIX_VERIFICATION", "IN_ACCEPTANCE", "READY_FOR_RELEASE", "RELEASED", "DONE"];
 const priorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 
-/* 需求列表是「我的需求」与全局列表共用的浏览入口，只列需求，不含 UX/DEV/QA 任务与 Bug。 */
-export function RequirementList({ mine = false }: { mine?: boolean }) {
+/* 需求列表是全局需求浏览入口，只列需求，不含 UX/DEV/QA 任务与 Bug。 */
+export function RequirementList() {
   const queryClient = useQueryClient();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>();
@@ -23,8 +23,8 @@ export function RequirementList({ mine = false }: { mine?: boolean }) {
   const [dueAtDraft, setDueAtDraft] = useState<string>();
   const [deleting, setDeleting] = useState<OrganizationRequirement | null>(null);
   const requirements = useQuery({
-    queryKey: ["requirements", mine ? "mine" : "all", q, status],
-    queryFn: () => listOrganizationRequirements({ mine, q, status }),
+    queryKey: ["requirements", q, status],
+    queryFn: () => listOrganizationRequirements({ q, status }),
   });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["requirements"] });
   const update = useMutation({

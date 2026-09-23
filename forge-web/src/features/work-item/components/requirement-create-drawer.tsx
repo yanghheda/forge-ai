@@ -18,7 +18,7 @@ const emptyRequirement: CreateRequirementValues = {
   priority: "MEDIUM",
 };
 
-/* 新建需求抽屉同时服务于「我的需求」与全局仪表盘，避免两个入口维护两份表单。 */
+/* 新建需求抽屉同时服务于需求列表页与全局仪表盘，避免多个入口维护两份表单。 */
 export function RequirementCreateDrawer({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [form] = Form.useForm<CreateRequirementValues>();

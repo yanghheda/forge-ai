@@ -69,9 +69,12 @@ public class BugService {
         return actions(userId, organizationId, store.find(organizationId, bugId).orElseThrow(ResourceNotFoundException::new));
     }
 
-    public List<BugView> list(long userId, long organizationId, long requirementId) {
+    public List<BugView> list(long userId, long organizationId, Long requirementId) {
         permissions.requireOrganization(userId, organizationId, "bug.read");
-        return store.findByRequirement(organizationId, requirementId).stream().map(bug -> actions(userId, organizationId, bug)).toList();
+        List<BugView> bugs = requirementId == null
+                ? store.findAll(organizationId)
+                : store.findByRequirement(organizationId, requirementId);
+        return bugs.stream().map(bug -> actions(userId, organizationId, bug)).toList();
     }
 
     @Transactional

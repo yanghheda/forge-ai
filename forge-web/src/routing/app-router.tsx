@@ -7,12 +7,13 @@ import { createBrowserRouter } from "react-router";
 import { RootLayout } from "@/bootstrap/root-layout";
 import { AgentCommandView } from "@/views/agent-command-view";
 import { AgentTraceView } from "@/views/agent-trace-view";
+import { DefectDetailView } from "@/views/defect-detail-view";
+import { DefectListView } from "@/views/defect-list-view";
 import { HomeView } from "@/views/home-view";
 import { InitView } from "@/views/init-view";
 import { IntegrationSettingsView } from "@/views/integration-settings-view";
 import { LoginView } from "@/views/login-view";
 import { MembersSettingsView } from "@/views/members-settings-view";
-import { MyRequirementsView } from "@/views/my-requirements-view";
 import { NotFoundView } from "@/views/not-found-view";
 import { OverviewView } from "@/views/overview-view";
 import { RegisterView } from "@/views/register-view";
@@ -43,7 +44,8 @@ export const appRouter = createBrowserRouter([
       { path: "/requirements/:id/development", element: <RequirementDevelopmentView /> },
       { path: "/requirements/:id/qa", element: <RequirementQaView /> },
       { path: "/requirements/:id/release", element: <RequirementReleaseView /> },
-      { path: "/my-requirements", element: <MyRequirementsView /> },
+      { path: "/defects", element: <DefectListView /> },
+      { path: "/defects/:id", element: <DefectDetailView /> },
       { path: "/task-board", element: <TaskBoardView /> },
       { path: "/agent/command", element: <AgentCommandView /> },
       { path: "/agent/trace/:id", element: <AgentTraceView /> },

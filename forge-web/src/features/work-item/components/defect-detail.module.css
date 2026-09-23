@@ -1,0 +1,141 @@
+/* 缺陷详情页：只读展示，居中窄容器以突出正文可读性。 */
+.page {
+  width: min(100%, 960px);
+  margin: 0 auto;
+  padding-bottom: 48px;
+}
+/* 返回入口置顶，弱化颜色避免与标题争抢视觉焦点。 */
+.back {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--forge-text-3);
+  text-decoration: none;
+}
+.back:hover {
+  color: var(--forge-primary-6);
+}
+.head {
+  padding: 8px 0 16px;
+  border-bottom: 1px solid var(--forge-border-1);
+}
+/* 编号、标题与状态/严重级别标签同处一行，窄屏自动换行。 */
+.titleLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.titleLine code {
+  color: var(--forge-text-3);
+  font: 600 16px var(--forge-font-mono);
+}
+.titleLine h1 {
+  margin: 0;
+  color: var(--forge-text-1);
+  font-size: 24px;
+  line-height: 1.35;
+}
+/* 元信息区按标签 + 值成对排列，两列布局适配桌面宽度。 */
+.meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  margin: 0;
+  padding: 8px 0 16px;
+}
+.metaItem {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: center;
+  min-height: 44px;
+  border-bottom: 1px solid var(--forge-border-1);
+}
+.metaLabel {
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+.metaValue {
+  min-width: 0;
+  margin: 0;
+  color: var(--forge-text-1);
+  font-size: 13px;
+}
+.metaValue a {
+  color: var(--forge-primary-6);
+  text-decoration: none;
+}
+.metaValue a:hover {
+  text-decoration: underline;
+}
+/* 内容分区：卡片式区块，统一内边距与标题间距。 */
+.section {
+  margin-top: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--forge-border-1);
+  border-radius: 4px;
+  background: var(--forge-card);
+}
+.sectionTitle {
+  margin: 0 0 12px;
+  color: var(--forge-text-1);
+  font-size: 14px;
+  font-weight: 600;
+}
+/* 分区内的字段条目：区分复现步骤、预期结果、实际结果等子标题。 */
+.field {
+  margin-top: 14px;
+}
+.field:first-of-type {
+  margin-top: 0;
+}
+.fieldLabel {
+  margin: 0 0 6px;
+  color: var(--forge-text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+/* 复现步骤使用有序列表，保留序号以体现操作先后顺序。 */
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--forge-text-1);
+  font-size: 13px;
+  line-height: 1.9;
+}
+.steps li {
+  margin: 4px 0;
+}
+/* 修复证据用无序列表展示链接或描述，逐条独立成行。 */
+.evidence {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--forge-text-1);
+  font-size: 13px;
+  line-height: 1.9;
+}
+.evidence li {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+/* 预期结果 / 实际结果 / 修复说明等长文本块，保留换行。 */
+.prose {
+  margin: 0;
+  color: var(--forge-text-1);
+  font-size: 13px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+/* 「暂无」占位：统一弱化样式，避免与真实内容混淆。 */
+.placeholder {
+  margin: 0;
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+@media (max-width: 700px) {
+  .meta {
+    grid-template-columns: 1fr;
+  }
+  .titleLine h1 {
+    font-size: 20px;
+  }
+}

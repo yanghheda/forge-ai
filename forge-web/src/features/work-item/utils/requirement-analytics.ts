@@ -36,18 +36,16 @@ export const severityLabel: Record<string, string> = {
   "": "未分级",
 };
 
-/* 缺陷生命周期状态的中文文案，与任务看板的状态代码保持一致。 */
+/* 缺陷复用统一任务状态，仅在此处以缺陷语境文案展示；五种状态代码与任务看板一致。 */
 export const bugStatusLabel: Record<string, string> = {
-  OPEN: "待处理",
+  TODO: "待修复",
   IN_PROGRESS: "修复中",
-  RESOLVED: "已修复",
-  VERIFIED: "已验证",
-  CLOSED: "已关闭",
-  REOPENED: "重新打开",
-  CANCELLED: "已取消",
+  BLOCKED: "阻塞中",
+  WAITING_VERIFICATION: "待验证",
+  DONE: "已完成",
 };
 
-/* 缺陷状态按「待处理到关闭」的推进顺序排列，保证堆叠图横轴稳定。 */
+/* 缺陷状态按「待修复到已完成」的推进顺序排列，保证堆叠图横轴稳定。 */
 export const bugStatusOrder = ["TODO", "IN_PROGRESS", "BLOCKED", "WAITING_VERIFICATION", "DONE"] as const;
 
 /* 严重级别降序，用于缺陷分布图例与堆叠顺序。 */

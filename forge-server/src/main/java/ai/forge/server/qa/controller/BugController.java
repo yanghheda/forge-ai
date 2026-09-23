@@ -57,7 +57,7 @@ public class BugController {
     }
 
     @GetMapping
-    public List<BugView> list(@RequestParam long requirementId, HttpServletRequest request) {
+    public List<BugView> list(@RequestParam(required = false) Long requirementId, HttpServletRequest request) {
         return service.list(AuthController.requireContext(request).userId(), organizationId(request), requirementId);
     }
 

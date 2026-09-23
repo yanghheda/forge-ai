@@ -1,5 +1,5 @@
 import { Badge, Button, Drawer, Dropdown, Empty, Input, Menu, Message, Modal, Spin } from "@arco-design/web-react";
-import { IconApps, IconBranch, IconCommand, IconDashboard, IconFile, IconHistory, IconMenuFold, IconMenuUnfold, IconNotification, IconPoweroff, IconRobot, IconSearch, IconSettings, IconUser } from "@arco-design/web-react/icon";
+import { IconApps, IconBranch, IconBug, IconCommand, IconDashboard, IconFile, IconHistory, IconMenuFold, IconMenuUnfold, IconNotification, IconPoweroff, IconRobot, IconSearch, IconSettings } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -103,10 +103,10 @@ export function AppShell({ children }: AppShellProps) {
       active: pathname === "/requirements" || pathname.startsWith("/requirements/"),
     },
     {
-      label: "我的需求",
-      href: "/my-requirements",
-      icon: <IconUser />,
-      active: pathname === "/my-requirements",
+      label: "缺陷列表",
+      href: "/defects",
+      icon: <IconBug />,
+      active: pathname === "/defects" || pathname.startsWith("/defects/"),
     },
     {
       label: "任务看板",
@@ -278,12 +278,13 @@ function avatarText(displayName?: string) {
 function pageName(pathname: string) {
   if (pathname === "/overview") return "全局仪表盘";
   if (pathname === "/requirements") return "需求列表";
-  if (pathname === "/my-requirements") return "我的需求";
+  if (pathname === "/defects") return "缺陷列表";
   if (pathname === "/task-board") return "任务看板";
   if (pathname.startsWith("/agent/command")) return "Agent 指令中心";
   if (pathname.startsWith("/agent/trace")) return "执行轨迹";
   if (pathname.startsWith("/settings/members")) return "成员管理";
   if (pathname.startsWith("/settings/integrations")) return "集成配置";
   if (pathname.startsWith("/requirements/")) return "需求详情";
+  if (pathname.startsWith("/defects/")) return "缺陷详情";
   return "ForgeAI";
 }

@@ -1,0 +1,159 @@
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.head {
+  margin-bottom: 16px;
+}
+.head h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.head p {
+  margin: 0;
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+/* 顶部统计窄条：阻塞用错误色、已完成用成功色突出。 */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid var(--forge-border-1);
+  border-radius: 4px;
+  background: var(--forge-card);
+}
+.statLabel {
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+.statNum {
+  margin-left: auto;
+  color: var(--forge-text-1);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.statError {
+  color: var(--forge-error);
+}
+.statSuccess {
+  color: var(--forge-success);
+}
+/* 工具栏三个筛选并排，窄屏自动换行。 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--forge-border-1);
+  border-radius: 4px;
+  background: var(--forge-card);
+}
+.select {
+  width: 160px;
+}
+.tableHead,
+.row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 80px 110px 100px 100px 110px;
+  align-items: center;
+  gap: 12px;
+}
+.tableHead {
+  padding: 10px 12px;
+  color: var(--forge-text-3);
+  background: var(--forge-fill-1);
+  font-size: 12px;
+}
+.row {
+  min-height: 56px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--forge-border-1);
+  color: inherit;
+  text-decoration: none;
+}
+.row:hover {
+  background: var(--forge-fill-1);
+}
+/* 阻塞缺陷行左侧加错误色竖条，便于在长列表中快速定位。 */
+.rowBlocked {
+  box-shadow: inset 3px 0 0 var(--forge-error);
+}
+/* 编号与标题同处一格，编号用等宽字体弱化，标题单行省略。 */
+.titleCell {
+  min-width: 0;
+}
+.titleCell code,
+.titleCell strong {
+  display: block;
+}
+.titleCell code {
+  color: var(--forge-text-3);
+  font: 12px var(--forge-font-mono);
+}
+.titleCell strong {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--forge-text-1);
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag {
+  justify-self: start;
+  white-space: nowrap;
+}
+.assignee,
+.reporter,
+.createdAt {
+  overflow: hidden;
+  color: var(--forge-text-2);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.createdAt {
+  color: var(--forge-text-3);
+}
+.loading,
+.empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: var(--forge-text-3);
+}
+.total {
+  padding-top: 12px;
+  color: var(--forge-text-3);
+  font-size: 12px;
+  text-align: right;
+}
+@media (max-width: 700px) {
+  .tableHead {
+    display: none;
+  }
+  .row {
+    grid-template-columns: 1fr auto;
+  }
+  .titleCell {
+    grid-column: 1 / -1;
+  }
+  .reporter,
+  .createdAt {
+    display: none;
+  }
+}

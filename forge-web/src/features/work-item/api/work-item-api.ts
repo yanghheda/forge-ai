@@ -148,9 +148,8 @@ export const getRequirementOverview = (client: RequestClient = apiClient) => cli
 
 export const getRequirementAnalytics = (range: number, client: RequestClient = apiClient) => client.request<RequirementAnalytics>(`/v1/requirements/analytics?range=${range}`);
 
-export const listOrganizationRequirements = (filters: { mine?: boolean; q?: string; status?: string } = {}, client: RequestClient = apiClient) => {
+export const listOrganizationRequirements = (filters: { q?: string; status?: string } = {}, client: RequestClient = apiClient) => {
   const query = new URLSearchParams();
-  if (filters.mine) query.set("mine", "true");
   if (filters.q) query.set("q", filters.q);
   if (filters.status) query.set("status", filters.status);
   return client.request<OrganizationRequirementPage>(`/v1/requirements?${query.toString()}`);
@@ -343,12 +342,16 @@ export interface BugView {
   devTaskKey: string | null;
   assigneeUserId: number | null;
   assigneeName: string | null;
+  reporterUserId: number;
+  reporterName: string | null;
   reproductionSteps: string[];
   expectedResult: string;
   actualResult: string;
   fixNote: string | null;
   fixEvidence: string[];
   version: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const listTestCases = (_organizationId: number, requirementId: number, client: RequestClient = apiClient) => client.request<TestCaseView[]>(`/v1/qa/requirements/${requirementId}/cases`);
@@ -369,6 +372,10 @@ export const reopenTestRun = (input: { organizationId: number; runId: number; ex
   client.request<TestRunView>(`/v1/qa/runs/${input.runId}/reopen`, json("POST", { expectedVersion: input.expectedVersion, reason: input.reason }));
 
 export const listBugs = (_organizationId: number, requirementId: number, client: RequestClient = apiClient) => client.request<BugView[]>(`/v1/bugs?${new URLSearchParams({ requirementId: String(requirementId) })}`);
+
+export const listCompanyBugs = (client: RequestClient = apiClient) => client.request<BugView[]>("/v1/bugs");
+
+export const getBug = (bugId: number, client: RequestClient = apiClient) => client.request<BugView>(`/v1/bugs/${bugId}`);
 
 export const createBug = (
   input: { organizationId: number; requirementId: number; assigneeUserId: number; testRunId?: number | null; testResultId?: number | null; title: string; severity: BugView["severity"]; reproductionSteps: string[]; expectedResult: string; actualResult: string },

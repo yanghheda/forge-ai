@@ -10,6 +10,9 @@ import ai.forge.server.workitem.domain.WorkItem;
 import ai.forge.server.workitem.domain.WorkItemStatus;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -93,16 +96,23 @@ public class MybatisBugStore implements BugStore {
         return mapper.findByRequirement(organizationId, requirementId).stream().map(this::view).toList();
     }
 
+    @Override
+    public List<BugView> findAll(long organizationId) {
+        return mapper.findAll(organizationId).stream().map(this::view).toList();
+    }
+
     private BugView view(Map<String, Object> row) {
         return new BugView(number(row.get("id")), text(row.get("item_key")), text(row.get("title")),
                 WorkItemStatus.valueOf(text(row.get("status"))), BugSeverity.valueOf(text(row.get("severity"))),
                 number(row.get("requirement_id")), nullableNumber(row.get("test_run_id")),
                 nullableNumber(row.get("test_result_id")), nullableNumber(row.get("dev_task_id")),
                 nullableText(row.get("dev_task_key")), nullableNumber(row.get("assignee_user_id")),
-                nullableText(row.get("assignee_name")), readList(row.get("reproduction_steps_json")),
+                nullableText(row.get("assignee_name")), number(row.get("reporter_user_id")),
+                nullableText(row.get("reporter_name")), readList(row.get("reproduction_steps_json")),
                 text(row.get("expected_result")), text(row.get("actual_result")),
                 nullableText(row.get("fix_note")), readList(row.get("fix_evidence_json")),
-                number(row.get("version")), List.of());
+                number(row.get("version")), instant(row.get("created_at")), instant(row.get("updated_at")),
+                List.of());
     }
 
     private String write(Object value) {
@@ -130,6 +140,10 @@ public class MybatisBugStore implements BugStore {
 
     private static Long nullableNumber(Object value) {
         return value == null ? null : number(value);
+    }
+
+    private static Instant instant(Object value) {
+        return value == null ? null : ((LocalDateTime) value).toInstant(ZoneOffset.UTC);
     }
 
     private static String text(Object value) {

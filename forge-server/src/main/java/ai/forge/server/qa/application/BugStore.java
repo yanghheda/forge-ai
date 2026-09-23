@@ -16,4 +16,6 @@ public interface BugStore {
             String toStatus, String reason, List<String> fixEvidence, long expectedVersion, String idempotencyKey);
 
     List<BugView> findByRequirement(long organizationId, long requirementId);
+
+    List<BugView> findAll(long organizationId);
 }

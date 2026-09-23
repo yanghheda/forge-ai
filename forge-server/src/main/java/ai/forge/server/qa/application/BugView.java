@@ -17,16 +17,20 @@ public record BugView(
         /* 关联修复任务的公司内展示编号；尚未关联时为空。 */ String devTaskKey,
         /* 修复任务负责人标识；未指派时为空。 */ Long assigneeUserId,
         /* 修复任务负责人展示名称；未指派时为空。 */ String assigneeName,
+        /* 创建该缺陷的用户标识。 */ long reporterUserId,
+        /* 创建该缺陷的用户展示名称；用户已失效时为空。 */ String reporterName,
         /* 可执行复现步骤。 */ List<String> reproductionSteps,
         /* 测试期望结果。 */ String expectedResult,
         /* 实际失败结果。 */ String actualResult,
         /* 研发修复说明；未解决为空。 */ String fixNote,
         /* MR、Commit 等修复证据。 */ List<String> fixEvidence,
         /* Work Item 乐观锁版本。 */ long version,
+        /* 缺陷创建的 UTC 时间。 */ java.time.Instant createdAt,
+        /* 缺陷最后更新的 UTC 时间。 */ java.time.Instant updatedAt,
         /* 服务端按当前用户、缺陷状态和需求职责计算的可用动作。 */ List<ai.forge.server.qa.domain.BugAction> availableActions) {
     public BugView withActions(List<ai.forge.server.qa.domain.BugAction> actions) {
         return new BugView(id, itemKey, title, status, severity, requirementId, testRunId, testResultId, devTaskId,
-                devTaskKey, assigneeUserId, assigneeName, reproductionSteps, expectedResult, actualResult, fixNote,
-                fixEvidence, version, actions);
+                devTaskKey, assigneeUserId, assigneeName, reporterUserId, reporterName, reproductionSteps,
+                expectedResult, actualResult, fixNote, fixEvidence, version, createdAt, updatedAt, actions);
     }
 }

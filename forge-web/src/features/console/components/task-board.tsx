@@ -137,7 +137,7 @@ export function TaskBoard() {
           <h1>任务看板</h1>
           <p>公司全部需求的交付任务与阻塞状态</p>
         </div>
-        <Link className={styles.enterLink} to="/my-requirements">
+        <Link className={styles.enterLink} to="/requirements">
           进入需求创建任务
         </Link>
       </header>

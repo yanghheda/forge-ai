@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { completeDevTask, createBug, createDevTask, createTestCase, createTestRun, getDeliveryGraph, getDevelopmentSummary, getLatestTestRun, listBugs, listTestCases, startDevelopment, updateTestResult } from "./work-item-api";
+import { completeDevTask, createBug, createDevTask, createTestCase, createTestRun, getBug, getDeliveryGraph, getDevelopmentSummary, getLatestTestRun, listBugs, listCompanyBugs, listTestCases, startDevelopment, updateTestResult } from "./work-item-api";
 
 describe("work item API", () => {
   it("按 Organization、Project 和 Requirement 范围读取 Delivery Graph", async () => {
@@ -53,6 +53,22 @@ describe("work item API", () => {
     expect(client.request).toHaveBeenNthCalledWith(1, "/v1/qa/requirements/30/cases", expect.objectContaining({ method: "POST" }));
     expect(client.request).toHaveBeenNthCalledWith(2, "/v1/qa/requirements/30/runs", expect.objectContaining({ method: "POST" }));
     expect(client.request).toHaveBeenNthCalledWith(3, "/v1/qa/runs/9/results/8", expect.objectContaining({ method: "PUT" }));
+  });
+
+  it("按公司范围读取全部缺陷且不带查询参数", async () => {
+    const client = { request: vi.fn().mockResolvedValue([]) };
+
+    await listCompanyBugs(client);
+
+    expect(client.request).toHaveBeenCalledWith("/v1/bugs");
+  });
+
+  it("按缺陷 id 读取单个缺陷", async () => {
+    const client = { request: vi.fn().mockResolvedValue({ id: 7 }) };
+
+    await getBug(7, client);
+
+    expect(client.request).toHaveBeenCalledWith("/v1/bugs/7");
   });
 
   it("创建人工发现的缺陷", async () => {
