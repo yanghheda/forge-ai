@@ -87,6 +87,20 @@ class DeliveryWorkflowIntegrationTest extends InfrastructureIntegrationTestBase 
         assertThat(current(requirementId).status()).isEqualTo(WorkItemStatus.UX_IN_PROGRESS);
     }
 
+    /* 产品域执行人与产品负责人一样可以发起四方评审；无该需求产品职责的产品角色仍被拒绝。 */
+    @Test
+    void productExecutorCanStartReviewWhileUnassignedProductRoleIsRejected() {
+        jdbc.update("INSERT INTO users(id,email,normalized_email,display_name,password_hash,status,created_at,updated_at) VALUES(8810,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))",
+                8810+"@example.com", 8810+"@example.com", "Member 10", "$2a$10$placeholder");
+        jdbc.update("INSERT INTO organization_members(id,organization_id,user_id,status,created_at,updated_at) VALUES(8810,8800,8810,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))");
+        jdbc.update("INSERT INTO member_roles(organization_member_id,role_id,created_at) SELECT 8810,id,UTC_TIMESTAMP(6) FROM roles WHERE code='PRODUCT'");
+        move(8808,requirementId,WorkflowAction.SUBMIT_PRODUCT_REVIEW);
+        move(8801,requirementId,WorkflowAction.APPROVE_REQUIREMENT);
+        assertThatThrownBy(() -> move(8810,requirementId,WorkflowAction.START_PRODUCT_REVIEW)).isInstanceOf(ResourceNotFoundException.class);
+        move(8808,requirementId,WorkflowAction.START_PRODUCT_REVIEW);
+        assertThat(current(requirementId).status()).isEqualTo(WorkItemStatus.PRODUCT_REVIEW);
+    }
+
     @Test
     void missingExecutorBlocksReviewAndRejectionInvalidatesAllVotes() {
         people.replaceExecutors(8802,requirementId,RequirementParticipantRole.UX,List.of());

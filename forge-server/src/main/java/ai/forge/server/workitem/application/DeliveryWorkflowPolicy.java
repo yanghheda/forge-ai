@@ -54,7 +54,9 @@ public class DeliveryWorkflowPolicy {
             case REJECT_PRODUCT_REVIEW -> java.util.Arrays.stream(RequirementParticipantRole.values())
                     .anyMatch(role -> leader(org, item.id(), role.name(), userId));
             case SUBMIT_PRODUCT_REVIEW -> member(org, item.id(), "PRODUCT", userId) || item.reporterUserId() == userId;
-            case APPROVE_REQUIREMENT, REJECT_REQUIREMENT, START_PRODUCT_REVIEW, ACCEPT_REQUIREMENT -> leader(org, item.id(), "PRODUCT", userId);
+            case APPROVE_REQUIREMENT, REJECT_REQUIREMENT, ACCEPT_REQUIREMENT -> leader(org, item.id(), "PRODUCT", userId);
+            /* 四方评审由产品负责人或该需求产品域执行人发起，与提交需求审核保持同一产品侧职责。 */
+            case START_PRODUCT_REVIEW -> member(org, item.id(), "PRODUCT", userId);
             case START_UX, SUBMIT_UX_REVIEW, APPROVE_UX_REVIEW, REJECT_UX_REVIEW -> leader(org, item.id(), "UX", userId);
             case START_DEVELOPMENT, SUBMIT_FOR_QA -> leader(org, item.id(), "DEVELOPER", userId);
             case START_QA, QA_PASS, QA_FAIL -> leader(org, item.id(), "QA", userId);
