@@ -4,7 +4,7 @@ import { useState } from "react";
 import { getCurrentUser } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
 import { guardHintLabel, workflowActionLabel } from "@/lib/labels";
-import { createStageTask, getOrganizationRequirement, getRequirementParticipants, listRequirementMembers, listRequirementTasks, transitionTask, type TaskType, type WorkItemDetail } from "../api/work-item-api";
+import { completeDevTask, createStageTask, getOrganizationRequirement, getRequirementParticipants, listRequirementMembers, listRequirementTasks, startDevelopment, transitionTask, type TaskType, type WorkItemDetail } from "../api/work-item-api";
 import { statusLabel } from "../utils/requirement-detail-display";
 
 const domains = { UX_TASK: { role: "UX", preparation: "READY_FOR_UX", label: "设计任务" }, DEV_TASK: { role: "DEVELOPER", preparation: "READY_FOR_DEV", label: "开发任务" }, QA_TASK: { role: "QA", preparation: "READY_FOR_QA", label: "测试任务" } } as const;
@@ -30,6 +30,23 @@ export function StageTasks({ requirementId, type }: { requirementId: number; typ
     onError: (e) => Message.error(formatRequestError(e)),
   });
   const transition = useMutation({ mutationFn: ({ task, action }: { task: WorkItemDetail; action: string }) => transitionTask(task.id, action, task.version, reason.trim()), onSuccess: refresh, onError: (e) => Message.error(formatRequestError(e)) });
+  /* 开发任务的开工会创建源分支与合并请求，提交验证会校验 MR 已合并；通用流转没有这两个交付物约束，必须分别走启动开发与完成开发任务。 */
+  const start = useMutation({ mutationFn: (taskId: number) => startDevelopment({ organizationId: 0, taskId, idempotencyKey: crypto.randomUUID() }), onSuccess: refresh, onError: (e) => Message.error(formatRequestError(e)) });
+  const complete = useMutation({ mutationFn: ({ taskId, expectedVersion }: { taskId: number; expectedVersion: number }) => completeDevTask({ organizationId: 0, taskId, expectedVersion }), onSuccess: refresh, onError: (e) => Message.error(formatRequestError(e)) });
+  /* 开发任务的开工与提交验证分别由启动开发、完成开发任务承担，其余动作保持通用流转。 */
+  const runTaskAction = (task: WorkItemDetail, action: string) => {
+    if (type !== "DEV_TASK") return transition.mutate({ task, action });
+    if (action === "START") return start.mutate(task.id);
+    if (action === "SUBMIT_REVIEW") return complete.mutate({ taskId: task.id, expectedVersion: task.version });
+    return transition.mutate({ task, action });
+  };
+  /* 按钮加载态跟随该动作实际调用的写操作。 */
+  const taskActionPending = (action: string) => {
+    if (type !== "DEV_TASK") return transition.isPending;
+    if (action === "START") return start.isPending;
+    if (action === "SUBMIT_REVIEW") return complete.isPending;
+    return transition.isPending;
+  };
   const canCreate = assigned?.userId === user.data?.id && requirement.data?.status === domain.preparation;
   const items = tasks.data?.filter((task) => task.type === type) ?? [];
   return (
@@ -63,7 +80,7 @@ export function StageTasks({ requirementId, type }: { requirementId: number; typ
           </Space>
           <Space wrap style={{ marginTop: 8 }}>
             {task.availableActions.map((action) => (
-              <Button key={action} loading={transition.isPending} disabled={(task.guardHints[action] ?? []).some((hint) => hint !== "reason") || (["REJECT", "BLOCK", "UNBLOCK"].includes(action) && !reason.trim())} onClick={() => transition.mutate({ task, action })}>
+              <Button key={action} loading={taskActionPending(action)} disabled={(task.guardHints[action] ?? []).some((hint) => hint !== "reason") || (["REJECT", "BLOCK", "UNBLOCK"].includes(action) && !reason.trim())} onClick={() => runTaskAction(task, action)}>
                 {workflowActionLabel(action)}
               </Button>
             ))}

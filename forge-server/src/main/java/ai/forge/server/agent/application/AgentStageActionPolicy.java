@@ -28,16 +28,16 @@ public final class AgentStageActionPolicy {
     /* 任务动作按角色收敛；审核动作 APPROVE/REJECT 属任务负责人专属，永不进入白名单（ADR-023 §5）。 */
     public static boolean allowsTask(AgentSkill skill, WorkflowAction action) {
         if (action == WorkflowAction.APPROVE || action == WorkflowAction.REJECT) return false;
-        boolean assigneeAction = List.of(
+        if (skill != AgentSkill.UX && skill != AgentSkill.QA && skill != AgentSkill.DEVELOPER) return false;
+        /* 开发任务的开工会创建分支与合并请求、提交验证要求 MR 已合并：分别由 start_development Tool 与人工完成开发任务承担，Agent 只保留阻塞与解除阻塞。 */
+        if (skill == AgentSkill.DEVELOPER)
+            return action == WorkflowAction.BLOCK || action == WorkflowAction.UNBLOCK;
+        return List.of(
                         WorkflowAction.START,
                         WorkflowAction.SUBMIT_REVIEW,
                         WorkflowAction.BLOCK,
                         WorkflowAction.UNBLOCK)
                 .contains(action);
-        return switch (skill) {
-            case UX, DEVELOPER, QA -> assigneeAction;
-            case PRODUCT, RELEASE -> false;
-        };
     }
 
     /* 缺陷修复与验证的真实授权是「修复人 / QA 领域成员」，由 BugService 复核，因此 Skill 只排除无关角色。 */

@@ -3,7 +3,17 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { StageTasks } from "./stage-tasks";
 
-const api = vi.hoisted(() => ({ getOrganizationRequirement: vi.fn(), getRequirementParticipants: vi.fn(), listRequirementMembers: vi.fn(), listRequirementTasks: vi.fn(), createStageTask: vi.fn(), transitionTask: vi.fn(), getCurrentUser: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getOrganizationRequirement: vi.fn(),
+  getRequirementParticipants: vi.fn(),
+  listRequirementMembers: vi.fn(),
+  listRequirementTasks: vi.fn(),
+  createStageTask: vi.fn(),
+  transitionTask: vi.fn(),
+  startDevelopment: vi.fn(),
+  completeDevTask: vi.fn(),
+  getCurrentUser: vi.fn(),
+}));
 vi.mock("../api/work-item-api", () => api);
 vi.mock("@/features/auth", () => ({ getCurrentUser: api.getCurrentUser }));
 const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>;
@@ -20,6 +30,8 @@ beforeEach(() => {
   api.listRequirementTasks.mockResolvedValue([]);
   api.createStageTask.mockResolvedValue({ id: 10 });
   api.transitionTask.mockResolvedValue({});
+  api.startDevelopment.mockResolvedValue({});
+  api.completeDevTask.mockResolvedValue({});
 });
 
 it("负责人必须选择已关联执行人后才能创建设计任务", async () => {
@@ -57,4 +69,28 @@ it("待验证任务按服务端动作展示审核，并携带版本和驳回原�
   fireEvent.change(screen.getByLabelText("任务操作原因"), { target: { value: "补充异常态" } });
   fireEvent.click(reject);
   await waitFor(() => expect(api.transitionTask).toHaveBeenCalledWith(10, "REJECT", 3, "补充异常态"));
+});
+
+it("开发任务的开始处理走启动开发，以创建源分支与合并请求", async () => {
+  api.listRequirementTasks.mockResolvedValue([{ id: 20, itemKey: "DEV-20", type: "DEV_TASK", title: "前端开发", status: "TODO", assigneeUserId: 5, version: 1, availableActions: ["START"], guardHints: {} }]);
+  render(<StageTasks requirementId={1} type="DEV_TASK" />, { wrapper });
+  fireEvent.click(await screen.findByRole("button", { name: "开始处理" }));
+  await waitFor(() => expect(api.startDevelopment).toHaveBeenCalledWith({ organizationId: 0, taskId: 20, idempotencyKey: expect.any(String) }));
+  expect(api.transitionTask).not.toHaveBeenCalled();
+});
+
+it("开发任务的提交验证走完成开发任务，以校验 MR 已合并", async () => {
+  api.listRequirementTasks.mockResolvedValue([{ id: 21, itemKey: "DEV-21", type: "DEV_TASK", title: "接口开发", status: "IN_PROGRESS", assigneeUserId: 5, version: 4, availableActions: ["SUBMIT_REVIEW", "BLOCK"], guardHints: {} }]);
+  render(<StageTasks requirementId={1} type="DEV_TASK" />, { wrapper });
+  fireEvent.click(await screen.findByRole("button", { name: "提交验证" }));
+  await waitFor(() => expect(api.completeDevTask).toHaveBeenCalledWith({ organizationId: 0, taskId: 21, expectedVersion: 4 }));
+  expect(api.transitionTask).not.toHaveBeenCalled();
+});
+
+it("非开发任务仍按服务端动作走通用流转", async () => {
+  api.listRequirementTasks.mockResolvedValue([{ id: 22, itemKey: "QA-22", type: "QA_TASK", title: "回归", status: "IN_PROGRESS", assigneeUserId: 5, version: 2, availableActions: ["SUBMIT_REVIEW"], guardHints: {} }]);
+  render(<StageTasks requirementId={1} type="QA_TASK" />, { wrapper });
+  fireEvent.click(await screen.findByRole("button", { name: "提交验证" }));
+  await waitFor(() => expect(api.transitionTask).toHaveBeenCalledWith(22, "SUBMIT_REVIEW", 2, ""));
+  expect(api.completeDevTask).not.toHaveBeenCalled();
 });

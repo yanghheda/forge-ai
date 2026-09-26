@@ -53,9 +53,18 @@ class AgentStageActionPolicyTest {
 
     @Test
     void taskActionsFollowAssigneeRolesAndExcludeLeaderReview() {
+        // 开发任务的开工会创建分支与合并请求、提交验证要求 MR 已合并，只能走 start_development 与人工完成开发任务。
         assertThat(AgentStageActionPolicy.allowsTask(AgentSkill.DEVELOPER, WorkflowAction.START))
+                .isFalse();
+        assertThat(AgentStageActionPolicy.allowsTask(AgentSkill.DEVELOPER, WorkflowAction.SUBMIT_REVIEW))
+                .isFalse();
+        assertThat(AgentStageActionPolicy.allowsTask(AgentSkill.DEVELOPER, WorkflowAction.BLOCK))
+                .isTrue();
+        assertThat(AgentStageActionPolicy.allowsTask(AgentSkill.DEVELOPER, WorkflowAction.UNBLOCK))
                 .isTrue();
         assertThat(AgentStageActionPolicy.allowsTask(AgentSkill.QA, WorkflowAction.SUBMIT_REVIEW))
+                .isTrue();
+        assertThat(AgentStageActionPolicy.allowsTask(AgentSkill.UX, WorkflowAction.START))
                 .isTrue();
         assertThat(AgentStageActionPolicy.allowsTask(AgentSkill.UX, WorkflowAction.BLOCK))
                 .isTrue();

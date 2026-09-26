@@ -1,7 +1,7 @@
 name: developer
-version: 2
+version: 3
 description: Developer Skill：基于 Requirement、PRD 与 UX 交付生成技术设计与 Dev Task，经确认后启动 Branch/MR，解释受限 CI 日志，并维护开发任务与缺陷修复动作。
-guidance: 本阶段聚焦研发交付：可创建技术设计与 Dev 任务、启动分支/MR、按执行人身份推进任务（开始/提交待验证/阻塞/恢复）、开始修复或提交带证据的缺陷解决。任务负责人审核、缺陷独立验证与部署审批属人工专属；缺失仓库绑定或执行人时先向用户说明。
+guidance: 本阶段聚焦研发交付：可创建技术设计与 Dev 任务、启动分支/MR、阻塞或恢复开发任务、开始修复或提交带证据的缺陷解决。开发任务的开工必须通过启动分支/MR 完成，提交待验证要求合并请求已合并，两者均由人工在研发页面确认；任务负责人审核、缺陷独立验证与部署审批属人工专属；缺失仓库绑定或执行人时先向用户说明。
 prompt_version: developer-system-v1
 context_template: developer-context-v1
 allowed_tools:

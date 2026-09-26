@@ -57,9 +57,14 @@ public class DeliveryWorkflowPolicy {
             case APPROVE_REQUIREMENT, REJECT_REQUIREMENT, ACCEPT_REQUIREMENT -> leader(org, item.id(), "PRODUCT", userId);
             /* 四方评审由产品负责人或该需求产品域执行人发起，与提交需求审核保持同一产品侧职责。 */
             case START_PRODUCT_REVIEW -> member(org, item.id(), "PRODUCT", userId);
-            case START_UX, SUBMIT_UX_REVIEW, APPROVE_UX_REVIEW, REJECT_UX_REVIEW -> leader(org, item.id(), "UX", userId);
-            case START_DEVELOPMENT, SUBMIT_FOR_QA -> leader(org, item.id(), "DEVELOPER", userId);
-            case START_QA, QA_PASS, QA_FAIL -> leader(org, item.id(), "QA", userId);
+            case START_UX, APPROVE_UX_REVIEW, REJECT_UX_REVIEW -> leader(org, item.id(), "UX", userId);
+            /* UX 阶段评审由本需求 UX 域成员（设计师执行人或 UX 负责人）在交付物齐备后自行提交，与产品侧提交保持同一职责边界。 */
+            case SUBMIT_UX_REVIEW -> member(org, item.id(), "UX", userId);
+            /* 阶段开工由领域负责人确认任务并启动，与 START_UX 保持同一职责；阶段提交与结论归完成该阶段工作的执行人。 */
+            case START_DEVELOPMENT -> leader(org, item.id(), "DEVELOPER", userId);
+            case SUBMIT_FOR_QA -> member(org, item.id(), "DEVELOPER", userId);
+            case START_QA -> leader(org, item.id(), "QA", userId);
+            case QA_PASS, QA_FAIL -> member(org, item.id(), "QA", userId);
             default -> false;
         };
     }

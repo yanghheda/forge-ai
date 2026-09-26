@@ -66,6 +66,48 @@ class DeliveryWorkflowPolicyTest {
         assertThat(policy.canAct(10, item(WorkItemType.UX_TASK, WorkItemStatus.WAITING_VERIFICATION), WorkflowAction.APPROVE)).isTrue();
     }
 
+    /*
+     * UX 阶段评审：UX 域执行人（设计师）交付完成后可自行提交，
+     * 通过与驳回结论只由 UX 负责人给出，避免设计师自评自过。
+     */
+    @Test
+    void uxExecutorCanSubmitStageReviewWhileVerdictStaysLeaderOnly() {
+        WorkItem uxInProgress = item(WorkItemType.REQUIREMENT, WorkItemStatus.UX_IN_PROGRESS);
+        WorkItem uxReview = item(WorkItemType.REQUIREMENT, WorkItemStatus.UX_REVIEW);
+        assertThat(policy.canAct(20, uxInProgress, WorkflowAction.SUBMIT_UX_REVIEW)).isFalse();
+        when(store.isExecutor(1, 2, "UX", 20)).thenReturn(true);
+        assertThat(policy.canAct(20, uxInProgress, WorkflowAction.SUBMIT_UX_REVIEW)).isTrue();
+        assertThat(policy.canAct(20, uxReview, WorkflowAction.APPROVE_UX_REVIEW)).isFalse();
+        assertThat(policy.canAct(20, uxReview, WorkflowAction.REJECT_UX_REVIEW)).isFalse();
+        when(store.isLeader(1, 2, "UX", 30)).thenReturn(true);
+        assertThat(policy.canAct(30, uxReview, WorkflowAction.APPROVE_UX_REVIEW)).isTrue();
+        assertThat(policy.canAct(30, uxReview, WorkflowAction.REJECT_UX_REVIEW)).isTrue();
+        assertThat(policy.canAct(30, uxInProgress, WorkflowAction.SUBMIT_UX_REVIEW)).isTrue();
+    }
+
+    /*
+     * 开发与 QA 的阶段提交同样归完成该阶段工作的执行人：
+     * 开工（START_DEVELOPMENT / START_QA）仍由领域负责人确认任务后启动。
+     */
+    @Test
+    void developerAndQaExecutorsCanSubmitTheirOwnStageWhileStageStartStaysLeaderOnly() {
+        WorkItem inDevelopment = item(WorkItemType.REQUIREMENT, WorkItemStatus.IN_DEVELOPMENT);
+        WorkItem inQa = item(WorkItemType.REQUIREMENT, WorkItemStatus.IN_QA);
+        assertThat(policy.canAct(20, inDevelopment, WorkflowAction.SUBMIT_FOR_QA)).isFalse();
+        assertThat(policy.canAct(20, inQa, WorkflowAction.QA_PASS)).isFalse();
+        when(store.isExecutor(1, 2, "DEVELOPER", 20)).thenReturn(true);
+        when(store.isExecutor(1, 2, "QA", 20)).thenReturn(true);
+        assertThat(policy.canAct(20, inDevelopment, WorkflowAction.SUBMIT_FOR_QA)).isTrue();
+        assertThat(policy.canAct(20, inQa, WorkflowAction.QA_PASS)).isTrue();
+        assertThat(policy.canAct(20, inQa, WorkflowAction.QA_FAIL)).isTrue();
+        assertThat(policy.canAct(20, item(WorkItemType.REQUIREMENT, WorkItemStatus.READY_FOR_DEV), WorkflowAction.START_DEVELOPMENT)).isFalse();
+        assertThat(policy.canAct(20, item(WorkItemType.REQUIREMENT, WorkItemStatus.READY_FOR_QA), WorkflowAction.START_QA)).isFalse();
+        when(store.isLeader(1, 2, "DEVELOPER", 30)).thenReturn(true);
+        when(store.isLeader(1, 2, "QA", 30)).thenReturn(true);
+        assertThat(policy.canAct(30, item(WorkItemType.REQUIREMENT, WorkItemStatus.READY_FOR_DEV), WorkflowAction.START_DEVELOPMENT)).isTrue();
+        assertThat(policy.canAct(30, item(WorkItemType.REQUIREMENT, WorkItemStatus.READY_FOR_QA), WorkflowAction.START_QA)).isTrue();
+    }
+
     private WorkItem item(WorkItemType type, WorkItemStatus status) {
         return new WorkItem(2, 1, 2, "REQ-2", type, "title", "description", status, WorkItemPriority.MEDIUM,
                 20L, 10, null, 0, Instant.EPOCH, Instant.EPOCH);

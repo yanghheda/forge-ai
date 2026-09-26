@@ -118,6 +118,7 @@ class DeliveryWorkflowIntegrationTest extends InfrastructureIntegrationTestBase 
         assertThat(people.participants(8801,requirementId)).allMatch(p -> !p.reviewApproved());
     }
 
+    /* 需求级 QA 结论（QA_FAIL / QA_PASS）由完成测试的 QA 执行人给出，阶段开工仍由 QA 负责人执行。 */
     @Test
     void bugsCanBeFixedDuringTestingButUnexecutedCasesBlockFixVerification() {
         jdbc.update("UPDATE work_items SET status='READY_FOR_QA' WHERE id=? AND organization_id=8800",requirementId);
@@ -131,7 +132,7 @@ class DeliveryWorkflowIntegrationTest extends InfrastructureIntegrationTestBase 
         var bug=bugs.create(8807,8800,requirementId,run.id(),result.id(),null,"Failure",BugSeverity.MAJOR,List.of("run"),"pass","failed",8806L);
         assertThat(bug.status()).isEqualTo(WorkItemStatus.TODO);
         assertThat(console.board(8806)).anyMatch(b -> b.id()==bug.id() && b.assigneeUserId()==8806L && b.lane().equals("TODO"));
-        assertThatThrownBy(() -> move(8804,requirementId,WorkflowAction.QA_FAIL)).isInstanceOf(WorkflowGuardFailedException.class);
+        assertThatThrownBy(() -> move(8807,requirementId,WorkflowAction.QA_FAIL)).isInstanceOf(WorkflowGuardFailedException.class);
         var fixing=bugs.transition(8806,8800,bug.id(),BugAction.START_FIX,0,null,List.of(),"fix-start");
         var fixed=bugs.transition(8806,8800,bug.id(),BugAction.RESOLVE,fixing.version(),"Fixed",List.of("commit://abc"),"fix-submit");
         assertThatThrownBy(() -> bugs.transition(8806,8800,bug.id(),BugAction.VERIFY,fixed.version(),null,List.of(),"self-verify")).isInstanceOf(ResourceNotFoundException.class);
@@ -141,19 +142,34 @@ class DeliveryWorkflowIntegrationTest extends InfrastructureIntegrationTestBase 
         var second=run.results().stream().filter(r -> r.id()!=result.id()).findFirst().orElseThrow();
         qa.updateResult(8807,8800,run.id(),second.id(),TestResultStatus.PASS,"pass",List.of(),0);
         run=qa.completeRun(8807,8800,run.id(),qa.run(8807,8800,run.id()).version());
-        move(8804,requirementId,WorkflowAction.QA_FAIL);
+        move(8807,requirementId,WorkflowAction.QA_FAIL);
         assertThat(current(requirementId).status()).isEqualTo(WorkItemStatus.IN_FIX_VERIFICATION);
-        assertThatThrownBy(() -> move(8804,requirementId,WorkflowAction.QA_PASS)).isInstanceOf(WorkflowGuardFailedException.class);
+        assertThatThrownBy(() -> move(8807,requirementId,WorkflowAction.QA_PASS)).isInstanceOf(WorkflowGuardFailedException.class);
         run=qa.reopenRun(8807,8800,run.id(),run.version(),"Verify fixed case","retest");
         qa.updateResult(8807,8800,run.id(),result.id(),TestResultStatus.PASS,"verified",List.of(),1);
         qa.completeRun(8807,8800,run.id(),qa.run(8807,8800,run.id()).version());
         move(8807,task.id(),WorkflowAction.START);
         move(8807,task.id(),WorkflowAction.SUBMIT_REVIEW);
         move(8804,task.id(),WorkflowAction.APPROVE);
-        move(8804,requirementId,WorkflowAction.QA_PASS);
+        move(8807,requirementId,WorkflowAction.QA_PASS);
         assertThat(current(requirementId).status()).isEqualTo(WorkItemStatus.IN_ACCEPTANCE);
         move(8801,requirementId,WorkflowAction.ACCEPT_REQUIREMENT);
         assertThat(current(requirementId).status()).isEqualTo(WorkItemStatus.READY_FOR_RELEASE);
+    }
+
+    /* 开发执行人完成本需求全部 Dev Task 后自行提交质量验证；开发负责人不再独占提交权。 */
+    @Test
+    void developerExecutorSubmitsForQaAfterOwnDevTaskIsDone() {
+        jdbc.update("UPDATE work_items SET status='READY_FOR_DEV' WHERE id=? AND organization_id=8800",requirementId);
+        jdbc.update("INSERT INTO organization_policies (organization_id,allow_skip_ux,ci_required,updated_by,updated_at,version) "
+                + "VALUES (8800,FALSE,FALSE,8801,UTC_TIMESTAMP(6),0)");
+        WorkItem devTask=commands.createTask(8803,8800,requirementId,WorkItemType.DEV_TASK,"Implement","",null,8806L);
+        move(8803,requirementId,WorkflowAction.START_DEVELOPMENT);
+        move(8806,devTask.id(),WorkflowAction.START);
+        move(8806,devTask.id(),WorkflowAction.SUBMIT_REVIEW);
+        move(8803,devTask.id(),WorkflowAction.APPROVE);
+        move(8806,requirementId,WorkflowAction.SUBMIT_FOR_QA);
+        assertThat(current(requirementId).status()).isEqualTo(WorkItemStatus.READY_FOR_QA);
     }
 
     private WorkItem current(long id) { return items.findByIdAndScope(8800,id).orElseThrow(); }
