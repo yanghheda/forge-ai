@@ -1,9 +1,11 @@
 package ai.forge.server.gitlab.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.authorization.application.PermissionStore;
+import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.gitlab.domain.PipelineRun;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -36,6 +38,17 @@ class PipelineServiceTest {
         assertThat(store.requestedTaskId).isEqualTo(40L);
         assertThat(store.requestedRef).isEqualTo("feature/demo-2");
         assertThat(result.mergeRequestId()).isEqualTo(51L);
+    }
+
+    @Test
+    void refusesToTriggerRemotePipelineWhenTaskHasNoAssociableMergeRequest() {
+        FakeStore store = new FakeStore();
+        FakeProvider provider = new FakeProvider();
+        store.mergeRequestId = null;
+
+        assertThatThrownBy(() -> service(store, provider, 8).trigger(1L, 7L, "feature/demo-2", 40L))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(provider.ref).isNull();
     }
 
     @Test
@@ -88,6 +101,7 @@ class PipelineServiceTest {
         private PipelineRun saved;
         private Long requestedTaskId;
         private String requestedRef;
+        private Long mergeRequestId = 51L;
 
         @Override
         public PipelineContext loadContext(long organizationId) {
@@ -109,7 +123,7 @@ class PipelineServiceTest {
         public Optional<Long> findMergeRequestId(long organizationId, long repositoryId, long devTaskId, String ref) {
             requestedTaskId = devTaskId;
             requestedRef = ref;
-            return Optional.of(51L);
+            return Optional.ofNullable(mergeRequestId);
         }
 
         @Override

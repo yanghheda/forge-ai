@@ -49,11 +49,12 @@ public class PipelineService {
         permissions.requireOrganization(userId, organizationId, "repo.write");
         PipelineContext context = store.loadContext(organizationId);
         String normalizedRef = requireRef(ref);
+        /* 先解析任务 MR 再触发远端：解析失败时不能留下无本地快照的远端 Pipeline。 */
+        Long mergeRequestId = devTaskId == null ? null : store.findMergeRequestId(
+                organizationId, context.repositoryId(), devTaskId, normalizedRef)
+                .orElseThrow(ResourceNotFoundException::new);
         PipelineRun remote = sourceControl.triggerPipeline(context, normalizedRef);
-        if (devTaskId != null) {
-            Long mergeRequestId = store.findMergeRequestId(
-                    organizationId, context.repositoryId(), devTaskId, normalizedRef)
-                    .orElseThrow(ResourceNotFoundException::new);
+        if (mergeRequestId != null) {
             remote = new PipelineRun(remote.id(), remote.organizationId(), remote.repositoryId(), mergeRequestId,
                     remote.remotePipelineId(), remote.ref(), remote.commitSha(), remote.status(), remote.webUrl(),
                     remote.startedAt(), remote.finishedAt(), remote.remoteUpdatedAt(), remote.lastSyncedAt(),

@@ -17,9 +17,11 @@ public interface PipelineMapper {
             + "WHERE r.organization_id=#{organizationId} AND r.status='ACTIVE'")
     List<Map<String, Object>> findContext(@Param("organizationId") long organizationId);
 
+    /* 关联当前 Dev Task 在该分支上的最新 MR；已合并的 MR 仍必须可关联，
+       否则“MR 合并后才触发 Pipeline”和 Demo 的已合并 MR 都无法满足 QA 门禁。 */
     @Select("SELECT mr.id FROM merge_requests mr WHERE mr.organization_id=#{organizationId} "
             + "AND mr.repository_id=#{repositoryId} AND mr.work_item_id=#{devTaskId} "
-            + "AND mr.source_branch=#{ref} AND mr.state='opened' ORDER BY mr.id DESC LIMIT 1")
+            + "AND mr.source_branch=#{ref} AND mr.state IN ('opened','merged') ORDER BY mr.id DESC LIMIT 1")
     List<Long> findMergeRequestId(@Param("organizationId") long organizationId,
             @Param("repositoryId") long repositoryId, @Param("devTaskId") long devTaskId,
             @Param("ref") String ref);
