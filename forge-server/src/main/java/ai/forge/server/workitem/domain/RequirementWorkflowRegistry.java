@@ -36,7 +36,7 @@ public final class RequirementWorkflowRegistry {
         requirement(rules, WorkItemStatus.IN_QA, WorkflowAction.QA_FAIL, WorkItemStatus.IN_FIX_VERIFICATION, "qa.execute");
         requirement(rules, WorkItemStatus.IN_QA, WorkflowAction.QA_PASS, WorkItemStatus.IN_ACCEPTANCE, "qa.execute", qaPassGuard);
         requirement(rules, WorkItemStatus.IN_FIX_VERIFICATION, WorkflowAction.QA_PASS, WorkItemStatus.IN_ACCEPTANCE, "qa.execute", qaPassGuard);
-        requirement(rules, WorkItemStatus.IN_ACCEPTANCE, WorkflowAction.ACCEPT_REQUIREMENT, WorkItemStatus.READY_FOR_RELEASE, "requirement.approve");
+        requirement(rules, WorkItemStatus.IN_ACCEPTANCE, WorkflowAction.ACCEPT_REQUIREMENT, WorkItemStatus.READY_FOR_RELEASE, "requirement.accept");
         for (WorkItemType type : List.of(WorkItemType.UX_TASK, WorkItemType.DEV_TASK, WorkItemType.QA_TASK)) {
             String permission = type.permissionResource() + ".edit";
             task(rules, type, WorkItemStatus.TODO, WorkflowAction.START, WorkItemStatus.IN_PROGRESS, permission);

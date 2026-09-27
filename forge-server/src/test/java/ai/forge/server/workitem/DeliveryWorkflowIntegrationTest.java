@@ -153,7 +153,9 @@ class DeliveryWorkflowIntegrationTest extends InfrastructureIntegrationTestBase 
         move(8804,task.id(),WorkflowAction.APPROVE);
         move(8807,requirementId,WorkflowAction.QA_PASS);
         assertThat(current(requirementId).status()).isEqualTo(WorkItemStatus.IN_ACCEPTANCE);
-        move(8801,requirementId,WorkflowAction.ACCEPT_REQUIREMENT);
+        /* 验收由产品领域成员确认：无产品职责的其他领域成员被拒，产品执行人可验收（ADR-024）。 */
+        assertThatThrownBy(() -> move(8805,requirementId,WorkflowAction.ACCEPT_REQUIREMENT)).isInstanceOf(ResourceNotFoundException.class);
+        move(8808,requirementId,WorkflowAction.ACCEPT_REQUIREMENT);
         assertThat(current(requirementId).status()).isEqualTo(WorkItemStatus.READY_FOR_RELEASE);
     }
 

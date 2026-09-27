@@ -29,9 +29,10 @@ class AgentStageActionPolicyTest {
                 .isFalse();
     }
 
+    /* 审批与验收结论都不进入 Agent 白名单：验收虽改由产品领域成员确认（ADR-024），但仍必须由人工执行。 */
     @Test
-    void noSkillCanRequestLeaderApprovalActions() {
-        var leaderOnly = new WorkflowAction[] {
+    void noSkillCanRequestApprovalOrAcceptanceActions() {
+        var humanOnly = new WorkflowAction[] {
             WorkflowAction.APPROVE_REQUIREMENT,
             WorkflowAction.REJECT_REQUIREMENT,
             WorkflowAction.APPROVE_PRODUCT_REVIEW,
@@ -43,7 +44,7 @@ class AgentStageActionPolicyTest {
             WorkflowAction.REJECT
         };
         for (AgentSkill skill : AgentSkill.values()) {
-            for (WorkflowAction action : leaderOnly) {
+            for (WorkflowAction action : humanOnly) {
                 assertThat(AgentStageActionPolicy.allows(skill, action))
                         .as("%s must not allow %s", skill, action)
                         .isFalse();

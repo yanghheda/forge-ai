@@ -55,7 +55,7 @@ class ToolContractRegistryTest {
         assertThat(ux).containsExactly(
                 "get_organization", "get_work_item", "list_requirements", "list_tasks",
                 "list_members", "get_delivery_graph", "search_documents",
-                "create_ux_task", "create_ux_document", "publish_document",
+                "create_ux_task", "create_ux_document", "publish_ux_document",
                 "update_task", "advance_task", "advance_requirement");
         assertThat(developer).containsExactly(
                 "get_organization", "get_work_item", "list_requirements", "list_tasks", "list_bugs",

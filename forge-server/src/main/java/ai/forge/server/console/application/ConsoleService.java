@@ -56,10 +56,12 @@ public class ConsoleService {
     }
 
     public void move(long userId,long workItemId,String lane,long position) {
-        long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.edit");
+        long organizationId=organization(userId);
         if(!LANES.contains(lane)||position<0) throw new IllegalArgumentException("invalid board position");
         if(mapper.workItemExists(organizationId,workItemId)!=1) throw new ResourceNotFoundException();
         var item = workItems.findByIdAndScope(organizationId,workItemId).orElseThrow(ResourceNotFoundException::new);
+        /* 看板排序是工作项所属模块的写操作，按类型取该模块的编辑权限，而不是跨模块的通用任务权限。 */
+        permissions.requireOrganization(userId,organizationId,item.type().permissionResource()+".edit");
         if (!item.status().name().equals(lane)) throw new IllegalArgumentException("Use task actions to change status before sorting");
         mapper.savePosition(organizationId,userId,workItemId,lane,position);
     }

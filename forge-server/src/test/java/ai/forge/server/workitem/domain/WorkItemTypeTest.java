@@ -20,7 +20,8 @@ class WorkItemTypeTest {
         assertThat(WorkItemType.REQUIREMENT.permissionResource()).isEqualTo("requirement");
         assertThat(WorkItemType.UX_TASK.permissionResource()).isEqualTo("ux");
         assertThat(WorkItemType.DEV_TASK.permissionResource()).isEqualTo("task");
-        assertThat(WorkItemType.QA_TASK.permissionResource()).isEqualTo("task");
+        /* 测试任务从通用 task 资源独立为 qa，使测试模块写权限不再与开发共用（ADR-026）。 */
+        assertThat(WorkItemType.QA_TASK.permissionResource()).isEqualTo("qa");
         assertThat(WorkItemType.BUG.permissionResource()).isEqualTo("bug");
     }
 }

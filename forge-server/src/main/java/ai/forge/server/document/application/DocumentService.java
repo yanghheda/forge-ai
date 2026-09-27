@@ -33,10 +33,10 @@ public class DocumentService {
     @Transactional
     public Document create(
         long userId, long organizationId, long workItemId, String type, String title) {
-        permissions.requireOrganization(userId, organizationId, "document.create");
         if (!SUPPORTED_TYPES.contains(type) || title == null || title.trim().isEmpty()) {
             throw new IllegalArgumentException("only nonblank Product or UX documents are supported");
         }
+        permissions.requireOrganization(userId, organizationId, writePermission(type, "create"));
         if (!store.requirementExists(organizationId, workItemId)) {
             throw new ResourceNotFoundException();
         }
@@ -64,8 +64,8 @@ public class DocumentService {
 
     @Transactional
     public Document save(long userId, long organizationId, long documentId, long expectedVersion, JsonNode content) {
-        permissions.requireOrganization(userId, organizationId, "document.edit");
-        store.get(organizationId, documentId);
+        Document document = store.get(organizationId, documentId);
+        permissions.requireOrganization(userId, organizationId, writePermission(document.type(), "edit"));
         DocumentContent normalized = DocumentContent.from(content);
         return store.save(organizationId, documentId, userId, expectedVersion,
             normalized.contentJson(), normalized.plainText(), normalized.hash());
@@ -73,8 +73,20 @@ public class DocumentService {
 
     @Transactional
     public Document publish(long userId, long organizationId, long documentId, long versionId, long expectedVersion) {
-        permissions.requireOrganization(userId, organizationId, "document.publish");
-        store.get(organizationId, documentId);
+        Document document = store.get(organizationId, documentId);
+        permissions.requireOrganization(userId, organizationId, writePermission(document.type(), "publish"));
         return store.publish(organizationId, documentId, versionId, expectedVersion);
+    }
+
+    /* 文档写入权限按所属模块区分：PRD 属产品域，UX 交付文档属设计域，技术设计文档属研发域。
+     * 只读 document.read 对所有角色开放，模块归属只约束创建、保存与发布。 */
+    private static String writePermission(String type, String action) {
+        String resource = switch (type) {
+            case "PRD" -> "document";
+            case "UX_SPEC", "PROTOTYPE_SPEC", "DESIGN_GUIDE" -> "ux.document";
+            case "TECH_DESIGN" -> "development.document";
+            default -> throw new IllegalArgumentException("unsupported document type");
+        };
+        return resource + "." + action;
     }
 }

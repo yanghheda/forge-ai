@@ -1,6 +1,6 @@
 name: update_task
 version: 1
-description: 修改角色任务的标题、说明、优先级、负责人或截止时间；任务类型必须与当前 Run 的角色一致。
+description: 修改角色任务的标题、说明、优先级、负责人或截止时间；任务类型必须与当前 Run 的角色一致。契约权限 task.read 只是「公司内可读任务」的前置门禁，真正的写入授权由应用服务按任务类型对应的模块权限与需求内执行人身份判定。
 input_schema:
   type: object
   required: [taskId, expectedVersion]
@@ -15,7 +15,7 @@ input_schema:
   additionalProperties: false
 output_schema:
   type: object
-required_permission: task.edit
+required_permission: task.read
 risk_level: MEDIUM
 idempotency:
   required: true

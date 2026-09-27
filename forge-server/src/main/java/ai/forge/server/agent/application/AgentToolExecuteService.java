@@ -435,6 +435,7 @@ public class AgentToolExecuteService {
                 case "create_tech_design" -> createDocument(
                         organizationId, run, arguments, "TECH_DESIGN");
                 case "publish_document" -> publishDocument(organizationId, run, arguments);
+                case "publish_ux_document" -> publishDocument(organizationId, run, arguments);
                 case "create_dev_task" -> createDevTask(organizationId, run, arguments);
                 case "start_development" -> startDevelopment(organizationId, run, arguments);
                 case "get_pipeline_log" -> pipelineLog(organizationId, run, arguments);

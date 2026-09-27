@@ -91,6 +91,14 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
                 "SELECT id FROM users WHERE normalized_email = 'owner@example.com'", Long.class);
         organizationId = jdbcTemplate.queryForObject(
                 "SELECT default_organization_id FROM instance_settings WHERE id = 1", Long.class);
+        /* 模块写权限已按领域收敛，Owner 不再持有任何模块写权限（ADR-026）；
+           内部 Tool 链需要在同一身份下覆盖产品/设计/研发/测试写入，因此叠加四个领域管理员角色，
+           需求参与者与执行人仍由各用例单独配置。 */
+        for (String role : List.of("PRODUCT_ADMIN", "UX_ADMIN", "DEVELOPER_ADMIN", "QA_ADMIN")) {
+            jdbcTemplate.update("INSERT IGNORE INTO member_roles(organization_member_id,role_id,created_at) "
+                    + "SELECT om.id,r.id,UTC_TIMESTAMP(6) FROM organization_members om JOIN roles r ON r.code=? "
+                    + "WHERE om.organization_id=? AND om.user_id=?", role, organizationId, ownerId);
+        }
     }
 
     @Test

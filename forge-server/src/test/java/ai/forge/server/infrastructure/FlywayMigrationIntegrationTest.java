@@ -32,7 +32,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void migratesEmptyMySqlWithExpectedBaselineAndSingletonSettings() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("8");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("11");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT id FROM instance_settings", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -152,7 +152,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.code = 'OWNER'",
                 Integer.class))
-                .isEqualTo(38);
+                .isEqualTo(17);
     }
 
     @Test
@@ -182,13 +182,117 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                                 + "JOIN permissions p ON p.id = rp.permission_id "
                                 + "WHERE p.code = 'requirement.approve' ORDER BY r.code",
                         String.class))
-                .containsExactly("ADMIN", "OWNER", "PRODUCT_ADMIN");
+                .containsExactly("PRODUCT_ADMIN");
         assertThat(jdbcTemplate.queryForList(
                         "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
                                 + "JOIN permissions p ON p.id = rp.permission_id "
                                 + "WHERE p.code = 'ux.approve' ORDER BY r.code",
                         String.class))
-                .containsExactly("ADMIN", "OWNER", "UX_ADMIN");
+                .containsExactly("UX_ADMIN");
+    }
+
+    /* 验收权限码与审核码分离：产品基础角色与产品管理员可验收，审核码归属不受影响（ADR-024）。 */
+    @Test
+    void acceptancePermissionIsGrantedToProductDomainMembers() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE p.code = 'requirement.accept' ORDER BY r.code",
+                        String.class))
+                .containsExactly("PRODUCT", "PRODUCT_ADMIN");
+    }
+
+    /* 发布写权限归属研发领域：开发与开发管理员可创建、预检与申请模拟部署，其余角色只保留读取（ADR-025、ADR-026）。 */
+    @Test
+    void releaseWritePermissionsBelongToDeveloperDomain() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL "
+                                + "AND p.code IN ('release.manage','release.precheck','release.deploy') "
+                                + "GROUP BY r.code HAVING COUNT(DISTINCT p.code) = 3 ORDER BY r.code",
+                        String.class))
+                .containsExactly("DEVELOPER", "DEVELOPER_ADMIN");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL AND p.code LIKE 'release.%' "
+                                + "GROUP BY r.code HAVING COUNT(DISTINCT p.code) = 1 ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "OWNER", "PRODUCT", "PRODUCT_ADMIN", "QA", "QA_ADMIN",
+                        "UX", "UX_ADMIN");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL AND p.code = 'release.read' ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "DEVELOPER", "DEVELOPER_ADMIN", "OWNER", "PRODUCT", "PRODUCT_ADMIN",
+                        "QA", "QA_ADMIN", "UX", "UX_ADMIN");
+    }
+
+    /* 五个模块所有系统角色都可读，写权限只保留给该模块的基础角色与领域管理员，Owner/Admin 不持有任何模块写权限（ADR-026）。 */
+    @Test
+    void moduleWritePermissionsBelongToOwningDomainOnly() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL AND p.code IN "
+                                + "('requirement.edit','document.create','document.edit','document.publish') "
+                                + "GROUP BY r.code HAVING COUNT(DISTINCT p.code) = 4 ORDER BY r.code",
+                        String.class))
+                .containsExactly("PRODUCT", "PRODUCT_ADMIN");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL AND p.code IN "
+                                + "('ux.create','ux.edit','ux.document.create','ux.document.edit','ux.document.publish') "
+                                + "GROUP BY r.code HAVING COUNT(DISTINCT p.code) = 5 ORDER BY r.code",
+                        String.class))
+                .containsExactly("UX", "UX_ADMIN");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL AND p.code IN "
+                                + "('task.create','task.edit','development.submit','repo.write',"
+                                + "'development.document.create','development.document.edit',"
+                                + "'development.document.publish') "
+                                + "GROUP BY r.code HAVING COUNT(DISTINCT p.code) = 7 ORDER BY r.code",
+                        String.class))
+                .containsExactly("DEVELOPER", "DEVELOPER_ADMIN");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL AND p.code IN "
+                                + "('qa.create','qa.edit','qa.manage','qa.execute','bug.create','bug.edit','bug.verify') "
+                                + "GROUP BY r.code HAVING COUNT(DISTINCT p.code) = 7 ORDER BY r.code",
+                        String.class))
+                .containsExactly("QA", "QA_ADMIN");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL AND p.code = 'bug.resolve' ORDER BY r.code",
+                        String.class))
+                .containsExactly("DEVELOPER", "DEVELOPER_ADMIN");
+    }
+
+    /* 五个模块的读取权限对所有系统角色开放；Owner 与全局管理员保留需求创建这一全局入口。 */
+    @Test
+    void moduleReadPermissionsAndGlobalRequirementCreationAreOpen() {
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL AND r.system_role = TRUE "
+                                + "AND p.code IN ('qa.read','bug.read','repo.read','release.read') "
+                                + "GROUP BY r.code HAVING COUNT(DISTINCT p.code) = 4 ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "DEVELOPER", "DEVELOPER_ADMIN", "OWNER", "PRODUCT", "PRODUCT_ADMIN",
+                        "QA", "QA_ADMIN", "UX", "UX_ADMIN");
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id "
+                                + "JOIN permissions p ON p.id = rp.permission_id "
+                                + "WHERE r.organization_id IS NULL AND p.code = 'requirement.create' ORDER BY r.code",
+                        String.class))
+                .containsExactly("ADMIN", "OWNER", "PRODUCT", "PRODUCT_ADMIN");
     }
 
     @Test
@@ -254,7 +358,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                         "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id=rp.role_id "
                                 + "JOIN permissions p ON p.id=rp.permission_id WHERE p.code='repo.write' ORDER BY r.code",
                         String.class))
-                .containsExactly("ADMIN", "DEVELOPER", "DEVELOPER_ADMIN", "OWNER");
+                .containsExactly("DEVELOPER", "DEVELOPER_ADMIN");
     }
 
     @Test
@@ -384,7 +488,7 @@ class FlywayMigrationIntegrationTest extends InfrastructureIntegrationTestBase {
                                 + "JOIN permissions p ON p.id=rp.permission_id "
                                 + "WHERE p.code='development.submit' ORDER BY r.code",
                         String.class))
-                .containsExactly("ADMIN", "DEVELOPER", "DEVELOPER_ADMIN", "OWNER");
+                .containsExactly("DEVELOPER", "DEVELOPER_ADMIN");
     }
 
     @Test

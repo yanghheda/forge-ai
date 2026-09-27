@@ -108,6 +108,10 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
                 "SELECT id FROM users WHERE normalized_email = 'owner@example.com'", Long.class);
         organizationId = jdbcTemplate.queryForObject(
                 "SELECT default_organization_id FROM instance_settings WHERE id = 1", Long.class);
+        /* 文档写入已按模块收敛到产品域，Owner 不再持有 document.*；叠加产品管理员角色使文档链路在同一身份下可测（ADR-026）。 */
+        jdbcTemplate.update("INSERT IGNORE INTO member_roles(organization_member_id,role_id,created_at) "
+                + "SELECT om.id,r.id,UTC_TIMESTAMP(6) FROM organization_members om JOIN roles r ON r.code='PRODUCT_ADMIN' "
+                + "WHERE om.organization_id=? AND om.user_id=?", organizationId, ownerId);
         ResponseEntity<String> requirement = csrf().post(
                 "/api/v1/work-items",
                 Map.of(

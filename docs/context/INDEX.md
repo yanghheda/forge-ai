@@ -73,8 +73,8 @@
 | 产品定位、MVP 范围、用户旅程、成功指标 | `PRD` 1–5、7、18–20 |
 | 命名、仓库、模块边界、契约 | `ARCH` 3–5；`DETAIL` 2–3 |
 | 登录、Session、CSRF、初始化 | `ARCH` 9；`DETAIL` 4.2、6、14.1 |
-| 公司、成员、RBAC、账号审核 | `COMPANY` 2–5；ADR-016、ADR-021、ADR-022 |
-| Work Item、Requirement、Task、Bug、关系 | ADR-022；`DETAIL` 4.4、5（历史流程，以 ADR-022 为准） |
+| 公司、成员、RBAC、账号审核 | `COMPANY` 2–5；ADR-016、ADR-021、ADR-022、ADR-024、ADR-026 |
+| Work Item、Requirement、Task、Bug、关系 | ADR-022、ADR-024；`DETAIL` 4.4、5（历史流程，以 ADR-022 为准） |
 | 文档、版本、附件、编辑器 | `DETAIL` 4.5、8.3、13.4、14.3 |
 | API、DTO、错误、分页、幂等 | `ARCH` 10；`DETAIL` 3.2–3.3、8 |
 | MySQL、Flyway、Mapper、事务、锁、Outbox | `DETAIL` 3.3–3.4、4.1、7 |

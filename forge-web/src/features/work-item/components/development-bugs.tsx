@@ -1,11 +1,13 @@
 import { Alert, Message } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { canEditModule, getCurrentUser } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
 import { listBugs, transitionBug, type BugAction, type BugView } from "../api/work-item-api";
 import { BugList } from "./qa-panel";
 
 export function DevelopmentBugs({ requirementId }: { requirementId: number }) {
   const client = useQueryClient();
+  const user = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
   const bugs = useQuery({ queryKey: ["qa", 0, requirementId, "bugs"], queryFn: () => listBugs(0, requirementId) });
   const move = useMutation({
     mutationFn: ({ bug, action, reason, evidence }: { bug: BugView; action: BugAction; reason?: string; evidence?: string }) =>
@@ -14,5 +16,6 @@ export function DevelopmentBugs({ requirementId }: { requirementId: number }) {
     onError: (e) => Message.error(formatRequestError(e)),
   });
   if (bugs.isError) return <Alert type="error" content={formatRequestError(bugs.error)} />;
-  return <BugList bugs={bugs.data ?? []} onAction={(bug, action, reason, evidence) => move.mutate({ bug, action, reason, evidence })} />;
+  const readOnly = !canEditModule(user.data?.organization.roles, "development");
+  return <BugList bugs={bugs.data ?? []} readOnly={readOnly} onAction={(bug, action, reason, evidence) => move.mutate({ bug, action, reason, evidence })} />;
 }

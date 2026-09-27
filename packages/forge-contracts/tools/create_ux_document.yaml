@@ -1,6 +1,6 @@
 name: create_ux_document
 version: 1
-description: 在指定 Requirement 下创建 UX Spec 文档；契约权限 ux.edit 与应用服务内 document.create 共同构成授权。
+description: 在指定 Requirement 下创建 UX Spec 文档；契约权限 ux.document.create 与应用服务内按文档类型判定的创建权限共同构成授权。
 input_schema:
   type: object
   required: [requirementId, title]
@@ -10,7 +10,7 @@ input_schema:
   additionalProperties: false
 output_schema:
   type: object
-required_permission: ux.edit
+required_permission: ux.document.create
 risk_level: MEDIUM
 idempotency:
   required: true

@@ -151,6 +151,11 @@ class RequirementDeletionIntegrationTest extends InfrastructureIntegrationTestBa
                 null,
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        /* 需求删除使用产品域的 requirement.edit，Owner 已不再持有模块写权限（ADR-026）；
+           叠加产品管理员角色使删除链路可在同一身份下验证。 */
+        jdbcTemplate.update("INSERT IGNORE INTO member_roles(organization_member_id,role_id,created_at) "
+                + "SELECT om.id,r.id,UTC_TIMESTAMP(6) FROM organization_members om JOIN roles r ON r.code='PRODUCT_ADMIN' "
+                + "WHERE om.user_id=(SELECT id FROM users WHERE normalized_email='owner@example.com')");
     }
 
     private JsonNode createRequirement(String cookie, String title) throws Exception {

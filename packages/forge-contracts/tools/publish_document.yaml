@@ -1,6 +1,6 @@
 name: publish_document
 version: 1
-description: 发布需求关联文档的当前版本；发布后的 PRD 与 UX Spec 才是产品评审与 UX 评审的准入材料。
+description: 发布需求关联的 PRD 文档当前版本；只有已发布的 PRD 才是产品评审的准入材料。UX 交付文档改用 publish_ux_document。契约权限 document.publish 与应用服务内按文档类型判定的发布权限共同构成授权。
 input_schema:
   type: object
   required: [documentId, expectedVersion]

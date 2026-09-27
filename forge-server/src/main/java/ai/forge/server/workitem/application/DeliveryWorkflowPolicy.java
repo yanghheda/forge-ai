@@ -54,7 +54,9 @@ public class DeliveryWorkflowPolicy {
             case REJECT_PRODUCT_REVIEW -> java.util.Arrays.stream(RequirementParticipantRole.values())
                     .anyMatch(role -> leader(org, item.id(), role.name(), userId));
             case SUBMIT_PRODUCT_REVIEW -> member(org, item.id(), "PRODUCT", userId) || item.reporterUserId() == userId;
-            case APPROVE_REQUIREMENT, REJECT_REQUIREMENT, ACCEPT_REQUIREMENT -> leader(org, item.id(), "PRODUCT", userId);
+            case APPROVE_REQUIREMENT, REJECT_REQUIREMENT -> leader(org, item.id(), "PRODUCT", userId);
+            /* 验收由产品领域成员（负责人或该需求产品执行人）确认交付物，与 QA_PASS、SUBMIT_UX_REVIEW 的成员级结论一致（ADR-024）。 */
+            case ACCEPT_REQUIREMENT -> member(org, item.id(), "PRODUCT", userId);
             /* 四方评审由产品负责人或该需求产品域执行人发起，与提交需求审核保持同一产品侧职责。 */
             case START_PRODUCT_REVIEW -> member(org, item.id(), "PRODUCT", userId);
             case START_UX, APPROVE_UX_REVIEW, REJECT_UX_REVIEW -> leader(org, item.id(), "UX", userId);

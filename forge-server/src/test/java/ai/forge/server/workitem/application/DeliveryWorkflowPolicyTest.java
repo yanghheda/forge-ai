@@ -42,18 +42,21 @@ class DeliveryWorkflowPolicyTest {
 
     /*
      * 四方评审由产品负责人或该需求产品域执行人发起；
-     * 需求审核与验收仍为产品负责人专属，其他产品角色不因此获得领导动作。
+     * 需求审核仍为产品负责人专属，验收则由产品领域成员（负责人或执行人）确认（ADR-024）。
      */
     @Test
-    void productExecutorCanStartReviewWhileApprovalAndAcceptanceStayLeaderOnly() {
+    void productExecutorCanStartReviewAndAcceptWhileApprovalStaysLeaderOnly() {
         WorkItem readyForReview = item(WorkItemType.REQUIREMENT, WorkItemStatus.READY_FOR_REVIEW);
+        WorkItem inAcceptance = item(WorkItemType.REQUIREMENT, WorkItemStatus.IN_ACCEPTANCE);
         assertThat(policy.canAct(20, readyForReview, WorkflowAction.START_PRODUCT_REVIEW)).isFalse();
+        assertThat(policy.canAct(20, inAcceptance, WorkflowAction.ACCEPT_REQUIREMENT)).isFalse();
         when(store.isExecutor(1, 2, "PRODUCT", 20)).thenReturn(true);
         assertThat(policy.canAct(20, readyForReview, WorkflowAction.START_PRODUCT_REVIEW)).isTrue();
+        assertThat(policy.canAct(20, inAcceptance, WorkflowAction.ACCEPT_REQUIREMENT)).isTrue();
         assertThat(policy.canAct(20, item(WorkItemType.REQUIREMENT, WorkItemStatus.REQUIREMENT_APPROVAL), WorkflowAction.APPROVE_REQUIREMENT)).isFalse();
-        assertThat(policy.canAct(20, item(WorkItemType.REQUIREMENT, WorkItemStatus.IN_ACCEPTANCE), WorkflowAction.ACCEPT_REQUIREMENT)).isFalse();
         when(store.isLeader(1, 2, "PRODUCT", 10)).thenReturn(true);
         assertThat(policy.canAct(10, readyForReview, WorkflowAction.START_PRODUCT_REVIEW)).isTrue();
+        assertThat(policy.canAct(10, inAcceptance, WorkflowAction.ACCEPT_REQUIREMENT)).isTrue();
     }
 
     @Test

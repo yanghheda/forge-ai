@@ -1,6 +1,6 @@
 name: advance_task
 version: 1
-description: 执行角色任务的生命周期动作；目标状态与准入条件由 forge-server 五态任务状态机决定，审核动作永不开放。
+description: 执行角色任务的生命周期动作；目标状态与准入条件由 forge-server 五态任务状态机决定，审核动作永不开放。契约权限 task.read 只是「公司内可读任务」的前置门禁，真正的写入授权由应用服务按任务类型对应的模块权限与需求内执行人身份判定。
 input_schema:
   type: object
   required: [taskId, action, expectedVersion]
@@ -12,7 +12,7 @@ input_schema:
   additionalProperties: false
 output_schema:
   type: object
-required_permission: task.edit
+required_permission: task.read
 risk_level: MEDIUM
 idempotency:
   required: true

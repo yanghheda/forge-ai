@@ -30,6 +30,9 @@ ADR 用于记录影响多个模块、长期演进或安全边界的架构决策�
 
 | [ADR-022](ADR-022-requirement-leads-and-task-lifecycle.md) | Accepted | 需求负责人、执行人、四方会签与统一任务生命周期 |
 | [ADR-023](ADR-023-agent-action-coverage-and-forced-confirmation.md) | Accepted | Agent 动作覆盖范围与强制人工确认 |
+| [ADR-024](ADR-024-acceptance-by-product-domain-member.md) | Accepted | 需求验收由产品领域成员执行 |
+| [ADR-025](ADR-025-release-ownership-in-developer-domain.md) | Accepted | 发布写权限归属研发领域 |
+| [ADR-026](ADR-026-module-write-ownership-by-domain.md) | Accepted | 需求交付五模块写权限按领域收敛 |
 
 ## 何时新增 ADR
 

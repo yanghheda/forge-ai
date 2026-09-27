@@ -49,7 +49,7 @@ class HttpAgentRuntimeGatewayTest {
                             "effectiveToolNames": [
                                 "get_organization", "get_work_item", "list_requirements", "list_tasks", "list_members",
                                 "get_delivery_graph", "search_documents", "create_ux_task", "create_ux_document",
-                                "publish_document", "update_task", "advance_task", "advance_requirement"
+                                "publish_ux_document", "update_task", "advance_task", "advance_requirement"
                             ],
                             "policy": {"mediumConfirmation": "ASK", "maxToolCalls": 20}
                           }
