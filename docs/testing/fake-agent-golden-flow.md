@@ -23,6 +23,7 @@ Fake 只生成确定性 Tool 参数；业务是否成功始终由 `forge-server`
 | Developer | `创建开发任务` | `create_dev_task` | 配置 GitLab、负责人并从研发页面启动开发 |
 | Developer | `推进当前阶段` | `SUBMIT_FOR_QA` | 仅在 Dev Task、MR、Pipeline Guard 满足后成功 |
 | QA | `创建测试用例` | `create_test_case` | 人工创建/执行 Test Run 并记录结果 |
+| QA | `创建测试任务` | `create_qa_task` | 从 QA 页面确认并分配已关联的测试执行人 |
 | QA | `推进当前阶段` | `START_QA` 或 `QA_PASS` | PASS 只能来自 Server 已保存的测试事实 |
 | QA | `创建缺陷` | `create_bug` | 按需验证失败回流 |
 | Release | `创建发布并预检` | `create_release` → `run_release_precheck` | Precheck PASS 后进入 HIGH 审批与模拟部署 |

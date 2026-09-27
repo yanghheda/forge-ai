@@ -221,7 +221,7 @@ class FakeLanguageModel:
         asset_selection = self._asset_selection(skill, message, work_item_id)
         if asset_selection is not None:
             if asset_selection.tool_name not in executed_tool_names:
-                if asset_selection.tool_name in {"create_dev_task", "create_bug"}:
+                if asset_selection.tool_name in {"create_dev_task", "create_bug", "create_qa_task"}:
                     assignee = self._explicit_assignee(message)
                     if assignee is None:
                         return None
@@ -326,6 +326,11 @@ class FakeLanguageModel:
             return ToolSelection(
                 tool_name="create_dev_task",
                 arguments={"requirementId": requirement_id, "title": "Fake Dev Task"},
+            )
+        if skill == "QA" and "任务" in message and "测试" in message:
+            return ToolSelection(
+                tool_name="create_qa_task",
+                arguments={"requirementId": requirement_id, "title": "Fake QA Task"},
             )
         if skill == "QA" and "测试用例" in message:
             return ToolSelection(

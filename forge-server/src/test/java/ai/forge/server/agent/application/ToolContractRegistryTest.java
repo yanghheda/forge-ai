@@ -66,7 +66,7 @@ class ToolContractRegistryTest {
         assertThat(qa).containsExactly(
                 "get_organization", "get_work_item", "list_requirements", "list_tasks", "list_bugs",
                 "list_members", "get_test_run", "get_delivery_graph", "search_documents",
-                "create_test_case", "create_bug", "update_task", "advance_task", "update_bug",
+                "create_test_case", "create_qa_task", "create_bug", "update_task", "advance_task", "update_bug",
                 "advance_bug", "start_test_run", "record_test_result", "complete_test_run",
                 "reopen_test_run", "advance_requirement")
                 .doesNotContain("update_test_result", "deploy_release");

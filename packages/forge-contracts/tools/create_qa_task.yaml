@@ -1,0 +1,26 @@
+name: create_qa_task
+version: 1
+description: 在 READY_FOR_QA Requirement 下为已关联的 QA 执行人创建测试任务；领域负责人、需求状态与执行人范围由 forge-server 校验。
+input_schema:
+  type: object
+  required: [requirementId, assigneeUserId, title]
+  properties:
+    assigneeUserId: { type: integer, minimum: 1 }
+    requirementId: { type: integer, minimum: 1 }
+    title: { type: string, minLength: 1, maxLength: 255 }
+    description: { type: string, maxLength: 10000 }
+  additionalProperties: false
+output_schema:
+  type: object
+required_permission: qa.create
+risk_level: MEDIUM
+idempotency:
+  required: true
+timeout_ms: 5000
+retry:
+  max_attempts: 1
+backend_mapping:
+  method: POST
+  path: /internal/v1/tools/create_qa_task:execute
+sensitive_fields: []
+requirement_ids: [PRD-10-6]

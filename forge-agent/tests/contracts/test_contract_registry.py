@@ -90,6 +90,7 @@ def test_qa_skill_can_run_tests_but_conclusions_require_confirmation() -> None:
         "get_delivery_graph",
         "search_documents",
         "create_test_case",
+        "create_qa_task",
         "create_bug",
         "update_task",
         "advance_task",
@@ -103,6 +104,8 @@ def test_qa_skill_can_run_tests_but_conclusions_require_confirmation() -> None:
     ]
     assert "update_test_result" not in allowed
     assert registry.find_tool("create_test_case").medium_risk
+    # 测试任务与缺陷创建同为 MEDIUM 写操作，可由 QA Skill 在 Run 策略允许时执行（ADR-023 §3）。
+    assert registry.find_tool("create_qa_task").medium_risk
     assert registry.find_tool("create_bug").medium_risk
     # 测试执行对 QA 开放，但执行结论与运行收尾必须强制人工确认后才落库（ADR-023 §3）。
     for name in ("record_test_result", "complete_test_run"):

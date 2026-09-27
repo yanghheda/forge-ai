@@ -440,6 +440,7 @@ public class AgentToolExecuteService {
                 case "start_development" -> startDevelopment(organizationId, run, arguments);
                 case "get_pipeline_log" -> pipelineLog(organizationId, run, arguments);
                 case "create_test_case" -> createTestCase(organizationId, run, arguments);
+                case "create_qa_task" -> createQaTask(organizationId, run, arguments);
                 case "create_bug" -> createBug(organizationId, run, arguments);
                 case "start_test_run" -> startTestRun(organizationId, run, arguments);
                 case "record_test_result" -> recordTestResult(organizationId, run, arguments);
@@ -1132,6 +1133,25 @@ public class AgentToolExecuteService {
         result.put("requirementId", created.requirementId());
         result.put("status", "DRAFT");
         result.put("version", created.version());
+        return result;
+    }
+
+    private JsonNode createQaTask(long organizationId, AgentRun run, JsonNode arguments) {
+        var item = workItemCommandService.createTask(
+                run.userId(),
+                organizationId,
+                arguments.path("requirementId").asLong(),
+                WorkItemType.QA_TASK,
+                arguments.path("title").asText(),
+                textOrNull(arguments, "description"),
+                null,
+                longOrNull(arguments, "assigneeUserId"));
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("id", item.id());
+        result.put("itemKey", item.itemKey());
+        result.put("parentId", arguments.path("requirementId").asLong());
+        result.put("status", item.status().name());
+        result.put("version", item.version());
         return result;
     }
 

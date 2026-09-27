@@ -239,6 +239,12 @@ def test_fake_ux_creates_task_and_spec_from_explicit_commands() -> None:
         ),
         (
             "QA",
+            "创建测试任务，执行人 5",
+            "create_qa_task",
+            {"requirementId": 42, "title": "Fake QA Task", "assigneeUserId": 5},
+        ),
+        (
+            "QA",
             "创建测试用例",
             "create_test_case",
             {

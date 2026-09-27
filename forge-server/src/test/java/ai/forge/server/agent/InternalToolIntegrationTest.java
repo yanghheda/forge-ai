@@ -656,6 +656,45 @@ class InternalToolIntegrationTest extends InfrastructureIntegrationTestBase {
     }
 
     @Test
+    void qaRunCreatesQaTaskForAssignedExecutor() throws Exception {
+        var requirement = workItemCommandService.create(
+                ownerId,
+                organizationId,
+                WorkItemType.REQUIREMENT,
+                "QA 父需求",
+                null,
+                WorkItemPriority.MEDIUM,
+                null,
+                null);
+        ai.forge.server.workitem.support.DeliveryTestFixtures.assignAllDomains(jdbcTemplate, organizationId, requirement.id(), ownerId);
+        jdbcTemplate.update("UPDATE work_items SET status='READY_FOR_QA' WHERE id=?", requirement.id());
+        String runId = insertRunningRun("QA", "ALLOW");
+
+        ResponseEntity<String> response = executeTool(
+                "create_qa_task",
+                runToken(runId),
+                "call-1",
+                Map.of("requirementId", requirement.id(), "title", "回归测试任务", "assigneeUserId", ownerId));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode execution = objectMapper.readTree(response.getBody());
+        assertThat(execution.get("status").asText()).isEqualTo("SUCCEEDED");
+        long qaTaskId = execution.get("result").get("id").asLong();
+        assertThat(execution.get("result").get("parentId").asLong()).isEqualTo(requirement.id());
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT type FROM work_items WHERE id = ?", String.class, qaTaskId))
+                .isEqualTo("QA_TASK");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT parent_id FROM work_items WHERE id = ?", Long.class, qaTaskId))
+                .isEqualTo(requirement.id());
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT assignee_user_id FROM work_items WHERE id = ?", Long.class, qaTaskId))
+                .isEqualTo(ownerId);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM agent_tool_calls", Long.class))
+                .isEqualTo(1);
+    }
+
+    @Test
     void productRunCreatesPrdWithGeneratedInitialVersion() throws Exception {
         var requirement = workItemCommandService.create(
                 ownerId,
