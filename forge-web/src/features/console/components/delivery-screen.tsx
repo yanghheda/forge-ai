@@ -1,6 +1,6 @@
 import { Button } from "@arco-design/web-react";
 
-import { QaPanel, StageTasks, RequirementWorkflowControls, DevelopmentBugs } from "@/features/work-item";
+import { QaPanel, StageTasks, DevelopmentBugs } from "@/features/work-item";
 import { RequirementContext } from "./requirement-context";
 import styles from "./console.module.css";
 import { UxDelivery } from "./ux-delivery";
@@ -16,24 +16,21 @@ export function DeliveryScreen({ kind, requirementId }: { kind: DeliveryKind; re
       {kind === "document" && <Document />}
       {kind === "ux" && requirementId && (
         <>
-          <StageTasks requirementId={Number(requirementId)} type="UX_TASK" />
-          <RequirementWorkflowControls requirementId={Number(requirementId)} />
           <UxDelivery requirementId={Number(requirementId)} />
+          <StageTasks requirementId={Number(requirementId)} type="UX_TASK" />
         </>
       )}
       {kind === "development" && requirementId && (
         <>
-          <StageTasks requirementId={Number(requirementId)} type="DEV_TASK" />
-          <RequirementWorkflowControls requirementId={Number(requirementId)} />
           <DevelopmentWorkspace requirementId={Number(requirementId)} />
           <DevelopmentBugs requirementId={Number(requirementId)} />
+          <StageTasks requirementId={Number(requirementId)} type="DEV_TASK" />
         </>
       )}
       {kind === "qa" && requirementId && (
         <>
-          <StageTasks requirementId={Number(requirementId)} type="QA_TASK" />
-          <RequirementWorkflowControls requirementId={Number(requirementId)} />
           <Qa requirementId={Number(requirementId)} />
+          <StageTasks requirementId={Number(requirementId)} type="QA_TASK" />
         </>
       )}
       {kind === "release" && requirementId && <ReleaseWorkspace requirementId={Number(requirementId)} />}
