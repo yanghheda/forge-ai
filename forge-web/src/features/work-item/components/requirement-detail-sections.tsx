@@ -2,6 +2,8 @@ import { Avatar, Card } from "@arco-design/web-react";
 import { IconCheck, IconUserGroup } from "@arco-design/web-react/icon";
 import type { ReactNode } from "react";
 
+import { activityActionLabel } from "@/lib/labels";
+
 import type { OrganizationRequirement, RequirementActivity, RequirementParticipant } from "../api/work-item-api";
 import { formatDate, roleMeta, stageIndex, stages, statusLabel } from "../utils/requirement-detail-display";
 import styles from "./organization-requirement-detail.module.css";
@@ -143,7 +145,7 @@ export function ActivityCard({ activity }: { activity: RequirementActivity[] }) 
             <div key={`${event.kind}-${event.id}`}>
               <i />
               <div>
-                <b>{event.kind === "COMMENT" ? "新增评论" : event.action}</b>
+                <b>{event.kind === "COMMENT" ? "新增评论" : activityActionLabel(event.action ?? "")}</b>
                 <time>{formatDate(event.createdAt, true)}</time>
                 <p>{event.body || event.reason || "状态已由服务端记录。"}</p>
               </div>

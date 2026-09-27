@@ -36,6 +36,12 @@ const bugActionLabels: Record<string, string> = {
   REOPEN: "重新打开",
 };
 
+/* 发布流程写入需求事件流的动作代码文案。 */
+const releaseActionLabels: Record<string, string> = {
+  MARK_RELEASED: "标记已发布",
+  CLOSE_REQUIREMENT: "关闭需求",
+};
+
 /* 流程 Guard 缺失项的中文提示文案。 */
 const guardHintLabels: Record<string, string> = {
   allTestCasesExecuted: "全部测试用例执行完毕并完成当前测试轮次",
@@ -110,6 +116,11 @@ export function workflowActionLabel(value: string): string {
 
 export function bugActionLabel(value: string): string {
   return bugActionLabels[value] ?? value;
+}
+
+/* 统一 Activity 的动作文案，按需求、Bug、发布三类来源解析后回退原始代码。 */
+export function activityActionLabel(value: string): string {
+  return workflowActionLabels[value] ?? bugActionLabels[value] ?? releaseActionLabels[value] ?? value;
 }
 
 export function guardHintLabel(value: string): string {

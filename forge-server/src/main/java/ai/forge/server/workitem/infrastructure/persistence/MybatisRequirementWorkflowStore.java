@@ -151,7 +151,7 @@ public class MybatisRequirementWorkflowStore implements RequirementMaterialStore
                 number(row, "id").longValue(),
                 number(row, "organization_id").longValue(),
                 number(row, "work_item_id").longValue(),
-                WorkflowAction.valueOf(text(row, "event_type")),
+                text(row, "event_type"),
                 WorkItemStatus.valueOf(text(row, "from_status")),
                 WorkItemStatus.valueOf(text(row, "to_status")),
                 number(row, "actor_id").longValue(),

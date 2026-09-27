@@ -580,6 +580,42 @@ class RequirementTransitionIntegrationTest extends InfrastructureIntegrationTest
     }
 
     @Test
+    void activityAndEventTimelineExposeBugAndReleaseActionCodes() throws Exception {
+        /* Bug 与发布流程共用 work_item_events.event_type 列，其动作代码不属于需求动作枚举。 */
+        insertForeignEvent("MARK_RELEASED", "READY_FOR_RELEASE", "RELEASED", "release-marked");
+        insertForeignEvent("RESOLVE", "OPEN", "RESOLVED", "bug-resolved");
+
+        ResponseEntity<String> activity = get("/api/v1/work-items/" + requirementId
+                + "/activity?organizationId=" + organizationId + "&organizationId=" + organizationId);
+        assertThat(activity.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(objectMapper.readTree(activity.getBody()))
+                .extracting(node -> node.get("action").asText())
+                .containsExactly("MARK_RELEASED", "RESOLVE");
+
+        ResponseEntity<String> events = get("/api/v1/work-items/" + requirementId
+                + "/events?organizationId=" + organizationId + "&organizationId=" + organizationId);
+        assertThat(events.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(objectMapper.readTree(events.getBody()))
+                .extracting(node -> node.get("action").asText())
+                .containsExactly("MARK_RELEASED", "RESOLVE");
+    }
+
+    /* 直接写入非需求流程产生的历史事件，模拟发布与 Bug 流程已落库的真实数据。 */
+    private void insertForeignEvent(String eventType, String fromStatus, String toStatus, String idempotencyKey) {
+        jdbcTemplate.update(
+                "INSERT INTO work_item_events (organization_id, work_item_id, event_type, from_status, to_status, "
+                        + "actor_type, actor_id, reason, metadata_json, idempotency_key, created_at) "
+                        + "VALUES (?, ?, ?, ?, ?, 'USER', ?, NULL, '{}', ?, UTC_TIMESTAMP(6))",
+                organizationId,
+                requirementId,
+                eventType,
+                fromStatus,
+                toStatus,
+                ownerId,
+                idempotencyKey);
+    }
+
+    @Test
     void deliveryGraphUsesScopedBatchSnapshotForWorkItemsDocumentsAndCycles() throws Exception {
         long uxTaskId = createWorkItem(organizationId, "Design login", "UX_TASK");
         JsonNode prd = publishDocument("PRD", "Login PRD", "Goal and acceptance criteria");

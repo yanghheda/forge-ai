@@ -120,6 +120,26 @@ describe("OrganizationRequirementDetail", () => {
     );
   });
 
+  it("动态时间线把需求、Bug 与发布流程的动作代码渲染为中文文案", async () => {
+    /* 三类流程共用活动事件列，原始动作代码不得直接暴露给用户。 */
+    api.getRequirementActivity.mockResolvedValue([
+      { kind: "EVENT", id: 1, actorId: 2, action: "START_UX", reason: null, body: null, createdAt: "2026-09-10T09:41:00Z" },
+      { kind: "EVENT", id: 2, actorId: 2, action: "MARK_RELEASED", reason: "READY_FOR_RELEASE", body: null, createdAt: "2026-09-11T09:41:00Z" },
+      { kind: "EVENT", id: 3, actorId: 2, action: "RESOLVE", reason: null, body: null, createdAt: "2026-09-12T09:41:00Z" },
+      { kind: "COMMENT", id: 4, actorId: 2, action: null, reason: null, body: "补充了异常场景", createdAt: "2026-09-13T09:41:00Z" },
+    ]);
+
+    render(<OrganizationRequirementDetail requirementId={1} />, { wrapper });
+
+    expect(await screen.findByText("开始 UX 设计")).toBeInTheDocument();
+    expect(screen.getByText("标记已发布")).toBeInTheDocument();
+    expect(screen.getByText("提交修复")).toBeInTheDocument();
+    expect(screen.getByText("新增评论")).toBeInTheDocument();
+    expect(screen.queryByText("START_UX")).not.toBeInTheDocument();
+    expect(screen.queryByText("MARK_RELEASED")).not.toBeInTheDocument();
+    expect(screen.queryByText("RESOLVE")).not.toBeInTheDocument();
+  });
+
   it("需求完成后将发布阶段标记为已完成", async () => {
     api.getOrganizationRequirement.mockResolvedValue({
       id: 1,

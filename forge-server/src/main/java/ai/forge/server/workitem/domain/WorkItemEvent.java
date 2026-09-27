@@ -9,8 +9,8 @@ public record WorkItemEvent(
         long organizationId,
         /* 事件所属 Work Item。 */
         long workItemId,
-        /* 触发该事件的固定工作流动作。 */
-        WorkflowAction action,
+        /* 触发该事件的工作流动作代码；需求、Bug 与发布流程共用同一事件列，取值不限于单一动作枚举。 */
+        String action,
         /* 动作前状态。 */
         WorkItemStatus fromStatus,
         /* 动作后状态。 */

@@ -6,7 +6,6 @@ import ai.forge.server.workitem.domain.RelationConflictException;
 import ai.forge.server.workitem.domain.WorkItemLabel;
 import ai.forge.server.workitem.domain.WorkItemRelation;
 import ai.forge.server.workitem.domain.WorkItemRelationType;
-import ai.forge.server.workitem.domain.WorkflowAction;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -93,12 +92,11 @@ public class MybatisWorkItemCollaborationStore implements WorkItemCollaborationS
     }
 
     private ActivityItem activityItem(Map<String, Object> row) {
-        String eventType = nullableText(row, "event_type");
         return new ActivityItem(
                 text(row, "kind"),
                 number(row, "id"),
                 number(row, "actor_id"),
-                eventType == null ? null : WorkflowAction.valueOf(eventType),
+                nullableText(row, "event_type"),
                 nullableText(row, "reason"),
                 nullableText(row, "body"),
                 instant(row, "created_at"));

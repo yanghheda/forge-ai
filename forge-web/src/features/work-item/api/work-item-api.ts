@@ -404,7 +404,8 @@ export interface RequirementActivity {
   kind: "EVENT" | "COMMENT";
   id: number;
   actorId: number;
-  action: RequirementWorkflowAction | null;
+  /* 需求、Bug 与发布流程共用同一事件来源，动作代码不限于需求动作枚举。 */
+  action: string | null;
   reason: string | null;
   body: string | null;
   createdAt: string;
