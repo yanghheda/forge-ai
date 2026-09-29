@@ -44,16 +44,6 @@ public class ConsoleService {
                 text(row,"type"), text(row,"id"), text(row,"title"), text(row,"subtitle"))).toList();
     }
 
-    public List<ConsoleModels.NotificationView> notifications(long userId, int limit) {
-        long organizationId = organization(userId);
-        return mapper.notifications(organizationId,userId,Math.max(1,Math.min(limit,100))).stream().map(row ->
-                new ConsoleModels.NotificationView(number(row,"id"),text(row,"type"),text(row,"title"),text(row,"body"),
-                        nullableText(row,"resource_type"),nullableText(row,"resource_id"),instant(row.get("read_at")),instant(row.get("created_at")))).toList();
-    }
-
-    public long unread(long userId) { long organizationId=organization(userId); return mapper.unread(organizationId,userId); }
-    public void markRead(long userId,long id) { long organizationId=organization(userId); if(mapper.markRead(organizationId,userId,id)!=1) throw new ResourceNotFoundException(); }
-
     public List<ConsoleModels.BoardItem> board(long userId) {
         long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.read");
         List<Map<String,Object>> rows = mapper.board(organizationId);

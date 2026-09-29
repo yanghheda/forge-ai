@@ -6,6 +6,10 @@ import ai.forge.server.agent.domain.ToolExecutionRejectedException;
 import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
+import ai.forge.server.notification.application.NotificationDraft;
+import ai.forge.server.notification.application.NotificationService;
+import ai.forge.server.notification.domain.NotificationTarget;
+import ai.forge.server.notification.domain.NotificationType;
 import ai.forge.server.workitem.application.WorkItemStore;
 import ai.forge.server.release.application.ReleaseStore;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -45,10 +49,13 @@ public class ApprovalService {
     private final AgentRunStore runStore;
     /* 冻结 HIGH 部署所影响的 Release 聚合版本。 */
     private final ReleaseStore releaseStore;
+    /* 审批类通知写入出口；在同一事务内通知候选审批人与发起人。 */
+    private final NotificationService notificationService;
 
+    /* 注入审批事实端口、加解密、序列化、权限裁决、Work Item/Release 读取与通知写入能力。 */
     public ApprovalService(ApprovalStore store, ApprovalCipher cipher, ObjectMapper objectMapper,
             PermissionEvaluator permissionEvaluator, WorkItemStore workItemStore, AgentRunStore runStore,
-            ReleaseStore releaseStore) {
+            ReleaseStore releaseStore, NotificationService notificationService) {
         this.store = store;
         this.cipher = cipher;
         this.objectMapper = objectMapper;
@@ -56,6 +63,7 @@ public class ApprovalService {
         this.workItemStore = workItemStore;
         this.runStore = runStore;
         this.releaseStore = releaseStore;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -79,6 +87,9 @@ public class ApprovalService {
             }
             store.insertRequiredEvent(run.organizationId(), run.id(), approvalId,
                     contract.name(), "agent:" + run.id());
+            if (contract.highRisk()) {
+                notifyRequested(run, contract, approvalId);
+            }
             return find(run.organizationId(), approvalId);
         } catch (DuplicateKeyException exception) {
             ApprovalSnapshot existing = findByCall(run.organizationId(), run.id(), toolCallId);
@@ -91,6 +102,17 @@ public class ApprovalService {
         permissionEvaluator.requireOrganization(userId, organizationId, "agent.run");
         return expireIfNeeded(find(organizationId, approvalId), organizationId,
                 "approval-expiry:" + approvalId);
+    }
+
+    /* 读取公司内等待当前用户决策的待审批摘要；仅接受 PENDING，且不返回任何冻结参数。 */
+    public List<PendingApprovalView> pending(long userId, long organizationId, String status) {
+        permissionEvaluator.requireOrganization(userId, organizationId, "approval.decide");
+        if (!"PENDING".equals(status)) {
+            throw new IllegalArgumentException("Unsupported approval status filter: " + status);
+        }
+        return store.findPendingByOrganization(organizationId, userId).stream()
+                .map(this::pendingView)
+                .toList();
     }
 
     public ApprovalSnapshot getForRun(long userId, long organizationId, String runId) {
@@ -138,6 +160,12 @@ public class ApprovalService {
         if (!approve) {
             runStore.fail(organizationId, current.runId(), requestId, "APPROVAL_REJECTED");
         }
+        notificationService.notify(new NotificationDraft(organizationId, List.of(current.requestedBy()),
+                userId, NotificationType.APPROVAL_DECIDED,
+                (approve ? "审批通过：" : "审批驳回：") + current.toolName(),
+                approve ? "高风险工具调用已获批准，Agent 将继续执行。"
+                        : "高风险工具调用已被驳回，Agent 执行已终止。",
+                NotificationTarget.AGENT_RUN, current.runId()));
         return find(organizationId, approvalId);
     }
 
@@ -185,6 +213,19 @@ public class ApprovalService {
 
     public void complete(long organizationId, String runId, String toolCallId, JsonNode result) {
         store.completeToolCall(organizationId, runId, toolCallId, result.toString());
+    }
+
+    /*
+     * HIGH 风险 Tool 首次冻结审批时，通知公司内持有 approval.decide 的成员（notify 会自动排除发起人）；
+     * 正文携带审批有效期，帮助审批人判断处理紧迫性。
+     */
+    private void notifyRequested(AgentRun run, ToolContract contract, String approvalId) {
+        notificationService.notify(new NotificationDraft(run.organizationId(),
+                notificationService.permissionHolders(run.organizationId(), "approval.decide"),
+                run.userId(), NotificationType.APPROVAL_REQUESTED, "待审批：" + contract.name(),
+                "高风险工具调用 " + contract.name() + " 等待人工审批，请在 "
+                        + APPROVAL_TTL.toMinutes() + " 分钟内处理。",
+                NotificationTarget.APPROVAL, approvalId));
     }
 
     private void requireFrozenInput(ApprovalSnapshot approval, ToolContract contract, String hash) {
@@ -287,6 +328,15 @@ public class ApprovalService {
         } catch (Exception exception) {
             throw new IllegalStateException("Persisted approval is invalid", exception);
         }
+    }
+
+    /* 把待审批查询行投影为对外视图，expires_at 按 UTC 转 Instant。 */
+    private PendingApprovalView pendingView(Map<String, Object> row) {
+        return new PendingApprovalView(row.get("id").toString(), row.get("tool_name").toString(),
+                row.get("risk_level").toString(), ((Number) row.get("requested_by")).longValue(),
+                row.get("requested_by_name").toString(), row.get("reason").toString(),
+                ((LocalDateTime) row.get("expires_at")).toInstant(ZoneOffset.UTC),
+                ((Number) row.get("version")).longValue());
     }
 
     private String normalized(JsonNode arguments) {

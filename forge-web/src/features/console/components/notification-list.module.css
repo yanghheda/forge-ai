@@ -1,0 +1,44 @@
+.list {
+  display: grid;
+}
+.item {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 14px 0;
+  border: 0;
+  border-bottom: 1px solid var(--forge-border-1);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.item:not(.read):before {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin: 5px 0 0 -12px;
+  border-radius: 50%;
+  background: var(--forge-primary-6);
+  content: "";
+}
+.type {
+  justify-self: start;
+  padding: 1px 6px;
+  border-radius: 2px;
+  color: var(--forge-primary-6);
+  background: var(--forge-fill-1);
+  font-size: 12px;
+}
+.title {
+  color: var(--forge-text-1);
+  font-weight: 600;
+}
+.body,
+.time {
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.read {
+  opacity: 0.65;
+}

@@ -1,0 +1,66 @@
+.page {
+  display: flex;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px;
+  flex-direction: column;
+  gap: 12px;
+}
+.pageHead h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.pageHead p {
+  margin: 0;
+  color: var(--forge-text-3);
+  font-size: 13px;
+}
+.list {
+  display: grid;
+  gap: 12px;
+}
+.item {
+  display: grid;
+  padding: 14px 16px;
+  border: 1px solid var(--forge-border-2);
+  border-radius: 4px;
+  background: var(--forge-card);
+  gap: 10px;
+}
+.itemHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tool {
+  color: var(--forge-text-1);
+  font-size: 14px;
+  font-weight: 600;
+}
+.meta {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  margin: 0;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+.meta dt {
+  color: var(--forge-text-3);
+}
+.meta dd {
+  margin: 0;
+  color: var(--forge-text-2);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .page {
+    padding: 16px;
+  }
+}

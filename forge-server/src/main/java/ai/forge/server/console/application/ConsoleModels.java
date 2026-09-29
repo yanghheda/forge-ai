@@ -15,16 +15,6 @@ public final class ConsoleModels {
             /* 搜索结果主标题。 */ String title,
             /* 用于快速识别资源的摘要。 */ String subtitle) {}
 
-    public record NotificationView(
-            /* 通知标识。 */ long id,
-            /* 通知分类。 */ String type,
-            /* 通知标题。 */ String title,
-            /* 通知摘要。 */ String body,
-            /* 可选关联资源类型。 */ String resourceType,
-            /* 可选关联资源标识。 */ String resourceId,
-            /* 首次已读时间；未读时为空。 */ Instant readAt,
-            /* 通知创建时间。 */ Instant createdAt) {}
-
     public record BoardItem(
             /* 工作项标识。 */ long id,
             /* 公司内展示编号。 */ String itemKey,

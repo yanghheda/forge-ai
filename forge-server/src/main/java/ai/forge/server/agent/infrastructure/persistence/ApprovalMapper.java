@@ -43,6 +43,14 @@ public interface ApprovalMapper {
     List<Map<String, Object>> findByRunAscending(@Param("organizationId") long organizationId,
             @Param("runId") String runId);
 
+    @Select("SELECT a.id, a.tool_name, a.risk_level, a.requested_by, u.display_name requested_by_name, "
+            + "a.reason, a.expires_at, a.version FROM approvals a "
+            + "JOIN users u ON u.id = a.requested_by WHERE a.organization_id = #{organizationId} "
+            + "AND a.status = 'PENDING' AND a.requested_by <> #{excludeUserId} "
+            + "ORDER BY a.expires_at ASC, a.id ASC")
+    List<Map<String, Object>> findPendingByOrganization(@Param("organizationId") long organizationId,
+            @Param("excludeUserId") long excludeUserId);
+
     @Update("UPDATE approvals SET status = #{status}, approver_user_id = #{approverId}, "
             + "decided_at = UTC_TIMESTAMP(6), version = version + 1 WHERE organization_id = #{organizationId} "
             + "AND organization_id = #{organizationId} AND id = #{approvalId} AND status = 'PENDING' "

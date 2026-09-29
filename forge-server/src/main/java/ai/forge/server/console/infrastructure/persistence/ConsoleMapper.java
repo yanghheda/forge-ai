@@ -7,7 +7,6 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface ConsoleMapper extends ConsoleStore {
@@ -20,18 +19,6 @@ public interface ConsoleMapper extends ConsoleStore {
             + "JOIN users u ON u.id=om.user_id WHERE om.organization_id=#{organizationId} AND om.status='ACTIVE' "
             + "AND (u.display_name LIKE CONCAT('%',#{query},'%') OR u.email LIKE CONCAT('%',#{query},'%')) LIMIT 8)")
     List<Map<String, Object>> search(@Param("organizationId") long organizationId, @Param("query") String query);
-
-    @Select("SELECT id,type,title,body,resource_type,resource_id,read_at,created_at FROM notifications "
-            + "WHERE organization_id=#{organizationId} AND user_id=#{userId} ORDER BY created_at DESC,id DESC LIMIT #{limit}")
-    List<Map<String, Object>> notifications(@Param("organizationId") long organizationId,
-            @Param("userId") long userId, @Param("limit") int limit);
-
-    @Select("SELECT COUNT(*) FROM notifications WHERE organization_id=#{organizationId} AND user_id=#{userId} AND read_at IS NULL")
-    long unread(@Param("organizationId") long organizationId, @Param("userId") long userId);
-
-    @Update("UPDATE notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(6)) WHERE id=#{id} "
-            + "AND organization_id=#{organizationId} AND user_id=#{userId}")
-    int markRead(@Param("organizationId") long organizationId, @Param("userId") long userId, @Param("id") long id);
 
     @Select("SELECT wi.id,wi.item_key,wi.type,wi.title,wi.assignee_user_id,wi.parent_id requirement_id,"
             + "wi.status lane,COALESCE(bp.position,wi.id*1000) position,wi.version,"

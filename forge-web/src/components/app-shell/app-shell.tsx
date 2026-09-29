@@ -1,10 +1,10 @@
 import { Badge, Button, Drawer, Dropdown, Empty, Input, Menu, Message, Modal, Spin } from "@arco-design/web-react";
-import { IconApps, IconBranch, IconBug, IconCommand, IconDashboard, IconFile, IconHistory, IconMenuFold, IconMenuUnfold, IconNotification, IconPoweroff, IconRobot, IconSearch, IconSettings } from "@arco-design/web-react/icon";
+import { IconApps, IconBranch, IconBug, IconCommand, IconDashboard, IconFile, IconHistory, IconMenuFold, IconMenuUnfold, IconNotification, IconPoweroff, IconRobot, IconSearch, IconSettings, IconStamp } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 
-import { AgentCommandDrawer, getUnreadNotificationCount, listNotifications, markNotificationRead, searchConsole } from "@/features/console";
+import { AgentCommandDrawer, getUnreadNotificationCount, listNotifications, NotificationList, searchConsole } from "@/features/console";
 import { getCurrentUser, logout } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
 import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
@@ -56,12 +56,8 @@ export function AppShell({ children }: AppShellProps) {
     enabled: !publicPage,
     retry: false,
   });
-  const read = useMutation({
-    mutationFn: (id: number) => markNotificationRead(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    },
-  });
+  /* 仅持有审批决策角色的成员看到待审批入口，与服务端 approval.decide 权限口径一致。 */
+  const showApprovals = canDecideApprovals(currentUser.data?.organization.roles);
   const logoutMutation = useMutation({
     mutationFn: () => logout(),
     onSuccess: () => {
@@ -151,6 +147,14 @@ export function AppShell({ children }: AppShellProps) {
             </span>
             {!navigationCollapsed && "执行轨迹"}
           </Link>
+          {showApprovals && (
+            <Link to="/approvals" className={`${styles.navItem} ${pathname === "/approvals" ? styles.active : ""}`}>
+              <span className={styles.navIcon}>
+                <IconStamp />
+              </span>
+              {!navigationCollapsed && "待审批"}
+            </Link>
+          )}
           <p className={styles.navLabel}>{navigationCollapsed ? "" : "系统设置"}</p>
           <Link to="/settings/members" className={`${styles.navItem} ${pathname === "/settings/members" ? styles.active : ""}`}>
             <span className={styles.navIcon}>
@@ -246,28 +250,22 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </Modal>
         <Drawer width={420} visible={notificationsOpen} title="通知" footer={null} onCancel={() => setNotificationsOpen(false)}>
-          <div className={styles.notifications}>
-            {notifications.isFetching && <Spin />}
-            {notifications.data?.length === 0 && <Empty description="暂无通知" />}
-            {notifications.data?.map((item) => (
-              <button
-                key={item.id}
-                className={item.readAt ? styles.readNotification : ""}
-                onClick={() => {
-                  if (!item.readAt) read.mutate(item.id);
-                }}
-              >
-                <b>{item.title}</b>
-                <span>{item.body}</span>
-                <time>{new Date(item.createdAt).toLocaleString("zh-CN")}</time>
-              </button>
-            ))}
-          </div>
+          {notifications.isFetching && <Spin />}
+          {notifications.data?.length === 0 && <Empty description="暂无通知" />}
+          <NotificationList items={notifications.data ?? []} onClose={() => setNotificationsOpen(false)} />
         </Drawer>
         {agentDrawerAvailable && <AgentCommandDrawer />}
       </div>
     </div>
   );
+}
+
+/* 拥有审批决策入口可见性的角色集合，与服务端 approval.decide 的授权范围保持一致。 */
+const APPROVAL_DECISION_ROLES = ["OWNER", "ADMIN", "DEVELOPER_ADMIN"];
+
+/* 判断当前用户角色是否应展示"待审批"入口。 */
+function canDecideApprovals(roles?: string[]): boolean {
+  return Boolean(roles?.some((role) => APPROVAL_DECISION_ROLES.includes(role)));
 }
 
 function avatarText(displayName?: string) {
@@ -282,6 +280,7 @@ function pageName(pathname: string) {
   if (pathname === "/task-board") return "任务看板";
   if (pathname.startsWith("/agent/command")) return "Agent 指令中心";
   if (pathname.startsWith("/agent/trace")) return "执行轨迹";
+  if (pathname.startsWith("/approvals")) return "待审批";
   if (pathname.startsWith("/settings/members")) return "成员管理";
   if (pathname.startsWith("/settings/integrations")) return "集成配置";
   if (pathname.startsWith("/requirements/")) return "需求详情";

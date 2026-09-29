@@ -44,6 +44,25 @@ export interface ApprovalSnapshot {
   version: number;
 }
 
+export interface PendingApproval {
+  /* 审批 ULID 标识 */
+  id: string;
+  /* 被冻结的 Tool 名称 */
+  toolName: string;
+  /* 风险等级，当前为 HIGH 或 MEDIUM */
+  riskLevel: string;
+  /* 发起人用户 ID */
+  requestedBy: number;
+  /* 发起人显示名 */
+  requestedByName: string;
+  /* 冻结时记录的脱敏原因 */
+  reason: string;
+  /* 审批有效期（ISO 字符串） */
+  expiresAt: string;
+  /* 乐观锁版本 */
+  version: number;
+}
+
 export interface ConversationRun {
   /* Agent Run 的稳定业务 ID，用于拉取轨迹与关联事件 */
   runId: string;
@@ -141,7 +160,11 @@ export function getRunApproval(organizationId: number, runId: string, client: Re
   return client.request(`/v1/approvals/by-run/${runId}?organizationId=${organizationId}`);
 }
 
-export function decideApproval(approval: ApprovalSnapshot, organizationId: number, decision: "APPROVE" | "REJECT", client: RequestClient = apiClient): Promise<ApprovalSnapshot> {
+export function listPendingApprovals(client: RequestClient = apiClient): Promise<PendingApproval[]> {
+  return client.request("/v1/approvals?status=PENDING");
+}
+
+export function decideApproval(approval: { id: string; version: number }, organizationId: number, decision: "APPROVE" | "REJECT", client: RequestClient = apiClient): Promise<ApprovalSnapshot> {
   return client.request(`/v1/approvals/${approval.id}:decide`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

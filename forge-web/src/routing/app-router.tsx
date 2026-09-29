@@ -7,6 +7,7 @@ import { createBrowserRouter } from "react-router";
 import { RootLayout } from "@/bootstrap/root-layout";
 import { AgentCommandView } from "@/views/agent-command-view";
 import { AgentTraceView } from "@/views/agent-trace-view";
+import { ApprovalsView } from "@/views/approvals-view";
 import { DefectDetailView } from "@/views/defect-detail-view";
 import { DefectListView } from "@/views/defect-list-view";
 import { HomeView } from "@/views/home-view";
@@ -49,6 +50,7 @@ export const appRouter = createBrowserRouter([
       { path: "/task-board", element: <TaskBoardView /> },
       { path: "/agent/command", element: <AgentCommandView /> },
       { path: "/agent/trace", element: <AgentTraceView /> },
+      { path: "/approvals", element: <ApprovalsView /> },
       { path: "/settings/members", element: <MembersSettingsView /> },
       { path: "/settings/integrations", element: <IntegrationSettingsView /> },
       { path: "*", element: <NotFoundView /> },

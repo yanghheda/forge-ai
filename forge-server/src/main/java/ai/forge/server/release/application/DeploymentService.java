@@ -4,6 +4,10 @@ import ai.forge.server.agent.domain.ToolExecutionRejectedException;
 import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.common.domain.ResourceNotFoundException;
 import ai.forge.server.common.domain.VersionConflictException;
+import ai.forge.server.notification.application.NotificationDraft;
+import ai.forge.server.notification.application.NotificationService;
+import ai.forge.server.notification.domain.NotificationTarget;
+import ai.forge.server.notification.domain.NotificationType;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
@@ -24,11 +28,16 @@ public class DeploymentService {
     private final ReleaseStore releases;
     /* 部署审批、执行与审计事实端口。 */
     private final DeploymentStore deployments;
+    /* 部署审批通知写入出口；在同一事务内通知候选审批人与申请人。 */
+    private final NotificationService notificationService;
 
-    public DeploymentService(PermissionEvaluator permissions, ReleaseStore releases, DeploymentStore deployments) {
+    /* 注入权限裁决、Release/Deployment 事实端口与通知写入能力。 */
+    public DeploymentService(PermissionEvaluator permissions, ReleaseStore releases, DeploymentStore deployments,
+            NotificationService notificationService) {
         this.permissions = permissions;
         this.releases = releases;
         this.deployments = deployments;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -86,6 +95,7 @@ public class DeploymentService {
                 approve ? "APPROVED" : "READY_FOR_APPROVAL");
         deployments.audit(organizationId, "USER", userId, "deployment.approval.decided",
                 deploymentId, status, requestId, null);
+        notifyDecided(organizationId, userId, current, approve);
         return find(organizationId, deploymentId);
     }
 
@@ -115,7 +125,40 @@ public class DeploymentService {
         deployments.audit(organizationId, "AGENT_TOOL".equals(approvalSource) ? "AGENT" : "USER",
                 requestedBy, "deployment.requested", deployment.id(), deployment.status(), traceId,
                 "AGENT_TOOL".equals(approvalSource) ? traceId : null);
+        if (!"AGENT_TOOL".equals(approvalSource)) {
+            notifyRequested(organizationId, requestedBy, release);
+        }
         return deployment;
+    }
+
+    /*
+     * 人工部署申请创建时，通知公司内持有 approval.decide 的成员（notify 会自动排除申请人）；
+     * Agent HIGH 审批创建（AGENT_TOOL）已由 Agent 审批通知覆盖，不重复发送。
+     */
+    private void notifyRequested(long organizationId, long requestedBy, ReleaseView release) {
+        notificationService.notify(new NotificationDraft(organizationId,
+                notificationService.permissionHolders(organizationId, "approval.decide"), requestedBy,
+                NotificationType.DEPLOYMENT_APPROVAL_REQUESTED, "待审批：发布部署 " + release.versionName(),
+                "人工发起的发布部署申请（模拟部署）等待人工审批，请在有效期内处理。",
+                NotificationTarget.REQUIREMENT_RELEASE, firstItemId(release)));
+    }
+
+    /* 部署审批结果通知申请人；Release 已不可读时申请人与跳转资源均按缺失降级处理。 */
+    private void notifyDecided(long organizationId, long userId, DeploymentView current, boolean approve) {
+        ReleaseView release = releases.find(organizationId, current.releaseId()).orElse(null);
+        String versionName = release == null ? Long.toString(current.releaseId()) : release.versionName();
+        notificationService.notify(new NotificationDraft(organizationId, List.of(current.requestedBy()),
+                userId, NotificationType.DEPLOYMENT_APPROVAL_DECIDED,
+                (approve ? "部署审批通过：" : "部署审批驳回：") + versionName,
+                approve ? "人工部署申请已获批，将按计划执行模拟部署。"
+                        : "人工部署申请已被驳回，请调整后重新发起。",
+                NotificationTarget.REQUIREMENT_RELEASE, firstItemId(release)));
+    }
+
+    /* 取 Release 关联的首个需求标识作为跳转资源；无关联需求时返回空。 */
+    private String firstItemId(ReleaseView release) {
+        if (release == null || release.itemIds().isEmpty()) return null;
+        return Long.toString(release.itemIds().get(0));
     }
 
     private ReleaseView requireDeployable(long organizationId, long releaseId) {

@@ -2,6 +2,7 @@ package ai.forge.server.agent.controller;
 
 import ai.forge.server.agent.application.ApprovalService;
 import ai.forge.server.agent.application.ApprovalSnapshot;
+import ai.forge.server.agent.application.PendingApprovalView;
 import ai.forge.server.auth.controller.AuthController;
 import ai.forge.server.auth.domain.AuthContext;
 import ai.forge.server.organization.application.OrganizationAccessService;
@@ -13,6 +14,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,6 +37,14 @@ public class ApprovalController {
     public ApprovalController(ApprovalService approvalService, OrganizationAccessService organizationAccess) {
         this.approvalService = approvalService;
         this.organizationAccess = organizationAccess;
+    }
+
+    @GetMapping
+    @Operation(summary = "读取待审批列表", description = "返回公司内等待当前用户决策的待审批；不返回冻结参数。")
+    public List<PendingApprovalView> pending(@RequestParam(defaultValue = "PENDING") String status,
+            HttpServletRequest request) {
+        long userId = AuthController.requireContext(request).userId();
+        return approvalService.pending(userId, organizationAccess.requireContext(userId).organizationId(), status);
     }
 
     @GetMapping("/{approvalId}")

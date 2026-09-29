@@ -291,35 +291,6 @@
   color: var(--forge-text-3);
   font-size: 12px;
 }
-.notifications {
-  display: grid;
-}
-.notifications > button {
-  display: grid;
-  padding: 14px 0;
-  border: 0;
-  border-bottom: 1px solid var(--forge-border-1);
-  background: transparent;
-  text-align: left;
-}
-.notifications > button:not(.readNotification):before {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  margin: 5px 0 0 -12px;
-  border-radius: 50%;
-  background: var(--forge-primary-6);
-  content: "";
-}
-.notifications span,
-.notifications time {
-  margin-top: 5px;
-  color: var(--forge-text-3);
-  font-size: 12px;
-}
-.notifications .readNotification {
-  opacity: 0.65;
-}
 @media (max-width: 900px) {
   .shell,
   .collapsed {

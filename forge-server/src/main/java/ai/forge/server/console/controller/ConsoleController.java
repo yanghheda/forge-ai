@@ -9,7 +9,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
-import java.util.Map;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,9 +21,6 @@ public class ConsoleController {
     public ConsoleController(ConsoleService service){this.service=service;}
 
     @GetMapping("/search") public List<ConsoleModels.SearchResult> search(@RequestParam String q,HttpServletRequest request){return service.search(user(request),q);}
-    @GetMapping("/notifications") public List<ConsoleModels.NotificationView> notifications(@RequestParam(defaultValue="30") int limit,HttpServletRequest request){return service.notifications(user(request),limit);}
-    @GetMapping("/notifications/unread-count") public Map<String,Long> unread(HttpServletRequest request){return Map.of("count",service.unread(user(request)));}
-    @PostMapping("/notifications/{id}/read") public ResponseEntity<Void> read(@PathVariable long id,HttpServletRequest request){service.markRead(user(request),id);return ResponseEntity.noContent().build();}
     @GetMapping("/task-board") public List<ConsoleModels.BoardItem> board(HttpServletRequest request){return service.board(user(request));}
     @GetMapping("/task-board/requirements") public List<ConsoleModels.RequirementOption> boardRequirements(@RequestParam(required=false) @Positive Long assigneeUserId,HttpServletRequest request){return service.boardRequirements(user(request),assigneeUserId);}
     @GetMapping("/task-board/creation-options") public List<ConsoleModels.TaskCreationOption> taskCreationOptions(HttpServletRequest request){return service.taskCreationOptions(user(request));}
