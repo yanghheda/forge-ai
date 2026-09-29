@@ -536,68 +536,207 @@
   padding: 6px 10px;
   border: 1px solid var(--forge-border-2);
 }
-.reasoning {
-  margin: 0;
-  padding-bottom: 13px;
-  border-bottom: 1px solid var(--forge-border-1);
+/* 聊天流内联执行过程：整体可折叠区块，内部为带左侧连接线的时间线 */
+.processRoot {
+  margin: 2px 0 14px;
   color: var(--forge-text-3);
   font-size: 12px;
 }
-.reasoning summary {
-  width: max-content;
+.processRootHead,
+.processItemHead,
+.processToolHead {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
   cursor: pointer;
   list-style: none;
   user-select: none;
+  gap: 6px;
 }
-.reasoning summary::-webkit-details-marker {
+.processRootHead {
+  width: max-content;
+  color: var(--forge-text-2);
+  font-weight: 500;
+}
+/* 非折叠条目（计划 / 步骤）的表头不呈现可点击手势 */
+.processItem > span.processItemHead {
+  cursor: default;
+}
+.processRootHead::-webkit-details-marker,
+.processItemHead::-webkit-details-marker,
+.processToolHead::-webkit-details-marker {
   display: none;
 }
-.reasoningSweep {
-  color: transparent;
-  background: linear-gradient(100deg, var(--forge-text-4) 0%, var(--forge-text-3) 25%, var(--forge-text-2) 42%, var(--forge-text-1) 50%, var(--forge-text-2) 58%, var(--forge-text-3) 75%, var(--forge-text-4) 100%);
-  background-size: 200% 100%;
-  background-clip: text;
-  animation: reasoning-sweep 2s linear infinite;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-@keyframes reasoning-sweep {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: 0 0;
-  }
-}
-.reasoning summary::after {
+/* 折叠指示：收起指向右，展开指向下 */
+.processRootHead::after,
+.processToolHead::after,
+.processItem > summary.processItemHead::after {
   display: inline-block;
-  margin-left: 7px;
+  flex: none;
+  margin-left: 1px;
+  color: var(--forge-text-4);
   content: "›";
-  transform: rotate(90deg);
   transition: transform 0.16s ease;
 }
-.reasoning[open] summary::after {
-  transform: rotate(-90deg);
+.processRoot[open] > .processRootHead::after,
+.processTool[open] > .processToolHead::after,
+.processItem[open] > summary.processItemHead::after {
+  transform: rotate(90deg);
 }
-.reasoning ol {
+/* 时间线：左侧竖线 + 每个条目的短横连接线 */
+.processList {
+  position: relative;
   display: grid;
-  margin: 12px 0 0;
+  margin: 8px 0 0;
+  padding-left: 14px;
+  border-left: 1px solid var(--forge-border-2);
+  gap: 8px;
+}
+.processList > * {
+  position: relative;
+}
+.processList > *::before {
+  position: absolute;
+  top: 11px;
+  left: -14px;
+  width: 8px;
+  height: 1px;
+  background: var(--forge-border-2);
+  content: "";
+}
+.processItem {
+  color: var(--forge-text-2);
+  font-size: 12px;
+}
+.processItemLabel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--forge-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.processIcon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--forge-text-3);
+}
+.processMeta {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  margin-left: 2px;
+  color: var(--forge-text-3);
+  font-size: 11px;
+  gap: 6px;
+}
+.processBadge {
+  display: inline-flex;
+  height: 18px;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 4px;
+  color: var(--forge-text-2);
+  background: var(--forge-fill-2);
+  font-size: 11px;
+}
+.processBadge[data-status="COMPLETED"],
+.processBadge[data-status="SUCCEEDED"],
+.processBadge[data-status="APPROVED"] {
+  color: var(--forge-success);
+  background: var(--forge-success-bg);
+}
+.processBadge[data-status="FAILED"],
+.processBadge[data-status="REJECTED"] {
+  color: var(--forge-error);
+  background: var(--forge-error-bg);
+}
+.processBadge[data-status="WAITING_APPROVAL"],
+.processBadge[data-status="PENDING"],
+.processBadge[data-status="PENDING_APPROVAL"],
+.processBadge[data-status="EXPIRED"] {
+  color: var(--forge-warning);
+  background: var(--forge-warning-bg);
+}
+.processText {
+  margin: 6px 0 0;
+  color: var(--forge-text-2);
+  font-size: 12.5px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.processMuted {
+  margin: 6px 0 0;
+  color: var(--forge-text-3);
+  font-size: 12px;
+}
+.processSteps {
+  display: grid;
+  margin: 6px 0 0;
   padding-left: 20px;
   color: var(--forge-text-2);
+  font-size: 12.5px;
+  gap: 4px;
+  line-height: 1.7;
+}
+/* 工具分组正文：命令行风格卡片列表 */
+.processToolList {
+  display: grid;
+  margin: 6px 0 0;
+  gap: 6px;
+}
+.processTool {
+  border: 1px solid var(--forge-border-2);
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+}
+.processToolHead {
+  padding: 7px 10px;
   gap: 7px;
-  line-height: 1.6;
 }
-.reasoning p {
-  margin: 12px 0 0;
+.processToolName {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--forge-text-3);
+  font-family: var(--forge-font-mono);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.processKv {
+  display: grid;
+  padding: 0 10px 10px;
+  gap: 5px;
+}
+.processKvLabel {
+  color: var(--forge-text-3);
+  font-size: 11px;
+}
+.processKvValue {
+  margin: 0;
   color: var(--forge-text-2);
+  overflow-wrap: anywhere;
 }
-@media (prefers-reduced-motion: reduce) {
-  .reasoningSweep {
-    color: var(--forge-text-3);
-    background: none;
-    animation: none;
-    -webkit-text-fill-color: currentColor;
-  }
+.processFields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 12px;
+  gap: 4px 10px;
+}
+.processJson {
+  margin: 6px 0 0;
+  max-height: 220px;
+  padding: 9px 11px;
+  overflow: auto;
+  border-radius: 6px;
+  color: #f2f3f5;
+  background: #232324;
+  font-size: 11.5px;
+  line-height: 1.6;
 }
 .streamingAnswer {
   min-height: 1lh;

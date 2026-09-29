@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
@@ -31,6 +32,10 @@ public class MybatisAgentRunStore implements AgentRunStore {
     /* 事件 JSON 转换成框架无关 Map 时使用的稳定泛型类型。 */
     private static final TypeReference<Map<String, Object>> EVENT_PAYLOAD_TYPE = new TypeReference<>() {
     };
+
+    /* 允许运行期实时上报的 Tool 事件类型；越界值一律拒绝，避免污染轨迹事件流。 */
+    private static final Set<String> ALLOWED_TOOL_EVENTS =
+            Set.of("tool.started", "tool.completed", "tool.failed");
 
     /* 执行显式 scope、行锁和追加事件 SQL。 */
     private final AgentRunMapper mapper;
@@ -215,6 +220,45 @@ public class MybatisAgentRunStore implements AgentRunStore {
     }
 
     @Override
+    @Transactional
+    public void appendToolEvent(
+            long organizationId,
+            String runId,
+            String callId,
+            String toolName,
+            String eventType,
+            String status,
+            String summary,
+            Long durationMs) {
+        if (!ALLOWED_TOOL_EVENTS.contains(eventType)) {
+            throw new IllegalArgumentException("unsupported tool event type: " + eventType);
+        }
+        Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Agent Run not found"));
+        if (!"RUNNING".equals(text(locked, "status"))) {
+            throw new IllegalStateException("Agent Run is not accepting tool events");
+        }
+        long sequence = number(locked, "last_sequence") + 1;
+        if (mapper.advanceRunningSequence(organizationId, runId, sequence) != 1) {
+            throw new IllegalStateException("Agent Run sequence could not be advanced");
+        }
+        /* 使用 LinkedHashMap 而非 Map.of：summary/durationMs 可为空，Map.of 不接受 null 值。 */
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("callId", callId);
+        payload.put("name", toolName);
+        payload.put("status", status);
+        if (summary != null) {
+            payload.put("summary", summary);
+        }
+        if (durationMs != null) {
+            payload.put("durationMs", durationMs);
+        }
+        if (mapper.insertEvent(organizationId, runId, sequence, eventType, runId, json(payload)) != 1) {
+            throw new IllegalStateException("Agent tool event could not be persisted");
+        }
+    }
+
+    @Override
     public void bindConversationToRequirement(
             long organizationId, String runId, long requirementId) {
         mapper.bindConversationToRequirement(organizationId, runId, requirementId);
@@ -284,11 +328,6 @@ public class MybatisAgentRunStore implements AgentRunStore {
                         status, toolSummary, call.errorCode()) != 1) {
                     throw new IllegalStateException("Agent tool trace could not be projected");
                 }
-                sequence++;
-                mapper.insertEvent(organizationId, runId, sequence,
-                        "SUCCEEDED".equals(call.status()) ? "tool.completed" : "tool.failed",
-                        requestId, json(Map.of("stepNo", stepNo, "name", call.toolName(),
-                                "status", call.status(), "summary", toolSummary)));
                 stepNo++;
             }
         }

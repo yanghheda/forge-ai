@@ -167,3 +167,80 @@ def test_publish_reasoning_omits_node_field() -> None:
 
     assert seen["url"] == "http://forge-server:8080/internal/v1/agent-runs/01JRUN/reasoning-deltas"
     assert seen["body"] == {"delta": "计划项"}
+
+
+def test_publish_tool_posts_event_and_omits_none_optional_fields() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["authorization"] = request.headers.get("Authorization", "")
+        seen["body"] = json.loads(request.content.decode("utf-8"))
+        return httpx.Response(204)
+
+    answer_stream_with(handler).publish_tool(
+        "01JRUN0000000000000000000",
+        call_id="call-1",
+        tool_name="create_requirement",
+        event="tool.started",
+        status="RUNNING",
+        summary=None,
+        duration_ms=None,
+        run_token="run-token",
+    )
+
+    assert seen["url"] == (
+        "http://forge-server:8080/internal/v1/agent-runs/01JRUN0000000000000000000/tool-events"
+    )
+    assert seen["authorization"] == "Bearer run-token"
+    assert seen["body"] == {
+        "callId": "call-1",
+        "toolName": "create_requirement",
+        "event": "tool.started",
+        "status": "RUNNING",
+    }
+
+
+def test_publish_tool_includes_optional_fields_when_set() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content.decode("utf-8"))
+        return httpx.Response(204)
+
+    answer_stream_with(handler).publish_tool(
+        "01JRUN",
+        call_id="call-2",
+        tool_name="advance_requirement",
+        event="tool.failed",
+        status="FAILED",
+        summary="WORKFLOW_GUARD_FAILED",
+        duration_ms=12,
+        run_token="run-token",
+    )
+
+    assert seen["body"] == {
+        "callId": "call-2",
+        "toolName": "advance_requirement",
+        "event": "tool.failed",
+        "status": "FAILED",
+        "summary": "WORKFLOW_GUARD_FAILED",
+        "durationMs": 12,
+    }
+
+
+def test_publish_tool_raises_transport_failure_on_error_status() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(500)
+
+    with pytest.raises(ToolTransportFailure, match="answer stream publish failed"):
+        answer_stream_with(handler).publish_tool(
+            "01JRUN",
+            call_id="call-3",
+            tool_name="get_work_item",
+            event="tool.completed",
+            status="SUCCEEDED",
+            summary=None,
+            duration_ms=3,
+            run_token="run-token",
+        )

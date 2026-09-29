@@ -123,17 +123,43 @@ class ServerAnswerStream:
         """发布模型思考增量，与执行思路共用 Run 级凭据与错误处理方式。"""
         self._publish(run_id, "thinking-deltas", delta, run_token, node=node)
 
+    def publish_tool(
+        self,
+        run_id: str,
+        *,
+        call_id: str,
+        tool_name: str,
+        event: str,
+        status: str,
+        summary: str | None,
+        duration_ms: int | None,
+        run_token: str,
+    ) -> None:
+        """发布单次 Tool 调用的 started/completed/failed 事件，供实时面板展示。"""
+
+        payload = {"callId": call_id, "toolName": tool_name, "event": event, "status": status}
+        if summary is not None:
+            payload["summary"] = summary
+        if duration_ms is not None:
+            payload["durationMs"] = duration_ms
+        self._post(run_id, "tool-events", payload, run_token)
+
     def _publish(
         self, run_id: str, resource: str, delta: str, run_token: str, *, node: str | None = None
     ) -> None:
         body = {"delta": delta}
         if node is not None:
             body["node"] = node
+        self._post(run_id, resource, body, run_token)
+
+    def _post(self, run_id: str, resource: str, payload: dict[str, Any], run_token: str) -> None:
+        """向 Run 级内部资源 POST 载荷；网络层失败统一归一为 ToolTransportFailure。"""
+
         try:
             response = self._client.post(
                 f"/internal/v1/agent-runs/{run_id}/{resource}",
                 headers={"Authorization": f"Bearer {run_token}"},
-                json=body,
+                json=payload,
             )
             response.raise_for_status()
         except httpx.HTTPError as exception:

@@ -74,6 +74,8 @@ public final class AgentTraceAggregator {
 
         List<TraceNode> nodes = new ArrayList<>();
         boolean[] consumedCalls = new boolean[toolCalls.size()];
+        /* callId 到既有 TOOL 节点下标的反查表；同一调用的 started 与终态事件据此合并为单个节点。 */
+        Map<String, Integer> toolNodeIndexByCallId = new LinkedHashMap<>();
         boolean hasMessageDelta = ordered.stream().anyMatch(event -> "message.delta".equals(event.type()));
 
         int index = 0;
@@ -92,7 +94,7 @@ public final class AgentTraceAggregator {
                     index++;
                 }
                 case TOOL -> {
-                    appendTool(event, toolCalls, consumedCalls, nodes);
+                    appendTool(event, toolCalls, consumedCalls, toolNodeIndexByCallId, nodes);
                     index++;
                 }
                 case APPROVAL -> {
@@ -227,29 +229,72 @@ public final class AgentTraceAggregator {
     }
 
     private static void appendTool(
-            AgentEvent event, List<ToolCall> toolCalls, boolean[] consumedCalls, List<TraceNode> nodes) {
-        String toolName = text(event.payload().get("name"));
+            AgentEvent event,
+            List<ToolCall> toolCalls,
+            boolean[] consumedCalls,
+            Map<String, Integer> toolNodeIndexByCallId,
+            List<TraceNode> nodes) {
+        Map<String, Object> payload = event.payload();
+        String callId = text(payload.get("callId"));
+        String toolName = text(payload.get("name"));
+        boolean isFinal = "tool.completed".equals(event.type()) || "tool.failed".equals(event.type());
+
         int match = -1;
-        for (int candidate = 0; candidate < toolCalls.size(); candidate++) {
-            if (!consumedCalls[candidate] && Objects.equals(toolCalls.get(candidate).toolName(), toolName)) {
-                match = candidate;
-                break;
+        if (callId != null) {
+            for (int candidate = 0; candidate < toolCalls.size(); candidate++) {
+                if (!consumedCalls[candidate] && Objects.equals(toolCalls.get(candidate).toolCallId(), callId)) {
+                    match = candidate;
+                    break;
+                }
             }
         }
-        Map<String, Object> detail;
-        String status;
+        /* callId 缺失或未命中持久化事实时，退回按工具名 FIFO 配对，保持旧行为兼容。 */
+        if (match < 0) {
+            for (int candidate = 0; candidate < toolCalls.size(); candidate++) {
+                if (!consumedCalls[candidate] && Objects.equals(toolCalls.get(candidate).toolName(), toolName)) {
+                    match = candidate;
+                    break;
+                }
+            }
+        }
+        ToolCall call = null;
         if (match >= 0) {
             consumedCalls[match] = true;
-            ToolCall call = toolCalls.get(match);
-            detail = persistedToolDetail(call, event.payload());
-            status = call.status() == null ? text(event.payload().get("status")) : call.status();
+            call = toolCalls.get(match);
+        }
+
+        Integer existingIndex = callId == null ? null : toolNodeIndexByCallId.get(callId);
+        if (existingIndex != null) {
+            /* 同一 callId 的后续事件（终态或审批恢复后的重复 started）就地更新既有节点，避免重复工具卡片。 */
+            TraceNode existing = nodes.get(existingIndex);
+            Map<String, Object> detail = call != null
+                    ? persistedToolDetail(call, payload)
+                    : overlayToolDetail(existing.detail(), payload);
+            String status = call != null
+                    ? (call.status() == null ? text(payload.get("status")) : call.status())
+                    : text(payload.get("status"));
+            String title = toolName != null ? toolName : existing.title();
+            nodes.set(existingIndex, new TraceNode(existing.key(), NodeKind.TOOL, title, status,
+                    existing.sequence(), existing.startedAt(),
+                    isFinal ? event.timestamp() : existing.finishedAt(), detail));
+            return;
+        }
+
+        Map<String, Object> detail;
+        String status;
+        if (call != null) {
+            detail = persistedToolDetail(call, payload);
+            status = call.status() == null ? text(payload.get("status")) : call.status();
         } else {
-            detail = eventToolDetail(event.payload());
-            status = text(event.payload().get("status"));
+            detail = eventToolDetail(payload);
+            status = text(payload.get("status"));
         }
         nodes.add(new TraceNode("seq:" + event.sequence(), NodeKind.TOOL,
                 toolName == null ? "工具调用" : toolName, status, event.sequence(),
-                event.timestamp(), event.timestamp(), detail));
+                event.timestamp(), isFinal ? event.timestamp() : null, detail));
+        if (callId != null) {
+            toolNodeIndexByCallId.put(callId, nodes.size() - 1);
+        }
     }
 
     private static void appendApproval(
@@ -314,6 +359,21 @@ public final class AgentTraceAggregator {
         detail.put("status", payload.get("status"));
         detail.put("summary", payload.get("summary"));
         detail.put("errorCode", payload.get("errorCode"));
+        return detail;
+    }
+
+    /* 无持久化事实配对时就地更新节点：保留既有 detail（尤其 toolName），再以 payload 覆盖 status/summary/errorCode。 */
+    private static Map<String, Object> overlayToolDetail(Map<String, Object> existing, Map<String, Object> payload) {
+        Map<String, Object> detail = new LinkedHashMap<>(existing);
+        if (payload.containsKey("status")) {
+            detail.put("status", payload.get("status"));
+        }
+        if (payload.containsKey("summary")) {
+            detail.put("summary", payload.get("summary"));
+        }
+        if (payload.containsKey("errorCode")) {
+            detail.put("errorCode", payload.get("errorCode"));
+        }
         return detail;
     }
 

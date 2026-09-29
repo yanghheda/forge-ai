@@ -23,6 +23,7 @@ class RecordingAnswerStream:
         self.deltas: list[tuple[str, str, str]] = []
         self.reasoning: list[tuple[str, str, str]] = []
         self.thinking: list[tuple[str, str, str, str]] = []
+        self.tool_events: list[dict[str, object]] = []
 
     def publish(self, run_id: str, delta: str, run_token: str) -> None:
         self.deltas.append((run_id, delta, run_token))
@@ -32,6 +33,31 @@ class RecordingAnswerStream:
 
     def publish_thinking(self, run_id: str, node: str, delta: str, run_token: str) -> None:
         self.thinking.append((run_id, node, delta, run_token))
+
+    def publish_tool(
+        self,
+        run_id: str,
+        *,
+        call_id: str,
+        tool_name: str,
+        event: str,
+        status: str,
+        summary: str | None,
+        duration_ms: int | None,
+        run_token: str,
+    ) -> None:
+        self.tool_events.append(
+            {
+                "run_id": run_id,
+                "call_id": call_id,
+                "tool_name": tool_name,
+                "event": event,
+                "status": status,
+                "summary": summary,
+                "duration_ms": duration_ms,
+                "run_token": run_token,
+            }
+        )
 
 
 class FailingAnswerStream:
@@ -43,6 +69,20 @@ class FailingAnswerStream:
 
     def publish_thinking(self, run_id: str, node: str, delta: str, run_token: str) -> None:
         raise ToolTransportFailure("thinking stream publish failed")
+
+    def publish_tool(
+        self,
+        run_id: str,
+        *,
+        call_id: str,
+        tool_name: str,
+        event: str,
+        status: str,
+        summary: str | None,
+        duration_ms: int | None,
+        run_token: str,
+    ) -> None:
+        raise ToolTransportFailure("tool event publish failed")
 
 
 class ThinkingLanguageModel(FakeLanguageModel):
@@ -455,6 +495,141 @@ def test_selected_tool_is_executed_and_observed_with_run_token(tmp_path) -> None
     assert observed.status == "SUCCEEDED"
     assert observed.result == {"id": 42, "itemKey": "FORGE-42"}
     assert result.answer.endswith("and 1 tool call(s).")
+
+
+def test_successful_tool_call_publishes_started_then_completed(tmp_path) -> None:
+    transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="create_requirement",
+                tool_call_id="call-1",
+                result={"id": 42},
+            )
+        ]
+    )
+    answer_stream = RecordingAnswerStream()
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", FakeLanguageModel(), transport, answer_stream
+    )
+
+    result = runtime.start(
+        RunStart(
+            manifest=manifest(effective_tool_names=["create_requirement"], max_tool_calls=5),
+            message="请创建需求",
+        ),
+        "run-token",
+    )
+
+    assert result.status == "SUCCEEDED"
+    assert [event["event"] for event in answer_stream.tool_events] == [
+        "tool.started",
+        "tool.completed",
+    ]
+    started, completed = answer_stream.tool_events
+    assert started["call_id"] == "call-1"
+    assert started["tool_name"] == "create_requirement"
+    assert started["status"] == "RUNNING"
+    assert started["summary"] is None
+    assert started["duration_ms"] is None
+    assert completed["call_id"] == "call-1"
+    assert completed["status"] == "SUCCEEDED"
+    assert completed["summary"] is None
+    assert isinstance(completed["duration_ms"], int)
+    assert completed["duration_ms"] >= 0
+    assert all(event["run_token"] == "run-token" for event in answer_stream.tool_events)
+
+
+def test_failed_tool_call_publishes_started_then_failed(tmp_path) -> None:
+    transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="FAILED",
+                tool_name="create_requirement",
+                tool_call_id="call-1",
+                error_code="VALIDATION_FAILED",
+                error_message="title required",
+            )
+        ]
+    )
+    answer_stream = RecordingAnswerStream()
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", FakeLanguageModel(), transport, answer_stream
+    )
+
+    result = runtime.start(
+        RunStart(
+            manifest=manifest(effective_tool_names=["create_requirement"], max_tool_calls=5),
+            message="请创建需求",
+        ),
+        "run-token",
+    )
+
+    assert result.status == "SUCCEEDED"
+    assert [event["event"] for event in answer_stream.tool_events] == [
+        "tool.started",
+        "tool.failed",
+    ]
+    failed = answer_stream.tool_events[1]
+    assert failed["call_id"] == "call-1"
+    assert failed["status"] == "FAILED"
+    assert failed["summary"] == "VALIDATION_FAILED"
+    assert isinstance(failed["duration_ms"], int)
+
+
+def test_waiting_approval_tool_call_publishes_only_started(tmp_path) -> None:
+    transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="WAITING_APPROVAL",
+                tool_name="create_requirement",
+                tool_call_id="call-1",
+                approval_id="01JAPPROVAL000000000000000",
+            )
+        ]
+    )
+    answer_stream = RecordingAnswerStream()
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", FakeLanguageModel(), transport, answer_stream
+    )
+
+    result = runtime.start(
+        RunStart(
+            manifest=manifest(effective_tool_names=["create_requirement"], max_tool_calls=5),
+            message="请创建需求",
+        ),
+        "run-token",
+    )
+
+    assert result.status == "WAITING_APPROVAL"
+    assert [event["event"] for event in answer_stream.tool_events] == ["tool.started"]
+
+
+def test_tool_event_publish_failure_does_not_change_run_result(tmp_path) -> None:
+    transport = StaticToolTransport(
+        [
+            ToolExecution(
+                status="SUCCEEDED",
+                tool_name="create_requirement",
+                tool_call_id="call-1",
+                result={"id": 42},
+            )
+        ]
+    )
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", FakeLanguageModel(), transport, FailingAnswerStream()
+    )
+
+    result = runtime.start(
+        RunStart(
+            manifest=manifest(effective_tool_names=["create_requirement"], max_tool_calls=5),
+            message="请创建需求",
+        ),
+        "run-token",
+    )
+
+    assert result.status == "SUCCEEDED"
+    assert result.tool_calls[0].status == "SUCCEEDED"
 
 
 def test_multiple_tool_calls_receive_stable_distinct_ids(tmp_path) -> None:

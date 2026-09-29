@@ -110,6 +110,86 @@ class AgentTraceAggregatorTest {
     }
 
     @Test
+    void mergesToolStartedAndCompletedByCallIdIntoOneNode() {
+        ToolCall call = new ToolCall("call-9", "create_requirement", 1, "MEDIUM", "SUCCEEDED",
+                Map.of("title", "需求"), Map.of("id", 21), null);
+
+        List<TraceNode> nodes = AgentTraceAggregator.aggregate(
+                List.of(
+                        event(1, "tool.started",
+                                Map.of("callId", "call-9", "name", "create_requirement", "status", "RUNNING")),
+                        event(2, "tool.completed",
+                                Map.of("callId", "call-9", "name", "create_requirement", "status", "SUCCEEDED"))),
+                List.of(), List.of(call), List.of(), run(AgentRunStatus.RUNNING));
+
+        assertThat(nodes).hasSize(1);
+        TraceNode node = nodes.get(0);
+        assertThat(node.kind()).isEqualTo(NodeKind.TOOL);
+        assertThat(node.key()).isEqualTo("seq:1");
+        assertThat(node.title()).isEqualTo("create_requirement");
+        assertThat(node.status()).isEqualTo("SUCCEEDED");
+        assertThat(node.startedAt()).isEqualTo(START.plusSeconds(1));
+        assertThat(node.finishedAt()).isEqualTo(START.plusSeconds(2));
+        assertThat(node.detail().get("arguments")).isEqualTo(Map.of("title", "需求"));
+        assertThat(node.detail().get("result")).isEqualTo(Map.of("id", 21));
+    }
+
+    @Test
+    void keepsToolStartedNodeRunningUntilTerminalEvent() {
+        List<TraceNode> nodes = AgentTraceAggregator.aggregate(
+                List.of(event(1, "tool.started",
+                        Map.of("callId", "call-7", "name", "deploy_release", "status", "RUNNING"))),
+                List.of(), List.of(), List.of(), run(AgentRunStatus.RUNNING));
+
+        assertThat(nodes).hasSize(1);
+        TraceNode node = nodes.get(0);
+        assertThat(node.kind()).isEqualTo(NodeKind.TOOL);
+        assertThat(node.title()).isEqualTo("deploy_release");
+        assertThat(node.status()).isEqualTo("RUNNING");
+        assertThat(node.startedAt()).isEqualTo(START.plusSeconds(1));
+        assertThat(node.finishedAt()).isNull();
+    }
+
+    @Test
+    void treatsRepeatedToolStartedForSameCallIdAsIdempotent() {
+        List<TraceNode> nodes = AgentTraceAggregator.aggregate(
+                List.of(
+                        event(1, "tool.started",
+                                Map.of("callId", "call-5", "name", "list_requirements", "status", "RUNNING")),
+                        event(2, "tool.started",
+                                Map.of("callId", "call-5", "name", "list_requirements", "status", "RUNNING")),
+                        event(3, "tool.completed",
+                                Map.of("callId", "call-5", "name", "list_requirements", "status", "SUCCEEDED"))),
+                List.of(), List.of(), List.of(), run(AgentRunStatus.RUNNING));
+
+        assertThat(nodes).hasSize(1);
+        TraceNode node = nodes.get(0);
+        assertThat(node.key()).isEqualTo("seq:1");
+        assertThat(node.status()).isEqualTo("SUCCEEDED");
+        assertThat(node.startedAt()).isEqualTo(START.plusSeconds(1));
+        assertThat(node.finishedAt()).isEqualTo(START.plusSeconds(3));
+        assertThat(node.detail().get("toolName")).isEqualTo("list_requirements");
+    }
+
+    @Test
+    void consumesPersistedCallMatchedByCallIdWithoutSyntheticDuplicate() {
+        ToolCall call = new ToolCall("call-3", "create_prd_document", 1, "MEDIUM", "SUCCEEDED",
+                Map.of("title", "文档"), Map.of("id", 13), null);
+
+        List<TraceNode> nodes = AgentTraceAggregator.aggregate(
+                List.of(
+                        event(1, "tool.started",
+                                Map.of("callId", "call-3", "name", "create_prd_document", "status", "RUNNING")),
+                        event(2, "tool.completed",
+                                Map.of("callId", "call-3", "name", "create_prd_document", "status", "SUCCEEDED"))),
+                List.of(), List.of(call), List.of(), run(AgentRunStatus.RUNNING));
+
+        assertThat(nodes).extracting(TraceNode::key).containsExactly("seq:1");
+        assertThat(nodes.get(0).detail().get("arguments")).isEqualTo(Map.of("title", "文档"));
+        assertThat(nodes.get(0).detail().get("result")).isEqualTo(Map.of("id", 13));
+    }
+
+    @Test
     void enrichesApprovalNodesWithPersistedDecision() {
         Approval approval = new Approval("approval-1", "deploy_release", "HIGH", "APPROVED",
                 "HIGH Tool always requires another user's approval", 42L, START.plusSeconds(600));

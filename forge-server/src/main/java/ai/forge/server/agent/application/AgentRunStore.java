@@ -49,6 +49,18 @@ public interface AgentRunStore {
     /* 持久化模型思考增量，并推进 Run 事件序号；不写入会话正文，不影响 Run 终态判定。 */
     void appendThinkingDelta(long organizationId, String runId, String delta, String node);
 
+    /* 运行期实时持久化工具事件（tool.started/tool.completed/tool.failed），
+       使轨迹页无需等待 Run 结束即可按 callId 聚合展示工具调用过程。 */
+    void appendToolEvent(
+            long organizationId,
+            String runId,
+            String callId,
+            String toolName,
+            String eventType,
+            String status,
+            String summary,
+            Long durationMs);
+
     /* create_requirement 成功后立即把来源会话绑定到新需求。 */
     void bindConversationToRequirement(long organizationId, String runId, long requirementId);
 

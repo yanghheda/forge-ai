@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+import time
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -470,6 +471,19 @@ class AnswerStream(Protocol):
 
     def publish_thinking(self, run_id: str, node: str, delta: str, run_token: str) -> None: ...
 
+    def publish_tool(
+        self,
+        run_id: str,
+        *,
+        call_id: str,
+        tool_name: str,
+        event: str,
+        status: str,
+        summary: str | None,
+        duration_ms: int | None,
+        run_token: str,
+    ) -> None: ...
+
 
 class _ThinkingCollector:
     """按图节点聚合单次 Run 的模型思考文本，并按契约分片上报。"""
@@ -790,6 +804,17 @@ class LangGraphRuntimeGateway:
         tool_name = str(selection["toolName"])
         tool_call_id = self._next_tool_call_id(state)
         run_token = str(get_config()["configurable"].get("run_token", ""))
+        self._publish_tool_event(
+            state["run_id"],
+            call_id=tool_call_id,
+            tool_name=tool_name,
+            event="tool.started",
+            status="RUNNING",
+            summary=None,
+            duration_ms=None,
+            run_token=run_token,
+        )
+        started_at = time.monotonic()
         try:
             execution = self._transport.execute(
                 tool_name, tool_call_id, dict(selection["arguments"]), run_token
@@ -801,6 +826,33 @@ class LangGraphRuntimeGateway:
                 tool_call_id=tool_call_id,
                 error_code="TRANSPORT_ERROR",
                 error_message=str(exception),
+            )
+        duration_ms = max(0, round((time.monotonic() - started_at) * 1000))
+        if execution.status == "WAITING_APPROVAL":
+            # 审批中状态由 approval.* 事件表达，这里不再补发终态事件。
+            pass
+        elif execution.status == "FAILED":
+            summary = execution.error_code or execution.error_message or "FAILED"
+            self._publish_tool_event(
+                state["run_id"],
+                call_id=tool_call_id,
+                tool_name=tool_name,
+                event="tool.failed",
+                status=execution.status,
+                summary=summary[:500],
+                duration_ms=duration_ms,
+                run_token=run_token,
+            )
+        else:
+            self._publish_tool_event(
+                state["run_id"],
+                call_id=tool_call_id,
+                tool_name=tool_name,
+                event="tool.completed",
+                status=execution.status,
+                summary=None,
+                duration_ms=duration_ms,
+                run_token=run_token,
             )
         return {
             "pending_selection": (selection if execution.status == "WAITING_APPROVAL" else None),
@@ -821,6 +873,41 @@ class LangGraphRuntimeGateway:
             ),
             "state_version": state["state_version"] + 1,
         }
+
+    def _publish_tool_event(
+        self,
+        run_id: str,
+        *,
+        call_id: str,
+        tool_name: str,
+        event: str,
+        status: str,
+        summary: str | None,
+        duration_ms: int | None,
+        run_token: str,
+    ) -> None:
+        """发布 Tool 调用事件；展示类事件上报失败只告警，绝不改变 Run 业务结果。"""
+
+        if self._answer_stream is None:
+            return
+        try:
+            self._answer_stream.publish_tool(
+                run_id,
+                call_id=call_id,
+                tool_name=tool_name,
+                event=event,
+                status=status,
+                summary=summary,
+                duration_ms=duration_ms,
+                run_token=run_token,
+            )
+        except Exception:
+            LOGGER.warning(
+                "Tool event publish failed; continuing run: run_id=%s event=%s",
+                run_id,
+                event,
+                exc_info=True,
+            )
 
     def _observe_tool(self, state: AgentState) -> AgentState:
         """把执行信封写入可回溯观察记录，供模型下一轮选择与最终结果引用。"""

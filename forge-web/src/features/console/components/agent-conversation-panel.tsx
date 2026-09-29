@@ -2,15 +2,16 @@ import { Alert, Button, Empty, Message, Spin } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
-import { cancelAgentRun, cancelApproval, decideApproval, getAgentRun, getRunApproval, type ApprovalSnapshot } from "@/features/agent-run";
+import { cancelAgentRun, cancelApproval, decideApproval, getAgentRun, getRunApproval, getRunTrace, type ApprovalSnapshot } from "@/features/agent-run";
 import { getCurrentUser } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
 import { useAgentPanelStore, type AgentContext } from "@/stores/use-agent-panel-store";
 import { listAgentConversations, listAgentMessages, sendAgentMessage } from "../api/console-api";
 import { useConversationStream } from "../hooks/use-conversation-stream";
 import { isLiveRunPlaybackEnabled, isStreamPlaybackVisible } from "../utils/conversation-answer-playback";
-import { AgentMessage, ReasoningDetails } from "./agent-message";
+import { AgentMessage } from "./agent-message";
 import { AgentMessageBody } from "./agent-message-body";
+import { AgentProcessNodes } from "./agent-process-nodes";
 import { ConversationComposer } from "./conversation-composer";
 import styles from "./console.module.css";
 
@@ -71,6 +72,14 @@ export function AgentConversationPanel({ header, context }: { header?: ReactNode
     enabled: Boolean(effectiveRunId && currentUser.data),
   });
   const isRunActive = Boolean(run.data && !run.data.terminal);
+  /* 内联执行过程：进行中的 Run 每 5 秒兜底轮询，SSE 事件到达时另行去抖刷新。 */
+  const trace = useQuery({
+    queryKey: ["run-trace", effectiveRunId],
+    queryFn: () => getRunTrace(effectiveRunId!),
+    enabled: Boolean(effectiveRunId),
+    refetchInterval: isRunActive ? 5000 : false,
+  });
+  const processNodes = trace.data?.nodes ?? [];
   useEffect(() => {
     setRunState({ running: isRunActive, awaitingApproval: run.data?.status === "WAITING_APPROVAL" });
   }, [isRunActive, run.data?.status, setRunState]);
@@ -116,14 +125,14 @@ export function AgentConversationPanel({ header, context }: { header?: ReactNode
             </div>
           ) : (
             <AgentMessage title="ForgeAI Agent" key={`${item.createdAt}-${index}`}>
-              {item.runId === effectiveRunId && stream.reasoning.length > 0 && <ReasoningDetails reasoning={stream.reasoning} completed />}
+              {item.runId === effectiveRunId && <AgentProcessNodes nodes={processNodes} />}
               <AgentMessageBody content={item.body} />
             </AgentMessage>
           ),
         )}
         {effectiveRunId && (streamPlaybackVisible || (!hasPersistedAgentAnswer && isRunActive)) && (
           <AgentMessage title="ForgeAI Agent">
-            <ReasoningDetails reasoning={stream.reasoning} completed={Boolean(stream.answer)} />
+            <AgentProcessNodes nodes={processNodes} />
             {stream.answer && <AgentMessageBody content={stream.answer} streaming />}
           </AgentMessage>
         )}

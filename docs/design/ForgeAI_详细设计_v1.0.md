@@ -829,6 +829,15 @@ limits:
 
 关键事件持久化；`heartbeat` 只在线发送且没有业务 sequence。一次事务分配 Run 下一个 sequence 并写事件。SSE 行使用 sequence 作为 `id`，event type 作为 `event`。
 
+处于 `RUNNING` 的 Run 通过内部端点追加增量事件，均携带 Run 级凭据、要求 Run 未进入终态，并由同一事务前推 `last_sequence`：
+
+- `POST /internal/v1/agent-runs/{runId}/message-deltas`
+- `POST /internal/v1/agent-runs/{runId}/reasoning-deltas`
+- `POST /internal/v1/agent-runs/{runId}/thinking-deltas`
+- `POST /internal/v1/agent-runs/{runId}/tool-events`（`event` 取 `tool.started` / `tool.completed` / `tool.failed`）
+
+因此 `tool.*` 在与工具执行同步的过程中实时落库，不再由 Run 完成时批量补发；已持久化的 `agent_tool_calls` 仍作为兜底事实，保证没有工具事件时轨迹页与会话面板不丢失工具调用。
+
 ### 10.2 事件目录
 
 | Type | 核心 payload | UI 行为 |
@@ -837,7 +846,7 @@ limits:
 | `context.ready` | resource refs/count，不含正文 | 显示上下文范围 |
 | `plan.created` | steps[] | 渲染计划 |
 | `step.started/completed/failed` | stepNo/name/status/summary | 更新步骤 |
-| `tool.requested/started/completed/failed` | callId/tool/risk/resource/result | 更新 Tool 卡片 |
+| `tool.requested/started/completed/failed` | callId/name/status/summary/durationMs | 实时更新 Tool 卡片；同一 callId 的 `started` 与终态聚合为单个节点，参数与结果来自持久化工具调用 |
 | `message.delta` | delta | 追加当前 Agent 回复正文 |
 | `reasoning.delta` | delta | 追加可折叠的计划或执行摘要 |
 | `thinking.delta` | delta、node（来源图节点） | 追加模型思考内容（来源为 Provider 的 `reasoning_content`），可折叠展示，来源节点不同则分段；Provider 不返回思考内容时不产生该事件 |

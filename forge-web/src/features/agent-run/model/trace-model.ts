@@ -8,6 +8,31 @@ export type TraceNodeKind = (typeof TRACE_NODE_KINDS)[number];
 /* 未知类型统一归入的兜底节点类型。 */
 export const FALLBACK_NODE_KIND: TraceNodeKind = "EVENT";
 
+/* 运行与节点状态的中文展示标签；未登记的状态原样保留，避免新增状态时丢失信息。 */
+export const STATUS_LABELS: Record<string, string> = {
+  QUEUED: "排队中",
+  PENDING: "待处理",
+  RUNNING: "执行中",
+  IN_PROGRESS: "执行中",
+  WAITING_APPROVAL: "等待审批",
+  PENDING_APPROVAL: "等待审批",
+  COMPLETED: "已完成",
+  SUCCEEDED: "已完成",
+  APPROVED: "已批准",
+  REJECTED: "已拒绝",
+  EXPIRED: "已过期",
+  CANCELLED: "已取消",
+  FAILED: "失败",
+};
+
+/* 将状态机取值翻译为中文标签；状态缺失时返回 null，未知取值原样返回。 */
+export function statusLabel(status: string | null | undefined): string | null {
+  if (!status) {
+    return null;
+  }
+  return STATUS_LABELS[status] ?? status;
+}
+
 /* 各已知类型对应的展示元信息：中文标签、图标语义 key 与展示形态。 */
 const presentations: Record<TraceNodeKind, { label: string; icon: string; collapsible: boolean; structured: boolean }> = {
   THINKING: { label: "模型思考", icon: "thinking", collapsible: true, structured: false },

@@ -1,0 +1,21 @@
+- [x] 内部端点 `POST /internal/v1/agent-runs/{runId}/tool-events` 已实现，运行中的 Run 可追加 `tool.started` / `tool.completed` / `tool.failed` 事件并前推序号
+- [x] 工具事件 payload 含 `callId` / `name` / `status`，终态事件含 `summary` 与 `durationMs`
+- [x] 内部端点凭据校验符合既有语义：缺失/非法 token 返回 401，Run 不匹配返回 403，非法 `event` 取值返回 400
+- [x] `MybatisAgentRunStore.complete()` 不再写 `tool.completed` / `tool.failed` 事件，且 `agent_steps` 工具投影与序号分配正确
+- [x] `AgentTraceAggregator` 把同一 `callId` 的 started 与终态事件合并为单个 TOOL 节点，状态由 RUNNING 收敛为 SUCCEEDED / FAILED
+- [x] 仅出现 `tool.started` 时产生唯一 RUNNING 节点；重复 started 幂等，不新增节点
+- [x] 无 `callId` 的工具事件仍按工具名 FIFO 聚合，行为不变
+- [x] 已持久化但无事件的工具调用仍在轨迹末尾补出 TOOL 节点（含参数与结果）
+- [x] forge-agent `_execute_tool` 在调用前后上报 `tool.started` 与终态事件；`WAITING_APPROVAL` 时不发终态
+- [x] 工具事件上报失败只记录告警，不影响工具执行结果与 Run 终态
+- [x] 会话面板内联渲染执行过程节点（模型思考、执行思路、计划、步骤、工具调用、审批），不再使用单一扁平「思考」列表
+- [x] 模型思考与执行思路在面板中分段可折叠展示，不合并为同一列表
+- [x] TOOL 节点在面板中以紧凑卡片展示工具名、状态、耗时，并可展开查看参数与结果
+- [x] 进行中 Run 通过 SSE 去抖刷新并以 5 秒轮询兜底，终态后停止刷新
+- [x] 历史（已终态）会话打开即展示该轮完整执行过程节点，不依赖实时连接
+- [x] 面板内联过程时间线不重复渲染 `ANSWER` / `TERMINAL`，回答仍由消息正文或流式输出承载
+- [x] 未识别的节点 kind 按通用事件兜底展示，不丢弃节点、不抛出异常
+- [x] 跨 feature 复用仅经 `features/agent-run/index.ts` 公开导出，`lint:boundaries` 通过
+- [x] 已移除无引用的 `ReasoningDetails` 及其测试，新增组件与 SSE hook 测试通过
+- [x] `docs/design/ForgeAI_详细设计_v1.0.md` 第 10 章已登记内部端点与工具事件实时上报说明
+- [x] `make ci` 与 `git diff --check` 全部通过

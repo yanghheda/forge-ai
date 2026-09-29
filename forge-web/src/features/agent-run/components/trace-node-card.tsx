@@ -1,33 +1,11 @@
 import { useState } from "react";
 
 import type { TraceNode } from "../api/agent-run-api";
-import { formatDuration, formatNodeTime, nodePresentation, readNumber, readText, readTextList, type NodePresentation } from "../model/trace-model";
+import { formatDuration, formatNodeTime, nodePresentation, readNumber, readText, readTextList, statusLabel, type NodePresentation } from "../model/trace-model";
 import styles from "./trace.module.css";
 
-/* 运行与节点状态的中文展示标签；未登记的状态原样保留，避免新增状态时丢失信息。 */
-const STATUS_LABELS: Record<string, string> = {
-  QUEUED: "排队中",
-  PENDING: "待处理",
-  RUNNING: "执行中",
-  IN_PROGRESS: "执行中",
-  WAITING_APPROVAL: "等待审批",
-  PENDING_APPROVAL: "等待审批",
-  COMPLETED: "已完成",
-  SUCCEEDED: "已完成",
-  APPROVED: "已批准",
-  REJECTED: "已拒绝",
-  EXPIRED: "已过期",
-  CANCELLED: "已取消",
-  FAILED: "失败",
-};
-
-/* 将状态机取值翻译为中文标签；状态缺失时返回 null，未知取值原样返回。 */
-export function statusLabel(status: string | null | undefined): string | null {
-  if (!status) {
-    return null;
-  }
-  return STATUS_LABELS[status] ?? status;
-}
+/* 保留对状态标签的转发导出，避免既有导入方（如 trace-turn）改动。 */
+export { statusLabel } from "../model/trace-model";
 
 /* 将毫秒耗时格式化为中文文案；不足 1 秒按毫秒，其余按秒（非整秒保留一位小数）。 */
 function formatMillis(ms: number): string {

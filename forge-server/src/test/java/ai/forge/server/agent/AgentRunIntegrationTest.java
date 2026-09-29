@@ -724,6 +724,149 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
         agentRunStore.complete(organizationId, runId, "req-complete", "完成", List.of("计划"), List.of());
     }
 
+    @Test
+    void toolEventCallbackPersistsStartedAndCompletedEventsWhileRunning() throws Exception {
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0T1";
+        agentRunStore.create(runId, organizationId, null, ownerUserId(), AgentSkill.PRODUCT,
+                MediumToolConfirmation.ASK, "User request (4 chars, content redacted)",
+                "tool-event-stream", "hash", "req-create");
+        agentRunStore.start(organizationId, runId, "req-start");
+        long before = jdbcTemplate.queryForObject(
+                "SELECT last_sequence FROM agent_runs WHERE id=?", Long.class, runId);
+        HttpHeaders headers = runTokenHeaders(runId);
+        String url = "/internal/v1/agent-runs/" + runId + "/tool-events";
+
+        ResponseEntity<Void> started = restTemplate.postForEntity(url,
+                new HttpEntity<>(Map.of(
+                        "callId", "call-1",
+                        "toolName", "create_requirement",
+                        "event", "tool.started",
+                        "status", "RUNNING"), headers), Void.class);
+        ResponseEntity<Void> completed = restTemplate.postForEntity(url,
+                new HttpEntity<>(Map.of(
+                        "callId", "call-1",
+                        "toolName", "create_requirement",
+                        "event", "tool.completed",
+                        "status", "SUCCEEDED",
+                        "summary", "已创建需求",
+                        "durationMs", 120), headers), Void.class);
+
+        assertThat(started.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(completed.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT event_type FROM agent_events WHERE run_id=? AND event_type LIKE 'tool.%' ORDER BY sequence",
+                        String.class, runId))
+                .containsExactly("tool.started", "tool.completed");
+        Map<String, Object> payload = jdbcTemplate.queryForMap(
+                "SELECT JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.callId')) AS call_id, "
+                        + "JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.name')) AS name, "
+                        + "JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.status')) AS status, "
+                        + "JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.summary')) AS summary, "
+                        + "JSON_EXTRACT(payload_json,'$.durationMs') AS duration_ms "
+                        + "FROM agent_events WHERE run_id=? AND event_type='tool.completed'",
+                runId);
+        assertThat(payload.get("call_id")).isEqualTo("call-1");
+        assertThat(payload.get("name")).isEqualTo("create_requirement");
+        assertThat(payload.get("status")).isEqualTo("SUCCEEDED");
+        assertThat(payload.get("summary")).isEqualTo("已创建需求");
+        assertThat(payload.get("duration_ms").toString()).isEqualTo("120");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT last_sequence FROM agent_runs WHERE id=?", Long.class, runId))
+                .isEqualTo(before + 2);
+
+        agentRunStore.cancel(organizationId, runId, "req-cancel");
+    }
+
+    @Test
+    void toolEventCallbackRejectsUnsupportedEventType() {
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0T2";
+        agentRunStore.create(runId, organizationId, null, ownerUserId(), AgentSkill.PRODUCT,
+                MediumToolConfirmation.ASK, "User request (4 chars, content redacted)",
+                "tool-event-invalid", "hash", "req-create");
+        agentRunStore.start(organizationId, runId, "req-start");
+
+        ResponseEntity<Void> response = restTemplate.postForEntity(
+                "/internal/v1/agent-runs/" + runId + "/tool-events",
+                new HttpEntity<>(Map.of(
+                        "callId", "call-1",
+                        "toolName", "create_requirement",
+                        "event", "tool.exploded",
+                        "status", "RUNNING"), runTokenHeaders(runId)),
+                Void.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM agent_events WHERE run_id=? AND event_type LIKE 'tool.%'",
+                        Long.class, runId))
+                .isZero();
+
+        agentRunStore.cancel(organizationId, runId, "req-cancel");
+    }
+
+    @Test
+    void toolEventCallbackRejectsMissingOrInvalidBearer() {
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0T3";
+        agentRunStore.create(runId, organizationId, null, ownerUserId(), AgentSkill.PRODUCT,
+                MediumToolConfirmation.ASK, "User request (4 chars, content redacted)",
+                "tool-event-unauthorized", "hash", "req-create");
+        agentRunStore.start(organizationId, runId, "req-start");
+        String url = "/internal/v1/agent-runs/" + runId + "/tool-events";
+        Map<String, Object> body = Map.of(
+                "callId", "call-1",
+                "toolName", "create_requirement",
+                "event", "tool.started",
+                "status", "RUNNING");
+
+        HttpHeaders headerless = new HttpHeaders();
+        headerless.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<Void> missing = restTemplate.postForEntity(
+                url, new HttpEntity<>(body, headerless), Void.class);
+
+        HttpHeaders invalidHeaders = new HttpHeaders();
+        invalidHeaders.setBearerAuth("not-a-jwt");
+        invalidHeaders.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<Void> invalid = restTemplate.postForEntity(
+                url, new HttpEntity<>(body, invalidHeaders), Void.class);
+
+        assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(invalid.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        agentRunStore.cancel(organizationId, runId, "req-cancel");
+    }
+
+    @Test
+    void toolEventCallbackRejectsRunIdMismatch() {
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0T4";
+        agentRunStore.create(runId, organizationId, null, ownerUserId(), AgentSkill.PRODUCT,
+                MediumToolConfirmation.ASK, "User request (4 chars, content redacted)",
+                "tool-event-forbidden", "hash", "req-create");
+        agentRunStore.start(organizationId, runId, "req-start");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokenProvider.createRunToken(
+                Instant.now(), "01234567890123456789012345", organizationId));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<Void> response = restTemplate.postForEntity(
+                "/internal/v1/agent-runs/" + runId + "/tool-events",
+                new HttpEntity<>(Map.of(
+                        "callId", "call-1",
+                        "toolName", "create_requirement",
+                        "event", "tool.started",
+                        "status", "RUNNING"), headers),
+                Void.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        agentRunStore.cancel(organizationId, runId, "req-cancel");
+    }
+
+    private HttpHeaders runTokenHeaders(String runId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokenProvider.createRunToken(Instant.now(), runId, organizationId));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return headers;
+    }
+
     private long ownerUserId() {
         return jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE email='owner@example.com'", Long.class);

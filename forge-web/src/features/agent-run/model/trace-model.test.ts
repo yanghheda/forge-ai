@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { TraceNode } from "../api/agent-run-api";
-import { FALLBACK_NODE_KIND, TRACE_NODE_KINDS, formatDuration, formatNodeTime, nodePresentation, readNumber, readRecord, readText, readTextList } from "./trace-model";
+import { FALLBACK_NODE_KIND, TRACE_NODE_KINDS, formatDuration, formatNodeTime, nodePresentation, readNumber, readRecord, readText, readTextList, statusLabel } from "./trace-model";
 
 /* 构造一份最小可用轨迹节点，测试按需覆盖字段。 */
 function node(overrides: Partial<TraceNode> = {}): TraceNode {
@@ -144,5 +144,25 @@ describe("formatNodeTime", () => {
     const formatted = formatNodeTime("2026-09-05T00:00:00Z");
     expect(formatted).toBeTruthy();
     expect(formatted).toContain(":");
+  });
+});
+
+describe("statusLabel", () => {
+  it("已知状态映射到对应中文标签", () => {
+    expect(statusLabel("RUNNING")).toBe("执行中");
+    expect(statusLabel("IN_PROGRESS")).toBe("执行中");
+    expect(statusLabel("SUCCEEDED")).toBe("已完成");
+    expect(statusLabel("COMPLETED")).toBe("已完成");
+    expect(statusLabel("FAILED")).toBe("失败");
+  });
+
+  it("未知状态原样返回", () => {
+    expect(statusLabel("FUTURE_STATUS")).toBe("FUTURE_STATUS");
+  });
+
+  it("状态缺失时返回 null", () => {
+    expect(statusLabel(null)).toBeNull();
+    expect(statusLabel(undefined)).toBeNull();
+    expect(statusLabel("")).toBeNull();
   });
 });
