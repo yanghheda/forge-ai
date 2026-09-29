@@ -5,6 +5,7 @@ import ai.forge.server.workitem.domain.WorkItemPriority;
 import ai.forge.server.workitem.domain.WorkItemStatus;
 import ai.forge.server.workitem.domain.WorkItemType;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 public interface WorkItemStore {
@@ -33,6 +34,9 @@ public interface WorkItemStore {
             Instant dueAt);
 
     Optional<WorkItem> findByIdAndScope(long organizationId, long workItemId);
+
+    /* 按公司范围批量读取工作项，用于看板等聚合投影避免逐条查询。 */
+    List<WorkItem> findByIdsAndScope(long organizationId, List<Long> workItemIds);
 
     WorkItemPage findPage(
             long organizationId,

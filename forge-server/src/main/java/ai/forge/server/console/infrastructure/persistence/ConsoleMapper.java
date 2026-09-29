@@ -52,6 +52,34 @@ public interface ConsoleMapper extends ConsoleStore {
     List<Map<String, Object>> requirementsByParticipant(@Param("organizationId") long organizationId,
             @Param("userId") Long userId);
 
+    /*
+     * 看板创建入口的数据源：当前用户是本阶段负责人、需求处于对应准备态、且该领域已关联有效执行人。
+     * 负责人与执行人语义必须与 DeliveryWorkflowMapper.isLeader/isExecutor 一致：成员与用户必须 ACTIVE，
+     * 负责人要求角色码为 role_ADMIN，执行人要求角色码为 role 或 role_ADMIN。
+     */
+    @Select("SELECT wi.id requirement_id,wi.item_key requirement_item_key,wi.title requirement_title,"
+            + "wi.status requirement_status,rp.role_code,executor.user_id executor_user_id,executor.display_name executor_display_name "
+            + "FROM work_items wi "
+            + "JOIN requirement_participants rp ON rp.organization_id=wi.organization_id AND rp.requirement_id=wi.id AND rp.user_id=#{userId} "
+            + "LEFT JOIN (SELECT DISTINCT re.requirement_id,re.role_code,re.user_id,u.display_name FROM requirement_executors re "
+            + "JOIN organization_members om ON om.organization_id=re.organization_id AND om.user_id=re.user_id AND om.status='ACTIVE' "
+            + "JOIN users u ON u.id=om.user_id AND u.status='ACTIVE' "
+            + "JOIN member_roles mr ON mr.organization_member_id=om.id "
+            + "JOIN roles r ON r.id=mr.role_id AND r.code IN (re.role_code,CONCAT(re.role_code,'_ADMIN')) "
+            + "WHERE re.organization_id=#{organizationId}) executor "
+            + "ON executor.requirement_id=wi.id AND executor.role_code=rp.role_code "
+            + "WHERE wi.organization_id=#{organizationId} AND wi.type='REQUIREMENT' AND wi.deleted_at IS NULL "
+            + "AND ((wi.status='READY_FOR_UX' AND rp.role_code='UX') OR (wi.status='READY_FOR_DEV' AND rp.role_code='DEVELOPER') "
+            + "OR (wi.status='READY_FOR_QA' AND rp.role_code='QA')) "
+            + "AND EXISTS(SELECT 1 FROM organization_members leader_om "
+            + "JOIN users leader_user ON leader_user.id=leader_om.user_id AND leader_user.status='ACTIVE' "
+            + "JOIN member_roles leader_mr ON leader_mr.organization_member_id=leader_om.id "
+            + "JOIN roles leader_role ON leader_role.id=leader_mr.role_id AND leader_role.code=CONCAT(rp.role_code,'_ADMIN') "
+            + "WHERE leader_om.organization_id=wi.organization_id AND leader_om.user_id=rp.user_id AND leader_om.status='ACTIVE') "
+            + "ORDER BY wi.item_number DESC,executor.user_id")
+    List<Map<String, Object>> taskCreationOptions(@Param("organizationId") long organizationId,
+            @Param("userId") long userId);
+
     @Select("SELECT COUNT(*) FROM work_items WHERE id=#{workItemId} AND organization_id=#{organizationId} AND deleted_at IS NULL")
     int workItemExists(@Param("organizationId") long organizationId, @Param("workItemId") long workItemId);
 

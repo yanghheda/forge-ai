@@ -27,6 +27,7 @@ public class ConsoleController {
     @PostMapping("/notifications/{id}/read") public ResponseEntity<Void> read(@PathVariable long id,HttpServletRequest request){service.markRead(user(request),id);return ResponseEntity.noContent().build();}
     @GetMapping("/task-board") public List<ConsoleModels.BoardItem> board(HttpServletRequest request){return service.board(user(request));}
     @GetMapping("/task-board/requirements") public List<ConsoleModels.RequirementOption> boardRequirements(@RequestParam(required=false) @Positive Long assigneeUserId,HttpServletRequest request){return service.boardRequirements(user(request),assigneeUserId);}
+    @GetMapping("/task-board/creation-options") public List<ConsoleModels.TaskCreationOption> taskCreationOptions(HttpServletRequest request){return service.taskCreationOptions(user(request));}
     @PutMapping("/task-board/items/{id}/position") public ResponseEntity<Void> move(@PathVariable long id,@Valid @RequestBody MoveRequest body,HttpServletRequest request){service.move(user(request),id,body.lane(),body.position());return ResponseEntity.noContent().build();}
 
     private long user(HttpServletRequest request){return AuthController.requireContext(request).userId();}

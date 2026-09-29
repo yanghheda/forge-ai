@@ -11,6 +11,7 @@ import ai.forge.server.workitem.application.WorkItemCommandService;
 import ai.forge.server.workitem.domain.RequirementParticipantRole;
 import ai.forge.server.workitem.domain.WorkItemPriority;
 import ai.forge.server.workitem.domain.WorkItemType;
+import ai.forge.server.workitem.domain.WorkflowAction;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,10 +58,9 @@ class TaskBoardIntegrationTest extends InfrastructureIntegrationTestBase {
 
     @Test
     void boardExposesCardFieldsAndHidesRequirementsAndDeletedItems() {
-        long assignedId = insertTask(900, "TB-900", "DEV_TASK", "HIGH", 8805L,
-                "2026-01-02 03:04:05.000000", "等待接口联调", null);
-        long unassignedId = insertTask(901, "TB-901", "QA_TASK", "LOW", null, null, null, null);
-        long deletedId = insertTask(902, "TB-902", "UX_TASK", "MEDIUM", 8806L, null, null, "2026-01-03 00:00:00.000000");
+        long assignedId = insertTask(900, "TB-900", "DEV_TASK", "HIGH", 8805L, "2026-01-02 03:04:05.000000", "等待接口联调", null, null);
+        long unassignedId = insertTask(901, "TB-901", "QA_TASK", "LOW", null, null, null, null, null);
+        long deletedId = insertTask(902, "TB-902", "UX_TASK", "MEDIUM", 8806L, null, null, "2026-01-03 00:00:00.000000", null);
 
         List<ConsoleModels.BoardItem> board = console.board(8805);
 
@@ -100,12 +100,33 @@ class TaskBoardIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(console.boardRequirements(8801, 8805L)).extracting(ConsoleModels.RequirementOption::id).contains(requirementId).doesNotContain(otherRequirementId);
     }
 
+    @Test
+    void boardProjectsTaskActionsOnlyForAssigneeWithModulePermission() {
+        long todoId = insertTask(910, "TB-910", "UX_TASK", "MEDIUM", 8805L, null, null, null, requirementId);
+        long bugId = insertTask(911, "TB-911", "BUG", "MEDIUM", 8805L, null, null, null, requirementId);
+
+        ConsoleModels.BoardItem todo = boardItem(console.board(8805), todoId);
+        /* 执行人在 TODO 任务上可见开始动作；需求尚未进入 UX 阶段时，动作缺少阶段准入材料。 */
+        assertThat(todo.availableActions()).containsExactly(WorkflowAction.START);
+        assertThat(todo.guardHints()).containsEntry(WorkflowAction.START, List.of("activeTaskStage"));
+        /* 缺陷不参与任务动作投影。 */
+        ConsoleModels.BoardItem bug = boardItem(console.board(8805), bugId);
+        assertThat(bug.availableActions()).isEmpty();
+        assertThat(bug.guardHints()).isEmpty();
+        /* 同公司非执行人即使拥有模块写权限，也看不到该任务的动作。 */
+        assertThat(boardItem(console.board(8802), todoId).availableActions()).isEmpty();
+    }
+
+    private ConsoleModels.BoardItem boardItem(List<ConsoleModels.BoardItem> board, long id) {
+        return board.stream().filter(item -> item.id() == id).findFirst().orElseThrow();
+    }
+
     private long insertTask(long itemNumber, String itemKey, String type, String priority, Long assigneeUserId,
-            String dueAt, String blockedReason, String deletedAt) {
+            String dueAt, String blockedReason, String deletedAt, Long parentRequirementId) {
         jdbc.update("INSERT INTO work_items(organization_id,item_number,item_key,type,title,description,status,priority,"
-                + "assignee_user_id,reporter_user_id,due_at,blocked_reason,created_at,updated_at,deleted_at,version) "
-                + "VALUES(8800,?,?,?,?,'','TODO',?,?,8801,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),?,0)",
-                itemNumber, itemKey, type, "Task " + itemKey, priority, assigneeUserId, dueAt, blockedReason, deletedAt);
+                + "parent_id,assignee_user_id,reporter_user_id,due_at,blocked_reason,created_at,updated_at,deleted_at,version) "
+                + "VALUES(8800,?,?,?,?,'','TODO',?,?,?,8801,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),?,0)",
+                itemNumber, itemKey, type, "Task " + itemKey, priority, parentRequirementId, assigneeUserId, dueAt, blockedReason, deletedAt);
         return jdbc.queryForObject("SELECT id FROM work_items WHERE organization_id=8800 AND item_key=?", Long.class, itemKey);
     }
 

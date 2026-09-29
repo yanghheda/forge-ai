@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { triggerPipeline } from "@/features/gitlab";
 import { canEditModule, getCurrentUser } from "@/features/auth";
-import { completeDevTask, getDevelopmentSummary, getRequirementWorkflow, startDevelopment, type DevelopmentQaSummary, type DevelopmentQaTask, type RequirementWorkflow } from "@/features/work-item";
+import { getDevelopmentSummary, getRequirementWorkflow, type DevelopmentQaSummary, type DevelopmentQaTask, type RequirementWorkflow } from "@/features/work-item";
 import { formatRequestError } from "@/lib/api";
 import { ChainNode, Empty, Guard, Panel, Stat, shortSha, statusLabel, syncText } from "./development-workspace-parts";
 import styles from "./development-workspace.module.css";
@@ -19,13 +19,11 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
   const refresh = async () => {
     await Promise.all([queryClient.invalidateQueries({ queryKey: summaryKey }), queryClient.invalidateQueries({ queryKey: workflowKey }), queryClient.invalidateQueries({ queryKey: ["requirements", requirementId] })]);
   };
-  const start = useMutation({ mutationFn: (taskId: number) => startDevelopment({ organizationId: 0, taskId, idempotencyKey: crypto.randomUUID() }), onSuccess: refresh, onError: (error) => Message.error(formatRequestError(error)) });
   const pipeline = useMutation({
     mutationFn: ({ taskId, ref }: { taskId: number; ref: string }) => triggerPipeline({ devTaskId: taskId, ref }),
     onSuccess: refresh,
     onError: (error) => Message.error(formatRequestError(error)),
   });
-  const complete = useMutation({ mutationFn: ({ taskId, version }: { taskId: number; version: number }) => completeDevTask({ organizationId: 0, taskId, expectedVersion: version }), onSuccess: refresh, onError: (error) => Message.error(formatRequestError(error)) });
 
   if (summary.isPending || workflow.isPending || user.isPending)
     return (
@@ -34,41 +32,26 @@ export function DevelopmentWorkspace({ requirementId }: { requirementId: number 
       </div>
     );
   if (!summary.data || !workflow.data || summary.isError || workflow.isError) return <Alert type="error" content={formatRequestError(summary.error ?? workflow.error)} />;
-  const pending: DevelopmentPendingAction | undefined = pipeline.isPending ? { action: "pipeline", taskId: pipeline.variables?.taskId } : start.isPending ? { action: "start", taskId: start.variables } : complete.isPending ? { action: "complete", taskId: complete.variables?.taskId } : undefined;
-  return (
-    <DevelopmentWorkspaceView
-      summary={summary.data}
-      workflow={workflow.data}
-      pending={pending}
-      readOnly={!canEditModule(user.data?.organization.roles, "development")}
-      onStart={(taskId) => start.mutate(taskId)}
-      onTriggerPipeline={(taskId, ref) => pipeline.mutate({ taskId, ref })}
-      onComplete={(taskId, version) => complete.mutate({ taskId, version })}
-      onRefresh={() => void refresh()}
-    />
-  );
+  const pending: DevelopmentPendingAction | undefined = pipeline.isPending ? { action: "pipeline", taskId: pipeline.variables?.taskId } : undefined;
+  return <DevelopmentWorkspaceView summary={summary.data} workflow={workflow.data} pending={pending} readOnly={!canEditModule(user.data?.organization.roles, "development")} onTriggerPipeline={(taskId, ref) => pipeline.mutate({ taskId, ref })} onRefresh={() => void refresh()} />;
 }
 
 /* 当前进行中的写操作；taskId 用于只让对应 Dev Task 卡片的按钮进入加载态。 */
-export type DevelopmentPendingAction = { action: "create" | "start" | "pipeline" | "complete"; taskId?: number };
+export type DevelopmentPendingAction = { action: "pipeline"; taskId?: number };
 
 export function DevelopmentWorkspaceView({
   summary,
   workflow,
   pending,
   readOnly = false,
-  onStart,
   onTriggerPipeline,
-  onComplete,
   onRefresh,
 }: {
   summary: DevelopmentQaSummary;
   workflow: RequirementWorkflow;
   pending?: DevelopmentPendingAction;
   readOnly?: boolean;
-  onStart: (taskId: number) => void;
   onTriggerPipeline: (taskId: number, ref: string) => void;
-  onComplete: (taskId: number, version: number) => void;
   onRefresh: () => void;
 }) {
   const tasks = summary.tasks;
@@ -161,22 +144,11 @@ export function DevelopmentWorkspaceView({
                               查看 MR
                             </Button>
                           )}
-                          {task.status === "TODO" && !readOnly && (
-                            <Button size="small" loading={isBusy("start", task.id)} onClick={() => onStart(task.id)}>
-                              启动开发
-                            </Button>
-                          )}
+                          {/* 任务流转统一在任务看板操作，这里只保留交付物操作入口。 */}
                           {(task.status === "IN_PROGRESS" || task.status === "DONE") && task.branchName && !readOnly && (
-                            <>
-                              <Button size="small" loading={isBusy("pipeline", task.id)} onClick={() => onTriggerPipeline(task.id, task.branchName!)}>
-                                {task.pipelineId ? "重新触发 Pipeline" : "触发 Pipeline"}
-                              </Button>
-                              {task.status === "IN_PROGRESS" && (
-                                <Button size="small" type="primary" loading={isBusy("complete", task.id)} disabled={summary.ciRequired && !check.ok} title={summary.ciRequired && !check.ok ? `Pipeline 通过后才能提交验证：${check.detail}` : undefined} onClick={() => onComplete(task.id, task.version)}>
-                                  提交验证
-                                </Button>
-                              )}
-                            </>
+                            <Button size="small" loading={isBusy("pipeline", task.id)} onClick={() => onTriggerPipeline(task.id, task.branchName!)}>
+                              {task.pipelineId ? "重新触发 Pipeline" : "触发 Pipeline"}
+                            </Button>
                           )}
                         </Space>
                       </footer>
@@ -232,7 +204,7 @@ export function DevelopmentWorkspaceView({
   );
 }
 
-/* MR 合并状态文案；提交验证要求该 Dev Task 的 MR 已合并。 */
+/* MR 合并状态文案；看板上的提交验证要求该 Dev Task 的 MR 已合并。 */
 function mergeStateLabel(task: DevelopmentQaTask) {
   const state = task.mergeRequestState?.toLowerCase();
   if (!state) return "合并请求";

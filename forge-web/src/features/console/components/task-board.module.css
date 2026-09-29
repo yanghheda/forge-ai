@@ -20,27 +20,6 @@
   color: var(--forge-text-3);
   font-size: 13px;
 }
-.enterLink {
-  display: inline-flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 15px;
-  border: 1px solid var(--forge-border-2);
-  border-radius: 2px;
-  color: var(--forge-text-1);
-  background: var(--forge-fill-2);
-  font-size: 14px;
-  line-height: 1;
-  white-space: nowrap;
-  text-decoration: none;
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
-}
-.enterLink:hover {
-  border-color: var(--forge-primary-5);
-  color: var(--forge-primary-6);
-}
 .stats {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -225,6 +204,22 @@
   margin-left: auto;
   padding: 0;
   font-size: 12px;
+}
+/* 卡片内任务操作区：动作入口与缺失材料提示。 */
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--forge-border-2);
+}
+.cardHint {
+  margin: 0;
+  color: var(--forge-text-3);
+  font-size: 12px;
+  line-height: 1.5;
 }
 .cardFoot {
   display: flex;

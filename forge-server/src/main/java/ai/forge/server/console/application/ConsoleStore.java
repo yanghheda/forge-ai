@@ -10,6 +10,7 @@ public interface ConsoleStore {
     int markRead(long organizationId, long userId, long id);
     List<Map<String, Object>> board(long organizationId);
     List<Map<String, Object>> requirementsByParticipant(long organizationId, Long userId);
+    List<Map<String, Object>> taskCreationOptions(long organizationId, long userId);
     int workItemExists(long organizationId, long workItemId);
     int savePosition(long organizationId, long userId, long workItemId, String lane, long position);
 }

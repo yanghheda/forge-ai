@@ -5,7 +5,6 @@ export { OrganizationRequirementDetail } from "./components/organization-require
 export { QaPanel } from "./components/qa-panel";
 export { statusLabel } from "./utils/requirement-detail-display";
 
-export { StageTasks } from "./components/stage-tasks";
 export { RequirementWorkflowControls } from "./components/requirement-workflow-controls";
 export { DevelopmentBugs } from "./components/development-bugs";
 export { DefectList } from "./components/defect-list";

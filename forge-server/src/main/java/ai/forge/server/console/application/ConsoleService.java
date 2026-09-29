@@ -23,8 +23,17 @@ public class ConsoleService {
     /* 看板排序不能伪造工作项业务状态。 */
     private final ai.forge.server.workitem.application.WorkItemStore workItems;
 
-    public ConsoleService(OrganizationAccessService access, PermissionEvaluator permissions, ConsoleStore mapper, ai.forge.server.workitem.application.WorkItemStore workItems) {
-        this.access = access; this.permissions = permissions; this.mapper = mapper; this.workItems = workItems;
+    /* 按与服务端流转一致的规则投影任务卡片可执行动作。 */
+    private final ai.forge.server.workitem.application.RequirementTransitionService transitions;
+
+    /* 任务卡片的空动作投影，用于缺陷与不可操作场景。 */
+    private static final ai.forge.server.workitem.application.RequirementTransitionService.ActionHints NO_HINTS =
+            new ai.forge.server.workitem.application.RequirementTransitionService.ActionHints(java.util.List.of(), java.util.Map.of());
+
+    public ConsoleService(OrganizationAccessService access, PermissionEvaluator permissions, ConsoleStore mapper,
+            ai.forge.server.workitem.application.WorkItemStore workItems,
+            ai.forge.server.workitem.application.RequirementTransitionService transitions) {
+        this.access = access; this.permissions = permissions; this.mapper = mapper; this.workItems = workItems; this.transitions = transitions;
     }
 
     public List<ConsoleModels.SearchResult> search(long userId, String query) {
@@ -47,12 +56,68 @@ public class ConsoleService {
 
     public List<ConsoleModels.BoardItem> board(long userId) {
         long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.read");
-        return mapper.board(organizationId).stream().map(row->new ConsoleModels.BoardItem(number(row,"id"),text(row,"item_key"),text(row,"type"),text(row,"title"),text(row,"lane"),number(row,"position"),nullableNumber(row,"assignee_user_id"),number(row,"version"),nullableNumber(row,"requirement_id"),text(row,"priority"),instant(row.get("due_at")),nullableText(row,"assignee_name"),nullableText(row,"blocked_reason"))).toList();
+        List<Map<String,Object>> rows = mapper.board(organizationId);
+        Map<Long, ai.forge.server.workitem.domain.WorkItem> items = new java.util.HashMap<>();
+        for (var item : workItems.findByIdsAndScope(organizationId, rows.stream().map(row -> number(row,"id")).toList())) items.put(item.id(), item);
+        Map<String, ai.forge.server.workitem.application.RequirementTransitionService.ActionHints> memo = new java.util.HashMap<>();
+        return rows.stream().map(row -> {
+            var hints = hints(userId, row, items, memo);
+            return new ConsoleModels.BoardItem(number(row,"id"),text(row,"item_key"),text(row,"type"),text(row,"title"),text(row,"lane"),number(row,"position"),nullableNumber(row,"assignee_user_id"),number(row,"version"),nullableNumber(row,"requirement_id"),text(row,"priority"),instant(row.get("due_at")),nullableText(row,"assignee_name"),nullableText(row,"blocked_reason"),hints.availableActions(),hints.guardHints());
+        }).toList();
+    }
+
+    /* 看板只对角色任务投影可执行动作；同需求同类型同状态且执行人归属一致时复用一次计算结果。 */
+    private ai.forge.server.workitem.application.RequirementTransitionService.ActionHints hints(
+            long userId, Map<String,Object> row, Map<Long, ai.forge.server.workitem.domain.WorkItem> items,
+            Map<String, ai.forge.server.workitem.application.RequirementTransitionService.ActionHints> memo) {
+        String type = text(row,"type");
+        if (!type.endsWith("_TASK")) return NO_HINTS;
+        ai.forge.server.workitem.domain.WorkItem item = items.get(number(row,"id"));
+        if (item == null) return NO_HINTS;
+        String key = type + "|" + text(row,"lane") + "|" + nullableNumber(row,"requirement_id") + "|" + Long.valueOf(userId).equals(nullableNumber(row,"assignee_user_id"));
+        var cached = memo.get(key);
+        if (cached != null) return cached;
+        var computed = transitions.hints(userId, item);
+        memo.put(key, computed);
+        return computed;
     }
 
     public List<ConsoleModels.RequirementOption> boardRequirements(long userId,Long assigneeUserId) {
         long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.read");
         return mapper.requirementsByParticipant(organizationId,assigneeUserId).stream().map(row->new ConsoleModels.RequirementOption(number(row,"id"),text(row,"item_key"),text(row,"title"))).toList();
+    }
+
+    public List<ConsoleModels.TaskCreationOption> taskCreationOptions(long userId) {
+        long organizationId=organization(userId); permissions.requireOrganization(userId,organizationId,"task.read");
+        Map<Long,Map<String,Object>> heads=new java.util.LinkedHashMap<>();
+        Map<Long,List<ConsoleModels.ExecutorOption>> executors=new java.util.LinkedHashMap<>();
+        Map<String,Boolean> creationAllowed=new java.util.HashMap<>();
+        for (Map<String,Object> row : mapper.taskCreationOptions(organizationId,userId)) {
+            ai.forge.server.workitem.domain.WorkItemType taskType=creationTaskType(text(row,"requirement_status"));
+            if (taskType==null) continue;
+            /* 创建权限按任务类型对应的模块资源校验（QA_TASK 属 qa 模块），不改变需求阶段判定。 */
+            if (!creationAllowed.computeIfAbsent(taskType.name(),key->permissions.hasOrganizationPermission(userId,organizationId,taskType.permissionResource()+".create"))) continue;
+            long requirementId=number(row,"requirement_id");
+            heads.putIfAbsent(requirementId,row);
+            List<ConsoleModels.ExecutorOption> options=executors.computeIfAbsent(requirementId,key->new java.util.ArrayList<>());
+            Long executorUserId=nullableNumber(row,"executor_user_id");
+            if (executorUserId!=null && options.stream().noneMatch(option->option.userId()==executorUserId)) options.add(new ConsoleModels.ExecutorOption(executorUserId,nullableText(row,"executor_display_name")));
+        }
+        return heads.entrySet().stream().map(entry->{
+            Map<String,Object> row=entry.getValue(); long requirementId=entry.getKey();
+            return new ConsoleModels.TaskCreationOption(requirementId,text(row,"requirement_item_key"),text(row,"requirement_title"),
+                    creationTaskType(text(row,"requirement_status")),List.copyOf(executors.get(requirementId)));
+        }).toList();
+    }
+
+    /* 需求准备态唯一决定可创建的任务类型，与 DeliveryWorkflowPolicy.requireCreation 保持同一映射。 */
+    private static ai.forge.server.workitem.domain.WorkItemType creationTaskType(String status) {
+        return switch (status) {
+            case "READY_FOR_UX" -> ai.forge.server.workitem.domain.WorkItemType.UX_TASK;
+            case "READY_FOR_DEV" -> ai.forge.server.workitem.domain.WorkItemType.DEV_TASK;
+            case "READY_FOR_QA" -> ai.forge.server.workitem.domain.WorkItemType.QA_TASK;
+            default -> null;
+        };
     }
 
     public void move(long userId,long workItemId,String lane,long position) {

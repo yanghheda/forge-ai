@@ -10,6 +10,8 @@ import { formatRequestError } from "@/lib/api";
 import { priorityLabel } from "@/lib/labels";
 import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
 import { listBoardItems, listBoardRequirements, moveBoardItem, type BoardItem } from "../api/console-api";
+import { TaskBoardActions } from "./task-board-actions";
+import { TaskCreateModal } from "./task-create-modal";
 import styles from "./task-board.module.css";
 
 /* 看板五列固定顺序：泳道值到列标题。 */
@@ -101,6 +103,7 @@ export function TaskBoard() {
   const [assigneeSelection, setAssigneeSelection] = useState<AssigneeFilter | null>(null);
   const [requirementSelection, setRequirementSelection] = useState<number | typeof ALL>(ALL);
   const [prioritySelection, setPrioritySelection] = useState<string>(ALL);
+  const [createVisible, setCreateVisible] = useState(false);
 
   const user = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
   const board = useQuery({ queryKey: ["task-board"], queryFn: () => listBoardItems() });
@@ -135,9 +138,9 @@ export function TaskBoard() {
           <h1>任务看板</h1>
           <p>公司全部需求的交付任务与阻塞状态</p>
         </div>
-        <Link className={styles.enterLink} to="/requirements">
-          进入需求创建任务
-        </Link>
+        <Button type="primary" onClick={() => setCreateVisible(true)}>
+          创建任务
+        </Button>
       </header>
 
       <div className={styles.stats} data-testid="board-stats">
@@ -204,7 +207,7 @@ export function TaskBoard() {
                 const id = Number(event.dataTransfer.getData("text/work-item-id"));
                 const dragged = board.data?.find((item) => item.id === id);
                 if (dragged && dragged.lane === lane) move.mutate({ id, lane, position: columnItems.length * 1000 + 1000 });
-                else Message.info("请进入任务工作区执行状态操作。");
+                else Message.info("看板排序不改变任务状态，请使用卡片上的状态操作。");
               }}
             >
               <header className={styles.columnHead}>
@@ -253,6 +256,7 @@ export function TaskBoard() {
                           {item.blockedReason}
                         </p>
                       )}
+                      <TaskBoardActions item={item} />
                     </article>
                   );
                 })}
@@ -261,6 +265,7 @@ export function TaskBoard() {
           );
         })}
       </div>
+      <TaskCreateModal visible={createVisible} onClose={() => setCreateVisible(false)} />
     </section>
   );
 }

@@ -125,6 +125,14 @@ public class MybatisWorkItemStore implements WorkItemStore {
     }
 
     @Override
+    public List<WorkItem> findByIdsAndScope(long organizationId, List<Long> workItemIds) {
+        if (workItemIds.isEmpty()) return List.of();
+        return mapper.findByIdsAndScope(organizationId, workItemIds).stream()
+                .map(this::workItem)
+                .toList();
+    }
+
+    @Override
     public WorkItemPage findPage(
             long organizationId,
             WorkItemType type,

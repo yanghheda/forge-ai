@@ -32,6 +32,30 @@ export interface BoardItem {
   /* 阻塞原因说明，未被阻塞时为 null */
   blockedReason: string | null;
   version: number;
+  /* 当前身份在该任务上可尝试执行的动作；缺陷与不可操作时为空数组 */
+  availableActions: string[];
+  /* 动作对应的机器可读缺失材料；无缺失时不包含该动作 */
+  guardHints: Record<string, string[]>;
+}
+
+export interface ExecutorOption {
+  /* 需求对应领域已关联执行人的用户 ID */
+  userId: number;
+  /* 执行人展示名 */
+  displayName: string;
+}
+
+export interface TaskCreationOption {
+  /* 可创建任务的需求 ID */
+  requirementId: number;
+  /* 需求展示用业务编号 */
+  requirementItemKey: string;
+  /* 需求标题 */
+  requirementTitle: string;
+  /* 由需求当前准备态唯一决定的任务类型 */
+  taskType: "UX_TASK" | "DEV_TASK" | "QA_TASK";
+  /* 该任务类型下可被分配的需求执行人 */
+  executors: ExecutorOption[];
 }
 
 export interface RequirementOption {
@@ -98,6 +122,8 @@ export const listBoardRequirements = (assigneeUserId?: number | null, client: Re
   const suffix = assigneeUserId === undefined || assigneeUserId === null ? "" : `?assigneeUserId=${assigneeUserId}`;
   return client.request<RequirementOption[]>(`/v1/task-board/requirements${suffix}`);
 };
+
+export const listTaskCreationOptions = (client: RequestClient = apiClient) => client.request<TaskCreationOption[]>("/v1/task-board/creation-options");
 
 export const moveBoardItem = (id: number, lane: string, position: number, client: RequestClient = apiClient) => client.request<void>(`/v1/task-board/items/${id}/position`, json("PUT", { lane, position }));
 

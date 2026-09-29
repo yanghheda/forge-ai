@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
   listRequirementMembers: vi.fn(),
   listBoardItems: vi.fn(),
   listBoardRequirements: vi.fn(),
+  listTaskCreationOptions: vi.fn(),
   moveBoardItem: vi.fn(),
 }));
 
@@ -22,6 +23,7 @@ vi.mock("@/features/work-item", () => ({ listRequirementMembers: api.listRequire
 vi.mock("../api/console-api", () => ({
   listBoardItems: api.listBoardItems,
   listBoardRequirements: api.listBoardRequirements,
+  listTaskCreationOptions: api.listTaskCreationOptions,
   moveBoardItem: api.moveBoardItem,
 }));
 
@@ -41,11 +43,13 @@ const boardItem = (overrides: Partial<BoardItem>): BoardItem => ({
   assigneeName: "王开发",
   blockedReason: null,
   version: 0,
+  availableActions: [],
+  guardHints: {},
   ...overrides,
 });
 
 const items: BoardItem[] = [
-  boardItem({ id: 1, itemKey: "REQ-1-DEV-1", title: "登录接口", type: "DEV_TASK", requirementId: 1, lane: "TODO", assigneeUserId: 2, priority: "HIGH", dueAt: "2026-09-19T00:00:00Z", assigneeName: "王开发" }),
+  boardItem({ id: 1, itemKey: "REQ-1-DEV-1", title: "登录接口", type: "DEV_TASK", requirementId: 1, lane: "TODO", assigneeUserId: 2, priority: "HIGH", dueAt: "2026-09-19T00:00:00Z", assigneeName: "王开发", availableActions: ["START"] }),
   boardItem({ id: 2, itemKey: "REQ-1-DEV-2", title: "登录页样式", type: "DEV_TASK", requirementId: 1, lane: "IN_PROGRESS", assigneeUserId: 2, priority: "MEDIUM", assigneeName: "王开发" }),
   boardItem({ id: 3, itemKey: "REQ-2-QA-1", title: "验证码回归用例", type: "QA_TASK", requirementId: 2, lane: "TODO", assigneeUserId: 9, priority: "HIGH", assigneeName: "赵测试" }),
   boardItem({ id: 4, itemKey: "REQ-2-BUG-9", title: "验证码错误提示", type: "BUG", requirementId: 2, lane: "BLOCKED", assigneeUserId: 2, priority: "URGENT", assigneeName: "王开发", blockedReason: "等待上游接口就绪" }),
@@ -214,7 +218,28 @@ describe("TaskBoard", () => {
     fireEvent.dragStart(screen.getByTestId("card-1"), { dataTransfer: crossLane });
     fireEvent.drop(screen.getByTestId("column-DONE"), { dataTransfer: crossLane });
     expect(api.moveBoardItem).toHaveBeenCalledTimes(1);
-    expect(Message.info).toHaveBeenCalledWith("请进入任务工作区执行状态操作。");
+    expect(Message.info).toHaveBeenCalledWith("看板排序不改变任务状态，请使用卡片上的状态操作。");
+  });
+
+  it("卡片按服务端投影渲染任务操作区，无动作的缺陷不渲染", async () => {
+    render(<TaskBoard />, { wrapper });
+    await screen.findByText("登录接口");
+
+    expect(within(screen.getByTestId("card-1")).getByRole("button", { name: "任务操作：REQ-1-DEV-1" })).toBeInTheDocument();
+    expect(within(screen.getByTestId("card-4")).queryByRole("button", { name: /任务操作/ })).not.toBeInTheDocument();
+  });
+
+  it("「创建任务」按钮打开创建弹窗并按需加载可创建需求", async () => {
+    api.listTaskCreationOptions.mockResolvedValue([{ requirementId: 1, requirementItemKey: "REQ-1", requirementTitle: "登录页改版", taskType: "DEV_TASK", executors: [{ userId: 2, displayName: "王开发" }] }]);
+    const user = userEvent.setup();
+    render(<TaskBoard />, { wrapper });
+    await screen.findByText("登录接口");
+
+    expect(screen.queryAllByText("选择需求")).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "创建任务" }));
+
+    await waitFor(() => expect(screen.getAllByText("选择需求").length).toBeGreaterThan(0));
+    await waitFor(() => expect(api.listTaskCreationOptions).toHaveBeenCalled());
   });
 
   it("taskTarget 角色优先、类型兜底、无需求返回空", () => {

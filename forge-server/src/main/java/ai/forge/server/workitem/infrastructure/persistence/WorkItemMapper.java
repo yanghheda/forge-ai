@@ -53,6 +53,15 @@ public interface WorkItemMapper {
             @Param("organizationId") long organizationId,
             @Param("workItemId") long workItemId);
 
+    @Select("<script>SELECT id, organization_id, item_number, item_key, type, title, description, status, "
+            + "priority, assignee_user_id, reporter_user_id, due_at, version, created_at, updated_at "
+            + "FROM work_items WHERE organization_id = #{organizationId} AND deleted_at IS NULL "
+            + "AND id IN <foreach collection='workItemIds' item='workItemId' open='(' separator=',' close=')'>"
+            + "#{workItemId}</foreach></script>")
+    List<Map<String, Object>> findByIdsAndScope(
+            @Param("organizationId") long organizationId,
+            @Param("workItemIds") List<Long> workItemIds);
+
     @Select("<script>SELECT id, organization_id, item_number, item_key, type, title, status, "
             + "priority, assignee_user_id, due_at, version, created_at, updated_at "
             + "FROM work_items WHERE organization_id = #{organizationId} "
