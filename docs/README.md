@@ -1,12 +1,11 @@
 # ForgeAI 设计与开发文档
 
-以下顺序用于人工首次通读，不是每轮 Codex 任务的默认读取清单：
+目录导航：
 
-1. [`design/ForgeAI_PRD_v0.2.md`](design/ForgeAI_PRD_v0.2.md)：产品目标、范围、用户旅程与验收基线。
-2. [`design/ForgeAI_完整技术方案_v1.3.md`](design/ForgeAI_完整技术方案_v1.3.md)：总体技术选型、架构原则与大阶段计划。
-3. [`design/ForgeAI_详细设计_v1.0.md`](design/ForgeAI_详细设计_v1.0.md)：可编码的数据、状态机、权限、API、Agent、SSE、GitLab、测试与部署设计。
-4. [`development/ForgeAI_分阶段开发指南_v1.0.md`](development/ForgeAI_分阶段开发指南_v1.0.md)：34 个逐轮开发会话、学习目标、Codex 边界和验收方法。
+1. [`design/ForgeAI_公司级架构基线_v2.md`](design/ForgeAI_公司级架构基线_v2.md)：当前产品与工程事实基线。
+2. [`design/`](design/) 其余 v1 文档（PRD、完整技术方案、详细设计）：历史基线，仅在追溯旧功能时读取。
+3. [`adr/`](adr/README.md)：架构决策记录，是基线的最新增量。
 
-执行时以详细设计作为稳定工程基线，以分阶段开发指南控制每轮范围。实现若需要改变既定安全边界、事实来源、状态模型或部署拓扑，应先新增 ADR，再同步相关文档与测试。
+实现若需要改变既定安全边界、事实来源、状态模型、权限模型或部署拓扑，应先新增 ADR，再同步相关文档与测试。
 
-Codex 任务应先使用 [`context/INDEX.md`](context/INDEX.md) 将当前会话或主题路由到最小必读章节，不默认全文读取上述四份文档。
+任务应先使用 [`context/INDEX.md`](context/INDEX.md) 把目标路由到最小必读章节，不默认全文读取基线文档。

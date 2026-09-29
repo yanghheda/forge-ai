@@ -10,7 +10,7 @@ ForgeAI 采用 Monorepo 管理三个独立应用，使业务契约、应用实�
 - `forge-server`：Spring Boot 模块化单体，是业务事实、授权和事务的唯一权威。
 - `forge-agent`：FastAPI Agent Runtime，只能通过受控 Tool API 调用 `forge-server`。
 
-当前仓库已完成 P0 工程基础：三应用骨架、外部 MySQL/Redis/Qdrant 接入、Tool/Skill 契约目录和 Compose Smoke 均已建立。业务领域能力仍按后续会话逐步加入。
+当前仓库已实现需求交付全链路：三应用协作覆盖需求、UX、研发、测试与发布，外部 MySQL/Redis/Qdrant 接入、Tool/Skill 契约、Compose 部署与 Smoke 均已就绪。后续演进以公司级架构基线与最新 Accepted ADR 为准。
 
 ## 开发入口
 
@@ -37,9 +37,8 @@ ForgeAI 的停止命令不会触碰共享基础设施。浏览器经 Web 的 `/a
 
 ## 文档
 
-- 产品与设计基线位于 `docs/design/`。
-- 分阶段开发指南位于 `docs/development/`。
-- 架构决策记录位于 `docs/adr/`。
+- 当前产品与工程事实以 `docs/design/ForgeAI_公司级架构基线_v2.md` 与 `docs/adr/` 中最新的 Accepted ADR 为准。
+- 任务上下文路由见 `docs/context/INDEX.md`。
 - 贡献和质量要求见 `CONTRIBUTING.md` 与 `AGENTS.md`。
 
 ## 架构边界
