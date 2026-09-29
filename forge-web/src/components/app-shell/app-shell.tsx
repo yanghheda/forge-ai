@@ -145,7 +145,7 @@ export function AppShell({ children }: AppShellProps) {
             </span>
             {!navigationCollapsed && "Agent 指令"}
           </Link>
-          <Link to="/agent/trace/demo-run" className={`${styles.navItem} ${pathname.startsWith("/agent/trace") ? styles.active : ""}`}>
+          <Link to="/agent/trace" className={`${styles.navItem} ${pathname.startsWith("/agent/trace") ? styles.active : ""}`}>
             <span className={styles.navIcon}>
               <IconHistory />
             </span>

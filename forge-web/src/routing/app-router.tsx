@@ -48,7 +48,7 @@ export const appRouter = createBrowserRouter([
       { path: "/defects/:id", element: <DefectDetailView /> },
       { path: "/task-board", element: <TaskBoardView /> },
       { path: "/agent/command", element: <AgentCommandView /> },
-      { path: "/agent/trace/:id", element: <AgentTraceView /> },
+      { path: "/agent/trace", element: <AgentTraceView /> },
       { path: "/settings/members", element: <MembersSettingsView /> },
       { path: "/settings/integrations", element: <IntegrationSettingsView /> },
       { path: "*", element: <NotFoundView /> },

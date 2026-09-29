@@ -306,7 +306,7 @@ export function UxWorkspaceView({
           </section>
         </main>
         <aside className={styles.stack}>
-          <Panel title="评审结论" extra={<Link to={`/agent/trace/${latestReview?.id ?? ""}`}>查看轨迹</Link>}>
+          <Panel title="评审结论" extra={<Link to="/agent/trace">查看轨迹</Link>}>
             <div className={approved ? styles.verdictSuccess : styles.verdict}>
               <IconCheckCircle />
               {approved ? "评审通过" : latestReview ? workflowActionLabel(latestReview.action ?? "") : "等待提交评审"}

@@ -1,0 +1,28 @@
+# Checklist
+
+- [x] `/agent/trace` 打开后左侧为本人会话列表，并按最近更新时间倒序默认选中最近会话
+- [x] 切换会话后选中状态写入 `?conversationId=`，刷新页面仍保持选中
+- [x] 右侧按创建时间升序展示所选会话的全部 Run，每轮含用户指令、Skill、状态与耗时
+- [x] 模型思考以 `THINKING` 节点展示（标题含来源节点，可展开全文），执行思路以 `REASONING` 节点展示
+- [x] 工具节点展示工具名、风险等级、状态，展开可见结构化参数与结果
+- [x] 审批节点展示审批状态、风险、原因与决策人
+- [x] 终态节点展示最终状态、错误码与总耗时
+- [x] 未知事件类型以通用节点展示，未被静默丢弃，页面不报错
+- [x] 进行中的 Run 随新事件自动刷新，进入终态后停止刷新
+- [x] 无会话 / 无 Run 场景展示空态而非报错
+- [x] forge-agent 在 Provider 返回 `reasoning_content` 时按节点聚合上报 `thinking.delta`，单条不超过 4000 字符、单 Run 不超过 20000 字符
+- [x] Provider 不返回思考内容时不产生 `thinking.delta`，Run 行为与现状一致
+- [x] 思考上报失败只记录告警，不改变 Run 终态
+- [x] 思考内容未写入 `agent_messages.body`、未进入 RAG 索引
+- [x] 会话面板可实时看到模型思考增量
+- [x] 会话 Run 列表接口仅本人会话可读，他人会话或不存在均返回 404 且不泄露存在性
+- [x] Run 轨迹接口仅 Run 发起人可读，跨用户与跨公司均返回 404
+- [x] 新增或修改的 Mapper SQL 均显式携带 `organization_id` 条件
+- [x] 轨迹页无 RBAC 权限码要求，任意登录成员可访问自己的轨迹
+- [x] 菜单「执行轨迹」指向 `/agent/trace`，代码中不再出现 `demo-run`
+- [x] `/agent/trace/:id` 路由已移除，旧单 Run 页面与 `run-reducer` 已删除且无残留引用
+- [x] `docs/design/ForgeAI_详细设计_v1.0.md` 事件目录已登记 `thinking.delta` 且表述与实际一致
+- [x] 后端聚合器单元测试与集成测试通过
+- [x] forge-agent 思考上报测试通过
+- [x] 前端轨迹模型单测与工作台组件测试通过
+- [x] `make ci` 与 `git diff --check` 全部通过

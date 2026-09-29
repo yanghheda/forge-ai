@@ -32,6 +32,9 @@ public class MybatisApprovalStore implements ApprovalStore {
     public List<Map<String, Object>> findByRun(long organizationId, String runId) {
         return mapper.findByRun(organizationId, runId);
     }
+    public List<Map<String, Object>> findByRunAscending(long organizationId, String runId) {
+        return mapper.findByRunAscending(organizationId, runId);
+    }
     public void insertWaitingToolCall(long organizationId, String runId, String toolCallId,
             String toolName, int toolVersion, String riskLevel, String argumentHash, String argumentsJson,
             String idempotencyKey, String approvalId) {

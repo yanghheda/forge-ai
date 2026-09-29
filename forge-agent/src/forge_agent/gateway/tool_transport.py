@@ -119,12 +119,21 @@ class ServerAnswerStream:
         """发布可审计的计划摘要，不发送模型私有推理状态。"""
         self._publish(run_id, "reasoning-deltas", delta, run_token)
 
-    def _publish(self, run_id: str, resource: str, delta: str, run_token: str) -> None:
+    def publish_thinking(self, run_id: str, node: str, delta: str, run_token: str) -> None:
+        """发布模型思考增量，与执行思路共用 Run 级凭据与错误处理方式。"""
+        self._publish(run_id, "thinking-deltas", delta, run_token, node=node)
+
+    def _publish(
+        self, run_id: str, resource: str, delta: str, run_token: str, *, node: str | None = None
+    ) -> None:
+        body = {"delta": delta}
+        if node is not None:
+            body["node"] = node
         try:
             response = self._client.post(
                 f"/internal/v1/agent-runs/{run_id}/{resource}",
                 headers={"Authorization": f"Bearer {run_token}"},
-                json={"delta": delta},
+                json=body,
             )
             response.raise_for_status()
         except httpx.HTTPError as exception:

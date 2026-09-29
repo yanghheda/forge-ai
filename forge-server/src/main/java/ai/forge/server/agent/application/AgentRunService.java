@@ -5,8 +5,10 @@ import ai.forge.server.agent.domain.AgentSkill;
 import ai.forge.server.agent.domain.MediumToolConfirmation;
 import ai.forge.server.authorization.application.PermissionEvaluator;
 import ai.forge.server.common.domain.ResourceNotFoundException;
+import ai.forge.server.conversation.application.ConversationStore;
 import ai.forge.server.workitem.application.WorkItemStore;
 import ai.forge.server.workitem.domain.WorkItem;
+import java.util.List;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
@@ -26,6 +28,9 @@ public class AgentRunService {
     /* 持久化 Run、Step 与 Event 权威事实。 */
     private final AgentRunStore runStore;
 
+    /* 校验会话归属并定位其 Run；只读取本人会话。 */
+    private final ConversationStore conversationStore;
+
     /* 在创建事务提交后触发真实 Agent Gateway。 */
     private final ApplicationEventPublisher eventPublisher;
 
@@ -36,11 +41,13 @@ public class AgentRunService {
             PermissionEvaluator permissionEvaluator,
             WorkItemStore workItemStore,
             AgentRunStore runStore,
+            ConversationStore conversationStore,
             ApplicationEventPublisher eventPublisher,
             ObjectProvider<AgentRuntimeGateway> runtimeGateway) {
         this.permissionEvaluator = permissionEvaluator;
         this.workItemStore = workItemStore;
         this.runStore = runStore;
+        this.conversationStore = conversationStore;
         this.eventPublisher = eventPublisher;
         this.runtimeGateway = runtimeGateway;
     }
@@ -118,6 +125,15 @@ public class AgentRunService {
             throw new IllegalArgumentException("afterSequence must not be negative");
         }
         return runStore.findEventsAfter(organizationId, runId, afterSequence, limit);
+    }
+
+    /* 读取本人会话的 Run 摘要列表；会话不存在或非本人一律视为 404，不泄露存在性。 */
+    public List<ConversationRunSummary> listConversationRuns(
+            long userId, long organizationId, long conversationId) {
+        if (conversationStore.owns(organizationId, userId, conversationId) != 1) {
+            throw new ResourceNotFoundException();
+        }
+        return runStore.listConversationRuns(organizationId, userId, conversationId);
     }
 
     private AgentRunSnapshot snapshot(long organizationId, String runId) {

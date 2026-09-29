@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 
-from forge_agent.gateway.runtime import ToolSelection
+from forge_agent.gateway.runtime import ThinkingSink, ToolSelection
 
 
 class ModelGatewayError(RuntimeError):
@@ -63,6 +63,20 @@ class QwenLanguageModel:
         )
         self._max_attempts = max_attempts
         self._retry_backoff_seconds = retry_backoff_seconds
+        self._thinking_sink: ThinkingSink | None = None
+
+    def set_thinking_sink(self, sink: ThinkingSink | None) -> None:
+        """由 Runtime 在 Run 期间注入思考片段接收器，Run 结束后清理。"""
+
+        self._thinking_sink = sink
+
+    def _emit_thinking(self, reasoning: object) -> None:
+        """把 Provider 思考片段交给 sink；缺失或非文本时静默跳过，不影响解析语义。"""
+
+        sink = self._thinking_sink
+        if sink is None or not isinstance(reasoning, str) or not reasoning:
+            return
+        sink(reasoning)
 
     def create_plan(
         self,
@@ -204,6 +218,8 @@ class QwenLanguageModel:
                     choice_delta = first_choice.get("delta")
                     if not isinstance(choice_delta, dict):
                         continue
+                    # 思考内容单独交给 sink，绝不作为正文增量产出。
+                    self._emit_thinking(choice_delta.get("reasoning_content"))
                     delta = choice_delta.get("content")
                     if delta:
                         yield str(delta)
@@ -230,7 +246,10 @@ class QwenLanguageModel:
                     },
                 )
                 response.raise_for_status()
-                content = response.json()["choices"][0]["message"]["content"]
+                message = response.json()["choices"][0]["message"]
+                if isinstance(message, dict):
+                    self._emit_thinking(message.get("reasoning_content"))
+                content = message["content"]
                 parsed = json.loads(content)
                 if not isinstance(parsed, dict):
                     raise ValueError("root must be an object")

@@ -66,6 +66,19 @@ public interface AgentRunMapper {
             @Param("organizationId") long organizationId,
             @Param("runId") String runId);
 
+    @Select("SELECT r.id AS run_id, r.skill, r.work_item_id, r.status, r.started_at, r.finished_at, "
+            + "r.error_code, r.last_sequence, r.created_at, "
+            + "MAX(CASE WHEN m.sender = 'USER' THEN m.body END) AS trigger_message, "
+            + "MAX(CASE WHEN m.sender = 'AGENT' THEN m.body END) AS answer "
+            + "FROM agent_runs r JOIN agent_messages m ON m.run_id = r.id "
+            + "WHERE r.organization_id = #{organizationId} AND r.user_id = #{userId} "
+            + "AND m.conversation_id = #{conversationId} "
+            + "GROUP BY r.id ORDER BY r.created_at ASC, r.id ASC")
+    List<Map<String, Object>> listConversationRuns(
+            @Param("organizationId") long organizationId,
+            @Param("userId") long userId,
+            @Param("conversationId") long conversationId);
+
     @Select("SELECT e.run_id, e.sequence, e.event_type, e.request_id, e.payload_json, e.created_at "
             + "FROM agent_events e JOIN agent_runs r ON r.id = e.run_id WHERE r.organization_id = #{organizationId} "
             + "AND r.organization_id = #{organizationId} AND r.id = #{runId} AND e.sequence > #{afterSequence} "

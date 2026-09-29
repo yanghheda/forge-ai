@@ -34,4 +34,11 @@ public interface AgentToolCallMapper {
             @Param("organizationId") long organizationId,
             @Param("runId") String runId,
             @Param("idempotencyKey") String idempotencyKey);
+
+    @Select("SELECT tool_call_id, tool_name, tool_version, risk_level, status, arguments_json, result_json, "
+            + "approval_id FROM agent_tool_calls WHERE run_id = #{runId} "
+            + "AND organization_id = #{organizationId} ORDER BY created_at ASC, id ASC")
+    List<Map<String, Object>> findByRun(
+            @Param("organizationId") long organizationId,
+            @Param("runId") String runId);
 }

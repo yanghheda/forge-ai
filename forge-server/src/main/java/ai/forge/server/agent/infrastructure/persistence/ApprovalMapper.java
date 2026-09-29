@@ -38,6 +38,11 @@ public interface ApprovalMapper {
             + "AND run_id = #{runId} ORDER BY created_at DESC LIMIT 1")
     List<Map<String, Object>> findByRun(@Param("organizationId") long organizationId, @Param("runId") String runId);
 
+    @Select("SELECT * FROM approvals WHERE organization_id = #{organizationId} "
+            + "AND run_id = #{runId} ORDER BY created_at ASC, id ASC")
+    List<Map<String, Object>> findByRunAscending(@Param("organizationId") long organizationId,
+            @Param("runId") String runId);
+
     @Update("UPDATE approvals SET status = #{status}, approver_user_id = #{approverId}, "
             + "decided_at = UTC_TIMESTAMP(6), version = version + 1 WHERE organization_id = #{organizationId} "
             + "AND organization_id = #{organizationId} AND id = #{approvalId} AND status = 'PENDING' "

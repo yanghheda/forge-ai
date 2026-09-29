@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event, Lock
@@ -117,8 +117,20 @@ class ToolSelection(BaseModel):
     arguments: dict[str, Any] = Field(default_factory=dict)
 
 
+# 模型思考片段接收器：由 Runtime 在每个 Run 期间注入给 LanguageModel，Run 结束后清理。
+ThinkingSink = Callable[[str], None]
+
+# Provider 思考文本的上报契约：单条增量上限与单 Run 累计上限，超出即分片或截断。
+THINKING_DELTA_LIMIT = 4000
+THINKING_RUN_LIMIT = 20000
+
+
 class LanguageModel(Protocol):
     """图节点依赖的窄模型接口。"""
+
+    def set_thinking_sink(self, sink: ThinkingSink | None) -> None:
+        """注入或清理当前 Run 的思考片段接收器；模型实例在多次 Run 之间复用。"""
+        ...
 
     def create_plan(
         self,
@@ -165,6 +177,9 @@ class FakeLanguageModel:
         self.select_calls = 0
         self.finalize_calls = 0
         self._fail_finalize_once = fail_finalize_once
+
+    def set_thinking_sink(self, sink: ThinkingSink | None) -> None:
+        """Fake 模型不产生 Provider 思考内容，sink 恒为空操作。"""
 
     def create_plan(
         self,
@@ -453,6 +468,69 @@ class AnswerStream(Protocol):
 
     def publish_reasoning(self, run_id: str, delta: str, run_token: str) -> None: ...
 
+    def publish_thinking(self, run_id: str, node: str, delta: str, run_token: str) -> None: ...
+
+
+class _ThinkingCollector:
+    """按图节点聚合单次 Run 的模型思考文本，并按契约分片上报。"""
+
+    def __init__(self, stream: AnswerStream | None, run_id: str, run_token: str) -> None:
+        self._stream = stream
+        self._run_id = run_id
+        self._run_token = run_token
+        self._node = "unknown"
+        self._pending = ""
+        self._reported = 0
+        self._exhausted = False
+
+    def begin(self, node: str) -> None:
+        """切换当前图节点；先结算上一节点尚未上报的思考文本。"""
+
+        self._flush()
+        self._node = node
+
+    def add(self, text: str) -> None:
+        """接收模型思考片段；累计超过 Run 上限后截断且不再上报。"""
+
+        if not text or self._exhausted:
+            return
+        remaining = THINKING_RUN_LIMIT - self._reported
+        if remaining <= 0:
+            self._exhausted = True
+            return
+        if len(text) > remaining:
+            text = text[:remaining]
+            self._exhausted = True
+        self._reported += len(text)
+        self._pending += text
+        while len(self._pending) >= THINKING_DELTA_LIMIT:
+            self._publish(self._pending[:THINKING_DELTA_LIMIT])
+            self._pending = self._pending[THINKING_DELTA_LIMIT:]
+
+    def end(self) -> None:
+        """图节点结束时结算该节点的思考文本。"""
+
+        self._flush()
+
+    def _flush(self) -> None:
+        if not self._pending:
+            return
+        delta, self._pending = self._pending, ""
+        self._publish(delta)
+
+    def _publish(self, delta: str) -> None:
+        if not delta or self._stream is None:
+            return
+        try:
+            self._stream.publish_thinking(self._run_id, self._node, delta, self._run_token)
+        except Exception:
+            # 思考属于展示类事件；上报失败只记录告警，不改变 Run 的业务结果与终态。
+            LOGGER.warning(
+                "Thinking delta publish failed; continuing run: run_id=%s",
+                self._run_id,
+                exc_info=True,
+            )
+
 
 class RuntimeGateway(Protocol):
     """Agent Run 执行器的可替换边界。"""
@@ -527,6 +605,7 @@ class LangGraphRuntimeGateway:
     def start(self, request: RunStart, run_token: str) -> RunResult:
         request.manifest.require_active()
         cancellation = self._cancellations.setdefault(request.manifest.run_id, Event())
+        collector = _ThinkingCollector(self._answer_stream, request.manifest.run_id, run_token)
         config = {
             # 每次 Tool 调用会经过 select/guard/execute/observe 四个节点；
             # LangGraph 默认 25 步不足以承载 Manifest 允许的最多 20 次调用。
@@ -535,45 +614,52 @@ class LangGraphRuntimeGateway:
                 "thread_id": request.manifest.run_id,
                 "run_token": run_token,
                 "cancellation": cancellation,
+                "thinking": collector,
             },
         }
-        with self._lock:
-            if cancellation.is_set():
-                raise RunCancelled()
-            snapshot = self._graph.get_state(config)
-            if snapshot.values.get("status") == "SUCCEEDED":
-                return self._result(snapshot.values)
-            if snapshot.values.get("status") == "WAITING_APPROVAL":
-                self._graph.update_state(
-                    config,
-                    {"status": "RUNNING", "pending_execution": None},
-                    as_node="guard_tool",
-                )
-                state = self._graph.invoke(None, config)
+        # 模型实例跨 Run 复用，因此在 Run 开始时注入 sink，结束时（含异常）必须清理。
+        self._set_thinking_sink(collector.add)
+        try:
+            with self._lock:
+                if cancellation.is_set():
+                    raise RunCancelled()
+                snapshot = self._graph.get_state(config)
+                if snapshot.values.get("status") == "SUCCEEDED":
+                    return self._result(snapshot.values)
+                if snapshot.values.get("status") == "WAITING_APPROVAL":
+                    self._graph.update_state(
+                        config,
+                        {"status": "RUNNING", "pending_execution": None},
+                        as_node="guard_tool",
+                    )
+                    state = self._graph.invoke(None, config)
+                    return self._result(state)
+                if snapshot.values:
+                    state = self._graph.invoke(None, config)
+                else:
+                    state = self._graph.invoke(
+                        {
+                            "run_id": request.manifest.run_id,
+                            "skill": request.manifest.skill,
+                            "message": request.message,
+                            "guidance": request.manifest.guidance,
+                            "effective_tools": list(request.manifest.effective_tool_names),
+                            "tool_definitions": [
+                                definition.model_dump(by_alias=True)
+                                for definition in request.manifest.tool_definitions
+                            ],
+                            "max_tool_calls": request.manifest.policy.max_tool_calls,
+                            "resource_count": len(request.manifest.resource_refs),
+                            "work_item_id": request.manifest.scope.work_item_id,
+                            "tool_calls": [],
+                            "state_version": 0,
+                        },
+                        config,
+                    )
                 return self._result(state)
-            if snapshot.values:
-                state = self._graph.invoke(None, config)
-            else:
-                state = self._graph.invoke(
-                    {
-                        "run_id": request.manifest.run_id,
-                        "skill": request.manifest.skill,
-                        "message": request.message,
-                        "guidance": request.manifest.guidance,
-                        "effective_tools": list(request.manifest.effective_tool_names),
-                        "tool_definitions": [
-                            definition.model_dump(by_alias=True)
-                            for definition in request.manifest.tool_definitions
-                        ],
-                        "max_tool_calls": request.manifest.policy.max_tool_calls,
-                        "resource_count": len(request.manifest.resource_refs),
-                        "work_item_id": request.manifest.scope.work_item_id,
-                        "tool_calls": [],
-                        "state_version": 0,
-                    },
-                    config,
-                )
-            return self._result(state)
+        finally:
+            self._set_thinking_sink(None)
+            collector.end()
 
     def cancel(self, run_id: str) -> None:
         self._cancellations.setdefault(run_id, Event()).set()
@@ -584,17 +670,45 @@ class LangGraphRuntimeGateway:
         if isinstance(cancellation, Event) and cancellation.is_set():
             raise RunCancelled()
 
+    def _set_thinking_sink(self, sink: ThinkingSink | None) -> None:
+        """向模型注入或清理思考 sink；模型可能不实现该能力。"""
+
+        set_sink = getattr(self._model, "set_thinking_sink", None)
+        if callable(set_sink):
+            set_sink(sink)
+
+    @staticmethod
+    def _thinking_collector() -> _ThinkingCollector | None:
+        collector = get_config()["configurable"].get("thinking")
+        return collector if isinstance(collector, _ThinkingCollector) else None
+
+    def _begin_thinking(self, node: str) -> None:
+        """在节点开始调用模型前切换归属节点，并结算上一节点思考。"""
+
+        collector = self._thinking_collector()
+        if collector is not None:
+            collector.begin(node)
+
+    def _end_thinking(self) -> None:
+        """节点结束时结算该节点的思考文本。"""
+
+        collector = self._thinking_collector()
+        if collector is not None:
+            collector.end()
+
     def _validate_context(self, state: AgentState) -> AgentState:
         return {"state_version": state.get("state_version", 0) + 1}
 
     def _create_plan(self, state: AgentState) -> AgentState:
         self._require_not_cancelled()
+        self._begin_thinking("create_plan")
         plan = self._model.create_plan(
             state["skill"],
             state["message"],
             state.get("guidance"),
             list(state.get("effective_tools", [])),
         )
+        self._end_thinking()
         run_token = str(get_config()["configurable"].get("run_token", ""))
         if self._answer_stream is not None:
             for item in plan:
@@ -616,6 +730,7 @@ class LangGraphRuntimeGateway:
         """模型依据消息与已执行观察选择下一个 Tool；无选择则进入收尾。"""
 
         self._require_not_cancelled()
+        self._begin_thinking("select_tool")
         selection = self._model.select_tool(
             state["skill"],
             state["message"],
@@ -624,6 +739,7 @@ class LangGraphRuntimeGateway:
             state.get("tool_calls", []),
             state.get("guidance"),
         )
+        self._end_thinking()
         if selection is None:
             return {"pending_selection": None, "state_version": state["state_version"] + 1}
         return {
@@ -771,6 +887,7 @@ class LangGraphRuntimeGateway:
     def _finalize(self, state: AgentState) -> AgentState:
         chunks: list[str] = []
         run_token = str(get_config()["configurable"].get("run_token", ""))
+        self._begin_thinking("finalize")
         stream_final = getattr(self._model, "stream_final", None)
         stream = (
             stream_final(
@@ -793,6 +910,7 @@ class LangGraphRuntimeGateway:
         )
         for delta in stream:
             self._require_not_cancelled()
+            # 思考内容经模型 sink 单独上报，绝不混入正文增量。
             if not delta:
                 continue
             chunks.append(delta)
@@ -807,6 +925,7 @@ class LangGraphRuntimeGateway:
                         state["run_id"],
                         exc_info=True,
                     )
+        self._end_thinking()
         return {
             "answer": "".join(chunks),
             "status": "SUCCEEDED",

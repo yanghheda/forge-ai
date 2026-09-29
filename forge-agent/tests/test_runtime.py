@@ -22,12 +22,16 @@ class RecordingAnswerStream:
     def __init__(self) -> None:
         self.deltas: list[tuple[str, str, str]] = []
         self.reasoning: list[tuple[str, str, str]] = []
+        self.thinking: list[tuple[str, str, str, str]] = []
 
     def publish(self, run_id: str, delta: str, run_token: str) -> None:
         self.deltas.append((run_id, delta, run_token))
 
     def publish_reasoning(self, run_id: str, delta: str, run_token: str) -> None:
         self.reasoning.append((run_id, delta, run_token))
+
+    def publish_thinking(self, run_id: str, node: str, delta: str, run_token: str) -> None:
+        self.thinking.append((run_id, node, delta, run_token))
 
 
 class FailingAnswerStream:
@@ -36,6 +40,50 @@ class FailingAnswerStream:
 
     def publish_reasoning(self, run_id: str, delta: str, run_token: str) -> None:
         raise ToolTransportFailure("reasoning stream publish failed")
+
+    def publish_thinking(self, run_id: str, node: str, delta: str, run_token: str) -> None:
+        raise ToolTransportFailure("thinking stream publish failed")
+
+
+class ThinkingLanguageModel(FakeLanguageModel):
+    """模拟 Provider 在调用模型时通过 sink 推送思考片段。"""
+
+    def __init__(
+        self,
+        *,
+        plan_thinking: str = "",
+        selection_thinking: str = "",
+        finalize_thinking: str = "",
+    ) -> None:
+        super().__init__()
+        self._sink = None
+        self._plan_thinking = plan_thinking
+        self._selection_thinking = selection_thinking
+        self._finalize_thinking = finalize_thinking
+
+    def set_thinking_sink(self, sink) -> None:
+        self._sink = sink
+
+    def _emit(self, text: str) -> None:
+        if self._sink is not None and text:
+            self._sink(text)
+
+    def create_plan(self, skill, message, guidance=None, effective_tools=None) -> list[str]:
+        self.plan_calls += 1
+        self._emit(self._plan_thinking)
+        return ["理解请求"]
+
+    def select_tool(
+        self, skill, message, work_item_id, tool_definitions, tool_calls, guidance=None
+    ):
+        self.select_calls += 1
+        self._emit(self._selection_thinking)
+        return None
+
+    def finalize(self, skill, message, resource_count, tool_calls, guidance=None) -> str:
+        self.finalize_calls += 1
+        self._emit(self._finalize_thinking)
+        return "已完成"
 
 
 def manifest(
@@ -871,3 +919,103 @@ def test_fake_model_never_invents_task_assignees() -> None:
     requests = [("UX", "创建 UX 任务"), ("DEVELOPER", "创建开发任务"), ("QA", "创建缺陷")]
     for skill, message in requests:
         assert model.select_tool(skill, message, 42, [], []) is None
+
+
+def test_thinking_is_aggregated_and_reported_per_graph_node(tmp_path) -> None:
+    answer_stream = RecordingAnswerStream()
+    model = ThinkingLanguageModel(
+        plan_thinking="先理解用户诉求",
+        selection_thinking="无需调用工具",
+        finalize_thinking="整理最终答复",
+    )
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", model, StaticToolTransport([]), answer_stream
+    )
+
+    result = runtime.start(RunStart(manifest=manifest(), message="整理 UX 交付计划"), "run-token")
+
+    assert result.status == "SUCCEEDED"
+    assert [(node, delta) for _, node, delta, _ in answer_stream.thinking] == [
+        ("create_plan", "先理解用户诉求"),
+        ("select_tool", "无需调用工具"),
+        ("finalize", "整理最终答复"),
+    ]
+    assert all(run_id == manifest().run_id for run_id, _, _, _ in answer_stream.thinking)
+    assert all(token == "run-token" for _, _, _, token in answer_stream.thinking)
+    # 思考内容必须走独立通道，不得混入正文 message.delta。
+    answer_text = "".join(delta for _, delta, _ in answer_stream.deltas)
+    assert "先理解用户诉求" not in answer_text
+    assert "整理最终答复" not in answer_text
+
+
+def test_long_thinking_delta_is_split_into_bounded_chunks(tmp_path) -> None:
+    answer_stream = RecordingAnswerStream()
+    long_text = "思" * 9000
+    model = ThinkingLanguageModel(plan_thinking=long_text)
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", model, StaticToolTransport([]), answer_stream
+    )
+
+    runtime.start(RunStart(manifest=manifest(), message="整理 UX 交付计划"), "run-token")
+
+    plan_deltas = [delta for _, node, delta, _ in answer_stream.thinking if node == "create_plan"]
+    assert [len(delta) for delta in plan_deltas] == [4000, 4000, 1000]
+    assert all(len(delta) <= 4000 for _, _, delta, _ in answer_stream.thinking)
+    assert "".join(plan_deltas) == long_text
+
+
+def test_thinking_text_beyond_run_limit_is_truncated(tmp_path) -> None:
+    answer_stream = RecordingAnswerStream()
+    model = ThinkingLanguageModel(plan_thinking="甲" * 25000, finalize_thinking="乙" * 100)
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", model, StaticToolTransport([]), answer_stream
+    )
+
+    runtime.start(RunStart(manifest=manifest(), message="整理 UX 交付计划"), "run-token")
+
+    reported = [delta for _, _, delta, _ in answer_stream.thinking]
+    assert sum(len(delta) for delta in reported) == 20000
+    assert all(len(delta) <= 4000 for delta in reported)
+    assert all("乙" not in delta for delta in reported)
+
+
+def test_run_without_provider_thinking_reports_nothing(tmp_path) -> None:
+    answer_stream = RecordingAnswerStream()
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", FakeLanguageModel(), StaticToolTransport([]), answer_stream
+    )
+
+    result = runtime.start(RunStart(manifest=manifest(), message="整理 UX 交付计划"), "run-token")
+
+    assert result.status == "SUCCEEDED"
+    assert answer_stream.thinking == []
+
+
+def test_thinking_publish_failure_does_not_change_run_result(tmp_path) -> None:
+    model = ThinkingLanguageModel(plan_thinking="思考一段", finalize_thinking="思考两段")
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", model, StaticToolTransport([]), FailingAnswerStream()
+    )
+
+    result = runtime.start(RunStart(manifest=manifest(), message="整理 UX 交付计划"), "run-token")
+
+    assert result.status == "SUCCEEDED"
+    assert result.answer
+
+
+def test_thinking_sink_is_cleared_even_when_run_fails(tmp_path) -> None:
+    class ExplodingModel(ThinkingLanguageModel):
+        def create_plan(self, skill, message, guidance=None, effective_tools=None):
+            super().create_plan(skill, message, guidance, effective_tools)
+            raise RuntimeError("injected plan failure")
+
+    model = ExplodingModel(plan_thinking="爆炸前的思考")
+    runtime = LangGraphRuntimeGateway(
+        tmp_path / "checkpoints.sqlite", model, StaticToolTransport([])
+    )
+
+    with pytest.raises(RuntimeError, match="injected plan failure"):
+        runtime.start(RunStart(manifest=manifest(), message="整理 UX 交付计划"), "run-token")
+
+    # 模型跨 Run 复用，Run 结束后必须清理 sink，避免下一次 Run 串线。
+    assert model._sink is None

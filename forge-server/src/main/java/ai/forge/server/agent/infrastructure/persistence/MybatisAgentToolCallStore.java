@@ -52,4 +52,19 @@ public class MybatisAgentToolCallStore implements AgentToolCallStore {
                 resultJson,
                 idempotencyKey);
     }
+
+    @Override
+    public List<PersistedCall> findByRun(long organizationId, String runId) {
+        return mapper.findByRun(organizationId, runId).stream()
+                .map(row -> new PersistedCall(
+                        row.get("tool_call_id").toString(),
+                        row.get("tool_name").toString(),
+                        ((Number) row.get("tool_version")).intValue(),
+                        row.get("risk_level").toString(),
+                        row.get("status").toString(),
+                        row.get("arguments_json").toString(),
+                        row.get("result_json") == null ? null : row.get("result_json").toString(),
+                        row.get("approval_id") == null ? null : row.get("approval_id").toString()))
+                .toList();
+    }
 }

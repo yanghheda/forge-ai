@@ -2,6 +2,8 @@ package ai.forge.server.agent.controller;
 
 import ai.forge.server.agent.application.AgentRunService;
 import ai.forge.server.agent.application.AgentRunSnapshot;
+import ai.forge.server.agent.application.AgentRunTrace;
+import ai.forge.server.agent.application.AgentTraceService;
 import ai.forge.server.agent.domain.AgentSkill;
 import ai.forge.server.agent.domain.MediumToolConfirmation;
 import ai.forge.server.auth.controller.AuthController;
@@ -36,11 +38,17 @@ public class AgentRunController {
 
     /* 执行 Run scope 授权、创建和快照查询。 */
     private final AgentRunService runService;
+    /* 只读聚合 Run 轨迹节点；scope 为 organization 与 Run 发起人。 */
+    private final AgentTraceService traceService;
     /* 从登录成员解析唯一公司范围。 */
     private final OrganizationAccessService organizationAccess;
 
-    public AgentRunController(AgentRunService runService, OrganizationAccessService organizationAccess) {
+    public AgentRunController(
+            AgentRunService runService,
+            AgentTraceService traceService,
+            OrganizationAccessService organizationAccess) {
         this.runService = runService;
+        this.traceService = traceService;
         this.organizationAccess = organizationAccess;
     }
 
@@ -69,6 +77,13 @@ public class AgentRunController {
             HttpServletRequest request) {
         long userId = AuthController.requireContext(request).userId();
         return runService.get(userId, organizationAccess.requireContext(userId).organizationId(), runId);
+    }
+
+    @GetMapping("/{runId}/trace")
+    @Operation(summary = "读取 Agent Run 轨迹", description = "按事件序号聚合并返回只读轨迹节点；仅 Run 发起人可访问，未结束的 Run 返回已持久化节点。")
+    public AgentRunTrace trace(@PathVariable String runId, HttpServletRequest request) {
+        long userId = AuthController.requireContext(request).userId();
+        return traceService.explain(userId, organizationAccess.requireContext(userId).organizationId(), runId);
     }
 
     @PostMapping("/{runId}:cancel")

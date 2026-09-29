@@ -39,7 +39,8 @@ export function useConversationStream(organizationId: number | undefined, runId:
             value: (current.runId === runId ? current.value : "") + String(event.payload.delta ?? ""),
           }));
         }
-        if (event.type === "reasoning.delta") {
+        if (event.type === "reasoning.delta" || event.type === "thinking.delta") {
+          /* 模型思考（thinking.delta）与执行思路（reasoning.delta）按到达顺序合并展示 */
           setReasoningState((current) => ({
             runId,
             values: [...(current.runId === runId ? current.values : []), String(event.payload.delta ?? "")],
@@ -61,7 +62,7 @@ export function useConversationStream(organizationId: number | undefined, runId:
           void queryClient.invalidateQueries({ queryKey: ["agent-conversations"] });
         }
       };
-      for (const type of ["agent.started", "reasoning.delta", "message.delta", "approval.required", "agent.completed", "agent.failed", "agent.cancelled"]) {
+      for (const type of ["agent.started", "reasoning.delta", "thinking.delta", "message.delta", "approval.required", "agent.completed", "agent.failed", "agent.cancelled"]) {
         source.addEventListener(type, receive);
       }
       source.onerror = () => {

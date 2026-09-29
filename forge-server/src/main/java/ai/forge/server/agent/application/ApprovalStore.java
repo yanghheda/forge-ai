@@ -11,6 +11,9 @@ public interface ApprovalStore {
     List<Map<String, Object>> find(long organizationId, String approvalId);
     List<Map<String, Object>> findByCall(long organizationId, String runId, String toolCallId);
     List<Map<String, Object>> findByRun(long organizationId, String runId);
+
+    /* 按 Run 与公司 scope 读取全部审批事实，按创建时间升序，供轨迹聚合使用。 */
+    List<Map<String, Object>> findByRunAscending(long organizationId, String runId);
     void insertWaitingToolCall(long organizationId, String runId, String toolCallId,
             String toolName, int toolVersion, String riskLevel, String argumentHash, String argumentsJson,
             String idempotencyKey, String approvalId);

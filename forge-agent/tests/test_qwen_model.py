@@ -32,6 +32,74 @@ def completion(content: str) -> dict[str, object]:
     return {"choices": [{"message": {"content": content}}]}
 
 
+def test_qwen_forwards_reasoning_content_from_non_streaming_response() -> None:
+    model, _ = qwen_model(
+        [
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"steps":["理解目标"]}',
+                            "reasoning_content": "先拆解用户目标",
+                        }
+                    }
+                ]
+            }
+        ]
+    )
+    captured: list[str] = []
+    model.set_thinking_sink(captured.append)
+
+    plan = model.create_plan("UX", "整理交付方案")
+
+    assert plan == ["理解目标"]
+    assert captured == ["先拆解用户目标"]
+
+
+def test_qwen_ignores_missing_reasoning_content_without_error() -> None:
+    model, _ = qwen_model(
+        [
+            completion('{"steps":["理解目标"]}'),
+            completion('{"answer":"需求读取完成"}'),
+        ]
+    )
+    captured: list[str] = []
+    model.set_thinking_sink(captured.append)
+
+    model.create_plan("UX", "整理交付方案")
+    answer = model.finalize("UX", "整理交付方案", 1, [])
+
+    assert answer == "需求读取完成"
+    assert captured == []
+
+
+def test_qwen_streams_reasoning_content_to_sink_but_not_into_answer_deltas() -> None:
+    captured: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        body = (
+            'data: {"choices":[{"delta":{"reasoning_content":"逐步"}}]}\n\n'
+            'data: {"choices":[{"delta":{"reasoning_content":"推理"}}]}\n\n'
+            'data: {"choices":[{"delta":{"content":"需求"}}]}\n\n'
+            'data: {"choices":[{"delta":{"content":"已完成"}}]}\n\n'
+            "data: [DONE]\n\n"
+        )
+        return httpx.Response(200, content=body.encode())
+
+    model = QwenLanguageModel(
+        api_key="sk-test",
+        base_url="https://dashscope.example/compatible-mode/v1",
+        model="qwen-plus",
+        client=httpx.Client(transport=httpx.MockTransport(handle)),
+    )
+    model.set_thinking_sink(captured.append)
+
+    deltas = list(model.stream_final("PRODUCT", "完成需求", 1, []))
+
+    assert deltas == ["需求", "已完成"]
+    assert captured == ["逐步", "推理"]
+
+
 def test_qwen_creates_structured_plan() -> None:
     model, requests = qwen_model([completion('{"steps":["理解目标","形成结果"]}')])
 

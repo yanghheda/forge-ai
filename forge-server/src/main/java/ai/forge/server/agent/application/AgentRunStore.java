@@ -29,6 +29,10 @@ public interface AgentRunStore {
     List<AgentEvent> findEventsAfter(
             long organizationId, String runId, long afterSequence, int limit);
 
+    /* 按会话、公司与用户 scope 读取该会话的 Run 摘要，按 Run 创建时间升序。 */
+    List<ConversationRunSummary> listConversationRuns(
+            long organizationId, long userId, long conversationId);
+
     boolean start(long organizationId, String runId, String requestId);
 
     void cancel(long organizationId, String runId, String requestId);
@@ -41,6 +45,9 @@ public interface AgentRunStore {
 
     /* 持久化可展示的计划摘要；不得写入模型内部私有推理文本。 */
     void appendReasoningDelta(long organizationId, String runId, String delta);
+
+    /* 持久化模型思考增量，并推进 Run 事件序号；不写入会话正文，不影响 Run 终态判定。 */
+    void appendThinkingDelta(long organizationId, String runId, String delta, String node);
 
     /* create_requirement 成功后立即把来源会话绑定到新需求。 */
     void bindConversationToRequirement(long organizationId, String runId, long requirementId);

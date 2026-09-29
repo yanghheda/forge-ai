@@ -507,13 +507,286 @@ class AgentRunIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(response.getBody()).contains("RESOURCE_NOT_FOUND");
     }
 
+    @Test
+    void conversationRunListReturnsAscendingRunsWithTriggerAndAnswer() throws Exception {
+        JsonNode conversation = data(csrf().post(
+                "/api/v1/agent-conversations", Map.of(), ownerCookie, String.class));
+        long conversationId = conversation.get("id").asLong();
+        long userId = ownerUserId();
+
+        String firstRun = "01M2FBKQYQ6QNJ8FZH92PZP0X1";
+        String secondRun = "01M2FBKQYQ6QNJ8FZH92PZP0X2";
+        agentRunStore.create(firstRun, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ALLOW, "User request (4 chars, content redacted)",
+                "conv-list-1", "hash-1", "req-1");
+        jdbcTemplate.update(
+                "INSERT INTO agent_messages(conversation_id,sender,body,run_id,created_at) "
+                        + "VALUES(?,'USER','第一轮指令',?,UTC_TIMESTAMP(6))",
+                conversationId, firstRun);
+        agentRunStore.start(organizationId, firstRun, "req-1-start");
+        agentRunStore.complete(organizationId, firstRun, "req-1-complete", "第一轮回答",
+                List.of("整理需求"), List.of());
+
+        agentRunStore.create(secondRun, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ALLOW, "User request (4 chars, content redacted)",
+                "conv-list-2", "hash-2", "req-2");
+        jdbcTemplate.update(
+                "INSERT INTO agent_messages(conversation_id,sender,body,run_id,created_at) "
+                        + "VALUES(?,'USER','第二轮指令',?,UTC_TIMESTAMP(6))",
+                conversationId, secondRun);
+        agentRunStore.start(organizationId, secondRun, "req-2-start");
+
+        JsonNode runs = data(getConversationRuns(conversationId));
+
+        assertThat(runs).hasSize(2);
+        assertThat(runs.get(0).get("runId").asText()).isEqualTo(firstRun);
+        assertThat(runs.get(0).get("skill").asText()).isEqualTo("PRODUCT");
+        assertThat(runs.get(0).get("status").asText()).isEqualTo("SUCCEEDED");
+        assertThat(runs.get(0).get("terminal").asBoolean()).isTrue();
+        assertThat(runs.get(0).get("triggerMessage").asText()).isEqualTo("第一轮指令");
+        assertThat(runs.get(0).get("answer").asText()).isEqualTo("第一轮回答");
+        assertThat(runs.get(1).get("runId").asText()).isEqualTo(secondRun);
+        assertThat(runs.get(1).get("terminal").asBoolean()).isFalse();
+        assertThat(runs.get(1).get("answer").isNull()).isTrue();
+
+        agentRunStore.cancel(organizationId, secondRun, "req-2-cancel");
+    }
+
+    @Test
+    void conversationRunListHidesUnknownAndForeignConversationsAsNotFound() throws Exception {
+        long otherUserId = insertForeignUser();
+        jdbcTemplate.update(
+                "INSERT INTO agent_conversations(organization_id,user_id,title,created_at,updated_at,version) "
+                        + "VALUES(?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                organizationId, otherUserId, "他人会话");
+        long foreignConversationId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+        assertThat(getConversationRuns(foreignConversationId).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(getConversationRuns(999999999L).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void conversationWithoutRunsReturnsEmptyArray() throws Exception {
+        JsonNode conversation = data(csrf().post(
+                "/api/v1/agent-conversations", Map.of(), ownerCookie, String.class));
+        long conversationId = conversation.get("id").asLong();
+
+        JsonNode runs = data(getConversationRuns(conversationId));
+
+        assertThat(runs).isEmpty();
+    }
+
+    @Test
+    void runTraceAggregatesThinkingToolsApprovalAndTerminalForOwner() throws Exception {
+        long userId = ownerUserId();
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0X3";
+        String approvalId = "01M2FBKQYQ6QNJ8FZH92PZP0Y1";
+        agentRunStore.create(runId, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ALLOW, "User request (4 chars, content redacted)",
+                "trace-aggregate", "hash", "req-create");
+
+        insertEvent(runId, 2, "thinking.delta",
+                Map.of("delta", "先理解", "node", "create_plan"));
+        insertEvent(runId, 3, "thinking.delta",
+                Map.of("delta", "需求意图。", "node", "create_plan"));
+        insertEvent(runId, 4, "reasoning.delta", Map.of("delta", "按计划执行"));
+        insertEvent(runId, 5, "tool.completed", Map.of("stepNo", 2, "name", "create_requirement",
+                "status", "SUCCEEDED", "summary", "已创建"));
+        insertEvent(runId, 6, "approval.approved", Map.of("approvalId", approvalId, "status", "APPROVED"));
+        insertEvent(runId, 7, "message.completed", Map.of("content", "已创建需求"));
+        insertEvent(runId, 8, "agent.completed", Map.of("status", "SUCCEEDED", "summary", "已创建需求"));
+        jdbcTemplate.update(
+                "INSERT INTO agent_tool_calls(run_id,organization_id,tool_call_id,tool_name,tool_version,"
+                        + "risk_level,status,arguments_json,result_json,idempotency_key,created_at,finished_at) "
+                        + "VALUES(?,?,?,?,?,?,?,CAST(? AS JSON),CAST(? AS JSON),?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))",
+                runId, organizationId, "call-1", "create_requirement", 1, "MEDIUM", "SUCCEEDED",
+                "{\"title\":\"登录需求\"}", "{\"id\":21}", runId + ":call-1");
+        jdbcTemplate.update(
+                "INSERT INTO approvals(id,organization_id,run_id,tool_call_id,type,risk_level,status,"
+                        + "requested_by,approver_user_id,tool_name,tool_version,argument_hash,"
+                        + "frozen_arguments_encrypted,resource_versions_json,reason,expires_at,decided_at,"
+                        + "version,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSON),?,"
+                        + "DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 10 MINUTE),UTC_TIMESTAMP(6),0,UTC_TIMESTAMP(6))",
+                approvalId, organizationId, runId, "call-1", "TOOL_EXECUTION", "MEDIUM", "APPROVED",
+                userId, userId, "create_requirement", 1, "argument-hash", "encrypted-arguments",
+                "[]", "需要人工确认");
+        jdbcTemplate.update(
+                "UPDATE agent_runs SET status='SUCCEEDED', "
+                        + "started_at=DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 3 SECOND), finished_at=UTC_TIMESTAMP(6), "
+                        + "last_sequence=8 WHERE id=?",
+                runId);
+
+        JsonNode trace = data(getTrace(runId));
+
+        assertThat(trace.get("runId").asText()).isEqualTo(runId);
+        assertThat(trace.get("status").asText()).isEqualTo("SUCCEEDED");
+        assertThat(trace.get("terminal").asBoolean()).isTrue();
+        JsonNode nodes = trace.get("nodes");
+
+        JsonNode thinking = nodeOfKind(nodes, "THINKING");
+        assertThat(thinking.get("detail").get("text").asText()).isEqualTo("先理解需求意图。");
+        assertThat(thinking.get("detail").get("node").asText()).isEqualTo("create_plan");
+
+        assertThat(nodeOfKind(nodes, "REASONING").get("detail").get("text").asText()).isEqualTo("按计划执行");
+
+        JsonNode tool = nodeOfKind(nodes, "TOOL");
+        assertThat(tool.get("detail").get("toolVersion").asInt()).isEqualTo(1);
+        assertThat(tool.get("detail").get("riskLevel").asText()).isEqualTo("MEDIUM");
+        assertThat(tool.get("detail").get("arguments").get("title").asText()).isEqualTo("登录需求");
+        assertThat(tool.get("detail").get("result").get("id").asInt()).isEqualTo(21);
+
+        JsonNode approval = nodeOfKind(nodes, "APPROVAL");
+        assertThat(approval.get("detail").get("status").asText()).isEqualTo("APPROVED");
+        assertThat(approval.get("detail").get("decidedBy").asLong()).isEqualTo(userId);
+
+        JsonNode terminal = nodeOfKind(nodes, "TERMINAL");
+        assertThat(terminal.get("detail").get("status").asText()).isEqualTo("SUCCEEDED");
+        assertThat(terminal.get("detail").get("durationMs").asLong()).isGreaterThan(0L);
+    }
+
+    @Test
+    void runTraceReturnsPersistedNodesForUnfinishedRun() throws Exception {
+        long userId = ownerUserId();
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0X7";
+        agentRunStore.create(runId, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ALLOW, "User request (4 chars, content redacted)",
+                "trace-running", "hash", "req-create");
+        agentRunStore.start(organizationId, runId, "req-start");
+        agentRunStore.appendThinkingDelta(organizationId, runId, "正在思考", "create_plan");
+
+        JsonNode trace = data(getTrace(runId));
+
+        assertThat(trace.get("status").asText()).isEqualTo("RUNNING");
+        assertThat(trace.get("terminal").asBoolean()).isFalse();
+        assertThat(nodeOfKind(trace.get("nodes"), "THINKING").get("detail").get("text").asText())
+                .isEqualTo("正在思考");
+
+        agentRunStore.cancel(organizationId, runId, "req-cancel");
+    }
+
+    @Test
+    void runTraceIsHiddenAsNotFoundForNonOwnerAndCrossCompany() throws Exception {
+        long userId = ownerUserId();
+        long otherUserId = insertForeignUser();
+        long otherOrganizationId = insertForeignOrganization(userId);
+
+        String foreignUserRun = "01M2FBKQYQ6QNJ8FZH92PZP0X4";
+        String foreignOrganizationRun = "01M2FBKQYQ6QNJ8FZH92PZP0X5";
+        agentRunStore.create(foreignUserRun, organizationId, null, otherUserId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ALLOW, "User request (4 chars, content redacted)",
+                "trace-foreign-user", "hash", "req-fu");
+        agentRunStore.create(foreignOrganizationRun, otherOrganizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ALLOW, "User request (4 chars, content redacted)",
+                "trace-foreign-org", "hash", "req-fo");
+
+        assertThat(getTrace(foreignUserRun).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(getTrace(foreignOrganizationRun).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(getTrace("00000000000000000000000000").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        agentRunStore.cancel(organizationId, foreignUserRun, "req-fu-cancel");
+        agentRunStore.cancel(otherOrganizationId, foreignOrganizationRun, "req-fo-cancel");
+    }
+
+    @Test
+    void thinkingDeltaCallbackPersistsEventAndAdvancesSequence() {
+        long userId = ownerUserId();
+        String runId = "01M2FBKQYQ6QNJ8FZH92PZP0X6";
+        agentRunStore.create(runId, organizationId, null, userId, AgentSkill.PRODUCT,
+                MediumToolConfirmation.ALLOW, "User request (4 chars, content redacted)",
+                "thinking-stream", "hash", "req-create");
+        agentRunStore.start(organizationId, runId, "req-start");
+        long before = jdbcTemplate.queryForObject(
+                "SELECT last_sequence FROM agent_runs WHERE id=?", Long.class, runId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokenProvider.createRunToken(Instant.now(), runId, organizationId));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<Void> response = restTemplate.postForEntity(
+                "/internal/v1/agent-runs/" + runId + "/thinking-deltas",
+                new HttpEntity<>(Map.of("delta", "模型思考片段", "node", "create_plan"), headers), Void.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT event_type FROM agent_events WHERE run_id=? ORDER BY sequence DESC LIMIT 1",
+                String.class, runId)).isEqualTo("thinking.delta");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.delta')) FROM agent_events "
+                        + "WHERE run_id=? ORDER BY sequence DESC LIMIT 1",
+                String.class, runId)).isEqualTo("模型思考片段");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.node')) FROM agent_events "
+                        + "WHERE run_id=? ORDER BY sequence DESC LIMIT 1",
+                String.class, runId)).isEqualTo("create_plan");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT last_sequence FROM agent_runs WHERE id=?", Long.class, runId)).isEqualTo(before + 1);
+
+        agentRunStore.complete(organizationId, runId, "req-complete", "完成", List.of("计划"), List.of());
+    }
+
+    private long ownerUserId() {
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE email='owner@example.com'", Long.class);
+    }
+
+    private long insertForeignUser() {
+        jdbcTemplate.update(
+                "INSERT INTO users(email,normalized_email,display_name,password_hash,status,created_at,"
+                        + "updated_at,version) VALUES(?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                "other@example.com", "other@example.com", "Other Member",
+                "$2a$10$abcdefghijklmnopqrstuvabcdefghijklmnopqrstuvabcdefghi", "ACTIVE");
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE normalized_email='other@example.com'", Long.class);
+    }
+
+    private long insertForeignOrganization(long ownerId) {
+        jdbcTemplate.update(
+                "INSERT INTO organizations(name,slug,owner_user_id,created_at,updated_at,version) "
+                        + "VALUES(?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)",
+                "Other Org", "other-org", ownerId);
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM organizations WHERE slug='other-org'", Long.class);
+    }
+
+    private void insertEvent(String runId, long sequence, String type, Map<String, Object> payload)
+            throws Exception {
+        jdbcTemplate.update(
+                "INSERT INTO agent_events(run_id,sequence,event_type,request_id,payload_json,created_at) "
+                        + "VALUES(?,?,?,?,CAST(? AS JSON),UTC_TIMESTAMP(6))",
+                runId, sequence, type, "req-trace", objectMapper.writeValueAsString(payload));
+    }
+
+    private JsonNode nodeOfKind(JsonNode nodes, String kind) {
+        for (JsonNode node : nodes) {
+            if (kind.equals(node.get("kind").asText())) {
+                return node;
+            }
+        }
+        throw new AssertionError("missing trace node kind " + kind);
+    }
+
+    private ResponseEntity<String> getConversationRuns(long conversationId) {
+        return restTemplate.exchange(
+                "/api/v1/agent-conversations/" + conversationId + "/runs",
+                org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(headers(ownerCookie)),
+                String.class);
+    }
+
+    private ResponseEntity<String> getTrace(String runId) {
+        return restTemplate.exchange(
+                "/api/v1/agent-runs/" + runId + "/trace",
+                org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(headers(ownerCookie)),
+                String.class);
+    }
+
     private ResponseEntity<String> createRun(String message, String clientRequestId) {
         return createRun(message, clientRequestId, null);
     }
 
     private ResponseEntity<String> createRun(String message, String clientRequestId, String mediumToolConfirmation) {
         Map<String, Object> body = new java.util.LinkedHashMap<>();
-        body.put("organizationId", organizationId);
         body.put("organizationId", organizationId);
         body.put("skill", "PRODUCT");
         body.put("message", message);

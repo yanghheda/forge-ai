@@ -1,6 +1,7 @@
 package ai.forge.server.agent.infrastructure.persistence;
 
 import ai.forge.server.agent.application.AgentRunStore;
+import ai.forge.server.agent.application.ConversationRunSummary;
 import ai.forge.server.agent.domain.AgentEvent;
 import ai.forge.server.agent.domain.AgentRun;
 import ai.forge.server.agent.domain.AgentRunIdempotencyConflictException;
@@ -14,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -102,6 +104,29 @@ public class MybatisAgentRunStore implements AgentRunStore {
     }
 
     @Override
+    public List<ConversationRunSummary> listConversationRuns(
+            long organizationId, long userId, long conversationId) {
+        return mapper.listConversationRuns(organizationId, userId, conversationId).stream()
+                .map(this::conversationRunSummary)
+                .toList();
+    }
+
+    private ConversationRunSummary conversationRunSummary(Map<String, Object> row) {
+        return new ConversationRunSummary(
+                text(row, "run_id"),
+                AgentSkill.valueOf(text(row, "skill")),
+                nullableNumber(row, "work_item_id"),
+                AgentRunStatus.valueOf(text(row, "status")),
+                AgentRunStatus.valueOf(text(row, "status")).terminal(),
+                instant(row.get("started_at")),
+                instant(row.get("finished_at")),
+                nullableText(row, "error_code"),
+                number(row, "last_sequence"),
+                nullableText(row, "trigger_message"),
+                nullableText(row, "answer"));
+    }
+
+    @Override
     @Transactional
     public boolean start(long organizationId, String runId, String requestId) {
         Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
@@ -157,6 +182,36 @@ public class MybatisAgentRunStore implements AgentRunStore {
     @Transactional
     public void appendReasoningDelta(long organizationId, String runId, String delta) {
         appendDelta(organizationId, runId, delta, "reasoning.delta");
+    }
+
+    @Override
+    @Transactional
+    public void appendThinkingDelta(long organizationId, String runId, String delta, String node) {
+        if (delta == null || delta.isEmpty()) {
+            return;
+        }
+        if (delta.length() > 4000) {
+            throw new IllegalArgumentException("thinking delta exceeds 4000 characters");
+        }
+        if (node == null || node.length() > 64) {
+            throw new IllegalArgumentException("thinking node must be 1..64 characters");
+        }
+        Map<String, Object> locked = mapper.lockRun(organizationId, runId).stream()
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Agent Run not found"));
+        if (!"RUNNING".equals(text(locked, "status"))) {
+            throw new IllegalStateException("Agent Run is not accepting thinking deltas");
+        }
+        long sequence = number(locked, "last_sequence") + 1;
+        if (mapper.advanceRunningSequence(organizationId, runId, sequence) != 1) {
+            throw new IllegalStateException("Agent Run sequence could not be advanced");
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("delta", delta);
+        payload.put("node", node);
+        if (mapper.insertEvent(organizationId, runId, sequence, "thinking.delta", runId,
+                json(payload)) != 1) {
+            throw new IllegalStateException("Agent thinking delta could not be persisted");
+        }
     }
 
     @Override

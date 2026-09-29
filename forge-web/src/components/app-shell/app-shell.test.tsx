@@ -100,7 +100,7 @@ describe("AppShell", () => {
     expect(screen.queryByRole("link", { name: /我的需求/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /任务看板/ })).toHaveAttribute("href", "/task-board");
     expect(screen.getAllByRole("link", { name: /Agent 指令/ })[0]).toHaveAttribute("href", "/agent/command");
-    expect(screen.getByRole("link", { name: /执行轨迹/ })).toHaveAttribute("href", "/agent/trace/demo-run");
+    expect(screen.getByRole("link", { name: /执行轨迹/ })).toHaveAttribute("href", "/agent/trace");
     expect(screen.queryByText("全部项目")).not.toBeInTheDocument();
   });
 

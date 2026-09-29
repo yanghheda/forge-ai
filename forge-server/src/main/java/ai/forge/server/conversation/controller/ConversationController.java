@@ -23,6 +23,7 @@ public class ConversationController {
     @PostMapping public ResponseEntity<ConversationService.Conversation> create(@Valid @RequestBody CreateRequest body,HttpServletRequest request){var result=service.create(user(request),body.title());return ResponseEntity.created(URI.create("/api/v1/agent-conversations/"+result.id())).body(result);}
     @GetMapping public List<ConversationService.Conversation> list(HttpServletRequest request){return service.list(user(request));}
     @GetMapping("/{id}/messages") public List<ConversationService.Message> messages(@PathVariable long id,HttpServletRequest request){return service.messages(user(request),id);}
+    @GetMapping("/{id}/runs") public List<ai.forge.server.agent.application.ConversationRunSummary> runs(@PathVariable long id,HttpServletRequest request){return service.listRuns(user(request),id);}
     @PostMapping("/{id}/messages") public AgentRunSnapshot send(@PathVariable long id,@Valid @RequestBody SendRequest body,HttpServletRequest request){return service.send(user(request),id,body.message(),body.skill(),body.workItemId());}
     @PatchMapping("/{id}") public ResponseEntity<Void> rename(@PathVariable long id,@Valid @RequestBody RenameRequest body,HttpServletRequest request){service.rename(user(request),id,body.title());return ResponseEntity.noContent().build();}
     public record RenameRequest(/* 用户指定的非空会话标题，最多 255 个字符。 */ @NotBlank @Size(max=255) String title){}

@@ -3,6 +3,7 @@ package ai.forge.server.agent.controller;
 import ai.forge.server.agent.application.AgentRunStore;
 import ai.forge.server.platform.agent.InternalRunTokenVerifier;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import org.springframework.context.annotation.Profile;
@@ -65,6 +66,20 @@ public class InternalAgentEventController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{runId}/thinking-deltas")
+    public ResponseEntity<Void> appendThinking(
+            @PathVariable String runId,
+            @Valid @RequestBody ThinkingDeltaRequest body,
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+        InternalRunTokenVerifier.RunCredential credential = credential(runId, authorization);
+        if (credential == null) {
+            return ResponseEntity.status(authorization == null || !authorization.startsWith("Bearer ")
+                    ? HttpStatus.UNAUTHORIZED : HttpStatus.FORBIDDEN).build();
+        }
+        runStore.appendThinkingDelta(credential.organizationId(), runId, body.delta(), body.node());
+        return ResponseEntity.noContent().build();
+    }
+
     private InternalRunTokenVerifier.RunCredential credential(String runId, String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             return null;
@@ -81,5 +96,12 @@ public class InternalAgentEventController {
     public record MessageDeltaRequest(
             /* 模型本次生成的正文片段；仅属于绑定 Run。 */
             @NotEmpty @Size(max = 4000) String delta) {
+    }
+
+    public record ThinkingDeltaRequest(
+            /* 模型本次生成的思考文本片段；仅属于绑定 Run，单条不超过 4000 字符。 */
+            @NotEmpty @Size(max = 4000) String delta,
+            /* 思考来源的 Agent 图节点标识；用于轨迹页按节点聚合展示，最多 64 字符。 */
+            @NotBlank @Size(max = 64) String node) {
     }
 }

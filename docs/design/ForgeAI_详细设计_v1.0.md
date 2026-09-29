@@ -393,7 +393,7 @@ Precheck 是一次不可变快照，不直接等于“永远可发布”。真�
 | `processed_events` | `consumer_name,event_id,processed_at` | PK `(consumer_name,event_id)` |
 | `idempotency_records` | 见 3.3 | UQ scope + key |
 
-Agent Event payload 只保存 UI 恢复所需结构化数据，不保存完整隐式推理。模型消息、检索片段和 Tool 参数遵循部署方 Trace 保留策略，默认只留脱敏摘要和来源 ID。
+Agent Event payload 保存 UI 恢复所需结构化数据；其中 `reasoning.delta` 仅承载计划/执行摘要，模型思考内容由独立的 `thinking.delta` 事件承载并仅供轨迹页与会话面板展示（可折叠），不写入 `agent_messages` 正文、不进入 RAG 索引、不影响 Run 终态判定。模型消息、检索片段和 Tool 参数遵循部署方 Trace 保留策略，默认只留脱敏摘要和来源 ID。
 
 ---
 
@@ -839,7 +839,8 @@ limits:
 | `step.started/completed/failed` | stepNo/name/status/summary | 更新步骤 |
 | `tool.requested/started/completed/failed` | callId/tool/risk/resource/result | 更新 Tool 卡片 |
 | `message.delta` | delta | 追加当前 Agent 回复正文 |
-| `reasoning.delta` | delta | 追加可折叠的计划或执行摘要，不展示模型私有思维链 |
+| `reasoning.delta` | delta | 追加可折叠的计划或执行摘要 |
+| `thinking.delta` | delta、node（来源图节点） | 追加模型思考内容（来源为 Provider 的 `reasoning_content`），可折叠展示，来源节点不同则分段；Provider 不返回思考内容时不产生该事件 |
 | `message.completed` | content | 确认完整回复并等待终态校验 |
 | `approval.required` | approvalId/risk/expiresAt/summary | 显示审批卡片 |
 | `approval.approved/rejected/expired` | decision/actor | 更新审批 |

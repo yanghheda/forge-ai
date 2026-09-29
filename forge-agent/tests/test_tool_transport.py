@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from forge_agent.gateway.tool_transport import (
+    ServerAnswerStream,
     ServerToolTransport,
     ToolTransportFailure,
 )
@@ -123,3 +124,46 @@ def test_execute_raises_on_invalid_payload() -> None:
 
     with pytest.raises(ToolTransportFailure, match="not valid"):
         transport_with(handler).execute("get_organization", "call-6", {}, "token")
+
+
+def answer_stream_with(handler) -> ServerAnswerStream:
+    client = httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="http://forge-server:8080"
+    )
+    stream = ServerAnswerStream.__new__(ServerAnswerStream)
+    stream._client = client
+    return stream
+
+
+def test_publish_thinking_posts_node_and_delta_with_run_credential() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["authorization"] = request.headers.get("Authorization", "")
+        seen["body"] = json.loads(request.content.decode("utf-8"))
+        return httpx.Response(204)
+
+    answer_stream_with(handler).publish_thinking(
+        "01JRUN0000000000000000000", "create_plan", "先拆解用户目标", "run-token"
+    )
+
+    assert seen["url"] == (
+        "http://forge-server:8080/internal/v1/agent-runs/01JRUN0000000000000000000/thinking-deltas"
+    )
+    assert seen["authorization"] == "Bearer run-token"
+    assert seen["body"] == {"delta": "先拆解用户目标", "node": "create_plan"}
+
+
+def test_publish_reasoning_omits_node_field() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["body"] = json.loads(request.content.decode("utf-8"))
+        return httpx.Response(204)
+
+    answer_stream_with(handler).publish_reasoning("01JRUN", "计划项", "run-token")
+
+    assert seen["url"] == "http://forge-server:8080/internal/v1/agent-runs/01JRUN/reasoning-deltas"
+    assert seen["body"] == {"delta": "计划项"}
