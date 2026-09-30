@@ -101,6 +101,28 @@ describe("OrganizationRequirementDetail", () => {
     expect(screen.getAllByText("王开发").length).toBeGreaterThan(0);
   });
 
+  it("需求阶段操作展示在动态时间线之前", async () => {
+    render(<OrganizationRequirementDetail requirementId={1} />, { wrapper });
+
+    await screen.findByText("需求阶段操作");
+    const workflow = screen.getByText("需求阶段操作");
+    const timeline = screen.getByText("动态时间线");
+    expect(workflow.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
+  it("动态时间线限制高度并在超出时内部滚动", async () => {
+    /* 动态条数会随流程推进持续增长，时间线必须封顶高度，不能撑长右侧栏。 */
+    render(<OrganizationRequirementDetail requirementId={1} />, { wrapper });
+
+    await screen.findByText("动态时间线");
+    const card = screen.getByText("动态时间线").closest(".arco-card");
+    expect(card).not.toBeNull();
+    const timeline = card!.querySelector(".arco-card-body > div") as HTMLElement;
+    expect(timeline).not.toBeNull();
+    expect(getComputedStyle(timeline).overflowY).toBe("auto");
+    expect(getComputedStyle(timeline).maxHeight).not.toBe("none");
+  });
+
   it("允许人工编辑需求描述并携带最新聚合版本", async () => {
     api.updateWorkItem.mockResolvedValue({ id: 1, description: "人工补充后的描述", version: 4 });
     render(<OrganizationRequirementDetail requirementId={1} />, { wrapper });

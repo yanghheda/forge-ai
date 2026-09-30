@@ -198,7 +198,11 @@
 }
 .timeline {
   display: grid;
+  /* 动态条数增长很快，限制最大高度并内部滚动，避免右侧栏被时间线撑长 */
+  max-height: 480px;
+  overflow-y: auto;
   padding-left: 6px;
+  padding-right: 6px;
 }
 .timeline > div {
   display: grid;

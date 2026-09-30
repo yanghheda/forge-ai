@@ -109,8 +109,8 @@ export function OrganizationRequirementDetail({ requirementId }: { requirementId
           <RequirementMaterials key={materials.data.version} workItemId={requirementId} details={materials.data} onChanged={invalidate} />
         </main>
         <aside className={styles.column}>
-          <ActivityCard activity={activity.data ?? []} />
           <RequirementWorkflowControls requirementId={requirementId} />
+          <ActivityCard activity={activity.data ?? []} />
           <RequirementExecutors requirementId={requirementId} status={item.status} />
           <MembersCard item={item} participants={participants.data ?? []} onManage={() => setManaging((value) => !value)} />
           {managing && <MemberEditor assignments={assignments} members={members.data ?? []} setOverrides={setOverrides} saving={save.isPending} onSave={() => save.mutate()} />}
