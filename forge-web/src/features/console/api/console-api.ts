@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api";
+import { apiClient, resolveApiBaseUrl } from "@/lib/api";
 
 interface RequestClient {
   request<T>(path: string, init?: RequestInit): Promise<T>;
@@ -134,6 +134,9 @@ export const listNotifications = (client: RequestClient = apiClient) => client.r
 export const getUnreadNotificationCount = (client: RequestClient = apiClient) => client.request<{ count: number }>("/v1/notifications/unread-count");
 
 export const markNotificationRead = (id: number, client: RequestClient = apiClient) => client.request<void>(`/v1/notifications/${id}/read`, { method: "POST" });
+
+/* 用户级通知 SSE 事件流地址；afterId 作为游标，重连时携带以按游标续传、避免重复推送。 */
+export const notificationEventUrl = (afterId: number) => `${resolveApiBaseUrl()}/v1/notifications/events?afterId=${afterId}`;
 
 export const listAgentConversations = (client: RequestClient = apiClient) => client.request<AgentConversation[]>("/v1/agent-conversations");
 

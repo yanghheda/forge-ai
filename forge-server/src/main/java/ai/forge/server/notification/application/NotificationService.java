@@ -52,10 +52,17 @@ public class NotificationService {
 
     public List<NotificationView> list(long userId, int limit) {
         long organizationId = organization(userId);
-        return store.listByUser(organizationId, userId, Math.max(1, Math.min(limit, 100))).stream().map(row ->
-                new NotificationView(number(row, "id"), text(row, "type"), text(row, "title"), text(row, "body"),
-                        nullableText(row, "resource_type"), nullableText(row, "resource_id"),
-                        instant(row.get("read_at")), instant(row.get("created_at")))).toList();
+        return store.listByUser(organizationId, userId, Math.max(1, Math.min(limit, 100))).stream()
+                .map(NotificationService::toView).toList();
+    }
+
+    /*
+     * SSE 事件流补发：按 id 升序读取游标 afterId 之后本人本公司的通知，
+     * 复用与控制台列表一致的视图映射，供 NotificationStreamService 分批推送。
+     */
+    public List<NotificationView> eventsAfter(long organizationId, long userId, long afterId, int limit) {
+        return store.findAfter(organizationId, userId, afterId, limit).stream()
+                .map(NotificationService::toView).toList();
     }
 
     public long unread(long userId) {
@@ -91,6 +98,13 @@ public class NotificationService {
     private static String truncate(String value, int max) {
         if (value == null) return "";
         return value.length() <= max ? value : value.substring(0, max);
+    }
+
+    /* 统一的行到视图映射，列表与事件流共用，避免两条读取路径的响应形状漂移。 */
+    private static NotificationView toView(Map<String, Object> row) {
+        return new NotificationView(number(row, "id"), text(row, "type"), text(row, "title"), text(row, "body"),
+                nullableText(row, "resource_type"), nullableText(row, "resource_id"),
+                instant(row.get("read_at")), instant(row.get("created_at")));
     }
 
     private static long number(Map<String, Object> row, String key) {

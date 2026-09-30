@@ -41,7 +41,7 @@ class OrganizationRequirementExperienceIntegrationTest extends InfrastructureInt
         jdbcTemplate.update(
                 "UPDATE instance_settings SET initialized_at = NULL, default_organization_id = NULL, version = 0 WHERE id = 1");
         for (String table : List.of(
-                "requirement_participants", "work_item_events", "review_records", "requirement_details",
+                "notifications", "requirement_participants", "work_item_events", "review_records", "requirement_details",
                 "work_items", "organization_item_sequences", "organization_policies",                 "organization_policies", "audit_logs", "member_roles", "organization_members", "organizations", "users")) {
             jdbcTemplate.update("DELETE FROM " + table);
         }

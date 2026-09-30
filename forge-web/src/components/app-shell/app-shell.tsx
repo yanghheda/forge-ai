@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 
-import { AgentCommandDrawer, getUnreadNotificationCount, listNotifications, NotificationList, searchConsole } from "@/features/console";
+import { AgentCommandDrawer, getUnreadNotificationCount, listNotifications, NotificationList, searchConsole, useNotificationStream } from "@/features/console";
 import { getCurrentUser, logout } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
 import { useAgentPanelStore } from "@/stores/use-agent-panel-store";
@@ -44,12 +44,16 @@ export function AppShell({ children }: AppShellProps) {
     queryFn: () => getUnreadNotificationCount(),
     enabled: !publicPage,
     refetchInterval: 30_000,
+    /* 后台标签页保持轮询兜底：默认 refetchIntervalInBackground=false 会在窗口失焦时暂停轮询，导致角标滞后。 */
+    refetchIntervalInBackground: true,
   });
   const notifications = useQuery({
     queryKey: ["notifications", "list"],
     queryFn: () => listNotifications(),
     enabled: notificationsOpen,
   });
+  /* 订阅用户级通知 SSE：新通知到达即失效 ["notifications"] 查询，抽屉打开时列表也随之刷新。 */
+  useNotificationStream(!publicPage);
   const currentUser = useQuery({
     queryKey: ["current-user"],
     queryFn: () => getCurrentUser(),
@@ -58,6 +62,8 @@ export function AppShell({ children }: AppShellProps) {
   });
   /* 仅持有审批决策角色的成员看到待审批入口，与服务端 approval.decide 权限口径一致。 */
   const showApprovals = canDecideApprovals(currentUser.data?.organization.roles);
+  /* 仅持有成员治理与集成管理权限的角色看到「系统设置」入口，与服务端 member.manage / integration.manage 的授权范围保持一致。 */
+  const showSystemSettings = canManageSystemSettings(currentUser.data?.organization.roles);
   const logoutMutation = useMutation({
     mutationFn: () => logout(),
     onSuccess: () => {
@@ -155,19 +161,23 @@ export function AppShell({ children }: AppShellProps) {
               {!navigationCollapsed && "待审批"}
             </Link>
           )}
-          <p className={styles.navLabel}>{navigationCollapsed ? "" : "系统设置"}</p>
-          <Link to="/settings/members" className={`${styles.navItem} ${pathname === "/settings/members" ? styles.active : ""}`}>
-            <span className={styles.navIcon}>
-              <IconSettings />
-            </span>
-            {!navigationCollapsed && "成员管理"}
-          </Link>
-          <Link to="/settings/integrations" className={`${styles.navItem} ${pathname === "/settings/integrations" ? styles.active : ""}`}>
-            <span className={styles.navIcon}>
-              <IconApps />
-            </span>
-            {!navigationCollapsed && "集成设置"}
-          </Link>
+          {showSystemSettings && (
+            <>
+              <p className={styles.navLabel}>{navigationCollapsed ? "" : "系统设置"}</p>
+              <Link to="/settings/members" className={`${styles.navItem} ${pathname === "/settings/members" ? styles.active : ""}`}>
+                <span className={styles.navIcon}>
+                  <IconSettings />
+                </span>
+                {!navigationCollapsed && "成员管理"}
+              </Link>
+              <Link to="/settings/integrations" className={`${styles.navItem} ${pathname === "/settings/integrations" ? styles.active : ""}`}>
+                <span className={styles.navIcon}>
+                  <IconApps />
+                </span>
+                {!navigationCollapsed && "集成设置"}
+              </Link>
+            </>
+          )}
         </nav>
         <button className={styles.collapseButton} onClick={toggleNavigation} aria-label={navigationCollapsed ? "展开导航" : "收起导航"}>
           {navigationCollapsed ? <IconMenuUnfold /> : <IconMenuFold />}
@@ -266,6 +276,14 @@ const APPROVAL_DECISION_ROLES = ["OWNER", "ADMIN", "DEVELOPER_ADMIN"];
 /* 判断当前用户角色是否应展示"待审批"入口。 */
 function canDecideApprovals(roles?: string[]): boolean {
   return Boolean(roles?.some((role) => APPROVAL_DECISION_ROLES.includes(role)));
+}
+
+/* 拥有「系统设置」入口可见性的角色集合，与服务端 member.manage 与 integration.manage 的授权范围保持一致。 */
+const SYSTEM_SETTINGS_ROLES = ["OWNER", "ADMIN"];
+
+/* 判断当前用户角色是否应展示「系统设置」菜单分组。 */
+function canManageSystemSettings(roles?: string[]): boolean {
+  return Boolean(roles?.some((role) => SYSTEM_SETTINGS_ROLES.includes(role)));
 }
 
 function avatarText(displayName?: string) {

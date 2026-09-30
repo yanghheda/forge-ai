@@ -113,6 +113,8 @@ class RequirementHandoffNotificationIntegrationTest extends InfrastructureIntegr
         jdbc.update("INSERT INTO documents(organization_id,work_item_id,type,title,status,visibility,created_by,"
                 + "created_at,updated_at,version) VALUES(?,?,'PRD','Review','PUBLISHED','ORGANIZATION',?,"
                 + "UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0)", ORG, requirementId, PRODUCT_LEADER);
+        /* 种子通过 replaceParticipants/replaceExecutors 建立协作人会写入关联通知；清空后各用例只度量流转动作产生的通知。 */
+        jdbc.update("DELETE FROM notifications WHERE organization_id=?", ORG);
     }
 
     /* a) 产品执行人提交产品评审 → 产品负责人收到 REVIEW_REQUESTED，操作者不收到。 */

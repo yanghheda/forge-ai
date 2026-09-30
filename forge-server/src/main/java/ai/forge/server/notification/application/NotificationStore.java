@@ -9,6 +9,7 @@ import java.util.Map;
  */
 public interface NotificationStore {
     List<Map<String, Object>> listByUser(long organizationId, long userId, int limit);
+    List<Map<String, Object>> findAfter(long organizationId, long userId, long afterId, int limit);
     long countUnread(long organizationId, long userId);
     int markRead(long organizationId, long userId, long id);
     void insert(long organizationId, long userId, String type, String title, String body, String resourceType,

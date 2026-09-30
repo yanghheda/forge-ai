@@ -9,13 +9,13 @@
 - forge-server 新增 `notification` 模块，成为 `notifications` 表的唯一读写方：现有 3 个通知端点从 `ConsoleController` 迁入（**路径与响应形状不变**），新增统一的写入能力与收件人反查能力。
 - 接入 3 类通知生产者，全部与业务变更在同一事务内写入（业务回滚则通知不产生）：
   1. **审批类**：Agent HIGH 风险 Tool 审批、部署 HIGH 审批；
-  2. **指派类**：需求 / 任务 / 缺陷创建或改派负责人；
+  2. **指派类**：需求 / 任务 / 缺陷创建或改派负责人；需求关联领域负责人与执行人（净新增时）；
   3. **需求流转交接**：评审请求、评审结论、阶段交接、QA 回流、退回、验收。
 - 新增 `GET /api/v1/approvals?status=PENDING` 待审批列表端点（公司范围，要求 `approval.decide`），forge-web 新增 `/approvals` 待审批页面，审批通知深链直达并可批准 / 驳回。
-- forge-web 通知抽屉：点击通知标记已读并深链跳转到业务页面；按类型展示标签；未读数保持 30 秒轮询。
+- forge-web 通知抽屉：点击通知标记已读并深链跳转到业务页面；按类型展示标签；顶栏订阅用户级 SSE 近实时刷新未读数与列表，并保留 30 秒轮询兜底（含后台标签页）。
 - 不新增 Flyway 迁移：`notifications` 表、`idx_notifications_user_unread` 与 `idx_approvals_organization_status_expiry` 均已存在，无需改表。
 
-**非目标**：Pipeline 构建失败通知、审批过期通知、通知偏好 / 免打扰、邮件或飞书外发、"全部已读"、SSE 实时推送（保持 30 秒轮询）。这些留作后续迭代。
+**非目标**：Pipeline 构建失败通知、审批过期通知、通知偏好 / 免打扰、邮件或飞书外发、"全部已读"。这些留作后续迭代。
 
 ## Impact
 
@@ -50,6 +50,7 @@
 | `DEPLOYMENT_APPROVAL_REQUESTED` | 人工发起的部署 HIGH 审批 | 持有 `approval.decide` 的成员（排除申请人） | `REQUIREMENT_RELEASE` / requirementId | `/requirements/:id/release` |
 | `DEPLOYMENT_APPROVAL_DECIDED` | 部署审批通过 / 拒绝 | 申请人 `requested_by` | `REQUIREMENT_RELEASE` / requirementId | `/requirements/:id/release` |
 | `WORK_ITEM_ASSIGNED` | 需求 / 任务 / 缺陷创建或改派负责人 | 新负责人 | 见下方任务目标映射 | 对应页面 |
+| `WORK_ITEM_ASSIGNED` | 需求关联领域负责人 / 执行人（全量替换中的净新增） | 新关联成员 | `REQUIREMENT` / requirementId | `/requirements/:id` |
 | `REVIEW_REQUESTED` | 需求进入评审、等待会签确认 | 对应领域负责人 | `REQUIREMENT` / requirementId | `/requirements/:id` |
 | `REQUIREMENT_HANDOFF` | 阶段交接、QA 回流、退回、验收 | 下一责任方 | `REQUIREMENT`、`REQUIREMENT_UX`、`REQUIREMENT_DEVELOPMENT`、`REQUIREMENT_RELEASE` / requirementId | 对应阶段页 |
 
@@ -186,6 +187,32 @@
 - **WHEN** 更新请求携带的负责人与当前负责人相同
 - **THEN** 不写入通知
 
+### Requirement: 需求关联通知（领域负责人 / 执行人）
+
+`OrganizationRequirementService` SHALL 在 `replaceParticipants`（四领域负责人全量替换）与 `replaceExecutors`（某领域执行人全量替换）成功后，仅对**净新增**的关联成员写入通知：type `WORK_ITEM_ASSIGNED`，target `REQUIREMENT` + requirementId，排除操作者本人；移除与未变化的关联 SHALL NOT 产生通知。
+
+该要求覆盖两个入口：需求详情页（`RequirementController`）与 Agent 工具（`AgentToolExecuteService`）；需求创建时自动把创建人登记为产品负责人属于自关联，自然不产生通知。
+
+#### Scenario: 新关联领域负责人
+- **WHEN** 产品负责人把某成员关联为需求的 UX 负责人
+- **THEN** 该成员收到一条通知，正文说明被关联为该需求的 UX 负责人，点击跳到需求详情页
+
+#### Scenario: 更换领域负责人
+- **WHEN** 某领域负责人从 A 更换为 B（B ≠ 操作者）
+- **THEN** B 收到通知，A 不新增通知
+
+#### Scenario: 新关联执行人
+- **WHEN** 领域负责人为某领域关联新的执行人
+- **THEN** 净新增的执行人各收到一条通知，正文说明被关联为该需求对应领域的执行人
+
+#### Scenario: 全量替换的未变化项不重复通知
+- **WHEN** 重新保存与他人相同的负责人 / 执行人集合
+- **THEN** 未变化的成员不产生重复通知
+
+#### Scenario: 移除关联不通知
+- **WHEN** 替换时移除了某成员（负责人置空或执行人被移除）
+- **THEN** 不写入任何通知
+
 ### Requirement: 需求流转交接通知
 
 `RequirementTransitionService` SHALL 在流转成功（非幂等重放）且状态真正推进时，按"流转动作 → 通知映射"通知下一责任方。
@@ -252,7 +279,36 @@ forge-web SHALL 新增 `/approvals` 页面：展示待审批列表与剩余有�
 
 #### Scenario: 未读数刷新
 - **WHEN** 用户标记已读或完成审批操作
-- **THEN** `["notifications"]` 相关查询被失效，未读角标立即更新；无操作时保持 30 秒轮询
+- **THEN** `["notifications"]` 相关查询被失效，未读角标立即更新；无操作时由用户级 SSE 近实时推送，并保留 30 秒轮询兜底
+
+### Requirement: 通知实时推送（SSE）
+
+系统 SHALL 提供用户级通知事件流 `GET /api/v1/notifications/events`（`text/event-stream`），按登录用户与公司范围推送新通知事件，使接收者在无需手动刷新页面的情况下近实时看到未读角标与通知列表更新。
+
+- 鉴权与隔离：使用会话 Cookie 解析用户与公司；未登录返回 401；只推送该用户本公司的通知。
+- 补发与去重：支持 `afterId` 查询参数与 `Last-Event-ID` 请求头作为游标，从游标之后按 `id` 升序至少一次补发；已推送过的事件不重复推送（重连按游标续传）。
+- 心跳与生命周期：空闲时发送心跳事件，连接超时或客户端断开即结束该连接，不改变任何业务状态。
+- 兜底：SSE 不可用时前端退化为 30 秒轮询（并允许后台标签页继续轮询），不因推送失败而阻断页面。
+
+#### Scenario: 新通知近实时到达
+- **WHEN** 其他成员产生一条发给当前登录用户的通知
+- **THEN** 该用户的未读角标与（若抽屉打开）通知列表在数秒内自动更新，无需手动刷新页面
+
+#### Scenario: 断线重连按游标续传
+- **WHEN** SSE 连接中断后自动重连
+- **THEN** 客户端携带 `afterId` / `Last-Event-ID`，只收到游标之后的通知，不重复推送已收到的事件
+
+#### Scenario: 未登录被拒绝
+- **WHEN** 未携带有效会话请求通知事件流
+- **THEN** 返回 401，不建立事件流
+
+#### Scenario: 只推送本人公司的通知
+- **WHEN** 同一会话监听事件流
+- **THEN** 只收到 `organization_id` + `user_id` 与当前登录身份一致的通知，其他成员或其他公司的通知不出现
+
+#### Scenario: 推送失败退化为轮询
+- **WHEN** 事件流无法建立或反复中断
+- **THEN** 页面不报错、不阻断操作，未读数仍由 30 秒轮询兜底更新
 
 ## MODIFIED Requirements
 

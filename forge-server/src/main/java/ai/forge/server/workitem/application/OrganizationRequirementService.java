@@ -1,6 +1,10 @@
 package ai.forge.server.workitem.application;
 
 import ai.forge.server.authorization.application.PermissionEvaluator;
+import ai.forge.server.notification.application.NotificationDraft;
+import ai.forge.server.notification.application.NotificationService;
+import ai.forge.server.notification.domain.NotificationTarget;
+import ai.forge.server.notification.domain.NotificationType;
 import ai.forge.server.organization.application.OrganizationAccessService;
 import ai.forge.server.organization.domain.OrganizationContext;
 import ai.forge.server.workitem.domain.RequirementParticipantRole;
@@ -8,8 +12,10 @@ import ai.forge.server.workitem.domain.WorkItem;
 import ai.forge.server.workitem.domain.WorkItemPriority;
 import ai.forge.server.workitem.domain.WorkItemStatus;
 import ai.forge.server.workitem.domain.WorkItemType;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,18 +42,23 @@ public class OrganizationRequirementService {
     /* 串行化需求人员调整，并校验领域负责人身份。 */
     private final DeliveryWorkflowStore workflow;
 
+    /* 需求人员被净新增关联为领域负责人或执行人时，在业务事务内写入站内指派通知。 */
+    private final NotificationService notificationService;
+
     public OrganizationRequirementService(
             OrganizationAccessService accessService,
             WorkItemCommandService commandService,
             WorkItemQueryService queryService,
             PermissionEvaluator permissionEvaluator,
-            OrganizationRequirementStore store, DeliveryWorkflowStore workflow) {
+            OrganizationRequirementStore store, DeliveryWorkflowStore workflow,
+            NotificationService notificationService) {
         this.accessService = accessService;
         this.commandService = commandService;
         this.queryService = queryService;
         this.permissionEvaluator = permissionEvaluator;
         this.store = store;
         this.workflow = workflow;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -146,22 +157,33 @@ public class OrganizationRequirementService {
                 throw new IllegalArgumentException("Member does not hold the selected requirement role");
             }
         }
+        /* 替换前只读一次负责人快照，同时支撑「负责人变化 → 清空该角色执行人」与净新增通知判定。 */
+        List<RequirementParticipantView> previous = store.findParticipants(scope.organizationId(), requirementId);
+        Map<RequirementParticipantRole, Long> previousByRole = new HashMap<>();
+        for (RequirementParticipantView view : previous) previousByRole.putIfAbsent(view.role(), view.userId());
         for (RequirementParticipantRole role : RequirementParticipantRole.values()) {
-            Long previous = store.findParticipants(scope.organizationId(), requirementId).stream()
-                    .filter(p -> p.role() == role).map(RequirementParticipantView::userId).findFirst().orElse(null);
+            Long previousUser = previousByRole.get(role);
             Long next = assignments.stream().filter(p -> p.role() == role).map(OrganizationRequirementStore.ParticipantAssignment::userId).findFirst().orElse(null);
-            if (!java.util.Objects.equals(previous, next)) workflow.deleteExecutors(scope.organizationId(), requirementId, role.name());
+            if (!java.util.Objects.equals(previousUser, next)) workflow.deleteExecutors(scope.organizationId(), requirementId, role.name());
         }
         workflow.clearVotes(scope.organizationId(), requirementId);
         workflow.touchRequirement(scope.organizationId(), requirementId);
-        return store.replaceParticipants(scope.organizationId(), requirementId, userId, assignments);
+        List<RequirementParticipantView> result = store.replaceParticipants(scope.organizationId(), requirementId, userId, assignments);
+        /* 仅对净新增（含更换后）的领域负责人通知；未变化或移除的负责人不产生通知。 */
+        for (OrganizationRequirementStore.ParticipantAssignment assignment : assignments) {
+            if (!java.util.Objects.equals(previousByRole.get(assignment.role()), assignment.userId())) {
+                notifyAssociation(scope.organizationId(), userId, requirementId, requirement,
+                        List.of(assignment.userId()), assignment.role(), "负责人");
+            }
+        }
+        return result;
     }
 
     @Transactional
     public List<RequirementParticipantView> replaceExecutors(long userId, long requirementId,
             RequirementParticipantRole role, List<Long> userIds) {
         OrganizationContext scope = accessService.requireContext(userId);
-        lockEditable(userId, scope, requirementId);
+        WorkItem requirement = lockEditable(userId, scope, requirementId);
         if (!workflow.isLeader(scope.organizationId(), requirementId, role.name(), userId))
             throw new ai.forge.server.common.domain.ResourceNotFoundException();
         if (new HashSet<>(userIds).size() != userIds.size()) throw new IllegalArgumentException("Executors must be unique");
@@ -169,11 +191,45 @@ public class OrganizationRequirementService {
             if (!store.memberHasRole(scope.organizationId(), executor, role))
                 throw new IllegalArgumentException("Executor must hold the corresponding domain role");
         }
+        /* 删除前读取既有执行人快照，用于判定净新增。 */
+        List<Long> previous = workflow.executors(scope.organizationId(), requirementId, role.name());
         workflow.deleteExecutors(scope.organizationId(), requirementId, role.name());
         for (Long executor : userIds) workflow.addExecutor(scope.organizationId(), requirementId, role.name(), executor, userId);
         workflow.clearVotes(scope.organizationId(), requirementId);
         workflow.touchRequirement(scope.organizationId(), requirementId);
-        return store.findParticipants(scope.organizationId(), requirementId);
+        List<RequirementParticipantView> result = store.findParticipants(scope.organizationId(), requirementId);
+        /* 仅对净新增执行人一次性通知；未变化或被移除的执行人不产生通知。 */
+        List<Long> added = userIds.stream().filter(executor -> !previous.contains(executor)).toList();
+        notifyAssociation(scope.organizationId(), userId, requirementId, requirement, added, role, "执行人");
+        return result;
+    }
+
+    /*
+     * 将净新增的领域负责人或执行人写入 WORK_ITEM_ASSIGNED 通知：收件人为空时不写入，
+     * 操作者由 NotificationService 自动排除（创建人自登记为产品负责人等自关联不产生通知）。
+     */
+    private void notifyAssociation(long organizationId, long actorUserId, long requirementId, WorkItem requirement,
+            List<Long> recipients, RequirementParticipantRole role, String responsibility) {
+        if (recipients.isEmpty()) return;
+        notificationService.notify(new NotificationDraft(
+                organizationId,
+                recipients,
+                actorUserId,
+                NotificationType.WORK_ITEM_ASSIGNED,
+                "新指派：" + requirement.itemKey() + " " + requirement.title(),
+                "你被关联为需求 " + requirement.itemKey() + " 的" + roleLabel(role) + responsibility + "，请及时处理。",
+                NotificationTarget.REQUIREMENT,
+                String.valueOf(requirementId)));
+    }
+
+    /* 关联通知正文使用的领域中文名，与需求协作人设置界面保持一致。 */
+    private static String roleLabel(RequirementParticipantRole role) {
+        return switch (role) {
+            case PRODUCT -> "产品";
+            case UX -> "UX";
+            case DEVELOPER -> "开发";
+            case QA -> "测试";
+        };
     }
 
     private WorkItem lockEditable(long userId, OrganizationContext scope, long requirementId) {

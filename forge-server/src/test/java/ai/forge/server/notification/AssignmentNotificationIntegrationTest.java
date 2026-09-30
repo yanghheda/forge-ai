@@ -71,6 +71,8 @@ class AssignmentNotificationIntegrationTest extends InfrastructureIntegrationTes
         people.replaceExecutors(UX_LEADER, requirementId, RequirementParticipantRole.UX, List.of(8805L, 8808L));
         people.replaceExecutors(DEV_LEADER, requirementId, RequirementParticipantRole.DEVELOPER, List.of(8806L, 8809L));
         people.replaceExecutors(QA_LEADER, requirementId, RequirementParticipantRole.QA, List.of(8807L, 8810L));
+        /* 种子通过 replaceParticipants/replaceExecutors 建立协作人会写入关联通知；清空后各用例只度量自身动作产生的通知。 */
+        jdbc.update("DELETE FROM notifications WHERE organization_id=?", ORG);
     }
 
     @Test

@@ -54,9 +54,26 @@
   - [x] SubTask 8.2: 增加回归保护：在 `AssignmentNotificationIntegrationTest` 中用反射断言 `create` 带 `@Transactional`（注释说明理由是保证创建 + 通知同事务），并确认既有 8 例仍全绿（现 9 例）
   - 验证：已重跑 `AssignmentNotificationIntegrationTest`（9 例）、`NotificationIntegrationTest`（13 例）、`ModuleArchitectureTest`（4 例）全绿；完整 `make ci` 复跑确认中
 
+- [x] Task 9: 需求关联通知（领域负责人 / 执行人）
+  - [x] SubTask 9.1: `OrganizationRequirementService.replaceParticipants`：用替换前的参与者快照与入参对比，仅对净新增（含更换后）的负责人写入 `WORK_ITEM_ASSIGNED`（target `REQUIREMENT` + requirementId），排除操作者；未变化 / 移除不通知
+  - [x] SubTask 9.2: `OrganizationRequirementService.replaceExecutors`：用替换前的执行人清单（`DeliveryWorkflowStore.executors`）与入参对比，仅对净新增执行人写入通知
+  - [x] SubTask 9.3: 测试：新关联负责人 / 更换负责人 / 新关联执行人各收到 1 条；重复保存同一集合不新增；移除关联不通知；需求创建时创建人自动成为产品负责人不产生自关联通知（新增 `RequirementAssociationNotificationIntegrationTest` 5 例全绿）
+  - 验证：已运行新增测试与 5 个既有通知/架构测试类全绿；全量 `./scripts/test-forge-server.sh` 407 例零回归（并修复 `OrganizationRequirementExperienceIntegrationTest` 清理表清单缺少 `notifications` 的外键回归）
+
+- [x] Task 10: 通知实时推送（SSE）——修复「通知只有手动刷新页面才能收到」
+  - [x] SubTask 10.1: `NotificationStore` / `MybatisNotificationMapper` 新增 `findAfter(organizationId, userId, afterId, limit)`：限定 `organization_id + user_id`、`id > afterId`、按 `id` 升序、限量
+  - [x] SubTask 10.2: 新增 `notification/application/NotificationStreamService`（仿 `AgentEventStreamService`：`@Qualifier("applicationTaskExecutor")` 执行泵、`SseEmitter`、轮询 2 秒、空闲心跳 15 秒、连接超时结束、写失败只结束连接）与 `notification/controller/NotificationEventController`（`GET /api/v1/notifications/events`，支持 `afterId` 与 `Last-Event-ID`，会话鉴权，未登录 401）
+  - [x] SubTask 10.3: Server 测试：`findAfter` 游标 / 排序 / 限量 / 跨用户与跨公司隔离；事件流未登录被拒绝；有界读取真实流到 `event: notification` 帧（新增 `NotificationStreamIntegrationTest` 4 例全绿；全量 server 411 例零回归）
+  - [x] SubTask 10.4: Web：`notificationEventUrl(afterId)`（仿 `agentEventUrl`）+ `features/console/hooks/use-notification-stream.ts`（EventSource + withCredentials、事件到达 300ms 去抖失效 `["notifications"]`、断线 500ms 静默重连并携带最新游标、卸载关闭、环境无 EventSource 时安全退出）
+  - [x] SubTask 10.5: Web：AppShell 接入该 hook；轮询兜底加固（`refetchIntervalInBackground: true`），SSE 不可用时不报错、不阻断操作
+  - [x] SubTask 10.6: Web 测试：hook 单测（事件触发失效刷新、断线重连、卸载关闭、未启用不建连，4 例）；`app-shell.test.tsx` 保持通过；web 全量 243 例、typecheck / lint / format 全绿
+  - 验证：server 全量 411 例与 web 全量 243 例全绿；完整 `make ci` 复跑见 checklist
+
 # Task Dependencies
 
 - Task 2、Task 3、Task 4、Task 5 依赖 Task 1（写入与收件人反查能力）；其中 Task 5 的 Server 部分可与 Task 1 并行开发
 - Task 6 与 Task 2–5 相互独立，可并行（依赖既有读取 API 与前端映射函数）
 - Task 7 依赖 Task 1–6 全部完成
 - Task 8 依赖 Task 3（同文件与同测试类），完成后需重新确认 checklist 第 5 条
+- Task 9 依赖 Task 1（通知写入能力），与 Task 7/8 相互独立（不同服务与测试类）
+- Task 10 依赖 Task 1、Task 6，新增独立控制器/服务/前端 hook，与其余任务无文件冲突

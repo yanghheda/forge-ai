@@ -21,6 +21,16 @@ public interface MybatisNotificationMapper extends NotificationStore {
     List<Map<String, Object>> listByUser(@Param("organizationId") long organizationId,
             @Param("userId") long userId, @Param("limit") int limit);
 
+    /*
+     * SSE 事件流游标补发：只返回 id 大于游标的本人通知，按 id 升序逐批读取，
+     * 保证同一用户按 id 至少一次、不重复推送；公司范围与用户隔离由 SQL 保证。
+     */
+    @Select("SELECT id,type,title,body,resource_type,resource_id,read_at,created_at FROM notifications "
+            + "WHERE organization_id=#{organizationId} AND user_id=#{userId} AND id > #{afterId} "
+            + "ORDER BY id ASC LIMIT #{limit}")
+    List<Map<String, Object>> findAfter(@Param("organizationId") long organizationId,
+            @Param("userId") long userId, @Param("afterId") long afterId, @Param("limit") int limit);
+
     @Select("SELECT COUNT(*) FROM notifications WHERE organization_id=#{organizationId} AND user_id=#{userId} AND read_at IS NULL")
     long countUnread(@Param("organizationId") long organizationId, @Param("userId") long userId);
 

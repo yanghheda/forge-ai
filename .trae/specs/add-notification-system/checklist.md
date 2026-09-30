@@ -22,5 +22,9 @@
 - [x] 通知抽屉点击未读通知先标记已读再跳转并关闭抽屉；无法映射目标时仅标记已读且不抛错（`notification-list.tsx`：mark（失败不阻断）→ invalidate → navigate → onClose；组件测试覆盖三种点击）
 - [x] 抽屉展示通知类型标签与未读视觉区分；未读数保持 30 秒轮询，操作后立即失效刷新（`notificationTypeLabel` + 未读圆点/已读降透明度样式；`app-shell.tsx` `refetchInterval: 30_000`）
 - [x] 未读数为 0 时角标不显示数字；新增导航入口与路由 `pageName` 显示正确（Arco `Badge count=0 dot` 不渲染数字；侧边栏「待审批」入口按 OWNER/ADMIN/DEVELOPER_ADMIN 展示；`pageName("/approvals")` = 待审批；`app-shell.test.tsx` 断言入口 href）
-- [x] `make ci` 与 `git diff --check` 全绿（Task 7 完整门禁三轮后全绿：format-check / lint / contracts-check / test（forge-server 401 例、forge-web 234 例）/ build；Task 8 修复后再次运行确认）
+- [x] 需求关联领域负责人 / 执行人时，净新增成员收到 `WORK_ITEM_ASSIGNED`（target `REQUIREMENT` + requirementId，排除操作者）；重复保存同一集合、移除关联、创建需求时自登记均不通知（`OrganizationRequirementService.replaceParticipants/replaceExecutors` 净新增判定；`RequirementAssociationNotificationIntegrationTest` 5 例覆盖）
+- [x] 新通知无需手动刷新即可近实时到达：他人产生通知后，接收者未读角标与（抽屉打开时）列表在数秒内自动更新（用户级 SSE `GET /api/v1/notifications/events`；`NotificationStreamIntegrationTest` 实测流帧 + `use-notification-stream` 去抖失效 `["notifications"]`；hook 单测 4 例）
+- [x] 事件流鉴权与隔离：未登录被拒绝；只推送本人公司 + 本人的通知；断线重连按 `afterId` / `Last-Event-ID` 续传且不重复推送（SQL 限定 `organization_id + user_id + id > afterId`；`NotificationStreamIntegrationTest` 覆盖 401、隔离与游标续传；hook 单测断言重连携带最新游标）
+- [x] SSE 不可用时页面不报错，30 秒轮询兜底仍生效（并允许后台标签页继续轮询）（hook 在无 `EventSource` 或未启用时安全退出、出错静默重连；`app-shell.tsx` 保留 `refetchInterval: 30_000` 并新增 `refetchIntervalInBackground: true`）
+- [ ] `make ci` 与 `git diff --check` 全绿（Task 7 完整门禁三轮后全绿：format-check / lint / contracts-check / test / build；Task 8、Task 9 修复后分别复跑 server 全量 407 例与完整 `make ci` 确认）
 - [x] 手工验收 HOME-03：三条"制造通知"路径（HIGH 审批与人工部署申请、指派负责人、需求流转）与列表 / 未读数 / 标记已读 / 刷新均有自动化等价覆盖并通过；真实浏览器点击验收待用户在本机环境执行

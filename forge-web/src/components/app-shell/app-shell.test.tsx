@@ -32,6 +32,18 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   </QueryClientProvider>
 );
 
+/* 覆写当前用户替身与 react-query 缓存，用于按角色验证菜单可见性。 */
+function stubCurrentUser(roles: string[]) {
+  const user = {
+    id: 1,
+    email: "yang@example.com",
+    displayName: "杨佳锡",
+    organization: { id: 2, slug: "forge", name: "Forge", roles },
+  };
+  authApi.getCurrentUser.mockResolvedValue(user);
+  testQueryClient.setQueryData(["current-user"], user);
+}
+
 // 仅覆盖需要替换为对象返回值的 react-router Hook，保留真实 Link 等其他导出；
 // Link 仍需路由上下文，因此渲染时由上面的 wrapper 提供 MemoryRouter。
 vi.mock("react-router", async (importOriginal) => {
@@ -103,6 +115,47 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: /执行轨迹/ })).toHaveAttribute("href", "/agent/trace");
     expect(screen.getByRole("link", { name: /待审批/ })).toHaveAttribute("href", "/approvals");
     expect(screen.queryByText("全部项目")).not.toBeInTheDocument();
+  });
+
+  it("Owner 在系统设置分组看到成员管理与集成设置", () => {
+    render(
+      <AppShell>
+        <p>内容</p>
+      </AppShell>,
+      { wrapper },
+    );
+
+    expect(screen.getByText("系统设置")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /成员管理/ })).toHaveAttribute("href", "/settings/members");
+    expect(screen.getByRole("link", { name: /集成设置/ })).toHaveAttribute("href", "/settings/integrations");
+  });
+
+  it("全局管理员在系统设置分组看到成员管理与集成设置", () => {
+    stubCurrentUser(["ADMIN"]);
+    render(
+      <AppShell>
+        <p>内容</p>
+      </AppShell>,
+      { wrapper },
+    );
+
+    expect(screen.getByRole("link", { name: /成员管理/ })).toHaveAttribute("href", "/settings/members");
+    expect(screen.getByRole("link", { name: /集成设置/ })).toHaveAttribute("href", "/settings/integrations");
+  });
+
+  it("非 Owner/Admin 角色隐藏系统设置分组", () => {
+    stubCurrentUser(["PRODUCT"]);
+    render(
+      <AppShell>
+        <p>内容</p>
+      </AppShell>,
+      { wrapper },
+    );
+
+    expect(screen.queryByText("系统设置")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /成员管理/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /集成设置/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /需求列表/ })).toBeInTheDocument();
   });
 
   it("顶栏 Agent 指令按钮在任意页面唤起全局抽屉而非跳转", async () => {
