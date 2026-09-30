@@ -27,10 +27,27 @@ function tool(overrides: Partial<TraceNode> = {}): TraceNode {
 describe("AgentProcessNodes", () => {
   afterEach(cleanup);
 
-  it("整体渲染为可折叠的「思考过程」区块", () => {
+  it("整体渲染为默认收起的「思考过程」区块", () => {
     render(<AgentProcessNodes nodes={[node({ key: "t1", kind: "THINKING", title: "模型思考", detail: { text: "先读取会话上下文" } })]} />);
 
-    expect(screen.getByText("思考过程").closest("details")).toHaveProperty("open", true);
+    expect(screen.getByText("思考过程").closest("details")).toHaveProperty("open", false);
+  });
+
+  it("仅在 Run 进行中显示「思考中」并挂扫光动画", () => {
+    const { rerender } = render(<AgentProcessNodes nodes={[node({ key: "t1", kind: "THINKING", title: "模型思考", detail: { text: "先读取会话上下文" } })]} running />);
+
+    expect(screen.getByText("思考中").className).toContain("processRootLabelSweeping");
+
+    rerender(<AgentProcessNodes nodes={[node({ key: "t1", kind: "THINKING", title: "模型思考", detail: { text: "先读取会话上下文" } })]} />);
+
+    expect(screen.queryByText("思考中")).toBeNull();
+    expect(screen.getByText("思考过程").className).not.toContain("processRootLabelSweeping");
+  });
+
+  it("Run 结束后标题展示本轮耗时", () => {
+    render(<AgentProcessNodes nodes={[node({ key: "t1", kind: "THINKING", title: "模型思考", detail: { text: "先读取会话上下文" } })]} duration="25.6 秒" />);
+
+    expect(screen.getByText("本轮对话耗时 25.6 秒")).toBeInTheDocument();
   });
 
   it("THINKING 与 REASONING 分别渲染为可折叠节点并保留正文", () => {

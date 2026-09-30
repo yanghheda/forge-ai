@@ -276,20 +276,23 @@ function buildItems(nodes: TraceNode[]): ProcessItem[] {
 }
 
 /*
- * 聊天流内联执行过程：整体为一个可折叠的「思考过程」区块，
+ * 聊天流内联执行过程：整体为一个默认收起的「思考过程」区块，
  * 内部按节点类型渲染思考、思路、计划、步骤、工具分组、审批与兜底事件。
  * 全部被过滤或入参为空时返回 null，避免在气泡内留下空白区块。
+ * running 表示该 Run 尚未进入终态：标题显示「思考中」并挂扫光动画；
+ * Run 结束后改为展示本轮耗时 duration，耗时缺失时回退为区块名。
  */
-export function AgentProcessNodes({ nodes }: { nodes: TraceNode[] }) {
+export function AgentProcessNodes({ nodes, running = false, duration = null }: { nodes: TraceNode[]; running?: boolean; duration?: string | null }) {
   const items = buildItems(nodes);
   if (items.length === 0) {
     return null;
   }
+  const title = running ? "思考中" : duration ? `本轮对话耗时 ${duration}` : "思考过程";
   return (
-    <details className={styles.processRoot} open>
+    <details className={styles.processRoot}>
       <summary className={styles.processRootHead}>
         <IconBulb className={styles.processIcon} />
-        <span>思考过程</span>
+        <span className={running ? styles.processRootLabelSweeping : undefined}>{title}</span>
       </summary>
       <div className={styles.processList}>
         {items.map((item) =>

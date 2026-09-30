@@ -558,6 +558,29 @@
   color: var(--forge-text-2);
   font-weight: 500;
 }
+/* 「思考过程」标题：Run 进行中时以渐变高光扫过文字，提示 Agent 正在推理 */
+.processRootLabelSweeping {
+  background-image: linear-gradient(90deg, var(--forge-text-2) 40%, var(--forge-text-4) 50%, var(--forge-text-2) 60%);
+  background-size: 250% 100%;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: processRootLabelSweep 2.4s linear infinite;
+  -webkit-text-fill-color: transparent;
+}
+@keyframes processRootLabelSweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .processRootLabelSweeping {
+    animation: none;
+  }
+}
 /* 非折叠条目（计划 / 步骤）的表头不呈现可点击手势 */
 .processItem > span.processItemHead {
   cursor: default;

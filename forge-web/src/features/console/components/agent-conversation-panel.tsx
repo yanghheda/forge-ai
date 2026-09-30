@@ -2,7 +2,7 @@ import { Alert, Button, Empty, Message, Spin } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
-import { cancelAgentRun, cancelApproval, decideApproval, getAgentRun, getRunApproval, getRunTrace, type ApprovalSnapshot } from "@/features/agent-run";
+import { cancelAgentRun, cancelApproval, decideApproval, formatDuration, getAgentRun, getRunApproval, getRunTrace, type ApprovalSnapshot } from "@/features/agent-run";
 import { getCurrentUser } from "@/features/auth";
 import { formatRequestError } from "@/lib/api";
 import { useAgentPanelStore, type AgentContext } from "@/stores/use-agent-panel-store";
@@ -72,6 +72,8 @@ export function AgentConversationPanel({ header, context }: { header?: ReactNode
     enabled: Boolean(effectiveRunId && currentUser.data),
   });
   const isRunActive = Boolean(run.data && !run.data.terminal);
+  /* 本轮耗时：Run 结束后在「思考过程」标题上展示总耗时 */
+  const runDuration = formatDuration(run.data?.startedAt, run.data?.finishedAt);
   /* 内联执行过程：进行中的 Run 每 5 秒兜底轮询，SSE 事件到达时另行去抖刷新。 */
   const trace = useQuery({
     queryKey: ["run-trace", effectiveRunId],
@@ -125,14 +127,14 @@ export function AgentConversationPanel({ header, context }: { header?: ReactNode
             </div>
           ) : (
             <AgentMessage title="ForgeAI Agent" key={`${item.createdAt}-${index}`}>
-              {item.runId === effectiveRunId && <AgentProcessNodes nodes={processNodes} />}
+              {item.runId === effectiveRunId && <AgentProcessNodes nodes={processNodes} running={isRunActive} duration={runDuration} />}
               <AgentMessageBody content={item.body} />
             </AgentMessage>
           ),
         )}
         {effectiveRunId && (streamPlaybackVisible || (!hasPersistedAgentAnswer && isRunActive)) && (
           <AgentMessage title="ForgeAI Agent">
-            <AgentProcessNodes nodes={processNodes} />
+            <AgentProcessNodes nodes={processNodes} running={isRunActive} duration={runDuration} />
             {stream.answer && <AgentMessageBody content={stream.answer} streaming />}
           </AgentMessage>
         )}

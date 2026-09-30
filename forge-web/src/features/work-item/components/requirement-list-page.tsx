@@ -1,4 +1,4 @@
-import { Button, Typography } from "@arco-design/web-react";
+import { Button } from "@arco-design/web-react";
 import { IconPlus } from "@arco-design/web-react/icon";
 import { useState } from "react";
 
@@ -14,10 +14,8 @@ export function RequirementListPage() {
     <section className={styles.page} aria-labelledby="requirement-list-page-title">
       <header className={styles.header}>
         <div>
-          <Typography.Title id="requirement-list-page-title" heading={2}>
-            需求列表
-          </Typography.Title>
-          <Typography.Paragraph>全部需求；点击行进入详情，行内可调整优先级与期望发布时间</Typography.Paragraph>
+          <h2 id="requirement-list-page-title">需求列表</h2>
+          <p>全部需求；点击行进入详情，行内可调整优先级与期望发布时间</p>
         </div>
         <Button type="primary" icon={<IconPlus />} onClick={() => setCreating(true)}>
           新建需求
