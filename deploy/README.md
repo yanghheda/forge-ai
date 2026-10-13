@@ -148,6 +148,11 @@ Agent 镜像内置 `packages/forge-contracts`，生产环境不再依赖仓库 b
 commit SHA 与 `latest` 两个 tag，再在服务器执行 `docker compose pull <service>` 和
 `docker compose up -d --no-deps --wait <service>`；未命中的服务不会重建或重启。
 
+部署流水线只做校验与构建、**不执行用例**：`forge-web` 跑 `lint` / `typecheck` / `build`，
+`forge-server` 用 `-DskipTests package`（仍会编译测试源码，可拦住夹具缺失一类编译错误），
+`forge-agent` 只构建 runtime 镜像。全量测试由提交前的本地 `make ci` 承担，避免每次发布
+都在 CI 里等待数分钟。
+
 首次启用前需把本版 `deploy/compose.yml` 同步到服务器的 `/opt/forge-ai`，并在 GitHub
 `production` Environment 配置以下 Secrets：
 
