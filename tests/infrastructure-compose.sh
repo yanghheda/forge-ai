@@ -57,13 +57,15 @@ assert services["forge-server"]["environment"]["FORGE_GITLAB_PROVIDER"] == "real
 server_build = services["forge-server"].get("build", {})
 assert server_build.get("context", "").endswith("/forge-ai")
 assert server_build.get("dockerfile", "").endswith("forge-server/Dockerfile")
-for name in ("forge-server", "forge-agent"):
+for name in ("forge-web", "forge-server", "forge-agent"):
     assert not services[name].get("ports"), f"{name} 不得映射宿主机端口"
-web_ports = services["forge-web"].get("ports", [])
-assert len(web_ports) == 1 and web_ports[0].get("host_ip") == "127.0.0.1"
-assert set(services["forge-web"].get("networks", {})) == {"forge-edge", "forge-internal"}
+web_networks = services["forge-web"].get("networks", {})
+assert set(web_networks) == {"forge-internal", "shared-infrastructure"}
+assert web_networks["shared-infrastructure"].get("aliases") == ["forge-web"], \
+    "forge-web 必须声明共享边缘 nginx 反代别名（ADR-027）"
 assert set(services["forge-server"].get("networks", {})) == {"forge-internal", "shared-infrastructure"}
 assert set(services["forge-agent"].get("networks", {})) == {"forge-internal"}
+assert "forge-edge" not in config.get("networks", {}), "边缘接入已由 infra-net 承担，不得保留 forge-edge"
 assert config["networks"]["forge-internal"].get("internal") is True
 shared = config["networks"]["shared-infrastructure"]
 assert shared.get("external") is True, "infra-net 必须由 /opt/infra 在项目外创建"

@@ -107,9 +107,11 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           deploy_path="${DEPLOY_PATH:-/opt/forge-ai}"
-          image_prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          # 拉取前缀取自服务器 deploy/.env 的 FORGE_IMAGE_PREFIX：生产指向国内镜像源
+          # ghcr.nju.edu.cn/<owner>（直连 ghcr.io 的数据面会被限速，见 deploy/README.md）；
+          # CI 只覆盖 tag，镜像仍推送到 ghcr.io。
           printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
-          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "cd '$deploy_path' && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml pull forge-web && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml up -d --no-deps --wait forge-web"
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "cd '$deploy_path' && FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml pull forge-web && FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml up -d --no-deps --wait forge-web"
 
   forge-server:
     needs: changes
@@ -158,9 +160,9 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           deploy_path="${DEPLOY_PATH:-/opt/forge-ai}"
-          image_prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          # 同上：拉取前缀来自服务器 deploy/.env，CI 只覆盖 tag。
           printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
-          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "cd '$deploy_path' && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml pull forge-server && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml up -d --no-deps --wait forge-server"
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "cd '$deploy_path' && FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml pull forge-server && FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml up -d --no-deps --wait forge-server"
 
   forge-agent:
     needs: changes
@@ -206,6 +208,6 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           deploy_path="${DEPLOY_PATH:-/opt/forge-ai}"
-          image_prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          # 同上：拉取前缀来自服务器 deploy/.env，CI 只覆盖 tag。
           printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
-          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "cd '$deploy_path' && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml pull forge-agent && FORGE_IMAGE_PREFIX='$image_prefix' FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml up -d --no-deps --wait forge-agent"
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "cd '$deploy_path' && FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml pull forge-agent && FORGE_IMAGE_TAG='$GITHUB_SHA' docker compose --env-file deploy/.env -f deploy/compose.yml up -d --no-deps --wait forge-agent"

@@ -9,8 +9,6 @@ services:
     environment:
       FORGE_SERVER_INTERNAL_URL: http://forge-server:8080
       HOSTNAME: 0.0.0.0
-    ports:
-      - "127.0.0.1:${FORGE_WEB_PORT:-3000}:3000"
     healthcheck:
       test:
         - CMD
@@ -25,8 +23,11 @@ services:
       forge-server:
         condition: service_healthy
     networks:
-      - forge-edge
-      - forge-internal
+      forge-internal:
+      # 接入共享边缘 nginx 所用的别名；forge-web 不接收任何数据服务凭据（ADR-027）。
+      shared-infrastructure:
+        aliases:
+          - forge-web
     restart: unless-stopped
 
   forge-server:
@@ -51,7 +52,8 @@ services:
       FORGE_AGENT_INTERNAL_JWT_SECRET: ${FORGE_AGENT_INTERNAL_JWT_SECRET}
       FORGE_SECRET_MASTER_KEY: ${FORGE_SECRET_MASTER_KEY}
       FORGE_GITLAB_PROVIDER: ${FORGE_GITLAB_PROVIDER:-real}
-      FORGE_ALLOWED_ORIGINS: http://127.0.0.1:${FORGE_WEB_PORT:-3000},http://localhost:${FORGE_WEB_PORT:-3000}
+      # 浏览器侧来源白名单；生产环境必须覆盖为实际入口域名（如 https://forgeai.yjxai.cloud）。
+      FORGE_ALLOWED_ORIGINS: ${FORGE_ALLOWED_ORIGINS:-http://127.0.0.1:3000,http://localhost:3000}
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/actuator/health/readiness"]
       interval: 5s
@@ -102,7 +104,6 @@ services:
     restart: unless-stopped
 
 networks:
-  forge-edge:
   forge-internal:
     internal: true
   shared-infrastructure:

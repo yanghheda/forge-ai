@@ -48,13 +48,84 @@ make apps-up
 make apps-ready
 ```
 
-只有 `forge-web` 映射到宿主机 `127.0.0.1:3000`。`forge-server` 同时加入项目私有网络和
-外部 `infra-net`，`forge-web` 与 `forge-agent` 不直接接入基础设施网络。Server 默认使用
-`prod` profile 和真实 GitLab provider。`make apps-down` 只停止三应用，不影响 `/opt/infra`。
+三个应用都不映射宿主机端口。`forge-web` 与 `forge-server` 同时加入项目私有网络和外部
+`infra-net`（`forge-web` 声明别名 `forge-web` 供共享边缘 nginx 反代），`forge-agent` 只接入
+项目私有网络。Server 默认使用 `prod` profile 和真实 GitLab provider。`make apps-down`
+只停止三应用，不影响 `/opt/infra`。
+
+浏览器侧来源白名单由 `FORGE_ALLOWED_ORIGINS` 注入。默认值只适用于本机回环访问，
+生产 `.env` 必须覆盖为实际入口域名（如 `https://forgeai.yjxai.cloud`），否则登录与
+CSRF 校验会被服务端拒绝。
+
+生产服务器直连 `ghcr.io` 的控制面可达，但镜像层下载会被限速，因此服务器 `.env` 的
+`FORGE_IMAGE_PREFIX` 指向国内 pull-through 镜像源 `ghcr.nju.edu.cn/yanghheda`：CI 仍把镜像
+推送到 `ghcr.io`，只覆盖 `FORGE_IMAGE_TAG`，拉取侧由 `.env` 前缀决定。镜像源只代理公开
+镜像，三个 GHCR 包需设为 public；镜像源异常时把前缀切回 `ghcr.io/yanghheda` 即可（慢但可达）。
 
 共享 MySQL 必须为每个项目分配独立 database/user；ForgeAI 不得与其他项目共用 schema 或账号。
 共享 Redis 与 Qdrant 分别使用 `FORGE_REDIS_NAMESPACE` 和
 `FORGE_QDRANT_COLLECTION_PREFIX` 隔离键和 collection。不同项目不得复用这些前缀。
+
+## 生产入口：共享边缘 nginx + 独立子域名
+
+生产入口使用子域名 `forgeai.yjxai.cloud`，由服务器 `/opt/infra` 的容器化边缘 nginx 反代到
+本项目 `forge-web:3000`，决策依据见 [ADR-027](../docs/adr/ADR-027-production-edge-entry.md)。
+该 nginx 只挂在 `infra-net` 上且唯一占用宿主机 80/443，因此 `forge-web` 在生产加入
+`infra-net` 并声明别名，且不接收任何 MySQL / Redis / Qdrant 凭据。
+
+### 首次接入服务器（一次性）
+
+```bash
+# 1) 服务器上准备项目目录（容器项目独立目录 + 交付用户）
+ssh root@115.159.84.51 'mkdir -p /opt/forge-ai/deploy && chown -R deploy:deploy /opt/forge-ai'
+
+# 2) 本地同步 Compose 与未提交的生产 env（.env 先改好生产值再上传，不得提交）
+rsync -av deploy/compose.yml root@115.159.84.51:/opt/forge-ai/deploy/
+scp deploy/.env root@115.159.84.51:/opt/forge-ai/deploy/.env
+```
+
+```bash
+# 3) 服务器上创建本项目独立库与账号（密码用 openssl rand -base64 24 生成）
+cd /opt/infra
+set -a && . ./.env && set +a
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
+CREATE DATABASE IF NOT EXISTS forge_ai DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'forge_ai'@'%' IDENTIFIED BY '<强随机密码>';
+GRANT ALL PRIVILEGES ON forge_ai.* TO 'forge_ai'@'%';
+FLUSH PRIVILEGES;"
+```
+
+### 边缘 nginx 配置
+
+DNS 需先把 `forgeai.yjxai.cloud` 的 A 记录指向服务器，再用 certbot webroot 模式**先签发该
+子域名证书**（可只签该子域名，不需要 www；签发请求由 80 端口的 ACME location 承接）。
+边缘配置以同源副本保存在
+[deploy/nginx/forgeai.yjxai.cloud.conf](./nginx/forgeai.yjxai.cloud.conf)，服务器上按「一个
+子域名一份文件」的约定部署到 `/opt/infra/nginx/conf.d/`：
+
+- upstream 用 `resolve` 形式：本项目容器缺席时只有本域名 502，不会让共享 nginx 的
+  `nginx -t`/启动失败而波及其它站点（在线 nginx 1.30.5 支持）。
+- 静态资源与 SPA 反代 `forge-web:3000`；`/api/` 直连 `forge-server:8080`（两者都在 `infra-net`）。
+- Agent 运行事件流 `/api/v1/agent-runs/{runId}/events` 与通知流 `/api/v1/notifications/events`
+  单独设置 `proxy_buffering off`，否则前端收不到流式输出。
+- 443 块引用 `/etc/letsencrypt/live/forgeai.yjxai.cloud/` 证书，**证书不存在时 `nginx -t` 会失败**，
+  所以必须先签发证书再放这个文件。
+
+改完必须先验语法再 reload，配置写错会导致同机所有站点不可用：
+
+```bash
+cd /opt/infra
+docker compose exec nginx nginx -t          # 必须先通过
+docker compose exec nginx nginx -s reload
+```
+
+上线验证：
+
+```bash
+curl -I https://forgeai.yjxai.cloud/healthz                       # 期望 200
+docker compose -f /opt/forge-ai/deploy/compose.yml ps             # 三应用 running/healthy
+docker logs -f forge-ai-forge-server                              # 启动日志与 Flyway 迁移
+```
 
 ## 三服务独立镜像与部署
 

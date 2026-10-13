@@ -3,6 +3,7 @@
 - 状态：Accepted
 - 日期：2026-09-19
 - 替代：ADR-014，并替代 ADR-010 中应用与数据服务同属一个项目 Compose 的拓扑细节
+- 修订：网络接入范围由 ADR-027 修订——生产环境下 `forge-web` 为对接共享边缘 nginx 而加入 `infra-net`
 
 ## 上下文
 
@@ -19,6 +20,8 @@
   仓库不再声明、启动、停止或升级这三个服务。
 - ForgeAI Compose 只包含 `forge-web`、`forge-server`、`forge-agent`。只有 `forge-server`
   加入外部网络 `infra-net`；Web 与 Agent 继续只通过 Server 访问业务数据能力。
+  （`forge-web` 的网络接入范围已被 ADR-027 修订：生产环境为对接共享边缘 nginx 而加入
+  `infra-net`，且不接收任何数据服务凭据；数据访问纪律与命名空间隔离结论不变。）
 - 多个项目共享数据服务实例，但必须逻辑隔离：每个项目使用独立 MySQL database/user、唯一 Redis
   键前缀和唯一 Qdrant collection 前缀。ForgeAI 默认前缀为 `forge-ai` 和 `forge_ai_`。
 - MySQL 仍是 ForgeAI 事实来源；Redis 仍是可丢失短期状态；Qdrant 仍是可重建派生索引。
