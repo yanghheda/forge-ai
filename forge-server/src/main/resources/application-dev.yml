@@ -18,8 +18,14 @@ spring:
     redis:
       host: ${FORGE_REDIS_HOST:127.0.0.1}
       port: ${FORGE_REDIS_PORT:6379}
+      password: ${FORGE_REDIS_PASSWORD:}
+  session:
+    redis:
+      namespace: ${FORGE_REDIS_NAMESPACE:forge-ai}:session
 
 forge:
+  redis:
+    namespace: ${FORGE_REDIS_NAMESPACE:forge-ai}
   web:
     allowed-origins: ${FORGE_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
   infrastructure:
@@ -27,3 +33,7 @@ forge:
       base-url: ${FORGE_AGENT_BASE_URL:http://127.0.0.1:8000}
     qdrant:
       base-url: ${FORGE_QDRANT_BASE_URL:http://127.0.0.1:6333}
+      api-key: ${FORGE_QDRANT_API_KEY:}
+  rag:
+    qdrant:
+      collection-prefix: ${FORGE_QDRANT_COLLECTION_PREFIX:forge_ai_}

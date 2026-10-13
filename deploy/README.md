@@ -11,6 +11,32 @@
 `compose.yml` 中不存在 MySQL、Redis、Qdrant service 或数据卷。`infra-net` 必须由
 `/opt/infra` 预先创建，且网络内可通过 `mysql`、`redis`、`qdrant` 服务名访问对应服务。
 
+## 本地开发（复用本机共享基础设施）
+
+本机开发不启动任何存储服务：复用 `personal-static-web/deploy/infra/docker-compose.local.yml`
+提供的 `infra-mysql` / `infra-redis` / `infra-qdrant`（外部网络 `infra-net`），接入细节见该目录的
+`LOCAL_DEV.md`。
+
+- 容器化运行：`make test-apps-up` 只启动三应用，经 `infra-net` 的服务别名
+  `mysql:3306` / `redis:6379` / `qdrant:6333` 访问；口令取自未提交的 `deploy/.env`。
+- 宿主机进程（IDEA / jar）：`forge-server` 用 `local` profile 直连回环地址，
+  见 `forge-server/src/main/resources/application-local.yml`。
+
+隔离契约（ADR-020）：本项目使用独立库 `forge_ai` 与专用账号，Redis 键前缀 `forge-ai`，
+Qdrant 集合前缀 `forge_ai_`，不复用 root 或其它项目命名空间。首次接入用共享实例的通用账号
+`dev/dev123456` 建库与授权：
+
+```bash
+mysql -h 127.0.0.1 -udev -p'dev123456' -e "
+CREATE DATABASE IF NOT EXISTS forge_ai DEFAULT CHARACTER SET utf8mb4;
+CREATE USER IF NOT EXISTS 'forge_ai'@'%' IDENTIFIED BY '<口令>';
+GRANT ALL PRIVILEGES ON forge_ai.* TO 'forge_ai'@'%';
+FLUSH PRIVILEGES;"
+```
+
+共享 Redis 与 Qdrant 均开启鉴权：`FORGE_REDIS_PASSWORD` 与 `FORGE_QDRANT_API_KEY` 必须填写，
+否则分别出现 Redis 鉴权失败与 Qdrant 读写 401。
+
 ## 正式环境
 
 首次启动前复制示例配置，填入 `/opt/infra` 已为 ForgeAI 分配的数据库账号，并更换 Agent JWT 签名密钥。

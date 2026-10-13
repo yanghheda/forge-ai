@@ -53,6 +53,7 @@ forge:
       jwt-secret: ${FORGE_AGENT_INTERNAL_JWT_SECRET}
     qdrant:
       base-url: ${FORGE_QDRANT_BASE_URL}
+      api-key: ${FORGE_QDRANT_API_KEY:}
       health-timeout: 1s
   rag:
     embedding:

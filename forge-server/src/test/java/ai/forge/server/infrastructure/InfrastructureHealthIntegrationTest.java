@@ -31,7 +31,7 @@ class InfrastructureHealthIntegrationTest extends InfrastructureIntegrationTestB
     @Test
     void unavailableQdrantReportsDegradedWithoutPretendingItIsFactStorage() {
         QdrantHealthIndicator indicator = new QdrantHealthIndicator(
-                "http://127.0.0.1:1", Duration.ofMillis(100));
+                "http://127.0.0.1:1", Duration.ofMillis(100), "");
 
         Health health = indicator.health();
 

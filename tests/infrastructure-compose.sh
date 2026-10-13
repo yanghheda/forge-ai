@@ -11,7 +11,8 @@ docker compose --profile applications --env-file "$environment_file" -f "$compos
 docker compose --env-file "$environment_file" -f "$gitlab_compose_file" config --quiet
 
 for variable in FORGE_MYSQL_URL FORGE_MYSQL_USERNAME \
-  FORGE_REDIS_HOST FORGE_REDIS_PORT FORGE_QDRANT_BASE_URL FORGE_AGENT_BASE_URL; do
+  FORGE_REDIS_HOST FORGE_REDIS_PORT FORGE_REDIS_PASSWORD \
+  FORGE_QDRANT_BASE_URL FORGE_QDRANT_API_KEY FORGE_AGENT_BASE_URL; do
   if ! grep -q "\${${variable}:" forge-server/src/main/resources/application-dev.yml; then
     echo "基础设施配置检查失败：application-dev.yml 必须允许 ${variable} 覆盖本机默认值" >&2
     exit 1
@@ -70,6 +71,7 @@ assert shared.get("name") == "infra-net"
 server_environment = services["forge-server"].get("environment", {})
 assert server_environment.get("FORGE_REDIS_NAMESPACE") == "forge-ai"
 assert server_environment.get("FORGE_QDRANT_COLLECTION_PREFIX") == "forge_ai_"
+assert "FORGE_QDRANT_API_KEY" in server_environment, "Server 必须接收共享 Qdrant 的 api-key"
 agent_environment = services["forge-agent"].get("environment", {})
 for forbidden in ("FORGE_MYSQL_URL", "FORGE_MYSQL_PASSWORD", "GITLAB_TOKEN", "DEPLOY_TOKEN"):
     assert forbidden not in agent_environment, f"forge-agent 不得接收 {forbidden}"

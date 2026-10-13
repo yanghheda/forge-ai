@@ -34,6 +34,9 @@ public class QdrantVectorIndexClient implements VectorIndexClient {
     /* 单次请求超时；防止外部故障长期占用索引线程。 */
     private final Duration requestTimeout;
 
+    /* 共享 Qdrant 的 api-key；为空表示目标实例未启用鉴权，不发送请求头。 */
+    private final String apiKey;
+
     /* 复用连接的 JDK HTTP 客户端。 */
     private final HttpClient httpClient;
 
@@ -42,9 +45,11 @@ public class QdrantVectorIndexClient implements VectorIndexClient {
 
     public QdrantVectorIndexClient(
             @Value("${forge.infrastructure.qdrant.base-url}") String baseUrl,
-            @Value("${forge.rag.qdrant.request-timeout:10s}") Duration requestTimeout) {
+            @Value("${forge.rag.qdrant.request-timeout:10s}") Duration requestTimeout,
+            @Value("${forge.infrastructure.qdrant.api-key:}") String apiKey) {
         this.baseUrl = URI.create(baseUrl);
         this.requestTimeout = requestTimeout;
+        this.apiKey = apiKey == null ? "" : apiKey;
         this.httpClient = HttpClient.newBuilder().connectTimeout(requestTimeout).build();
         this.objectMapper = new ObjectMapper();
     }
@@ -234,6 +239,10 @@ public class QdrantVectorIndexClient implements VectorIndexClient {
         HttpRequest.Builder request = HttpRequest.newBuilder(baseUrl.resolve(path))
                 .timeout(requestTimeout)
                 .header("Content-Type", "application/json");
+        if (!apiKey.isBlank()) {
+            /* 共享 Qdrant 启用 api-key 时必须携带，否则所有读写返回 401。 */
+            request.header("api-key", apiKey);
+        }
         String payload = body == null ? "{}" : stringify(body);
         HttpRequest built = switch (method) {
             case "GET" -> request.GET().build();

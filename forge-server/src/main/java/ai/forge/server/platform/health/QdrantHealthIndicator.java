@@ -22,20 +22,29 @@ public class QdrantHealthIndicator implements HealthIndicator {
     /* 单次探测的超时，防止健康接口被不可用的派生服务长期阻塞。 */
     private final Duration timeout;
 
+    /* 共享 Qdrant 的 api-key；为空表示未启用鉴权，就绪探测不发送请求头。 */
+    private final String apiKey;
+
     /* JDK HTTP 客户端；探测不引入 Qdrant 业务读写能力。 */
     private final HttpClient httpClient;
 
     public QdrantHealthIndicator(
             @Value("${forge.infrastructure.qdrant.base-url:http://qdrant:6333}") String baseUrl,
-            @Value("${forge.infrastructure.qdrant.health-timeout:1s}") Duration timeout) {
+            @Value("${forge.infrastructure.qdrant.health-timeout:1s}") Duration timeout,
+            @Value("${forge.infrastructure.qdrant.api-key:}") String apiKey) {
         this.readyEndpoint = URI.create(baseUrl + "/readyz");
         this.timeout = timeout;
+        this.apiKey = apiKey == null ? "" : apiKey;
         this.httpClient = HttpClient.newBuilder().connectTimeout(timeout).build();
     }
 
     @Override
     public Health health() {
-        HttpRequest request = HttpRequest.newBuilder(readyEndpoint).timeout(timeout).GET().build();
+        HttpRequest.Builder builder = HttpRequest.newBuilder(readyEndpoint).timeout(timeout).GET();
+        if (!apiKey.isBlank()) {
+            builder.header("api-key", apiKey);
+        }
+        HttpRequest request = builder.build();
         try {
             HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
             if (response.statusCode() >= 200 && response.statusCode() < 300) {

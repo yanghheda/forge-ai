@@ -35,6 +35,12 @@ Backend 可单独验证和启动：
 复制并修改 `deploy/.env.example` 后，执行 `make test-apps-up` 或 `make apps-up` 只启动三应用；
 ForgeAI 的停止命令不会触碰共享基础设施。浏览器经 Web 的 `/api` 代理访问 Server，Server 使用短时服务 JWT 探测 Agent 内部就绪端点。
 
+### 本地共享基础设施
+
+本机开发复用同一套共享基础设施（`infra-mysql` / `infra-redis` / `infra-qdrant`，网络 `infra-net`），
+不在本项目内自建 MySQL / Redis / Qdrant。接入方式见
+`personal-static-web/deploy/infra/LOCAL_DEV.md`；`deploy/README.md` 记录了本项目的取值与隔离前缀。
+
 ## 文档
 
 - 当前产品与工程事实以 `docs/design/ForgeAI_公司级架构基线_v2.md` 与 `docs/adr/` 中最新的 Accepted ADR 为准。

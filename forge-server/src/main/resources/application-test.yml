@@ -26,3 +26,4 @@ forge:
       base-url: ${FORGE_AGENT_BASE_URL:http://forge-agent:8000}
     qdrant:
       base-url: ${FORGE_QDRANT_BASE_URL:http://qdrant:6333}
+      api-key: ${FORGE_QDRANT_API_KEY:}

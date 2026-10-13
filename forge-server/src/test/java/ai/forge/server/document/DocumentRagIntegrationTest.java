@@ -265,7 +265,7 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(indexingWorker.dispatchOutbox()).isOne();
 
         QdrantVectorIndexClient deadClient =
-                new QdrantVectorIndexClient("http://127.0.0.1:1", Duration.ofMillis(500));
+                new QdrantVectorIndexClient("http://127.0.0.1:1", Duration.ofMillis(500), "");
         DocumentIndexingWorker brokenWorker = new DocumentIndexingWorker(
                 indexingService, embeddingClient, deadClient, 3, Duration.ofSeconds(5), Duration.ofMinutes(5), "");
 
@@ -314,7 +314,7 @@ class DocumentRagIntegrationTest extends InfrastructureIntegrationTestBase {
         assertThat(indexingWorker.processNextJob()).isTrue();
 
         QdrantVectorIndexClient deadClient =
-                new QdrantVectorIndexClient("http://127.0.0.1:1", Duration.ofMillis(500));
+                new QdrantVectorIndexClient("http://127.0.0.1:1", Duration.ofMillis(500), "");
         RagSearchService degraded = new RagSearchService(permissions, embeddingClient, deadClient, "");
 
         assertThatThrownBy(() -> degraded.search(ownerId, organizationId, "degradation probe", null, null))
