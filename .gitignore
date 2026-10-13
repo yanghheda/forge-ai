@@ -18,6 +18,9 @@ forge-server/src/main/resources/application-local.yml
 build/
 target/
 forge-server/data/
+# 架构测试夹具的包名刻意叫 target（跨模块依赖的反例），必须从构建产物忽略规则里排除，
+# 否则该目录不会入库，CI 检出后 BadCrossModuleService 会因缺少 TargetRepository 编译失败。
+!forge-server/src/test/java/ai/forge/server/architecture/fixture/cross/target/
 
 # Node.js 与前端构建产物
 node_modules/
