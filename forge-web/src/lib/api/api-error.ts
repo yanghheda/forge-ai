@@ -65,6 +65,7 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   LOCAL_STATE_CHANGED: "本地开发状态已经变化，请刷新后重试。",
   DEVELOPMENT_STATE_CONFLICT: "当前状态不允许启动或完成开发。",
   MERGE_REQUEST_NOT_MERGED: "该研发任务的合并请求尚未合并，请先在 GitLab 合并 MR 后再完成任务。",
+  DEVELOPMENT_REPOSITORY_MISSING: "该需求尚未绑定可用的 GitLab 仓库，无法开始开发。请在集成设置中完成连接与仓库绑定。",
   QA_STATE_CONFLICT: "当前测试状态不允许执行此操作。",
   WEBHOOK_REJECTED: "Webhook 校验失败或请求内容超过限制。",
   APPROVAL_REQUIRED: "此操作需要审批后才能继续。",

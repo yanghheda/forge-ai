@@ -1,10 +1,10 @@
 import { Alert, Button, Card, Form, Input, Select, Spin, Typography } from "@arco-design/web-react";
-import { IconLock } from "@arco-design/web-react/icon";
+import { IconLock, IconThunderbolt } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-import { getSetupStatus, initializeInstance, login, register, type InitializeInput, type RegisterInput } from "../api/auth-api";
+import { getSetupStatus, guestLogin, initializeInstance, login, register, type InitializeInput, type RegisterInput } from "../api/auth-api";
 import { initializeSchema, loginSchema, registerSchema } from "../schemas/auth-form.schema";
 import { AuthErrorAlert } from "./auth-error-alert";
 import { AuthLayout } from "./auth-layout";
@@ -72,6 +72,13 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
       setRegistered(true);
       setMode("login");
       setFieldErrors({});
+    },
+  });
+  const guestMutation = useMutation({
+    mutationFn: () => guestLogin(),
+    onSuccess: () => {
+      setFieldErrors({});
+      navigate("/overview", { replace: true });
     },
   });
 
@@ -309,6 +316,23 @@ export function AuthEntry({ initialMode = "login" }: { initialMode?: "login" | "
           >
             注册账号
           </Button>
+          {status.data.guestModeEnabled && (
+            <section className={styles.guestPanel} aria-label="游客模式">
+              <div className={styles.guestHint}>
+                <span className={styles.guestBadge}>
+                  <IconThunderbolt />
+                </span>
+                <div className={styles.guestCopy}>
+                  <b>游客模式 · 无需注册</b>
+                  <small>一键进入，包含产品 / UX / 开发 / 测试全部角色与各领域管理员权限，可尽情体验所有功能。</small>
+                </div>
+              </div>
+              <AuthErrorAlert error={guestMutation.error} />
+              <Button type="primary" long size="large" loading={guestMutation.isPending} onClick={() => guestMutation.mutate()}>
+                游客模式体验
+              </Button>
+            </section>
+          )}
         </Form>
       </Card>
     </AuthLayout>

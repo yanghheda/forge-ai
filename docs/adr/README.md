@@ -34,6 +34,7 @@ ADR 用于记录影响多个模块、长期演进或安全边界的架构决策�
 | [ADR-025](ADR-025-release-ownership-in-developer-domain.md) | Accepted | 发布写权限归属研发领域 |
 | [ADR-026](ADR-026-module-write-ownership-by-domain.md) | Accepted | 需求交付五模块写权限按领域收敛 |
 | [ADR-027](ADR-027-production-edge-entry.md) | Accepted | 生产环境经共享边缘 nginx 以独立子域名接入 ForgeAI |
+| [ADR-028](ADR-028-guest-demo-mode.md) | Accepted | 游客模式共享演示账号（跳过审核、持有四个领域基础角色与领域管理员角色） |
 
 ## 何时新增 ADR
 

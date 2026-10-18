@@ -256,3 +256,48 @@
   background: transparent !important;
   box-shadow: var(--forge-focus-ring) !important;
 }
+
+/* 登录页游客模式提示面板：浅蓝底 + 图标 + 说明 + CTA，让首次访问者一进入即可看到快速体验入口。 */
+.guestPanel {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px solid var(--forge-primary-2);
+  border-radius: 6px;
+  background: var(--forge-primary-1);
+}
+.guestHint {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.guestBadge {
+  display: grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--forge-primary-6);
+  background: #fff;
+  box-shadow: var(--forge-shadow-1);
+}
+.guestBadge svg {
+  font-size: 16px;
+}
+.guestCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.guestCopy b {
+  color: var(--forge-text-1);
+  font-size: 13px;
+  font-weight: 600;
+}
+.guestCopy small {
+  color: var(--forge-text-2);
+  font-size: 12px;
+  line-height: 1.6;
+}

@@ -52,6 +52,7 @@ const guardHintLabels: Record<string, string> = {
   "task:UX_TASK": "至少一个设计任务",
   "task:DEV_TASK": "至少一个开发任务",
   "task:QA_TASK": "至少一个测试任务",
+  activeRepositoryBinding: "已绑定可用的 GitLab 仓库",
   description: "需求描述",
   goal: "业务目标",
   inScope: "纳入范围",

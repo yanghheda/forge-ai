@@ -63,6 +63,12 @@ public class MybatisDevelopmentStore implements DevelopmentStore {
     }
 
     @Override
+    public boolean developmentContextAvailable(long organizationId, long devTaskId) {
+        /* 复用与 begin 相同的上下文查询，避免两套判定条件漂移。 */
+        return !mapper.findContext(organizationId, devTaskId).isEmpty();
+    }
+
+    @Override
     public WorkItem createDevTask(long organizationId, long actorId, long requirementId,
             String title, String description, Long assigneeUserId) {
         return workItems.createChild(organizationId, actorId, WorkItemType.DEV_TASK, requirementId,

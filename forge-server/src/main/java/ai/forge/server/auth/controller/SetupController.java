@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,15 +33,21 @@ public class SetupController {
     /* 初始化应用服务，承载唯一性判断、密码处理和原子写入。 */
     private final InstanceBootstrapService bootstrapService;
 
-    public SetupController(InstanceBootstrapService bootstrapService) {
+    /* 是否开放游客模式入口；决定状态响应是否提示前端展示游客入口。 */
+    private final boolean guestModeEnabled;
+
+    public SetupController(
+            InstanceBootstrapService bootstrapService,
+            @Value("${forge.auth.guest-mode-enabled:true}") boolean guestModeEnabled) {
         this.bootstrapService = bootstrapService;
+        this.guestModeEnabled = guestModeEnabled;
     }
 
     @GetMapping("/status")
     @Operation(summary = "查询初始化状态", description = "权限：无需登录；只读取实例是否已完成首次初始化。")
     @ApiResponse(responseCode = "200", description = "返回当前实例初始化状态")
     public SetupStatusResponse status() {
-        return new SetupStatusResponse(bootstrapService.isInitialized());
+        return new SetupStatusResponse(bootstrapService.isInitialized(), guestModeEnabled);
     }
 
     @PostMapping("/initialize")
@@ -91,6 +98,8 @@ public class SetupController {
 
     public record SetupStatusResponse(
             /* 为 true 时公开初始化入口已永久关闭，Web 应展示登录表单。 */
-            boolean initialized) {}
+            boolean initialized,
+            /* 为 true 时 Web 可在登录表单展示游客模式入口。 */
+            boolean guestModeEnabled) {}
 
 }

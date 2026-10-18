@@ -14,6 +14,7 @@ import ai.forge.server.workitem.domain.TransitionContext;
 import ai.forge.server.workitem.domain.TransitionDefinition;
 import ai.forge.server.workitem.domain.WorkItem;
 import ai.forge.server.workitem.domain.WorkItemEvent;
+import ai.forge.server.workitem.domain.WorkItemType;
 import ai.forge.server.workitem.domain.WorkflowAction;
 import ai.forge.server.workitem.domain.WorkflowGuardFailedException;
 import java.util.ArrayList;
@@ -270,6 +271,12 @@ public class RequirementTransitionService {
             LinkedHashSet<String> missing = new LinkedHashSet<>(policy.missing(item, definition.action()));
             TransitionContext context = new TransitionContext(item, null, null);
             definition.guards().forEach(guard -> missing.addAll(guard.evaluate(context).missing()));
+            /* 开始研发还要求公司已绑定可用 GitLab 仓库；这里只作为板面缺失材料提示，
+               真正的准入仍由开发启动接口判定，避免把集成配置缺失升级成流转硬拦截。 */
+            if (definition.action() == WorkflowAction.START && item.type() == WorkItemType.DEV_TASK
+                    && !policy.hasActiveRepositoryBinding(item.organizationId())) {
+                missing.add("activeRepositoryBinding");
+            }
             if (!missing.isEmpty()) {
                 guardHints.put(definition.action(), List.copyOf(missing));
             }

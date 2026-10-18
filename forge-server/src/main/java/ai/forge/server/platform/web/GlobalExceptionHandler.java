@@ -14,6 +14,7 @@ import ai.forge.server.gitlab.application.GitLabRemoteException;
 import ai.forge.server.gitlab.application.DevelopmentStateException;
 import ai.forge.server.gitlab.application.MergeRequestNotMergedException;
 import ai.forge.server.gitlab.application.RemoteResourceConflictException;
+import ai.forge.server.gitlab.application.RepositoryBindingMissingException;
 import ai.forge.server.gitlab.application.WebhookRejectedException;
 import ai.forge.server.gitlab.infrastructure.UnsafeGitLabUrlException;
 import ai.forge.server.qa.application.QaStateException;
@@ -273,6 +274,13 @@ public class GlobalExceptionHandler {
             MergeRequestNotMergedException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, ErrorCode.MERGE_REQUEST_NOT_MERGED,
                 "Merge request must be merged before the dev task can be completed", Map.of(), request);
+    }
+
+    @ExceptionHandler(RepositoryBindingMissingException.class)
+    public ResponseEntity<ApiError> handleRepositoryBindingMissing(
+            RepositoryBindingMissingException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ErrorCode.DEVELOPMENT_REPOSITORY_MISSING,
+                "The requirement has no active GitLab repository binding", Map.of(), request);
     }
 
     @ExceptionHandler(QaStateException.class)

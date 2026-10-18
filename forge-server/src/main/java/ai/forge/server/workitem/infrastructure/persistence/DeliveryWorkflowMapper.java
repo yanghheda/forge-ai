@@ -33,6 +33,11 @@ public interface DeliveryWorkflowMapper extends DeliveryWorkflowStore {
     @Select("SELECT user_id FROM requirement_executors WHERE organization_id=#{organizationId} AND requirement_id=#{requirementId} AND role_code=#{role} ORDER BY user_id")
     List<Long> executors(@Param("organizationId") long organizationId, @Param("requirementId") long requirementId, @Param("role") String role);
 
+    @Select("SELECT EXISTS(SELECT 1 FROM git_repositories r JOIN gitlab_connections c ON c.id=r.connection_id "
+            + "AND c.organization_id=r.organization_id AND c.status='ACTIVE' "
+            + "WHERE r.organization_id=#{organizationId} AND r.status='ACTIVE')")
+    boolean hasActiveRepositoryBinding(@Param("organizationId") long organizationId);
+
     @Delete("DELETE FROM requirement_executors WHERE organization_id=#{organizationId} AND requirement_id=#{requirementId} AND role_code=#{role}")
     void deleteExecutors(@Param("organizationId") long organizationId, @Param("requirementId") long requirementId, @Param("role") String role);
 

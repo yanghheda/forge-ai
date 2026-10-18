@@ -77,23 +77,34 @@ public class DemoSourceControlProvider implements SourceControlProvider {
             String idempotencyKey) {
         return mergeRequests.computeIfAbsent(
                 mergeRequestKey(context.repositoryId(), sourceBranch, targetBranch),
-                ignored -> new MergeRequest(
-                        0,
-                        context.task().organizationId(),
-                        context.repositoryId(),
-                        context.task().id(),
-                        18,
-                        title,
-                        sourceBranch,
-                        targetBranch,
-                        "merged",
-                        "https://gitlab.demo.invalid/demo/demo-shop/-/merge_requests/18",
-                        "32001",
-                        requireBranch(context.repositoryId(), sourceBranch).commitSha(),
-                        "can_be_merged",
-                        OBSERVED_AT,
-                        OBSERVED_AT,
-                        0));
+                ignored -> {
+                    long iid = mergeRequestIid(sourceBranch, targetBranch);
+                    return new MergeRequest(
+                            0,
+                            context.task().organizationId(),
+                            context.repositoryId(),
+                            context.task().id(),
+                            iid,
+                            title,
+                            sourceBranch,
+                            targetBranch,
+                            "merged",
+                            "https://gitlab.demo.invalid/demo/demo-shop/-/merge_requests/" + iid,
+                            "32001",
+                            requireBranch(context.repositoryId(), sourceBranch).commitSha(),
+                            "can_be_merged",
+                            OBSERVED_AT,
+                            OBSERVED_AT,
+                            0);
+                });
+    }
+
+    /* 同一仓库内的 MR IID 必须互不相同：本地 MR 快照以 (repository_id, remote_mr_iid) 唯一收敛，
+       若所有 Demo MR 复用同一 IID，多个 Dev Task 的 MR 会互相覆盖，导致 Pipeline 无法按分支关联。
+       取值只依赖分支名，保证同一分支多次调用得到稳定且可断言的 IID。 */
+    private static long mergeRequestIid(String sourceBranch, String targetBranch) {
+        int digest = (sourceBranch + "->" + targetBranch).hashCode();
+        return 100L + Math.abs(digest % 900);
     }
 
     @Override

@@ -126,6 +126,39 @@ class MemberRegistrationIntegrationTest extends InfrastructureIntegrationTestBas
     }
 
     @Test
+    void guestEntryCreatesActiveSharedAccountWithAllDomainRoles() {
+        ResponseEntity<String> first = csrf().post("/api/v1/auth/guest", null, null, String.class);
+
+        assertThat(first.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        String setCookie = first.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertThat(setCookie).isNotBlank();
+        String guestCookie = setCookie.substring(0, setCookie.indexOf(';'));
+        assertThat(csrf().get("/api/v1/me", guestCookie, String.class).getBody()).contains("guest@forge.demo");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM users WHERE normalized_email = 'guest@forge.demo'", String.class))
+                .isEqualTo("ACTIVE");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT om.status FROM organization_members om JOIN users u ON u.id = om.user_id "
+                        + "WHERE u.normalized_email = 'guest@forge.demo'",
+                String.class)).isEqualTo("ACTIVE");
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT r.code FROM member_roles mr JOIN roles r ON r.id = mr.role_id "
+                        + "JOIN organization_members om ON om.id = mr.organization_member_id "
+                        + "JOIN users u ON u.id = om.user_id WHERE u.normalized_email = 'guest@forge.demo'",
+                String.class))
+                .containsExactlyInAnyOrder(
+                        "PRODUCT", "UX", "DEVELOPER", "QA",
+                        "PRODUCT_ADMIN", "UX_ADMIN", "DEVELOPER_ADMIN", "QA_ADMIN");
+        assertThat(count("users")).isEqualTo(2);
+
+        assertThat(csrf().post("/api/v1/auth/guest", null, null, String.class).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(count("users")).isEqualTo(2);
+        assertThat(count("organization_members")).isEqualTo(2);
+        assertThat(count("member_roles")).isEqualTo(9);
+    }
+
+    @Test
     void updateMemberRejectsRemovedReleaseApproverRole() throws Exception {
         String ownerCookie = login("owner@example.com", "correct-horse-42");
         ResponseEntity<String> created = register("dev@example.com", "Dev Member", "dev-password-42", "DEVELOPER");

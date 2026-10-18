@@ -39,6 +39,24 @@ class DemoSourceControlProviderTest {
                 .doesNotContain("demo-token");
     }
 
+    @Test
+    void assignsDistinctStableMergeRequestIidsPerBranch() {
+        SourceControlProvider provider = new DemoSourceControlProvider();
+        DevelopmentContext context = context();
+        provider.createBranch(context, "feature/demo-first", "base-sha", "start-1");
+        provider.createBranch(context, "feature/demo-second", "base-sha", "start-2");
+
+        var first = provider.createMergeRequest(context, "feature/demo-first", "main", "第一个", "start-1");
+        var second = provider.createMergeRequest(context, "feature/demo-second", "main", "第二个", "start-2");
+
+        /* 本地 MR 快照以 (repository_id, remote_mr_iid) 唯一收敛，不同分支必须有不同 IID。 */
+        assertThat(first.remoteMrIid()).isNotEqualTo(second.remoteMrIid());
+        assertThat(first.webUrl()).contains("/merge_requests/" + first.remoteMrIid());
+        /* 同一分支重复调用仍返回同一 IID，保持可断言的确定性。 */
+        assertThat(provider.createMergeRequest(context, "feature/demo-first", "main", "第一个", "start-1").remoteMrIid())
+                .isEqualTo(first.remoteMrIid());
+    }
+
     private DevelopmentContext context() {
         WorkItem task = new WorkItem(
                 32013, 32004, 3, "DEMO-3", WorkItemType.DEV_TASK,

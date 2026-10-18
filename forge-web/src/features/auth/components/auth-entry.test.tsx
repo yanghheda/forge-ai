@@ -14,6 +14,7 @@ const authApi = vi.hoisted(() => ({
   getSetupStatus: vi.fn(),
   initializeInstance: vi.fn(),
   login: vi.fn(),
+  guestLogin: vi.fn(),
   register: vi.fn(),
   getCurrentUser: vi.fn(),
 }));
@@ -116,6 +117,30 @@ describe("AuthEntry", () => {
     await user.click(await screen.findByRole("button", { name: "注册账号" }));
     expect(screen.getByLabelText("岗位角色")).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "所有者" })).not.toBeInTheDocument();
+  });
+
+  it("开启游客模式时展示游客入口并直接进入概览", async () => {
+    authApi.getSetupStatus.mockResolvedValue({ initialized: true, guestModeEnabled: true });
+    authApi.guestLogin.mockResolvedValue(undefined);
+    render(<AuthEntry />, { wrapper });
+    const user = userEvent.setup();
+
+    expect(await screen.findByText(/游客模式 · 无需注册/)).toBeInTheDocument();
+    expect(screen.getByText(/包含产品 \/ UX \/ 开发 \/ 测试全部角色/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "游客模式体验" }));
+
+    await waitFor(() => expect(authApi.guestLogin).toHaveBeenCalled());
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/overview", { replace: true }));
+  });
+
+  it("关闭游客模式时不展示游客入口", async () => {
+    authApi.getSetupStatus.mockResolvedValue({ initialized: true, guestModeEnabled: false });
+    render(<AuthEntry />, { wrapper });
+
+    expect(await screen.findByRole("button", { name: "登录" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "游客模式体验" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/游客模式 · 无需注册/)).not.toBeInTheDocument();
   });
 
   it("登录与注册切换按钮使用无背景的纯文字样式", async () => {

@@ -39,6 +39,11 @@ public class DeliveryWorkflowPolicy {
         return leader(organizationId, requirementId, role, userId) || store.isExecutor(organizationId, requirementId, role, userId);
     }
 
+    /* 公司是否已绑定可用的 GitLab 仓库；供板面提示研发准入材料。 */
+    public boolean hasActiveRepositoryBinding(long organizationId) {
+        return store.hasActiveRepositoryBinding(organizationId);
+    }
+
     public boolean canAct(long userId, WorkItem item, WorkflowAction action) {
         long org = item.organizationId();
         if (item.type() != WorkItemType.REQUIREMENT) {

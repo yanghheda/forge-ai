@@ -51,6 +51,15 @@ class DevelopmentServiceTest {
     }
 
     @Test
+    void rejectsStartWhenRequirementHasNoRepositoryBinding() {
+        FakeStore store = new FakeStore();
+        store.developmentContextAvailable = false;
+
+        assertThatThrownBy(() -> service(store, new FakeProvider()).start(1L, 7L, 12L, "main", "idem-1"))
+                .isInstanceOf(RepositoryBindingMissingException.class);
+    }
+
+    @Test
     void reusesExistingSameShaBranchAndOpenMergeRequest() {
         FakeStore store = new FakeStore();
         FakeProvider provider = new FakeProvider();
@@ -198,6 +207,8 @@ class DevelopmentServiceTest {
         private String lastTargetBranch;
         private String lastIdempotencyKey;
         private String deferredErrorCode;
+        /* 是否具备可用开发上下文；用例可置为 false 验证缺少仓库绑定时的明确错误。 */
+        private boolean developmentContextAvailable = true;
 
         @Override
         public Optional<WorkItem> findWorkItem(long organizationId, long workItemId) {
@@ -208,6 +219,11 @@ class DevelopmentServiceTest {
         @Override
         public boolean hasActiveOrganizationMember(long organizationId, long userId) {
             return true;
+        }
+
+        @Override
+        public boolean developmentContextAvailable(long organizationId, long devTaskId) {
+            return developmentContextAvailable;
         }
 
         @Override

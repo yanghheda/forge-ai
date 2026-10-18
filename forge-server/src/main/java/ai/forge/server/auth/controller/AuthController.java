@@ -6,6 +6,8 @@ import ai.forge.server.auth.domain.AuthenticatedUser;
 import ai.forge.server.auth.domain.LoginCommand;
 import ai.forge.server.auth.domain.SessionPrincipal;
 import ai.forge.server.auth.domain.UnauthenticatedException;
+import ai.forge.server.common.domain.ResourceNotFoundException;
+import ai.forge.server.organization.application.OrganizationMemberService;
 import ai.forge.server.platform.web.RequestIdFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,6 +20,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.session.FindByIndexNameSessionRepository;
@@ -38,8 +41,19 @@ public class AuthController {
     /* 执行凭据验证、锁定状态更新与认证审计的应用服务。 */
     private final AuthenticationService authenticationService;
 
-    public AuthController(AuthenticationService authenticationService) {
+    /* 创建或复用共享游客演示账号的应用服务。 */
+    private final OrganizationMemberService memberService;
+
+    /* 是否开放游客模式入口；关闭时游客端点按资源不存在处理。 */
+    private final boolean guestModeEnabled;
+
+    public AuthController(
+            AuthenticationService authenticationService,
+            OrganizationMemberService memberService,
+            @Value("${forge.auth.guest-mode-enabled:true}") boolean guestModeEnabled) {
         this.authenticationService = authenticationService;
+        this.memberService = memberService;
+        this.guestModeEnabled = guestModeEnabled;
     }
 
     @GetMapping("/csrf")
@@ -59,14 +73,22 @@ public class AuthController {
     public ResponseEntity<Void> login(@Valid @RequestBody LoginRequest body, HttpServletRequest request) {
         AuthenticatedUser authenticated = authenticationService.authenticate(new LoginCommand(
                 body.email(), body.password(), request.getRemoteAddr(), requestId(request)));
-        HttpSession session = request.getSession(true);
-        request.changeSessionId();
-        SessionPrincipal principal = new SessionPrincipal(authenticated.userId(), Instant.now());
-        session.setAttribute(AuthenticationFilter.SESSION_PRINCIPAL_ATTRIBUTE, principal);
-        session.setAttribute(
-                FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME,
-                Long.toString(authenticated.userId()));
-        return ResponseEntity.noContent().build();
+        return establishSession(request, authenticated.userId());
+    }
+
+    @PostMapping("/guest")
+    @Operation(
+            summary = "游客模式进入",
+            description = "权限：公开且需实例已初始化；创建或复用共享游客账号并立即建立服务端 Session。")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "共享游客账号就绪且 Redis Session 已建立"),
+        @ApiResponse(responseCode = "404", description = "游客模式已关闭或实例尚未初始化")
+    })
+    public ResponseEntity<Void> guest(HttpServletRequest request) {
+        if (!guestModeEnabled) {
+            throw new ResourceNotFoundException();
+        }
+        return establishSession(request, memberService.ensureGuestAccount());
     }
 
     @PostMapping("/logout")
@@ -88,6 +110,17 @@ public class AuthController {
             return context;
         }
         throw new UnauthenticatedException();
+    }
+
+    /* 在既有 Session 上轮换标识并写入最小认证主体，供登录与游客模式共用。 */
+    private ResponseEntity<Void> establishSession(HttpServletRequest request, long userId) {
+        HttpSession session = request.getSession(true);
+        request.changeSessionId();
+        session.setAttribute(
+                AuthenticationFilter.SESSION_PRINCIPAL_ATTRIBUTE, new SessionPrincipal(userId, Instant.now()));
+        session.setAttribute(
+                FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME, Long.toString(userId));
+        return ResponseEntity.noContent().build();
     }
 
     private String requestId(HttpServletRequest request) {

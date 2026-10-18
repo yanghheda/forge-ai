@@ -33,6 +33,7 @@ public class MybatisOrganizationStore implements OrganizationStore {
     }
 
     @Override public Optional<Long> findOrganizationId() { return mapper.findOrganizationId().stream().findFirst(); }
+    @Override public Optional<Long> findOwnerUserId(long organizationId) { return mapper.findOwnerUserId(organizationId).stream().findFirst(); }
     @Override public boolean userExists(String normalizedEmail) { return mapper.userExists(normalizedEmail); }
     @Override public Optional<Long> findSystemRoleId(String roleCode) { return mapper.findSystemRoleId(roleCode).stream().findFirst(); }
 
@@ -46,6 +47,19 @@ public class MybatisOrganizationStore implements OrganizationStore {
         mapper.insertPendingMember(organizationId, userId);
         long memberId = mapper.lastInsertId();
         mapper.insertRole(memberId, roleId);
+        return userId;
+    }
+
+    @Override
+    @Transactional
+    public long ensureActiveAccount(
+            String email, String normalizedEmail, String displayName, String passwordHash, List<Long> roleIds) {
+        long organizationId = findOrganizationId().orElseThrow(ResourceNotFoundException::new);
+        mapper.upsertActiveUser(email, normalizedEmail, displayName, passwordHash);
+        long userId = mapper.lastInsertId();
+        mapper.upsertActiveMember(organizationId, userId);
+        long memberId = mapper.lastInsertId();
+        roleIds.forEach(roleId -> mapper.upsertMemberRole(memberId, roleId));
         return userId;
     }
 

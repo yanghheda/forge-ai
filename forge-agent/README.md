@@ -23,7 +23,7 @@ FORGE_AGENT_PYTHON=forge-agent/.venv/bin/python make contracts-check
 ```bash
 export FORGE_AGENT_MODEL_PROVIDER=qwen
 export FORGE_AGENT_QWEN_API_KEY='<百炼 API Key>'
-export FORGE_AGENT_QWEN_MODEL=qwen-plus
+export FORGE_AGENT_QWEN_MODEL=qwen3.8-omni-flash
 ```
 
 默认地址是北京地域的

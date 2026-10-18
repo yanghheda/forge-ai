@@ -11,6 +11,9 @@ public interface DevelopmentStore {
 
     boolean hasActiveOrganizationMember(long organizationId, long userId);
 
+    /* 判断 Dev Task 是否已具备可用的开发上下文（需求处于研发中且公司存在 ACTIVE 的仓库连接与凭据）。 */
+    boolean developmentContextAvailable(long organizationId, long devTaskId);
+
     WorkItem createDevTask(long organizationId, long actorId, long requirementId,
             String title, String description, Long assigneeUserId);
 

@@ -6,6 +6,7 @@ interface RequestClient {
 
 export interface SetupStatus {
   initialized: boolean;
+  guestModeEnabled: boolean;
 }
 
 export interface InitializeInput {
@@ -60,6 +61,10 @@ export function initializeInstance(input: InitializeInput, client: RequestClient
 
 export function login(input: LoginInput, client: RequestClient = apiClient): Promise<void> {
   return client.request("/v1/auth/login", jsonRequest("POST", input));
+}
+
+export function guestLogin(client: RequestClient = apiClient): Promise<void> {
+  return client.request("/v1/auth/guest", { method: "POST" });
 }
 
 export function register(input: RegisterInput, client: RequestClient = apiClient): Promise<{ userId: number }> {

@@ -21,6 +21,9 @@ public interface OrganizationMapper {
     @Select("SELECT default_organization_id FROM instance_settings WHERE id=1 AND initialized_at IS NOT NULL")
     List<Long> findOrganizationId();
 
+    @Select("SELECT owner_user_id FROM organizations WHERE id=#{organizationId}")
+    List<Long> findOwnerUserId(@Param("organizationId") long organizationId);
+
     @Select("SELECT EXISTS(SELECT 1 FROM users WHERE normalized_email=#{email})")
     boolean userExists(@Param("email") String normalizedEmail);
 
@@ -45,6 +48,30 @@ public interface OrganizationMapper {
     @Insert("INSERT INTO member_roles (organization_member_id,role_id,created_at) "
             + "VALUES (#{memberId},#{roleId},UTC_TIMESTAMP(6))")
     int insertRole(@Param("memberId") long memberId, @Param("roleId") long roleId);
+
+    /* 以规范化邮箱为唯一键写入游客账号；命中既有账号时不覆盖密码摘要，仅确保其重新可用。
+       ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id) 使 lastInsertId 在新建与复用两种情况下都返回同一用户标识。 */
+    @Insert("INSERT INTO users (email,normalized_email,display_name,password_hash,status,created_at,updated_at) "
+            + "VALUES (#{email},#{normalizedEmail},#{displayName},#{passwordHash},'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)) "
+            + "ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),status='ACTIVE',updated_at=UTC_TIMESTAMP(6)")
+    int upsertActiveUser(
+            @Param("email") String email,
+            @Param("normalizedEmail") String normalizedEmail,
+            @Param("displayName") String displayName,
+            @Param("passwordHash") String passwordHash);
+
+    /* 以 (公司,用户) 为唯一键写入 ACTIVE 游客成员关系；已存在的成员关系保留原加入时间并恢复为 ACTIVE。 */
+    @Insert("INSERT INTO organization_members (organization_id,user_id,status,joined_at,created_at,updated_at,version) "
+            + "VALUES (#{organizationId},#{userId},'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0) "
+            + "ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),status='ACTIVE',"
+            + "joined_at=COALESCE(joined_at,UTC_TIMESTAMP(6)),updated_at=UTC_TIMESTAMP(6)")
+    int upsertActiveMember(@Param("organizationId") long organizationId, @Param("userId") long userId);
+
+    /* 幂等补齐游客成员的角色分配；重复分配依赖唯一键收敛为同一行而不新增。 */
+    @Insert("INSERT INTO member_roles (organization_member_id,role_id,created_at) "
+            + "VALUES (#{memberId},#{roleId},UTC_TIMESTAMP(6)) "
+            + "ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)")
+    int upsertMemberRole(@Param("memberId") long memberId, @Param("roleId") long roleId);
 
     @Select("SELECT u.id AS user_id,u.display_name,u.email,om.status,u.last_login_at,om.version,"
             + "GROUP_CONCAT(DISTINCT r.code ORDER BY r.code) AS roles "

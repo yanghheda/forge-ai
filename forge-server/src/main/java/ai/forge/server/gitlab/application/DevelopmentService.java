@@ -58,6 +58,10 @@ public class DevelopmentService {
         permissions.requireOrganization(userId, organizationId, "repo.read");
         WorkItem task = store.findWorkItem(organizationId, devTaskId).orElseThrow(ResourceNotFoundException::new);
         policy.requireAction(userId, task, ai.forge.server.workitem.domain.WorkflowAction.START);
+        /* 缺少开发上下文时给出明确业务错误，避免把“未绑定 GitLab 仓库”误报成无权访问。 */
+        if (!store.developmentContextAvailable(organizationId, devTaskId)) {
+            throw new RepositoryBindingMissingException();
+        }
         return startScoped(organizationId, devTaskId, requestedTargetBranch, idempotencyKey);
     }
 

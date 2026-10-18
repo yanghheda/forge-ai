@@ -43,6 +43,7 @@ forge:
     account-lock-duration: ${FORGE_ACCOUNT_LOCK_DURATION:15m}
     rate-limit-attempts: ${FORGE_LOGIN_RATE_LIMIT_ATTEMPTS:10}
     rate-limit-window: ${FORGE_LOGIN_RATE_LIMIT_WINDOW:5m}
+    guest-mode-enabled: ${FORGE_GUEST_MODE_ENABLED:true}
   redis:
     namespace: ${FORGE_REDIS_NAMESPACE:forge}
   infrastructure:

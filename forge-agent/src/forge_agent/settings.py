@@ -31,7 +31,7 @@ class AgentSettings(BaseSettings):
         default="https://dashscope.aliyuncs.com/compatible-mode/v1",
         min_length=1,
     )
-    qwen_model: str = Field(default="qwen-plus", min_length=1)
+    qwen_model: str = Field(default="qwen3.8-omni-flash", min_length=1)
     qwen_timeout_seconds: float = Field(default=60.0, gt=0, le=120)
     qwen_max_attempts: int = Field(default=2, ge=1, le=3)
     qwen_retry_backoff_seconds: float = Field(default=0.25, ge=0, le=5)
